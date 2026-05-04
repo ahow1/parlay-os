@@ -103,7 +103,7 @@ def run_mega_scout():
     print(f"[{datetime.now(ET).strftime('%H:%M ET')}] Running scout for {today}...")
 
     response = client.messages.create(
-        model="claude-sonnet-4-5",
+        model="claude-opus-4-5",
         max_tokens=3000,
         tools=[{"type": "web_search_20250305", "name": "web_search"}],
         system=SYSTEM_PROMPT,
