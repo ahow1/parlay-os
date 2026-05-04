@@ -58,7 +58,7 @@ def run_mega_scout():
         system=SYSTEM_PROMPT,
         messages=[{
             "role": "user",
-            "content": f"Search MLB games for {today} not yet started. Find SPs, odds, records. Score every game. Return only the JSON object."
+            "content": f"Search MLB games for {today} not yet started. Find whatever data you can for each game. Use best estimates if some data is missing. You MUST return a valid JSON object even if some fields are incomplete. Fill missing fields with empty strings. Never return plain text. Always return JSON."
         }]
     )
 
