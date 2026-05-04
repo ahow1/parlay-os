@@ -1,0 +1,80 @@
+name: MLB Mega Scout
+
+on:
+  schedule:
+    - cron: "0 17 * * *"
+    - cron: "0 22 * * *"
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'scout or clv_tracker'
+        required: true
+        default: 'scout'
+        type: choice
+        options: [scout, clv_tracker]
+
+jobs:
+  scout:
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'scout') ||
+      (github.event_name == 'schedule' && (github.event.schedule == '0 17 * * *' || github.event.schedule == '0 22 * * *'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install anthropic requests pytz
+      - name: Run Scout
+        env:
+          ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scout.py
+      - name: Save outputs
+        run: |
+          git config --local user.email "parlayos@bot.com"
+          git config --local user.name "Parlay OS"
+          git add last_scout.json clv_log.json || true
+          git diff --staged --quiet || git commit -m "Scout $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scout-${{ github.run_number }}
+          path: last_scout.json
+          retention-days: 30
+
+  clv_tracker:
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'clv_tracker') ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install anthropic requests pytz
+      - name: Run CLV Tracker
+        env:
+          ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python clv_tracker.py
+      - name: Save CLV data
+        run: |
+          git config --local user.email "parlayos@bot.com"
+          git config --local user.name "Parlay OS"
+          git add clv_log.json bet_history.json || true
+          git diff --staged --quiet || git commit -m "CLV resolved $(date -u '+%Y-%m-%d')"
+          git push || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: clv-${{ github.run_number }}
+          path: |
+            clv_log.json
+            bet_history.json
+          retention-days: 60
