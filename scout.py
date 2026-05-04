@@ -48,7 +48,7 @@ def run_mega_scout():
             "role": "user",
             "content": (
                 f"Today is {today}. Search for all MLB games today that have not started yet. "
-                "For each game find the starting pitchers, moneyline odds, team records, and recent form. "
+                "Score every game but only return the TOP 5 games in the JSON. Keep analysis fields very short. Return JSON only."
                 "Score every game. Return JSON only."
             )
         }]
