@@ -195,7 +195,7 @@ def run_mega_scout():
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     print(f"[{datetime.now(ET).strftime('%H:%M ET')}] Running mega scout for {today}...")
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-5",
         max_tokens=4000,
         tools=[{"type": "web_search_20250305", "name": "web_search"}],
         system=SYSTEM_PROMPT,
