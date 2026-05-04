@@ -38,8 +38,8 @@ Return ONLY valid JSON. No text outside the JSON. No apostrophes in strings."""
 def run_mega_scout():
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     print(f"[{datetime.now(ET).strftime('%H:%M ET')}] Running scout for {today}...")
-import time
-time.sleep(60)
+    import time
+    time.sleep(60)
     response = client.messages.create(
         model="claude-sonnet-4-5",
         max_tokens=4096,
