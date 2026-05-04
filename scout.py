@@ -49,8 +49,7 @@ def run_mega_scout():
             "content": (
                 f"Today is {today}. Search for all MLB games today that have not started yet. "
                 "For each game find the starting pitchers, moneyline odds, team records, and recent form. "
-                "Score every game using the model. Return this JSON structure with real data:\n"
-                '{"date":"","verdict":"","note":"","games":[{"away":"","home":"","time":"","away_record":"","home_record":"","asp":"","asp_era":"","hsp":"","hsp_era":"","aml":"","hml":"","score":0,"tag":"","pick":"","pick_odds":"","analysis":"","edge1":"","risk1":"","f5_pick":"","nrfi":"no","nrfi_odds":"","k_prop":"","total":"","clv_timing":""}],"locks":[],"coinflips":[],"passes":[],"parlay_legs":[],"parlay_odds":"","session_note":""}'
+                "Score every game. Return JSON only."
             )
         }]
     )
