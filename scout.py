@@ -211,10 +211,16 @@ def run_mega_scout():
     )
     raw = "".join(b.text for b in response.content if b.type == "text")
     raw = raw.replace("```json","").replace("```","").strip()
-    s, e = raw.find("{"), raw.rfind("}")
-    if s == -1 or e == -1:
-        raise ValueError(f"No JSON in response: {raw[:200]}")
-    data = json.loads(raw[s:e+1])
+        s, e = raw.find("{"), raw.rfind("}")
+        if s == -1 or e == -1:
+            raise ValueError(f"No JSON in response: {raw[:200]}")
+        try:
+            data = json.loads(raw[s:e+1])
+        except json.JSONDecodeError:
+            import re
+            raw_clean = re.sub(r'[\x00-\x1f\x7f]', '', raw[s:e+1])
+            raw_clean = re.sub(r',(\s*[}\]])', r'\1', raw_clean)
+            data = json.loads(raw_clean)
     print(f"[{datetime.now(ET).strftime('%H:%M ET')}] Scout complete — {len(data.get('games',[]))} games")
     return data
 
