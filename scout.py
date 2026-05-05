@@ -32,7 +32,7 @@ Best bullpens: TOR, MIL, CLE, LAD. Worst: WAS, HOU, CWS, CIN.
 
 Score each game 0-100: SP 25%, Bullpen 20%, Offense 18%, Run Diff 12%, Platoon 8%, Injury 7%, Home/Road 5%, Park 3%, Line 2%. 70+ is LOCK, 50-69 is CF, under 50 is PASS.
 
-Return ONLY valid JSON always. Even if data is incomplete or conflicting use best estimates. Never refuse. Fill unknown fields with empty strings. No apostrophes in strings."""
+Return ONLY valid JSON always. Even if data is incomplete use best estimates. Never refuse or return plain text. Fill unknown fields with empty strings. No apostrophes in strings."""
 
 
 def run_mega_scout():
@@ -42,7 +42,7 @@ def run_mega_scout():
     print(f"[{datetime.now(ET).strftime('%H:%M ET')}] Running scout for {today}...")
 
     response = client.messages.create(
-        model="claude-haiku-4-5-20251001",
+        model="claude-sonnet-4-5",
         max_tokens=4096,
         tools=[{"type": "web_search_20250305", "name": "web_search"}],
         system=SYSTEM_PROMPT,
@@ -88,8 +88,8 @@ def format_message(data, clv_stats=None):
     cfs    = data.get("coinflips", [])
     passes = data.get("passes", [])
 
-    if locks:  m1.append(f"LOCKS: {', '.join([l if isinstance(l, str) else l.get('pick','') for l in locks])}")
-    if cfs:    m1.append(f"COIN FLIPS: {', '.join(cfs)}")
+    if locks:  m1.append(f"LOCKS: {', '.join([l if isinstance(l, str) else str(l.get('pick','')) for l in locks])}")
+    if cfs:    m1.append(f"COIN FLIPS: {', '.join([l if isinstance(l, str) else str(l.get('pick','')) for l in cfs])}")
     if passes: m1.append(f"PASS: {', '.join(passes)}")
 
     legs = data.get("parlay_legs", [])
@@ -187,7 +187,9 @@ def main():
 
         entries = []
         for pick in data.get("locks", []) + data.get("coinflips", []):
-            parts = pick.split(" ") if isinstance(pick, str) else []
+            if isinstance(pick, dict): pick = pick.get("pick","") or pick.get("team","")
+            if not isinstance(pick, str) or not pick: continue
+            parts = pick.split(" ")
             odds  = parts[-1] if parts else ""
             entries.append({
                 "date":         today,
