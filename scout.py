@@ -32,7 +32,7 @@ Best bullpens: TOR, MIL, CLE, LAD. Worst: WAS, HOU, CWS, CIN.
 
 Score each game 0-100: SP 25%, Bullpen 20%, Offense 18%, Run Diff 12%, Platoon 8%, Injury 7%, Home/Road 5%, Park 3%, Line 2%. 70+ is LOCK, 50-69 is CF, under 50 is PASS.
 
-Return ONLY valid JSON. No text outside the JSON. No apostrophes in strings. Keep all string values short."""
+Return ONLY valid JSON always. Even if data is incomplete or conflicting use best estimates. Never refuse. Fill unknown fields with empty strings. No apostrophes in strings."""
 
 
 def run_mega_scout():
