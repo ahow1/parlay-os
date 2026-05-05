@@ -2,9 +2,9 @@ name: MLB Mega Scout
 
 on:
   schedule:
-    - cron: "0 17 * * *"
-    - cron: "0 22 * * *"
-    - cron: "0 3 * * *"
+    - cron: '0 17 * * *'   # 1PM ET
+    - cron: '0 22 * * *'   # 6PM ET
+    - cron: '0 3 * * *'    # 11PM ET
   workflow_dispatch:
     inputs:
       job:
@@ -23,28 +23,28 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
+
       - run: pip install anthropic requests pytz
+
       - name: Run Scout
         env:
-          ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python scout.py
-      - name: Save outputs
+
+      - name: Commit JSON outputs
         run: |
-          git config --local user.email "parlayos@bot.com"
-          git config --local user.name "Parlay OS"
-          git add last_scout.json clv_log.json || true
-          git diff --staged --quiet || git commit -m "Scout $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git config user.name "Parlay OS Bot"
+          git config user.email "bot@parlay-os.com"
+          git add last_scout.json clv_log.json bankroll.json bet_history.json model_lessons.json || true
+          git diff --staged --quiet || git commit -m "Scout update $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push || true
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: scout-${{ github.run_number }}
-          path: last_scout.json
-          retention-days: 30
 
   clv_tracker:
     if: >
@@ -54,27 +54,25 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
+
       - run: pip install anthropic requests pytz
+
       - name: Run CLV Tracker
         env:
-          ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python clv_tracker.py
-      - name: Save CLV data
+
+      - name: Commit JSON outputs
         run: |
-          git config --local user.email "parlayos@bot.com"
-          git config --local user.name "Parlay OS"
-          git add clv_log.json bet_history.json || true
-          git diff --staged --quiet || git commit -m "CLV resolved $(date -u '+%Y-%m-%d')"
+          git config user.name "Parlay OS Bot"
+          git config user.email "bot@parlay-os.com"
+          git add clv_log.json bankroll.json bet_history.json model_lessons.json || true
+          git diff --staged --quiet || git commit -m "CLV update $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push || true
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: clv-${{ github.run_number }}
-          path: |
-            clv_log.json
-            bet_history.json
-          retention-days: 60
