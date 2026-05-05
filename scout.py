@@ -88,7 +88,7 @@ def format_message(data, clv_stats=None):
     cfs    = data.get("coinflips", [])
     passes = data.get("passes", [])
 
-    if locks:  m1.append(f"LOCKS: {', '.join(locks)}")
+    if locks:  m1.append(f"LOCKS: {', '.join([l if isinstance(l, str) else l.get('pick','') for l in locks])}")
     if cfs:    m1.append(f"COIN FLIPS: {', '.join(cfs)}")
     if passes: m1.append(f"PASS: {', '.join(passes)}")
 
