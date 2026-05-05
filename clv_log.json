@@ -16,5 +16,41 @@
     "closing_odds": null,
     "result": null,
     "clv_pct": null
+  },
+  {
+    "date": "Tuesday, May 05, 2026",
+    "bet": "LAD (-239) vs HOU: Ohtani 0.60 ERA is historic. HOU bullpen 6.31 ERA fade. Score 92.",
+    "type": "ML",
+    "bet_odds": "92.",
+    "closing_odds": null,
+    "result": null,
+    "clv_pct": null
+  },
+  {
+    "date": "Tuesday, May 05, 2026",
+    "bet": "STL (-110) vs MIL: Sproat 6.75 ERA vs Pallante 3.73 ERA. Cardinals power vs weak pitcher. Score 71.",
+    "type": "ML",
+    "bet_odds": "71.",
+    "closing_odds": null,
+    "result": null,
+    "clv_pct": null
+  },
+  {
+    "date": "Tuesday, May 05, 2026",
+    "bet": "TEX (+100) vs NYY: deGrom elite but Yankees roll at home. Run diff +1.75 huge but Yanks bullpen solid. Score 58.",
+    "type": "ML",
+    "bet_odds": "58.",
+    "closing_odds": null,
+    "result": null,
+    "clv_pct": null
+  },
+  {
+    "date": "Tuesday, May 05, 2026",
+    "bet": "ATL (+110) vs SEA: Braves best record, Elder 1.88 ERA elite. Kirby solid. Mariners home. Score 60.",
+    "type": "ML",
+    "bet_odds": "60.",
+    "closing_odds": null,
+    "result": null,
+    "clv_pct": null
   }
 ]
