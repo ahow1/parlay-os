@@ -187,7 +187,7 @@ def main():
 
         entries = []
         for pick in data.get("locks", []) + data.get("coinflips", []):
-            parts = pick.split(" ")
+            parts = pick.split(" ") if isinstance(pick, str) else []
             odds  = parts[-1] if parts else ""
             entries.append({
                 "date":         today,
