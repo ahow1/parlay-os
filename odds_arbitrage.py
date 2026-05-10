@@ -243,48 +243,60 @@ def fetch_kalshi():
 # ─── FETCH: POLYMARKET ─────────────────────────────────────────────────────────
 
 def fetch_polymarket():
-    """Pull open MLB markets from Polymarket gamma API."""
+    """Pull open MLB markets from Polymarket Gamma API (events endpoint)."""
     results = {}
     try:
         r = requests.get(
-            "https://gamma-api.polymarket.com/markets",
-            params={"active": "true", "closed": "false",
-                    "tag_slug": "baseball", "limit": 100},
+            "https://gamma-api.polymarket.com/events",
+            params={"tag_slug": "mlb", "closed": "false"},
             timeout=15)
-        if r.status_code != 200:
-            r = requests.get(
-                "https://gamma-api.polymarket.com/markets",
-                params={"active": "true", "closed": "false", "q": "MLB", "limit": 100},
-                timeout=15)
         r.raise_for_status()
-        markets = r.json() if isinstance(r.json(), list) else r.json().get("markets", [])
+        data = r.json()
+        events = data if isinstance(data, list) else data.get("events", [])
 
-        for mkt in markets:
-            question = mkt.get("question", "") + " " + mkt.get("description", "")
-            if DATE not in question and NOW.strftime("%B %d") not in question:
-                continue
+        for event in events:
+            for mkt in event.get("markets", []):
+                question = mkt.get("question", "")
 
-            outcomes      = mkt.get("outcomes", [])
-            outcome_prices = mkt.get("outcomePrices", [])
-            if not outcomes or not outcome_prices:
-                continue
-
-            for i, outcome in enumerate(outcomes):
+                # Gamma API returns outcomes/outcomePrices as JSON-encoded strings
                 try:
-                    price = float(outcome_prices[i]) if i < len(outcome_prices) else None
-                except (TypeError, ValueError):
-                    price = None
-                if price is None:
+                    outcomes = json.loads(mkt.get("outcomes", "[]"))
+                except (ValueError, TypeError):
+                    outcomes = mkt.get("outcomes", []) or []
+                try:
+                    prices = json.loads(mkt.get("outcomePrices", "[]"))
+                except (ValueError, TypeError):
+                    prices = mkt.get("outcomePrices", []) or []
+
+                if not outcomes or not prices or len(outcomes) != len(prices):
                     continue
 
-                abr = team_abr(str(outcome))
-                if abr and len(abr) <= 3:
-                    results[abr] = {
-                        "source": "polymarket",
-                        "market_id": mkt.get("id", ""),
-                        "question": question[:80],
-                        "win_p": round(float(price), 4),
-                    }
+                for i, outcome in enumerate(outcomes):
+                    try:
+                        price = float(prices[i])
+                    except (TypeError, ValueError):
+                        continue
+
+                    outcome_str = str(outcome)
+                    if outcome_str.lower() not in ("yes", "no"):
+                        # Named-team outcome (e.g. "New York Yankees")
+                        abr = team_abr(outcome_str)
+                    elif outcome_str.lower() == "yes":
+                        # Binary market — extract team from question title
+                        abr = team_abr(question)
+                    else:
+                        continue
+
+                    if not abr or len(abr) > 3:
+                        continue
+
+                    if abr not in results or price > results[abr]["win_p"]:
+                        results[abr] = {
+                            "source": "polymarket",
+                            "market_id": mkt.get("id", ""),
+                            "question": question[:80],
+                            "win_p": round(price, 4),
+                        }
 
         print(f"Polymarket: {len(results)} MLB team contracts found")
     except Exception as e:
