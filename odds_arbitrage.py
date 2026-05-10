@@ -242,23 +242,74 @@ def fetch_kalshi():
 
 # ─── FETCH: POLYMARKET ─────────────────────────────────────────────────────────
 
+# Keywords that identify futures/season-long markets — reject these outright.
+_FUTURES_KEYWORDS = {
+    "world-series", "world series",
+    "championship", "pennant",
+    "al-champion", "nl-champion",
+    "division", "al-east", "al-west", "al-central",
+    "nl-east", "nl-west", "nl-central",
+    "playoffs", "postseason", "wildcard", "wild-card",
+    "mvp", "cy-young", "season-wins", "most-wins",
+    "make-postseason", "win-the",
+}
+
+
+def _is_game_event(event):
+    """
+    Return True only for single-game events.
+
+    Polymarket game slugs follow the pattern:
+        mlb-{away-team}-{home-team}-YYYY-MM-DD
+
+    They always end with today's date.  Futures slugs (division winner,
+    AL/NL champion, World Series, etc.) never end with a single-game date.
+    """
+    slug = (event.get("slug") or "").lower()
+    title = (event.get("title") or event.get("name") or "").lower()
+
+    # Primary gate: slug must end with today's date
+    if not slug.endswith(DATE):
+        return False
+
+    # Secondary gate: reject any known futures keyword in slug or title
+    combined = slug + " " + title
+    for kw in _FUTURES_KEYWORDS:
+        if kw in combined:
+            return False
+
+    return True
+
+
 def fetch_polymarket():
-    """Pull open MLB markets from Polymarket Gamma API (events endpoint)."""
+    """Pull today's MLB game markets from Polymarket Gamma API.
+
+    Only returns markets where:
+      - The event slug ends with today's date (YYYY-MM-DD)
+      - The slug contains no futures/season-long keywords
+      - The market has exactly 2 outcomes, both named teams (not Yes/No)
+    """
     results = {}
     try:
         r = requests.get(
             "https://gamma-api.polymarket.com/events",
-            params={"tag_slug": "mlb", "closed": "false"},
+            params={"tag_slug": "mlb", "closed": "false", "active": "true", "limit": 300},
             timeout=15)
         r.raise_for_status()
         data = r.json()
         events = data if isinstance(data, list) else data.get("events", [])
 
+        total_scanned = 0
         for event in events:
+            total_scanned += 1
+            if not _is_game_event(event):
+                continue
+
+            slug = event.get("slug", "")
             for mkt in event.get("markets", []):
                 question = mkt.get("question", "")
 
-                # Gamma API returns outcomes/outcomePrices as JSON-encoded strings
+                # Gamma API encodes outcomes/outcomePrices as JSON strings
                 try:
                     outcomes = json.loads(mkt.get("outcomes", "[]"))
                 except (ValueError, TypeError):
@@ -271,34 +322,39 @@ def fetch_polymarket():
                 if not outcomes or not prices or len(outcomes) != len(prices):
                     continue
 
+                # Game markets have exactly 2 named-team outcomes.
+                # Any other count (1, 3, 30 …) is a futures or prop market.
+                if len(outcomes) != 2:
+                    continue
+
+                # Both outcomes must be team names, not "Yes"/"No".
+                # A Yes/No market here is a futures binary ("Will Yankees win WS?"),
+                # never a game matchup — skip it entirely.
+                if any(str(o).lower() in ("yes", "no") for o in outcomes):
+                    continue
+
                 for i, outcome in enumerate(outcomes):
                     try:
                         price = float(prices[i])
                     except (TypeError, ValueError):
                         continue
 
-                    outcome_str = str(outcome)
-                    if outcome_str.lower() not in ("yes", "no"):
-                        # Named-team outcome (e.g. "New York Yankees")
-                        abr = team_abr(outcome_str)
-                    elif outcome_str.lower() == "yes":
-                        # Binary market — extract team from question title
-                        abr = team_abr(question)
-                    else:
-                        continue
-
+                    abr = team_abr(str(outcome))
                     if not abr or len(abr) > 3:
                         continue
 
+                    # Keep the entry with the higher price (best available)
                     if abr not in results or price > results[abr]["win_p"]:
                         results[abr] = {
                             "source": "polymarket",
                             "market_id": mkt.get("id", ""),
                             "question": question[:80],
+                            "slug": slug,
                             "win_p": round(price, 4),
                         }
 
-        print(f"Polymarket: {len(results)} MLB team contracts found")
+        print(f"Polymarket: scanned {total_scanned} events → "
+              f"{len(results)} game contracts for {DATE}")
     except Exception as e:
         print(f"Polymarket err: {e}")
     return results
