@@ -242,121 +242,142 @@ def fetch_kalshi():
 
 # ─── FETCH: POLYMARKET ─────────────────────────────────────────────────────────
 
-# Keywords that identify futures/season-long markets — reject these outright.
-_FUTURES_KEYWORDS = {
-    "world-series", "world series",
-    "championship", "pennant",
-    "al-champion", "nl-champion",
-    "division", "al-east", "al-west", "al-central",
-    "nl-east", "nl-west", "nl-central",
-    "playoffs", "postseason", "wildcard", "wild-card",
-    "mvp", "cy-young", "season-wins", "most-wins",
-    "make-postseason", "win-the",
+# Full team name → Polymarket slug segment, matching the URL pattern:
+# polymarket.com/sports/mlb/mlb-{away_slug}-{home_slug}-YYYY-MM-DD
+TEAM_SLUGS = {
+    "AZ":  "arizona-diamondbacks",
+    "ATL": "atlanta-braves",
+    "BAL": "baltimore-orioles",
+    "BOS": "boston-red-sox",
+    "CHC": "chicago-cubs",
+    "CWS": "chicago-white-sox",
+    "CIN": "cincinnati-reds",
+    "CLE": "cleveland-guardians",
+    "COL": "colorado-rockies",
+    "DET": "detroit-tigers",
+    "HOU": "houston-astros",
+    "KC":  "kansas-city-royals",
+    "LAA": "los-angeles-angels",
+    "LAD": "los-angeles-dodgers",
+    "MIA": "miami-marlins",
+    "MIL": "milwaukee-brewers",
+    "MIN": "minnesota-twins",
+    "NYM": "new-york-mets",
+    "NYY": "new-york-yankees",
+    "ATH": "oakland-athletics",
+    "PHI": "philadelphia-phillies",
+    "PIT": "pittsburgh-pirates",
+    "SD":  "san-diego-padres",
+    "SF":  "san-francisco-giants",
+    "SEA": "seattle-mariners",
+    "STL": "st-louis-cardinals",
+    "TB":  "tampa-bay-rays",
+    "TEX": "texas-rangers",
+    "TOR": "toronto-blue-jays",
+    "WAS": "washington-nationals",
 }
 
 
-def _is_game_event(event):
-    """
-    Return True only for single-game events.
-
-    Polymarket game slugs follow the pattern:
-        mlb-{away-team}-{home-team}-YYYY-MM-DD
-
-    They always end with today's date.  Futures slugs (division winner,
-    AL/NL champion, World Series, etc.) never end with a single-game date.
-    """
-    slug = (event.get("slug") or "").lower()
-    title = (event.get("title") or event.get("name") or "").lower()
-
-    # Primary gate: slug must end with today's date
-    if not slug.endswith(DATE):
-        return False
-
-    # Secondary gate: reject any known futures keyword in slug or title
-    combined = slug + " " + title
-    for kw in _FUTURES_KEYWORDS:
-        if kw in combined:
-            return False
-
-    return True
+def _parse_outcomes(mkt):
+    """Return (outcomes_list, prices_list) from a Gamma API market dict."""
+    try:
+        outcomes = json.loads(mkt.get("outcomes", "[]"))
+    except (ValueError, TypeError):
+        outcomes = mkt.get("outcomes", []) or []
+    try:
+        prices = json.loads(mkt.get("outcomePrices", "[]"))
+    except (ValueError, TypeError):
+        prices = mkt.get("outcomePrices", []) or []
+    return outcomes, prices
 
 
-def fetch_polymarket():
-    """Pull today's MLB game markets from Polymarket Gamma API.
+def fetch_polymarket(us_games):
+    """Fetch Polymarket moneyline prices via direct game-to-slug mapping.
 
-    Only returns markets where:
-      - The event slug ends with today's date (YYYY-MM-DD)
-      - The slug contains no futures/season-long keywords
-      - The market has exactly 2 outcomes, both named teams (not Yes/No)
+    For each game already found in us_games (keyed "AWAY@HOME"), we build
+    the canonical Polymarket event slug:
+        mlb-{away_slug}-{home_slug}-YYYY-MM-DD
+    and query the Gamma API for that specific event only.
+
+    No broad event scanning, no cross-game team-name matching.
     """
     results = {}
-    try:
-        r = requests.get(
-            "https://gamma-api.polymarket.com/events",
-            params={"tag_slug": "mlb", "closed": "false", "active": "true", "limit": 300},
-            timeout=15)
-        r.raise_for_status()
-        data = r.json()
-        events = data if isinstance(data, list) else data.get("events", [])
 
-        total_scanned = 0
-        for event in events:
-            total_scanned += 1
-            if not _is_game_event(event):
+    for game_key, game in us_games.items():
+        aa = game["away_abr"]
+        ha = game["home_abr"]
+
+        away_slug = TEAM_SLUGS.get(aa)
+        home_slug = TEAM_SLUGS.get(ha)
+        if not away_slug or not home_slug:
+            print(f"  Polymarket: no slug mapping for {aa} or {ha} — skipped")
+            continue
+
+        event_slug = f"mlb-{away_slug}-{home_slug}-{DATE}"
+
+        try:
+            r = requests.get(
+                "https://gamma-api.polymarket.com/events",
+                params={"slug": event_slug},
+                timeout=10)
+            r.raise_for_status()
+            data = r.json()
+            events = data if isinstance(data, list) else data.get("events", [])
+
+            # The slug query should return exactly one event; verify it matches.
+            event = next(
+                (e for e in events if e.get("slug") == event_slug), None
+            )
+            if not event:
+                print(f"  Polymarket: no event found for {event_slug}")
                 continue
 
-            slug = event.get("slug", "")
+            # Scan this event's markets for the moneyline (2 named-team outcomes).
             for mkt in event.get("markets", []):
-                question = mkt.get("question", "")
+                outcomes, prices = _parse_outcomes(mkt)
 
-                # Gamma API encodes outcomes/outcomePrices as JSON strings
-                try:
-                    outcomes = json.loads(mkt.get("outcomes", "[]"))
-                except (ValueError, TypeError):
-                    outcomes = mkt.get("outcomes", []) or []
-                try:
-                    prices = json.loads(mkt.get("outcomePrices", "[]"))
-                except (ValueError, TypeError):
-                    prices = mkt.get("outcomePrices", []) or []
-
-                if not outcomes or not prices or len(outcomes) != len(prices):
+                # Moneyline has exactly 2 outcomes.
+                if len(outcomes) != 2 or len(prices) != 2:
                     continue
 
-                # Game markets have exactly 2 named-team outcomes.
-                # Any other count (1, 3, 30 …) is a futures or prop market.
-                if len(outcomes) != 2:
+                # Both must be team names, not "Yes"/"No".
+                if any(str(o).strip().lower() in ("yes", "no") for o in outcomes):
                     continue
 
-                # Both outcomes must be team names, not "Yes"/"No".
-                # A Yes/No market here is a futures binary ("Will Yankees win WS?"),
-                # never a game matchup — skip it entirely.
-                if any(str(o).lower() in ("yes", "no") for o in outcomes):
-                    continue
-
+                # Match each outcome to the two teams we already know.
+                matched = {}
                 for i, outcome in enumerate(outcomes):
                     try:
                         price = float(prices[i])
                     except (TypeError, ValueError):
                         continue
-
                     abr = team_abr(str(outcome))
-                    if not abr or len(abr) > 3:
-                        continue
+                    if abr in (aa, ha):
+                        matched[abr] = price
 
-                    # Keep the entry with the higher price (best available)
-                    if abr not in results or price > results[abr]["win_p"]:
-                        results[abr] = {
-                            "source": "polymarket",
-                            "market_id": mkt.get("id", ""),
-                            "question": question[:80],
-                            "slug": slug,
-                            "win_p": round(price, 4),
-                        }
+                if len(matched) < 2:
+                    # Outcomes didn't resolve to the expected pair — skip market.
+                    continue
 
-        print(f"Polymarket: scanned {total_scanned} events → "
-              f"{len(results)} game contracts for {DATE}")
-    except Exception as e:
-        print(f"Polymarket err: {e}")
+                for abr, price in matched.items():
+                    results[abr] = {
+                        "source":    "polymarket",
+                        "market_id": mkt.get("id", ""),
+                        "question":  mkt.get("question", "")[:80],
+                        "slug":      event_slug,
+                        "game_key":  game_key,
+                        "win_p":     round(price, 4),
+                    }
+
+                # Found the moneyline — no need to check other markets.
+                break
+
+        except Exception as e:
+            print(f"  Polymarket err ({event_slug}): {e}")
+
+        time.sleep(0.15)  # be polite to the Gamma API
+
+    print(f"Polymarket: {len(results)} game contracts matched for {DATE}")
     return results
 
 
@@ -468,7 +489,7 @@ def main():
     us_raw  = fetch_us_odds()
     us_odds = parse_us_odds(us_raw)
     kalshi  = fetch_kalshi()
-    poly    = fetch_polymarket()
+    poly    = fetch_polymarket(us_odds)
 
     print(f"US books: {len(us_odds)} games | Kalshi: {len(kalshi)} | Poly: {len(poly)}")
 
