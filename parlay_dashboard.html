@@ -402,6 +402,78 @@ html,body{height:100%;background:var(--bg);font-family:var(--fb);color:var(--t1)
 .hdr-badges{display:none;}.sparkline{display:none;}
 }
 @media(max-width:480px){.kpi-row{grid-template-columns:1fr;}}
+
+/* ── EDGE FINDER / ARBITRAGE TAB ────────────────────────────────── */
+.arb-hero{background:var(--card);border:1px solid rgba(168,85,247,0.25);border-radius:13px;padding:16px 18px;margin-bottom:13px;display:flex;align-items:center;gap:14px;}
+.arb-ico{width:48px;height:48px;background:var(--pdim);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.arb-info{flex:1;}
+.arb-ttl{font-family:var(--fn);font-size:13px;font-weight:800;letter-spacing:1.5px;color:var(--purple);}
+.arb-sub{font-size:10px;color:var(--t3);margin-top:2px;}
+.arb-cnt{font-family:var(--fn);font-size:32px;font-weight:800;color:var(--purple);line-height:1;}
+.arb-cnt-lbl{font-size:8px;color:var(--t3);letter-spacing:2px;margin-top:1px;font-family:var(--fn);}
+
+.edge-card{background:var(--card);border:1px solid var(--border);border-radius:11px;margin-bottom:8px;overflow:hidden;transition:border-color 0.15s;}
+.edge-card:hover{border-color:var(--border2);}
+.edge-card.kalshi{border-left:3px solid var(--purple);}
+.edge-card.polymarket{border-left:3px solid var(--blue);}
+.edge-card.consensus{border-left:3px solid var(--gold);}
+.edge-hdr{padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);background:rgba(0,0,0,0.12);}
+.edge-src{padding:2px 7px;border-radius:3px;font-size:8px;font-weight:700;letter-spacing:1.5px;font-family:var(--fn);}
+.edge-src.kalshi{background:var(--pdim);color:var(--purple);border:1px solid rgba(168,85,247,0.2);}
+.edge-src.polymarket{background:var(--bdim);color:var(--blue);border:1px solid rgba(56,189,248,0.2);}
+.edge-src.consensus{background:var(--godim);color:var(--gold);border:1px solid rgba(250,204,21,0.2);}
+.edge-game{font-family:var(--fn);font-size:13px;font-weight:700;flex:1;}
+.edge-pct-badge{font-family:var(--fn);font-size:16px;font-weight:800;color:var(--green);}
+.edge-body{padding:10px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.edge-stat{background:var(--card2);border-radius:7px;padding:8px;text-align:center;}
+.edge-stat-lbl{font-size:7px;color:var(--t3);letter-spacing:1.5px;font-family:var(--fn);text-transform:uppercase;margin-bottom:3px;}
+.edge-stat-val{font-family:var(--fn);font-size:13px;font-weight:700;}
+.edge-action{padding:8px 14px;border-top:1px solid var(--border);font-size:10px;color:var(--t2);line-height:1.5;}
+
+/* ── LIVE MONITOR TAB ────────────────────────────────────────────── */
+.live-hero{display:flex;align-items:center;gap:12px;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:13px;padding:16px;margin-bottom:13px;}
+.live-pulse{width:12px;height:12px;border-radius:50%;background:var(--red);animation:blink 1s infinite;flex-shrink:0;}
+.live-info{flex:1;}
+.live-ttl{font-family:var(--fn);font-size:13px;font-weight:800;color:var(--red);letter-spacing:1.5px;}
+.live-sub{font-size:10px;color:var(--t3);margin-top:2px;}
+.live-cnt{font-family:var(--fn);font-size:28px;font-weight:800;color:var(--red);}
+
+.alert-card{background:var(--card);border:1px solid var(--border);border-radius:11px;margin-bottom:8px;overflow:hidden;}
+.alert-card.strong{border-color:rgba(239,68,68,0.4);}
+.alert-hdr{padding:10px 14px;display:flex;align-items:center;gap:8px;background:rgba(239,68,68,0.06);border-bottom:1px solid rgba(239,68,68,0.12);}
+.alert-game{font-family:var(--fn);font-size:14px;font-weight:700;flex:1;}
+.alert-edge{font-family:var(--fn);font-size:15px;font-weight:800;color:var(--red);}
+.alert-body{padding:12px 14px;}
+.alert-score{font-family:var(--fn);font-size:13px;font-weight:700;margin-bottom:6px;}
+.alert-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+.alert-lbl{font-size:9px;color:var(--t3);letter-spacing:1.5px;font-family:var(--fn);width:90px;flex-shrink:0;}
+.alert-val{font-family:var(--fn);font-size:12px;font-weight:700;}
+.alert-rec{margin-top:8px;padding:7px 10px;border-radius:5px;font-size:10px;font-weight:700;font-family:var(--fn);background:rgba(239,68,68,0.08);color:var(--red);border:1px solid rgba(239,68,68,0.18);}
+
+/* ── PROPS MODEL TAB ─────────────────────────────────────────────── */
+.props-hero{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:13px;}
+.prop-kpi{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:13px;text-align:center;}
+.prop-kpi-val{font-family:var(--fn);font-size:22px;font-weight:800;}
+.prop-kpi-lbl{font-size:8px;color:var(--t3);letter-spacing:2px;text-transform:uppercase;margin-top:3px;font-family:var(--fn);}
+
+.prop-game{background:var(--card);border:1px solid var(--border);border-radius:11px;margin-bottom:9px;overflow:hidden;}
+.prop-game-hdr{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.prop-game-ttl{font-family:var(--fn);font-size:13px;font-weight:700;flex:1;}
+.prop-game-time{font-size:10px;color:var(--blue);font-family:var(--fn);}
+.prop-sp-row{padding:8px 14px;border-bottom:1px solid var(--border);font-size:10px;color:var(--t2);}
+
+.prop-row2{display:flex;align-items:center;padding:9px 14px;border-bottom:1px solid var(--border);gap:10px;}
+.prop-row2:last-child{border-bottom:none;}
+.prop-type{padding:2px 6px;border-radius:3px;font-size:8px;font-weight:700;letter-spacing:1px;font-family:var(--fn);flex-shrink:0;}
+.prop-type.k{background:var(--bdim);color:var(--blue);border:1px solid rgba(56,189,248,0.2);}
+.prop-type.nrfi{background:var(--gdim);color:var(--green);border:1px solid rgba(34,197,94,0.2);}
+.prop-type.total{background:var(--pdim);color:var(--purple);border:1px solid rgba(168,85,247,0.2);}
+.prop-desc{flex:1;font-size:11px;font-weight:600;}
+.prop-model-val{font-family:var(--fn);font-size:11px;font-weight:700;color:var(--t2);}
+.prop-edge-badge{padding:2px 6px;border-radius:3px;font-size:9px;font-weight:700;font-family:var(--fn);}
+.prop-edge-badge.pos{background:var(--gdim);color:var(--green);border:1px solid rgba(34,197,94,0.18);}
+.prop-edge-badge.neg{background:var(--rdim);color:var(--red);border:1px solid rgba(239,68,68,0.18);}
+.prop-edge-badge.neu{background:rgba(255,255,255,0.03);color:var(--t3);border:1px solid var(--border2);}
 </style>
 
 </head>
@@ -441,6 +513,9 @@ html,body{height:100%;background:var(--bg);font-family:var(--fb);color:var(--t1)
   <div class="tab" data-tab="clv" onclick="sw('clv')">📈 CLV</div>
   <div class="tab" data-tab="history" onclick="sw('history')">📋 History</div>
   <div class="tab" data-tab="debrief" onclick="sw('debrief')">🧠 Debrief</div>
+  <div class="tab" data-tab="arbitrage" onclick="sw('arbitrage')">⚡ Edge Finder</div>
+  <div class="tab" data-tab="live" onclick="sw('live')">📡 Live</div>
+  <div class="tab" data-tab="props" onclick="sw('props')">🎲 Props</div>
 </div>
 
 <div class="pages">
@@ -459,8 +534,8 @@ html,body{height:100%;background:var(--bg);font-family:var(--fb);color:var(--t1)
       <div class="intel">
         <div class="intel-hdr"><div class="intel-title">🛰 INTEL PANEL</div><div class="intel-lnk">View full intel →</div></div>
         <div class="intel-row"><div class="idot bl"></div><div><div class="intel-sec" style="color:var(--blue)">MARKET NOTES</div><div class="intel-txt" id="i-market">Loading market data...</div></div></div>
-        <div class="intel-row"><div class="idot gr"></div><div><div class="intel-sec" style="color:var(--green)">MODEL STATUS</div><div class="intel-txt">Model Active & Stable. All systems operational.</div></div></div>
-        <div class="intel-row"><div class="idot ye"></div><div><div class="intel-sec" style="color:var(--gold)">RISK MODE</div><div class="intel-txt">Moderate. Kelly cap: 3% | Max bet: 3u</div></div></div>
+        <div class="intel-row"><div class="idot gr"></div><div><div class="intel-sec" style="color:var(--green)">MODEL STATUS</div><div class="intel-txt">Pure Math v3 — SP xFIP/SIERA + BP ERA + wRC+ + Pythagorean WP. No rules, just math.</div></div></div>
+        <div class="intel-row"><div class="idot ye"></div><div><div class="intel-sec" style="color:var(--gold)">DATA FEEDS</div><div class="intel-txt">MLB Stats API · FanGraphs · The Odds API · Kalshi · Polymarket</div></div></div>
         <div class="intel-row"><div class="idot bl"></div><div><div class="intel-sec" style="color:var(--blue)">DATA / LIVE STATUS</div><div class="intel-txt" id="i-data">Live. Last update: just now</div></div></div>
       </div>
     </div>
@@ -516,12 +591,15 @@ html,body{height:100%;background:var(--bg);font-family:var(--fb);color:var(--t1)
   <div class="page" id="page-clv"><div id="clv-c"><div class="lstate"><span class="lico">⟳</span><div class="ltxt">Loading CLV...</div></div></div></div>
   <div class="page" id="page-history"><div id="history-c"><div class="lstate"><span class="lico">⟳</span><div class="ltxt">Loading history...</div></div></div></div>
   <div class="page" id="page-debrief"><div id="debrief-c"><div class="lstate"><span class="lico">⟳</span><div class="ltxt">Loading debrief...</div></div></div></div>
+  <div class="page" id="page-arbitrage"><div id="arbitrage-c"><div class="lstate"><span class="lico">⟳</span><div class="ltxt">Loading edge finder...</div></div></div></div>
+  <div class="page" id="page-live"><div id="live-c"><div class="lstate"><span class="lico">⟳</span><div class="ltxt">Loading live monitor...</div></div></div></div>
+  <div class="page" id="page-props"><div id="props-c"><div class="lstate"><span class="lico">⟳</span><div class="ltxt">Loading props model...</div></div></div></div>
 </div>
 
 <div class="ftr">
   <div class="ftr-st"><div class="ftr-dot"></div>ALL SYSTEMS GO</div>
   <div class="ftr-mid"><div class="ftr-txt">Data feeds normal</div><div class="ftr-txt" id="f-next">Next update: —</div></div>
-  <div class="ftr-right"><div class="ftr-ver">Edge Engine v2.4.1</div><div class="ftr-btn" onclick="doRefresh()">↻ Refresh Now</div><div class="ftr-set">⚙</div></div>
+  <div class="ftr-right"><div class="ftr-ver">Parlay OS v3.0 — Pure Math</div><div class="ftr-btn" onclick="doRefresh()">↻ Refresh Now</div><div class="ftr-set">⚙</div></div>
 </div>
 
 <script>
@@ -579,7 +657,9 @@ function sw(tab){
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===`page-${tab}`));
   rt(tab);
 }
-function rt(t){({today:rToday,picks:rPicks,bankroll:rBankroll,clv:rCLV,history:rHistory,debrief:rDebrief})[t]?.();}
+function rt(t){({today:rToday,picks:rPicks,bankroll:rBankroll,clv:rCLV,history:rHistory,debrief:rDebrief,arbitrage:rArbitrage,live:rLive,props:rProps})[t]?.();}
+
+let arbData=null, liveData=null, propsData=null;
 
 async function fetchAll(){
   const base='https://ahow1.github.io/parlay-os/';
@@ -599,6 +679,9 @@ async function fetchAll(){
   try{ clvLog = (await fetch(base+'clv_log.json?t='+Date.now()).then(r=>r.json()))||[]; }catch(e){}
   try{ bHist = (await fetch(base+'bet_history.json?t='+Date.now()).then(r=>r.json()))||{}; }catch(e){}
   try{ lessons = (await fetch(base+'model_lessons.json?t='+Date.now()).then(r=>r.json()))||[]; }catch(e){}
+  try{ arbData = await fetch(base+'arbitrage_log.json?t='+Date.now()).then(r=>r.json()); }catch(e){}
+  try{ liveData = await fetch(base+'live_alerts.json?t='+Date.now()).then(r=>r.json()); }catch(e){}
+  try{ propsData = await fetch(base+'props_output.json?t='+Date.now()).then(r=>r.json()); }catch(e){}
   lu=new Date();tick=300;
 }
 
@@ -928,6 +1011,312 @@ function rDebrief(){
   el.innerHTML=h;
 }
 
+// ── MISSING FUNCTIONS (game toggle, mini stats) ───────────────────────────
+
+function tgame(i){
+  const d=document.getElementById('gd-'+i);
+  if(d)d.classList.toggle('open');
+}
+
+function updateMini(){
+  const st=calcStats();
+  if(!st||!st.total) return;
+  try{
+    const avgC=parseFloat(st.avg)>2?'var(--green)':parseFloat(st.avg)>0?'var(--gold)':'var(--red)';
+    document.getElementById('m-clv').textContent=(parseFloat(st.avg)>0?'+':'')+st.avg+'%';
+    document.getElementById('m-clv').style.color=avgC;
+    document.getElementById('m-pos').textContent=st.posClv||0;
+    document.getElementById('m-neg').textContent=st.negClv||0;
+    document.getElementById('m-push').textContent=st.pushes||0;
+    document.getElementById('m-avg').textContent=(parseFloat(st.avg)>0?'+':'')+st.avg+'%';
+    document.getElementById('m-avg').style.color=avgC;
+    const recent=[...clvLog].filter(b=>b.closing_odds&&b.bet_odds).reverse().slice(0,4);
+    const rows=recent.map(b=>{
+      const r=b.result||'?';const clv=parseFloat(cCLV(b.bet_odds,b.closing_odds));
+      const rc=r==='W'?'var(--green)':r==='L'?'var(--red)':'var(--t3)';
+      const cc=clv>0?'var(--green)':'var(--red)';
+      return`<div class="ptbl-row">
+        <div><div class="ptbl-team">${(b.bet||'?').substring(0,3)}</div></div>
+        <div class="ptbl-name">${b.bet||'—'}</div>
+        <div class="ptbl-line" style="color:var(--t2)">${b.bet_odds||''}</div>
+        <div class="ptbl-res ${r.toLowerCase()}" style="color:${rc}">${r}</div>
+        <div class="ptbl-clv" style="color:${cc}">${!isNaN(clv)?((clv>0?'+':'')+clv.toFixed(1)+'%'):'—'}</div>
+      </div>`;
+    }).join('');
+    const re=document.getElementById('recent-rows');
+    if(re&&rows)re.innerHTML=rows;
+    const ke=parseFloat(st.avg)>0?('+'+st.avg+'%'):(st.avg+'%');
+    const kedgeEl=document.getElementById('kedge');
+    if(kedgeEl&&st.total>0){kedgeEl.textContent=ke;kedgeEl.style.color=avgC;}
+  }catch(e){}
+}
+
+function updateDebriefMini(){
+  const dates=Object.keys(bHist).sort().reverse();
+  const latestDate=dates[0];
+  if(!latestDate)return;
+  try{
+    document.getElementById('deb-date').textContent=latestDate;
+    const s=bHist[latestDate]||{};
+    const bets=s.bets||[];
+    const sum=s.session_summary||s.summary||{};
+    const wins=sum.wins||bets.filter(b=>b.result==='W').length;
+    const losses=sum.losses||bets.filter(b=>b.result==='L').length;
+    const pnl=s.pnl||0;
+    document.getElementById('d-picks').textContent=bets.length||'—';
+    document.getElementById('d-rec').textContent=`${wins}W-${losses}L`;
+    document.getElementById('d-rec').style.color=wins>losses?'var(--green)':losses>wins?'var(--red)':'var(--gold)';
+    document.getElementById('d-wr').textContent=(wins+losses)>0?Math.round(wins/(wins+losses)*100)+'%':'—';
+    document.getElementById('d-pnl').style.color=pnl>=0?'var(--green)':'var(--red)';
+    const st=calcStats();
+    if(st&&st.total){
+      document.getElementById('d-units').textContent=(parseFloat(st.units)>=0?'+':'')+st.units+'u';
+      document.getElementById('d-clv').textContent=(parseFloat(st.avg)>=0?'+':'')+st.avg+'%';
+    }
+  }catch(e){}
+}
+
+// ── EDGE FINDER TAB ──────────────────────────────────────────────────────────
+
+function rArbitrage(){
+  const el=document.getElementById('arbitrage-c');
+  if(!el)return;
+  if(!arbData){
+    el.innerHTML=`<div class="estate"><div class="eico">⚡</div><div class="ettl">NO ARBITRAGE DATA</div><div class="esub">Edge Finder runs at noon and 4:30PM ET daily.<br>Requires ODDS_API_KEY secret in GitHub.</div></div>`;
+    return;
+  }
+
+  const today_s=new Date().toISOString().split('T')[0];
+  const entries=Array.isArray(arbData)?arbData:[arbData];
+  const todayEntries=entries.filter(e=>e&&e.date===today_s);
+  const allEdges=(todayEntries.flatMap(e=>e.edges||[])).sort((a,b)=>b.edge_pct-a.edge_pct);
+
+  const sources={kalshi:0,polymarket:0,consensus:0};
+  allEdges.forEach(e=>{sources[e.alt_source]=(sources[e.alt_source]||0)+1;});
+  const lastTs=todayEntries[todayEntries.length-1]?.timestamp;
+  const lastTime=lastTs?new Date(lastTs).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}):'—';
+
+  let h=`
+    <div class="arb-hero">
+      <div class="arb-ico">⚡</div>
+      <div class="arb-info">
+        <div class="arb-ttl">CROSS-MARKET EDGE FINDER</div>
+        <div class="arb-sub">US Books vs Kalshi vs Polymarket · Last scan ${lastTime}</div>
+        <div style="display:flex;gap:10px;margin-top:6px">
+          <span style="font-size:9px;color:var(--purple);font-weight:700">KALSHI: ${sources.kalshi||0}</span>
+          <span style="font-size:9px;color:var(--blue);font-weight:700">POLYMARKET: ${sources.polymarket||0}</span>
+          <span style="font-size:9px;color:var(--gold);font-weight:700">LINE-SHOP: ${sources.consensus||0}</span>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div class="arb-cnt" style="color:${allEdges.length>0?'var(--green)':'var(--t3)'}">${allEdges.length}</div>
+        <div class="arb-cnt-lbl">EDGES ≥5%</div>
+      </div>
+    </div>`;
+
+  if(!allEdges.length){
+    h+=`<div class="estate"><div class="eico">🔍</div><div class="ettl">NO EDGES TODAY</div><div class="esub">All markets aligned. Check back after line moves.</div></div>`;
+  } else {
+    h+=`<div class="slbl">LIVE EDGES — SORTED BY SIZE</div>`;
+    allEdges.slice(0,15).forEach(e=>{
+      const src=e.alt_source||'unknown';
+      const cls=src==='kalshi'?'kalshi':src==='polymarket'?'polymarket':'consensus';
+      const edgeC=e.edge_pct>=8?'var(--green)':e.edge_pct>=5?'var(--gold)':'var(--t2)';
+      h+=`<div class="edge-card ${cls}">
+        <div class="edge-hdr">
+          <span class="edge-src ${cls}">${src.toUpperCase()}</span>
+          <span class="edge-game">${e.team||'?'} — ${e.game||'?'}</span>
+          <span class="edge-pct-badge" style="color:${edgeC}">${e.edge_pct>=0?'+':''}${e.edge_pct}%</span>
+        </div>
+        <div class="edge-body">
+          <div class="edge-stat"><div class="edge-stat-lbl">US Books</div><div class="edge-stat-val" style="color:var(--green)">${(e.us_p*100).toFixed(1)}%</div></div>
+          <div class="edge-stat"><div class="edge-stat-lbl">${src.toUpperCase()}</div><div class="edge-stat-val" style="color:var(--purple)">${(e.alt_p*100).toFixed(1)}%</div></div>
+        </div>
+        <div class="edge-action">→ ${e.action||'See details'}</div>
+      </div>`;
+    });
+  }
+
+  const meta=todayEntries[todayEntries.length-1];
+  if(meta){
+    h+=`<div style="margin-top:10px;padding:9px 13px;background:var(--card);border:1px solid var(--border);border-radius:8px;font-size:9px;color:var(--t3)">
+      Scan: ${meta.games_found||0} US games · ${meta.kalshi_markets||0} Kalshi markets · ${meta.poly_markets||0} Polymarket contracts
+    </div>`;
+  }
+
+  el.innerHTML=h;
+}
+
+// ── LIVE MONITOR TAB ─────────────────────────────────────────────────────────
+
+function rLive(){
+  const el=document.getElementById('live-c');
+  if(!el)return;
+  if(!liveData||!Array.isArray(liveData)){
+    el.innerHTML=`<div class="estate"><div class="eico">📡</div><div class="ettl">NO LIVE DATA</div><div class="esub">Live monitor runs at 7PM, 8:30PM, and 10PM ET.<br>Only active during game hours.</div></div>`;
+    return;
+  }
+
+  const today_s=new Date().toISOString().split('T')[0];
+  const todayAlerts=liveData.filter(a=>a&&(a.timestamp||'').startsWith(today_s));
+  todayAlerts.sort((a,b)=>Math.abs(b.edge_pct||0)-Math.abs(a.edge_pct||0));
+
+  let h=`
+    <div class="live-hero">
+      <div class="live-pulse"></div>
+      <div class="live-info">
+        <div class="live-ttl">LIVE WIN PROBABILITY MONITOR</div>
+        <div class="live-sub">MLB Stats API WP vs Live Market Lines · Alerts at ≥5% edge</div>
+      </div>
+      <div style="text-align:right">
+        <div class="live-cnt">${todayAlerts.length}</div>
+        <div style="font-size:8px;color:var(--t3);letter-spacing:2px;font-family:var(--fn)">ALERTS TODAY</div>
+      </div>
+    </div>`;
+
+  if(!todayAlerts.length){
+    h+=`<div class="estate"><div class="eico">📡</div><div class="ettl">NO LIVE ALERTS</div><div class="esub">No 5%+ live edges found this session.<br>All lines accurate to model.</div></div>`;
+  } else {
+    h+=`<div class="slbl">LIVE ALERTS — ${todayAlerts.length} FOUND</div>`;
+    todayAlerts.forEach(a=>{
+      const isStrong=Math.abs(a.edge_pct||0)>=8;
+      const edgeC=a.edge_pct>0?'var(--red)':'var(--green)';
+      const ts=a.timestamp?new Date(a.timestamp).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}):'';
+      const inn=`${(a.half||'top')[0].toUpperCase()}${(a.half||'top').slice(1)} ${a.inning||'?'}`;
+      const score=`${a.away_abr||'?'} ${a.away_score||0} — ${a.home_abr||'?'} ${a.home_score||0}`;
+      const dirLabel=a.edge_pct>0?'OVERPRICED — BUY':'UNDERPRICED — FADE';
+
+      h+=`<div class="alert-card ${isStrong?'strong':''}">
+        <div class="alert-hdr">
+          <div class="alert-game">${a.away_abr||'?'} @ ${a.home_abr||'?'}</div>
+          <span style="font-size:9px;color:var(--t3);font-family:var(--fn)">${inn} · ${ts}</span>
+          <div class="alert-edge" style="color:${edgeC}">${a.edge_pct>=0?'+':''}${a.edge_pct}%</div>
+        </div>
+        <div class="alert-body">
+          <div class="alert-score">${score}</div>
+          <div class="alert-row"><span class="alert-lbl">TEAM</span><span class="alert-val">${a.team||'?'} (${a.side||'?'})</span></div>
+          <div class="alert-row"><span class="alert-lbl">MODEL WP</span><span class="alert-val" style="color:var(--green)">${a.model_wp||'?'}%</span></div>
+          <div class="alert-row"><span class="alert-lbl">LIVE MARKET</span><span class="alert-val" style="color:var(--gold)">${a.market_wp||'?'}% (${a.live_ml||'?'})</span></div>
+          <div class="alert-row"><span class="alert-lbl">MODEL LINE</span><span class="alert-val">${a.model_ml||'?'}</span></div>
+          <div class="alert-rec">${dirLabel} — ${a.team||'?'} live line</div>
+        </div>
+      </div>`;
+    });
+  }
+  el.innerHTML=h;
+}
+
+// ── PROPS MODEL TAB ───────────────────────────────────────────────────────────
+
+function rProps(){
+  const el=document.getElementById('props-c');
+  if(!el)return;
+  if(!propsData){
+    el.innerHTML=`<div class="estate"><div class="eico">🎲</div><div class="ettl">NO PROPS DATA</div><div class="esub">Props model runs at 2PM ET daily.<br>Requires ODDS_API_KEY for market comparison.</div></div>`;
+    return;
+  }
+
+  const games=propsData.games||[];
+  const topProps=propsData.top_props||[];
+  const kProps=topProps.filter(p=>p.type==='K_PROP');
+  const nrfiProps=topProps.filter(p=>p.type==='NRFI');
+  const totalProps=topProps.filter(p=>p.type==='TOTAL');
+
+  let h=`
+    <div class="props-hero">
+      <div class="prop-kpi"><div class="prop-kpi-val" style="color:var(--blue)">${kProps.length}</div><div class="prop-kpi-lbl">K Props ≥5%</div></div>
+      <div class="prop-kpi"><div class="prop-kpi-val" style="color:var(--green)">${nrfiProps.length}</div><div class="prop-kpi-lbl">NRFI Plays</div></div>
+      <div class="prop-kpi"><div class="prop-kpi-val" style="color:var(--purple)">${totalProps.length}</div><div class="prop-kpi-lbl">Total Edges</div></div>
+    </div>`;
+
+  if(topProps.length){
+    h+=`<div class="slbl">TOP PROP EDGES</div>`;
+    topProps.slice(0,8).forEach(p=>{
+      const edgeNum=parseFloat(p.edge_pct||0);
+      const edgeCls=edgeNum>0?'pos':edgeNum<0?'neg':'neu';
+      const edgeStr=(edgeNum>=0?'+':'')+edgeNum.toFixed(1)+'%';
+      let desc='',modelStr='';
+      if(p.type==='K_PROP'){
+        desc=`${p.sp||'?'} K prop — Exp ${p.expected_k||'?'}K`;
+        modelStr=`O${p.model_line||'?'}K model`;
+      } else if(p.type==='NRFI'){
+        desc=`NRFI — ${(p.p_nrfi*100).toFixed(1)}% model`;
+        modelStr=p.model_nrfi_ml||'';
+      } else if(p.type==='TOTAL'){
+        desc=`Total O/U ${p.market_line||'?'} — model ${p.model_total||'?'}`;
+        modelStr=p.recommendation||'';
+      }
+      const typeCls=p.type==='K_PROP'?'k':p.type==='NRFI'?'nrfi':'total';
+      h+=`<div style="background:var(--card);border:1px solid var(--border);border-radius:9px;padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;gap:9px">
+        <span class="prop-type ${typeCls}">${p.type==='K_PROP'?'K':p.type}</span>
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:600">${p.game||'?'} ${p.time||''}</div>
+          <div style="font-size:10px;color:var(--t2);margin-top:2px">${desc}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:10px;color:var(--t3)">${modelStr}</div>
+          <div class="prop-edge-badge ${edgeCls}" style="margin-top:3px">${edgeStr}</div>
+        </div>
+      </div>`;
+    });
+  }
+
+  h+=`<div class="slbl">ALL GAMES — MODEL BREAKDOWN</div>`;
+  games.forEach(game=>{
+    const nrfi=game.nrfi||{};
+    h+=`<div class="prop-game">
+      <div class="prop-game-hdr">
+        <div class="prop-game-ttl">${game.away||'?'} @ ${game.home||'?'}</div>
+        <div class="prop-game-time">${game.time||''}</div>
+      </div>
+      <div class="prop-sp-row">
+        Away: ${game.asp||'TBA'} — K/9 ${game.asp_k9||'?'}, xFIP ${game.asp_xfip||'?'} &nbsp;|&nbsp;
+        Home: ${game.hsp||'TBA'} — K/9 ${game.hsp_k9||'?'}, xFIP ${game.hsp_xfip||'?'}
+      </div>
+      <div class="prop-sp-row" style="border-bottom:1px solid var(--border)">
+        Offense: ${game.away||'?'} wRC+${game.away_wrc||100} / ${game.home||'?'} wRC+${game.home_wrc||100} &nbsp;|&nbsp;
+        Model total: ${game.model_total||'?'} (${game.away_exp_rs||'?'} + ${game.home_exp_rs||'?'})
+      </div>`;
+
+    (game.props||[]).forEach(prop=>{
+      const edgeNum=parseFloat(prop.edge_pct||0);
+      const edgeCls=Math.abs(edgeNum)>=5?edgeNum>0?'pos':'neg':'neu';
+      const typeCls=prop.type==='K_PROP'?'k':prop.type==='NRFI'?'nrfi':'total';
+      let desc='',mv='';
+
+      if(prop.type==='K_PROP'){
+        desc=`${prop.sp||'?'} — Exp ${prop.expected_k||'?'}K (${prop.p_over?((prop.p_over*100).toFixed(1)+'% over'):'?'})`;
+        mv=`Model O${prop.model_line||'?'}: ${prop.model_over_ml>0?'+':''}${prop.model_over_ml||'?'}`;
+      } else if(prop.type==='NRFI'){
+        desc=`NRFI ${((prop.p_nrfi||0)*100).toFixed(1)}% · YRFI ${((prop.p_yrfi||0)*100).toFixed(1)}%`;
+        mv=`NRFI: ${prop.model_nrfi_ml>0?'+':''}${prop.model_nrfi_ml||'?'} · Rec: ${prop.recommendation||'—'}`;
+      } else if(prop.type==='TOTAL'){
+        desc=`Model ${prop.model_total||'?'} runs${prop.market_line?` · Market ${prop.market_line}`:''}`;
+        mv=prop.recommendation||'No market data';
+      }
+
+      h+=`<div class="prop-row2">
+        <span class="prop-type ${typeCls}">${prop.type==='K_PROP'?'K':prop.type}</span>
+        <div style="flex:1">
+          <div class="prop-desc">${desc}</div>
+          <div style="font-size:9px;color:var(--t3);margin-top:2px">${mv}</div>
+        </div>
+        ${prop.edge_pct!==null&&prop.edge_pct!==undefined
+          ?`<span class="prop-edge-badge ${edgeCls}">${edgeNum>=0?'+':''}${edgeNum.toFixed(1)}%</span>`
+          :'<span style="font-size:9px;color:var(--t3)">No mkt</span>'}
+      </div>`;
+    });
+
+    h+=`</div>`;
+  });
+
+  if(!games.length){
+    h+=`<div class="estate"><div class="eico">🎲</div><div class="ettl">NO GAMES YET</div><div class="esub">Props model runs at 2PM ET daily.</div></div>`;
+  }
+
+  el.innerHTML=h;
+}
+
 async function doRefresh(){
   const btn=document.querySelector('.ftr-btn');if(btn)btn.textContent='↻ Refreshing...';
   await fetchAll();
@@ -954,6 +1343,9 @@ async function init(){
   try{rCLV();}catch(e){}
   try{rHistory();}catch(e){}
   try{rDebrief();}catch(e){}
+  try{rArbitrage();}catch(e){}
+  try{rLive();}catch(e){}
+  try{rProps();}catch(e){}
 }
 init();
 </script>

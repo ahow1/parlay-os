@@ -1,24 +1,43 @@
-name: MLB Mega Scout
+name: Parlay OS — All Systems
 
 on:
   schedule:
-    - cron: '0 17 * * *'   # 1PM ET
-    - cron: '0 22 * * *'   # 6PM ET
-    - cron: '0 3 * * *'    # 11PM ET
+    - cron: '0 17 * * *'    # Scout 1PM ET
+    - cron: '0 22 * * *'    # Scout 6PM ET (reload)
+    - cron: '0 18 * * *'    # Props 2PM ET
+    - cron: '0 16 * * *'    # Arbitrage noon ET
+    - cron: '30 20 * * *'   # Arbitrage 4:30PM ET
+    - cron: '0 23 * * *'    # Live monitor 7PM ET
+    - cron: '30 0 * * *'    # Live monitor 8:30PM ET
+    - cron: '0 2 * * *'     # Live monitor 10PM ET
+    - cron: '0 3 * * *'     # CLV tracker 11PM ET
   workflow_dispatch:
     inputs:
       job:
-        description: 'scout or clv_tracker'
+        description: 'Which job to run'
         required: true
         default: 'scout'
         type: choice
-        options: [scout, clv_tracker]
+        options:
+          - scout
+          - clv_tracker
+          - odds_arbitrage
+          - live_monitor
+          - props_model
+
+# ─── SHARED AUTO-COMMIT LOGIC ─────────────────────────────────────────────────
+# Each job commits its own JSON outputs then pushes once.
 
 jobs:
+
+  # ─── SCOUT ────────────────────────────────────────────────────────────────
   scout:
     if: >
       (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'scout') ||
-      (github.event_name == 'schedule' && (github.event.schedule == '0 17 * * *' || github.event.schedule == '0 22 * * *'))
+      (github.event_name == 'schedule' && (
+        github.event.schedule == '0 17 * * *' ||
+        github.event.schedule == '0 22 * * *'
+      ))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -29,23 +48,24 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
 
-      - run: pip install anthropic requests pytz
+      - run: pip install requests pytz
 
-      - name: Run Scout
+      - name: Run Scout (Pure Probability Model)
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python scout.py
 
-      - name: Commit JSON outputs
+      - name: Commit outputs
         run: |
           git config user.name "Parlay OS Bot"
           git config user.email "bot@parlay-os.com"
-          git add last_scout.json clv_log.json bankroll.json bet_history.json model_lessons.json || true
-          git diff --staged --quiet || git commit -m "Scout update $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git add last_scout.json clv_log.json || true
+          git diff --staged --quiet || git commit -m "Scout: pure model $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push || true
 
+  # ─── CLV TRACKER ──────────────────────────────────────────────────────────
   clv_tracker:
     if: >
       (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'clv_tracker') ||
@@ -64,15 +84,118 @@ jobs:
 
       - name: Run CLV Tracker
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python clv_tracker.py
 
-      - name: Commit JSON outputs
+      - name: Commit outputs
         run: |
           git config user.name "Parlay OS Bot"
           git config user.email "bot@parlay-os.com"
           git add clv_log.json bankroll.json bet_history.json model_lessons.json || true
-          git diff --staged --quiet || git commit -m "CLV update $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git diff --staged --quiet || git commit -m "CLV: nightly resolve $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push || true
+
+  # ─── ODDS ARBITRAGE ───────────────────────────────────────────────────────
+  odds_arbitrage:
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'odds_arbitrage') ||
+      (github.event_name == 'schedule' && (
+        github.event.schedule == '0 16 * * *' ||
+        github.event.schedule == '30 20 * * *'
+      ))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+
+      - run: pip install requests pytz
+
+      - name: Run Odds Arbitrage Engine
+        env:
+          ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python odds_arbitrage.py
+
+      - name: Commit outputs
+        run: |
+          git config user.name "Parlay OS Bot"
+          git config user.email "bot@parlay-os.com"
+          git add arbitrage_log.json || true
+          git diff --staged --quiet || git commit -m "Arbitrage: edge scan $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push || true
+
+  # ─── LIVE MONITOR ─────────────────────────────────────────────────────────
+  live_monitor:
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'live_monitor') ||
+      (github.event_name == 'schedule' && (
+        github.event.schedule == '0 23 * * *' ||
+        github.event.schedule == '30 0 * * *' ||
+        github.event.schedule == '0 2 * * *'
+      ))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+
+      - run: pip install requests pytz
+
+      - name: Run Live Monitor
+        env:
+          ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python live_monitor.py
+
+      - name: Commit outputs
+        run: |
+          git config user.name "Parlay OS Bot"
+          git config user.email "bot@parlay-os.com"
+          git add live_alerts.json || true
+          git diff --staged --quiet || git commit -m "Live: monitor run $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push || true
+
+  # ─── PROPS MODEL ──────────────────────────────────────────────────────────
+  props_model:
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'props_model') ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 18 * * *')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+
+      - run: pip install requests pytz
+
+      - name: Run Props Model
+        env:
+          ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python props_model.py
+
+      - name: Commit outputs
+        run: |
+          git config user.name "Parlay OS Bot"
+          git config user.email "bot@parlay-os.com"
+          git add props_output.json || true
+          git diff --staged --quiet || git commit -m "Props: model run $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push || true
