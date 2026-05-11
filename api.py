@@ -35,10 +35,13 @@ def _calc_bankroll(bets):
             dec = american_to_decimal(str(b.get("bet_odds", "")))
             if dec:
                 current += (dec - 1) * stake
+            peak = max(peak, current)
         elif result == "L":
             current -= stake
-        peak = max(peak, current)
-    return round(current, 2), round(peak, 2)
+    # Pending bets: stake is locked/at-risk, reduce available bankroll
+    pending_stakes = sum(float(b.get("stake") or 0) for b in bets if not b.get("result"))
+    current = round(current - pending_stakes, 2)
+    return current, round(peak, 2)
 
 
 # ── STATIC DASHBOARD ──────────────────────────────────────────────────────────

@@ -619,9 +619,15 @@ function renderToday() {
   const vi=verdictInfo(s.verdict);
   const vb=$('verdict-badge');
   if (vb) { vb.className=`badge ${vi.cls}`; vb.innerHTML=`<span class="dot"></span>${vi.short}`; }
-  const br=parseBR(s.bankroll);
   const hbr=$('hdr-br');
-  if (hbr) hbr.textContent=`$${br.cur.toFixed(2)}`;
+  if (hbr) {
+    if (APP.bankroll?.current!=null) {
+      hbr.textContent=`$${APP.bankroll.current.toFixed(2)}`;
+    } else {
+      const br=parseBR(s.bankroll);
+      hbr.textContent=`$${br.cur.toFixed(2)}`;
+    }
+  }
 
   const sb=mk('div','session-bar');
   sb.innerHTML=`
@@ -923,30 +929,30 @@ function renderEdges() {
   const arb=APP.arb||[];
   const latest=[...arb].sort((a,b)=>new Date(b.timestamp||0)-new Date(a.timestamp||0))[0];
 
-  const seen={};
-  arb.forEach(run=>{
-    (run.edges||[]).forEach(e=>{
-      const key=`${e.game}|${e.team}|${e.alt_label||''}`;
-      if (!seen[key]||e.edge_pct>seen[key].edge_pct) seen[key]=e;
-    });
-  });
-  const edges=Object.values(seen).sort((a,b)=>b.edge_pct-a.edge_pct);
-
   const sh=mk('div','sec-hdr');
   sh.innerHTML=`<div class="sec-title">EDGE FINDER — POLYMARKET vs BOOKS</div><div class="sec-meta">${latest?'Last: '+new Date(latest.timestamp).toLocaleString():'No runs'}</div>`;
   page.appendChild(sh);
 
-  if (latest) {
-    const sb=mk('div','session-bar');
-    sb.style.marginBottom='14px';
-    sb.innerHTML=`
-      <span class="badge blue"><span class="dot"></span>${latest.games_found||0} GAMES</span>
-      <span class="badge ${(latest.poly_markets||0)>0?'green':'dim'}"><span class="dot"></span>${latest.poly_markets||0} POLY MKTS</span>
-      <span class="badge ${(latest.kalshi_markets||0)>0?'amber':'dim'}"><span class="dot"></span>${latest.kalshi_markets||0} KALSHI</span>
-      <span class="badge ${edges.length>0?'green':'red'}"><span class="dot"></span>${edges.length} EDGES</span>
-    `;
-    page.appendChild(sb);
+  // Show "No recent data" if last run was more than 2 hours ago
+  const TWO_HOURS = 2 * 60 * 60 * 1000;
+  const latestTime = latest ? new Date(latest.timestamp).getTime() : 0;
+  if (!latest || (Date.now() - latestTime) > TWO_HOURS) {
+    page.appendChild(emptyState('NO RECENT DATA', 'Last arbitrage run was more than 2 hours ago. Run odds_arbitrage.py for fresh data.'));
+    div.innerHTML=''; div.appendChild(page); return;
   }
+
+  // Only use edges from the single most recent run
+  const edges=(latest.edges||[]).slice().sort((a,b)=>b.edge_pct-a.edge_pct);
+
+  const sb=mk('div','session-bar');
+  sb.style.marginBottom='14px';
+  sb.innerHTML=`
+    <span class="badge blue"><span class="dot"></span>${latest.games_found||0} GAMES</span>
+    <span class="badge ${(latest.poly_markets||0)>0?'green':'dim'}"><span class="dot"></span>${latest.poly_markets||0} POLY MKTS</span>
+    <span class="badge ${(latest.kalshi_markets||0)>0?'amber':'dim'}"><span class="dot"></span>${latest.kalshi_markets||0} KALSHI</span>
+    <span class="badge ${edges.length>0?'green':'red'}"><span class="dot"></span>${edges.length} EDGES</span>
+  `;
+  page.appendChild(sb);
 
   if (!edges.length) {
     page.appendChild(emptyState('NO EDGES FOUND','No Polymarket vs sportsbook discrepancies detected. Poly markets may not have game-specific lines for today\'s slate.'));
@@ -1081,28 +1087,42 @@ function renderCLV() {
 function renderBankroll() {
   const div=$('bankroll');
   const page=mk('div','page fade-in');
-  const s=APP.scout, data=APP.clv||[];
-  const br=parseBR(s?.bankroll);
-  const cur=br.cur, peak=br.peak, pl=cur-APP.START, roi=(pl/APP.START)*100;
-  const withRes=data.filter(b=>b.result==='W'||b.result==='L');
-  const wins=withRes.filter(b=>b.result==='W').length;
-  const losses=withRes.length-wins;
-  const winRate=withRes.length?(wins/withRes.length)*100:null;
+  const apiData=APP.bankroll;
+  const START=APP.START;
+
+  // Source of truth: API bets when available, otherwise empty
+  const allBets=apiData?.bets||[];
+  const pendingBets=allBets.filter(b=>!b.result);
+  const settledBets=allBets.filter(b=>b.result==='W'||b.result==='L');
+  const pendingStakes=pendingBets.reduce((s,b)=>s+parseFloat(b.stake||0),0);
+
+  // Current = server-calculated value (START - pending stakes + settled P&L)
+  const cur=apiData!=null?apiData.current:(START-pendingStakes);
+  const peak=apiData!=null?apiData.peak:START;
+
+  const wins=settledBets.filter(b=>b.result==='W').length;
+  const losses=settledBets.filter(b=>b.result==='L').length;
+  const winRate=settledBets.length?(wins/settledBets.length)*100:null;
+  const pl=cur-START;
+  const roi=settledBets.length?(pl/START)*100:null;
 
   const hero=mk('div','br-hero');
   hero.innerHTML=`
     <div class="br-main">
       <div class="br-lbl">CURRENT BANKROLL</div>
       <div class="br-amount">$${cur.toFixed(2)}</div>
-      <div class="br-chg ${pl>=0?'pos':'neg'}">${pl>=0?'▲':'▼'} ${pl>=0?'+':''}$${Math.abs(pl).toFixed(2)} &nbsp;(${roi>=0?'+':''}${roi.toFixed(1)}% ROI)</div>
+      ${roi!=null
+        ?`<div class="br-chg ${pl>=0?'pos':'neg'}">${pl>=0?'▲':'▼'} ${pl>=0?'+':''}$${Math.abs(pl).toFixed(2)} &nbsp;(${roi>=0?'+':''}${roi.toFixed(1)}% ROI)</div>`
+        :`<div class="br-chg" style="color:var(--t3)">$${pendingStakes.toFixed(2)} at risk &nbsp;·&nbsp; awaiting results</div>`
+      }
     </div>
     <div class="br-stats">
-      <div class="brs"><div class="brs-val">$${APP.START.toFixed(2)}</div><div class="brs-lbl">STARTING</div></div>
-      <div class="brs"><div class="brs-val">$${peak.toFixed(2)}</div><div class="brs-lbl">PEAK</div></div>
+      <div class="brs"><div class="brs-val">$${START.toFixed(2)}</div><div class="brs-lbl">STARTING</div></div>
+      <div class="brs"><div class="brs-val">$${pendingStakes.toFixed(2)}</div><div class="brs-lbl">AT RISK</div></div>
       <div class="brs"><div class="brs-val">${winRate!=null?winRate.toFixed(0)+'%':'—'}</div><div class="brs-lbl">WIN RATE</div></div>
       <div class="brs"><div class="brs-val">${wins}-${losses}</div><div class="brs-lbl">RECORD</div></div>
-      <div class="brs"><div class="brs-val">${withRes.length}</div><div class="brs-lbl">SETTLED</div></div>
-      <div class="brs"><div class="brs-val">${data.length-withRes.length}</div><div class="brs-lbl">PENDING</div></div>
+      <div class="brs"><div class="brs-val">${settledBets.length}</div><div class="brs-lbl">SETTLED</div></div>
+      <div class="brs"><div class="brs-val">${pendingBets.length}</div><div class="brs-lbl">PENDING</div></div>
     </div>
   `;
   page.appendChild(hero);
@@ -1113,53 +1133,56 @@ function renderBankroll() {
   chartCard.appendChild(chartArea);
   page.appendChild(chartCard);
 
-  const UNIT=7.50;
-  const brPts=[{y:APP.START,lbl:'START'}];
-  let run=APP.START;
-  data.forEach((b,i)=>{
-    if      (b.result==='W') { run+=UNIT*0.91; brPts.push({y:run,lbl:String(i+1)}); }
-    else if (b.result==='L') { run-=UNIT;      brPts.push({y:run,lbl:String(i+1)}); }
+  // Chart: only plot resolved bets; pending bets have no P&L to chart yet
+  const brPts=[{y:START,lbl:'START'}];
+  let run=START;
+  settledBets.forEach((b,i)=>{
+    const stake=parseFloat(b.stake||0);
+    if (b.result==='W') {
+      const dec=b.bet_odds?parseInt(String(b.bet_odds))>0?(parseInt(b.bet_odds)/100)+1:(100/Math.abs(parseInt(b.bet_odds)))+1:null;
+      if (dec) run+=(dec-1)*stake; brPts.push({y:run,lbl:String(i+1)});
+    } else if (b.result==='L') { run-=stake; brPts.push({y:run,lbl:String(i+1)}); }
   });
-  if (brPts.length===1&&cur!==APP.START) brPts.push({y:cur,lbl:'NOW'});
+  // Add current point showing effect of pending stakes
+  if (pendingBets.length>0) brPts.push({y:cur,lbl:'NOW'});
 
   setTimeout(()=>drawChart(chartArea,brPts,{
-    color:cur>=APP.START?'#00ff88':'#ff3355',
-    fill: cur>=APP.START?'rgba(0,255,136,0.06)':'rgba(255,51,85,0.06)',
-    base: APP.START,
+    color:cur>=START?'#00ff88':'#ff3355',
+    fill: cur>=START?'rgba(0,255,136,0.06)':'rgba(255,51,85,0.06)',
+    base: START,
     dots: brPts.length<=25,
   }),50);
 
-  const todayBets=(s?.games||[]).filter(g=>g.conviction!=='PASS'&&parseFloat(g.stake)>0);
-  if (todayBets.length>0) {
-    page.appendChild(mk('div','sec-hdr',`<div class="sec-title">TODAY'S BETS — PENDING</div><div class="sec-meta">${s?.date||''}</div>`));
+  if (pendingBets.length>0) {
+    page.appendChild(mk('div','sec-hdr',`<div class="sec-title">PENDING BETS</div><div class="sec-meta">${pendingBets.length} bet${pendingBets.length!==1?'s':''} · $${pendingStakes.toFixed(2)} at risk</div>`));
     const wrap=mk('div','table-wrap');
     const table=mk('table','dt');
-    table.innerHTML=`<thead><tr><th>GAME</th><th>PICK</th><th>ODDS</th><th>EDGE</th><th>STAKE</th><th>TO WIN</th><th>CONV</th></tr></thead>`;
+    table.innerHTML=`<thead><tr><th>BET</th><th>GAME</th><th>ODDS</th><th>EDGE</th><th>STAKE</th><th>TO WIN</th><th>CONV</th></tr></thead>`;
     const tbody=document.createElement('tbody');
-    todayBets.forEach(g=>{
+    pendingBets.forEach(b=>{
       const tr=document.createElement('tr');
-      const odds=parseInt(String(g.pick_odds));
-      const toWin=isNaN(odds)?0:odds>0?(odds/100)*g.stake:(100/Math.abs(odds))*g.stake;
-      tr.innerHTML=`<td class="gc">${g.away} @ ${g.home}</td><td><strong>${g.pick||'—'}</strong></td><td>${fmtOdds(g.pick_odds)}</td><td class="${parseFloat(g.edge_pct)>0?'ea':''}">${fmtEdge(g.edge_pct)}</td><td style="color:var(--amber)">$${parseFloat(g.stake).toFixed(2)}</td><td style="color:var(--green)">+$${toWin.toFixed(2)}</td><td><span class="conv-badge ${g.conviction==='HIGH'?'high':'medium'}" style="font-size:8px">${g.conviction==='HIGH'?'LOCK':'CF'}</span></td>`;
+      const o=parseInt(String(b.bet_odds||'').replace(/[^\d-]/g,''));
+      const toWin=isNaN(o)||o===0?0:o>0?(o/100)*parseFloat(b.stake):(100/Math.abs(o))*parseFloat(b.stake);
+      tr.innerHTML=`<td><strong>${b.bet||'—'}</strong></td><td class="gc">${b.game||'—'}</td><td>${fmtOdds(b.bet_odds)}</td><td class="${parseFloat(b.edge_pct)>0?'ea':''}">${fmtEdge(b.edge_pct)}</td><td style="color:var(--amber)">$${parseFloat(b.stake).toFixed(2)}</td><td style="color:var(--green)">+$${toWin.toFixed(2)}</td><td><span class="conv-badge ${b.conviction==='HIGH'?'high':'medium'}" style="font-size:8px">${b.conviction||'—'}</span></td>`;
       tbody.appendChild(tr);
     });
     table.appendChild(tbody); wrap.appendChild(table); page.appendChild(wrap);
   }
 
-  if (data.length>0) {
-    page.appendChild(mk('div','sec-hdr',`<div class="sec-title">FULL BET HISTORY</div><div class="sec-meta">${data.length} bets logged</div>`));
+  if (allBets.length>0) {
+    page.appendChild(mk('div','sec-hdr',`<div class="sec-title">FULL BET HISTORY</div><div class="sec-meta">${allBets.length} bet${allBets.length!==1?'s':''} logged</div>`));
     const wrap=mk('div','table-wrap');
     const table=mk('table','dt');
-    table.innerHTML=`<thead><tr><th>#</th><th>DATE</th><th>BET</th><th>RESULT</th><th>CLV</th></tr></thead>`;
+    table.innerHTML=`<thead><tr><th>#</th><th>DATE</th><th>BET</th><th>ODDS</th><th>STAKE</th><th>RESULT</th><th>CLV</th></tr></thead>`;
     const tbody=document.createElement('tbody');
-    [...data].reverse().forEach((b,ri)=>{
-      const num=data.length-ri;
+    [...allBets].reverse().forEach((b,ri)=>{
+      const num=allBets.length-ri;
       const tr=document.createElement('tr');
       const res=b.result==='W'?'<span style="color:var(--green);font-weight:700">WIN</span>'
                :b.result==='L'?'<span style="color:var(--red);font-weight:700">LOSS</span>'
                :'<span style="color:var(--t3)">PENDING</span>';
       const clv=b.clv_pct!=null?`<span style="color:${parseFloat(b.clv_pct)>=0?'var(--green)':'var(--red)'}">${parseFloat(b.clv_pct)>=0?'+':''}${parseFloat(b.clv_pct).toFixed(1)}%</span>`:'<span style="color:var(--t3)">—</span>';
-      tr.innerHTML=`<td style="color:var(--t3)">${num}</td><td style="color:var(--t2);white-space:nowrap">${b.date||'—'}</td><td style="font-size:9px;max-width:240px;white-space:normal">${b.bet||'—'}</td><td>${res}</td><td>${clv}</td>`;
+      tr.innerHTML=`<td style="color:var(--t3)">${num}</td><td style="color:var(--t2);white-space:nowrap">${b.date||'—'}</td><td style="font-size:9px;max-width:200px;white-space:normal">${b.bet||'—'}</td><td>${fmtOdds(b.bet_odds)}</td><td style="color:var(--amber)">$${parseFloat(b.stake||0).toFixed(2)}</td><td>${res}</td><td>${clv}</td>`;
       tbody.appendChild(tr);
     });
     table.appendChild(tbody); wrap.appendChild(table); page.appendChild(wrap);
