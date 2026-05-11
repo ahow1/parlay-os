@@ -447,7 +447,7 @@ body{background:#00070d;color:#b8d4e8;font-family:'JetBrains Mono',monospace;min
 <script>
 // ── STATE ──
 const APP = {
-  scout:null, arb:[], clv:[], props:null, live:[], activeLog:'scout', START:150,
+  scout:null, arb:[], clv:[], props:null, live:[], preview:null, activeLog:'scout', START:150,
   bankroll:null, loggedBets:{},  // {game_key: {logged:bool, result:'W'/'L'/'P'/null}}
 };
 
@@ -478,7 +478,7 @@ async function apiPost(path, body) {
 // ── FETCH ──
 async function loadData() {
   // Try API first, fall back to static files
-  const [scout, arb, clv, props, live, bankroll] = await Promise.all([
+  const [scout, arb, clv, props, live, bankroll, preview] = await Promise.all([
     apiGet('/scout').then(d=>d||null).catch(()=>null)
       .then(d=>d||fetch('last_scout.json').then(r=>r.json()).catch(()=>null)),
     apiGet('/arbitrage').then(d=>d||null).catch(()=>null)
@@ -488,9 +488,11 @@ async function loadData() {
     fetch('props_output.json').then(r=>r.json()).catch(()=>null),
     fetch('live_alerts.json').then(r=>r.json()).catch(()=>[]),
     apiGet('/bankroll').catch(()=>null),
+    fetch('daily_preview.json').then(r=>r.json()).catch(()=>null),
   ]);
   APP.scout=scout; APP.arb=arb||[]; APP.clv=clv||[];
   APP.props=props; APP.live=live||[]; APP.bankroll=bankroll||null;
+  APP.preview=preview||null;
 
   // Load logged bets state from localStorage
   try {
@@ -802,22 +804,115 @@ function buildMisc(g) {
 function renderMonitor() {
   const div=$('monitor');
   const page=mk('div','page fade-in');
-  const alerts=APP.live||[];
+  const alerts=(APP.live||[]).slice().reverse(); // newest first
+  const preview=APP.preview;
+
+  // ── Header ──
   const sh=mk('div','sec-hdr');
-  sh.innerHTML=`<div class="sec-title">LIVE MONITOR</div><div class="sec-meta">${alerts.length} alert${alerts.length!==1?'s':''} · ${new Date().toLocaleTimeString()}</div>`;
+  const liveCount=alerts.length;
+  sh.innerHTML=`<div class="sec-title">LIVE MONITOR</div><div class="sec-meta">${liveCount} alert${liveCount!==1?'s':''} · ${new Date().toLocaleTimeString()}</div>`;
   page.appendChild(sh);
 
-  if (!alerts.length) {
-    page.appendChild(emptyState('NO LIVE ALERTS','Live monitoring is idle. Alerts appear when triggered by live_monitor.py.'));
-  } else {
-    const list=mk('div','alert-list');
-    alerts.forEach(a=>{
-      const item=mk('div','alert-item');
-      item.innerHTML=`<div class="ai-date">${a.date||'—'} · ${a.type||'ALERT'}</div><div class="ai-bet">${a.bet||a.message||'—'}</div>${a.action?`<div class="ai-type">${a.action}</div>`:''}`;
-      list.appendChild(item);
+  // ── Daily Preview Section ──
+  if (preview && preview.games && preview.games.length) {
+    const pvHdr=mk('div','sec-hdr',`<div class="sec-title" style="font-size:10px;color:#888">TODAY'S PREVIEW — ${preview.date||''}</div><div class="sec-meta">${preview.verdict||''}</div>`);
+    page.appendChild(pvHdr);
+
+    const pvGrid=mk('div','props-grid');
+    pvGrid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px;margin-bottom:18px';
+    preview.games.forEach(g=>{
+      const conv=g.conviction||'PASS';
+      const convCls=conv==='HIGH'?'green':conv==='MEDIUM'?'amber':'dim';
+      const card=mk('div','');
+      card.style.cssText='background:#0d0d0d;border:1px solid #1a1a1a;border-radius:4px;padding:12px 14px';
+      const pickHtml=g.pick?`<div style="margin-top:6px"><span class="badge ${convCls}" style="font-size:8px">${conv}</span> <strong style="color:#e0e0e0">${g.pick}</strong> <span style="color:#666">${g.pick_odds||''}</span></div>`:'';
+      const sents=g.sentences||{};
+      card.innerHTML=`
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+          <span style="color:#e0e0e0;font-weight:700;font-size:11px">${g.away||''} @ ${g.home||''}</span>
+          <span style="color:#555;font-size:9px">${g.time||''}</span>
+        </div>
+        <div style="color:#666;font-size:8px;margin-bottom:6px">${g.sp_line||''}</div>
+        ${pickHtml}
+        <div style="margin-top:10px">
+          ${sents.sp?`<div style="margin-bottom:6px"><div style="color:#888;font-size:7px;letter-spacing:.05em;margin-bottom:2px">SP MATCHUP</div><div style="color:#bbb;font-size:9px;line-height:1.5">${sents.sp}</div></div>`:''}
+          ${sents.bullpen?`<div style="margin-bottom:6px"><div style="color:#888;font-size:7px;letter-spacing:.05em;margin-bottom:2px">BULLPEN</div><div style="color:#bbb;font-size:9px;line-height:1.5">${sents.bullpen}</div></div>`:''}
+          ${sents.lineup?`<div style="margin-bottom:6px"><div style="color:#888;font-size:7px;letter-spacing:.05em;margin-bottom:2px">LINEUP</div><div style="color:#bbb;font-size:9px;line-height:1.5">${sents.lineup}</div></div>`:''}
+          ${sents.park_weather?`<div style="margin-bottom:6px"><div style="color:#888;font-size:7px;letter-spacing:.05em;margin-bottom:2px">PARK / WEATHER</div><div style="color:#bbb;font-size:9px;line-height:1.5">${sents.park_weather}</div></div>`:''}
+          ${sents.edge?`<div><div style="color:#888;font-size:7px;letter-spacing:.05em;margin-bottom:2px">MARKET EDGE</div><div style="color:#bbb;font-size:9px;line-height:1.5">${sents.edge}</div></div>`:''}
+        </div>
+      `;
+      pvGrid.appendChild(card);
     });
-    page.appendChild(list);
+    page.appendChild(pvGrid);
   }
+
+  // ── Live Conviction Alerts ──
+  const alertHdr=mk('div','sec-hdr',`<div class="sec-title" style="font-size:10px;color:#888">LIVE CONVICTION ALERTS</div>`);
+  page.appendChild(alertHdr);
+
+  if (!alerts.length) {
+    page.appendChild(emptyState('NO LIVE ALERTS','Live engine is idle. Alerts fire when all conviction gates clear (6pm–11pm ET).'));
+  } else {
+    alerts.forEach(a=>{
+      const card=mk('div','');
+      card.style.cssText='background:#0d0d0d;border:1px solid #1a1a1a;border-radius:4px;padding:14px 16px;margin-bottom:10px';
+
+      const conv=a.conviction||'ALERT';
+      const convCls=conv==='HIGH'?'green':conv==='MEDIUM'?'amber':'dim';
+      const score=`${a.away_abr||''} ${a.away_score??''} — ${a.home_abr||''} ${a.home_score??''}`;
+      const innStr=`${a.half||''} ${a.inning||''}`;
+      const edge=parseFloat(a.edge_pct||0);
+      const edgeCls2=edge>=7?'em':edge>=5?'eh':edge>=3?'ea':'el';
+
+      const gateData=a.gates||{};
+      const gateHtml=Object.entries(gateData).map(([k,v])=>`
+        <span style="color:${v?'#22c55e':'#ef4444'};font-size:8px;margin-right:8px">${v?'✓':'✗'} ${k.replace(/_/g,' ')}</span>
+      `).join('');
+
+      const lineStatus=a.line_status||'';
+      const lineStatusCls=lineStatus==='ACT FAST'?'red':lineStatus==='MONITOR'?'amber':'dim';
+
+      const why=(a.run_context||'')+(a.bullpen_context?' '+a.bullpen_context:'');
+      const narrative=a.narrative||why||'—';
+
+      const nextBatters=(a.next_batters||[]).filter(Boolean).join(', ');
+      const ts=a.timestamp?new Date(a.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'';
+
+      card.innerHTML=`
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div>
+            <span class="badge ${convCls}" style="margin-right:6px">${conv}</span>
+            <strong style="color:#e0e0e0;font-size:12px">${score}</strong>
+            <span style="color:#555;font-size:10px;margin-left:8px">${innStr}</span>
+          </div>
+          <span style="color:#555;font-size:9px">${ts}</span>
+        </div>
+
+        <div style="display:flex;gap:18px;margin-bottom:10px;flex-wrap:wrap">
+          <div><div style="color:#555;font-size:7px;letter-spacing:.05em">BOOK ML</div><div style="color:#e0e0e0;font-size:11px;font-weight:700">${a.book_ml||'—'}</div></div>
+          <div><div style="color:#555;font-size:7px;letter-spacing:.05em">POLY %</div><div style="color:#e0e0e0;font-size:11px;font-weight:700">${a.poly_p!=null?a.poly_p+'%':'—'}</div></div>
+          <div><div style="color:#555;font-size:7px;letter-spacing:.05em">MODEL %</div><div style="color:#e0e0e0;font-size:11px;font-weight:700">${a.model_p!=null?a.model_p+'%':'—'}</div></div>
+          <div><div style="color:#555;font-size:7px;letter-spacing:.05em">EDGE</div><div class="ec ${edgeCls2}" style="font-size:11px;font-weight:700">${edge>=0?'+':''}${edge.toFixed(1)}%</div></div>
+          <div><div style="color:#555;font-size:7px;letter-spacing:.05em">STAKE</div><div style="color:#e0e0e0;font-size:11px;font-weight:700">${a.stake!=null?'$'+parseFloat(a.stake).toFixed(2):'—'}</div></div>
+        </div>
+
+        <div style="background:#050505;border-radius:3px;padding:10px 12px;margin-bottom:8px">
+          <div style="color:#888;font-size:7px;letter-spacing:.07em;margin-bottom:5px">WHY THIS HAS VALUE</div>
+          <div style="color:#ccc;font-size:9px;line-height:1.6">${narrative}</div>
+        </div>
+
+        ${nextBatters?`<div style="margin-bottom:8px"><span style="color:#555;font-size:8px">Next up (${a.trailing_abr||''}): </span><span style="color:#999;font-size:8px">${nextBatters}</span></div>`:''}
+
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+          <div style="flex:1">${gateHtml}</div>
+          ${lineStatus?`<span class="badge ${lineStatusCls}" style="font-size:8px">${lineStatus}${a.line_move_pct!=null&&a.line_move_pct>0?' — +'+a.line_move_pct+'% move':''}</span>`:''}
+        </div>
+      `;
+      page.appendChild(card);
+    });
+  }
+
   div.innerHTML=''; div.appendChild(page);
 }
 
