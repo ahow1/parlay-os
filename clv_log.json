@@ -260,5 +260,37 @@
     "sp": "TBA",
     "umpire": "",
     "park": "CLE"
+  },
+  {
+    "date": "2026-05-11",
+    "bet": "SF ML",
+    "type": "ML",
+    "bet_odds": "+242",
+    "closing_odds": null,
+    "result": null,
+    "clv_pct": null,
+    "model": "scout_v4",
+    "edge_pct": 18.41,
+    "conviction": "HIGH",
+    "game": "SF@LAD",
+    "sp": "Trevor McDonald",
+    "umpire": "",
+    "park": "LAD"
+  },
+  {
+    "date": "2026-05-11",
+    "bet": "BAL ML",
+    "type": "ML",
+    "bet_odds": "+135",
+    "closing_odds": null,
+    "result": null,
+    "clv_pct": null,
+    "model": "scout_v4",
+    "edge_pct": 7.14,
+    "conviction": "HIGH",
+    "game": "NYY@BAL",
+    "sp": "Ryan Weathers",
+    "umpire": "Nic Lentz",
+    "park": "BAL"
   }
 ]
