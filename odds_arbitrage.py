@@ -1,11 +1,14 @@
 """
-PARLAY OS — ODDS ARBITRAGE ENGINE v1
+PARLAY OS — ODDS ARBITRAGE ENGINE v2
 Compares US sportsbooks (the-odds-api.com) vs Kalshi vs Polymarket.
 Flags lines where cross-market probability diverges ≥ 5%.
 Saves to arbitrage_log.json. Sends Telegram alerts for top edges.
+
+Live mode (--live): polls every 3 min from 6pm–11pm ET.
+Immediate Telegram alert when edge ≥ 7% is found.
 """
 
-import os, json, time, re, requests
+import os, json, time, re, requests, sys
 from datetime import datetime
 import pytz
 
@@ -17,7 +20,11 @@ ET  = pytz.timezone("America/New_York")
 NOW = datetime.now(ET)
 DATE = NOW.strftime("%Y-%m-%d")
 
-EDGE_THRESHOLD = 0.05   # 5% minimum edge to alert
+EDGE_THRESHOLD      = 0.05   # 5% minimum edge to log
+LIVE_ALERT_THRESHOLD = 0.07  # 7% triggers immediate Telegram in live mode
+LIVE_INTERVAL       = 180    # 3 minutes between live runs
+LIVE_START_HOUR     = 18     # 6pm ET
+LIVE_END_HOUR       = 23     # 11pm ET
 LOG_FILE = "arbitrage_log.json"
 
 MLB_TEAM_NAMES = {
@@ -464,11 +471,12 @@ def analyze_edges(us_odds, kalshi_data, poly_data):
 
 
 def format_alert(edges, us_odds):
+    now = datetime.now(ET)
     if not edges:
-        return f"PARLAY OS — ARBITRAGE — {DATE}\nNo 5%+ cross-market edges found.\n{NOW.strftime('%I:%M %p ET')}"
+        return f"PARLAY OS — ARBITRAGE — {now.strftime('%Y-%m-%d')}\nNo 5%+ cross-market edges found.\n{now.strftime('%I:%M %p ET')}"
 
     lines = [
-        f"PARLAY OS — ARBITRAGE ENGINE — {DATE}",
+        f"PARLAY OS — ARBITRAGE ENGINE — {now.strftime('%Y-%m-%d')}",
         f"Found {len(edges)} edge(s) ≥{EDGE_THRESHOLD*100:.0f}%",
         "",
     ]
@@ -479,43 +487,131 @@ def format_alert(edges, us_odds):
             f"  → {e['action']}",
             "",
         ]
-    lines.append(f"Generated {NOW.strftime('%I:%M %p ET')} — Parlay OS")
+    lines.append(f"Generated {now.strftime('%I:%M %p ET')} — Parlay OS")
     return "\n".join(lines)
 
 
-def main():
-    print(f"[{NOW.strftime('%H:%M ET')}] Arbitrage engine running — {DATE}")
+def format_live_alert(new_edges, run_num):
+    """Urgent alert for newly detected 7%+ edges during live mode."""
+    now = datetime.now(ET)
+    lines = [
+        f"PARLAY OS LIVE EDGE ALERT — {now.strftime('%I:%M %p ET')}",
+        f"{len(new_edges)} NEW edge(s) ≥7% detected (run #{run_num})",
+        "",
+    ]
+    for e in sorted(new_edges, key=lambda x: x["edge_pct"], reverse=True):
+        lines += [
+            f"  [{e['alt_source'].upper()}] {e['game']} — {e['team']}",
+            f"  Edge: +{e['edge_pct']:.1f}%  Books: {e['us_p']*100:.1f}%  Alt: {e['alt_p']*100:.1f}%",
+            f"  → {e['action']}",
+            "",
+        ]
+    return "\n".join(lines)
 
+
+def _run_one(now):
+    """Run a single fetch-analyze-save cycle. Returns (edges, us_odds)."""
+    date = now.strftime("%Y-%m-%d")
     us_raw  = fetch_us_odds()
     us_odds = parse_us_odds(us_raw)
     kalshi  = fetch_kalshi()
     poly    = fetch_polymarket(us_odds)
+    edges   = analyze_edges(us_odds, kalshi, poly)
 
-    print(f"US books: {len(us_odds)} games | Kalshi: {len(kalshi)} | Poly: {len(poly)}")
-
-    edges = analyze_edges(us_odds, kalshi, poly)
-
-    # Save to log
     try:
         with open(LOG_FILE) as f:
             log = json.load(f)
     except Exception:
         log = []
 
-    log_entry = {
-        "date": DATE,
-        "timestamp": NOW.isoformat(),
+    entry = {
+        "date": date,
+        "timestamp": now.isoformat(),
         "games_found": len(us_odds),
         "kalshi_markets": len(kalshi),
         "poly_markets": len(poly),
         "edges": edges,
     }
-    # Keep last 48 hours of entries
-    log = [e for e in log if e.get("date", "") >= (NOW.strftime("%Y-%m-%d"))]
-    log.append(log_entry)
+    log = [e for e in log if e.get("date", "") >= date]
+    log.append(entry)
     with open(LOG_FILE, "w") as f:
         json.dump(log, f, indent=2)
 
+    return edges, us_odds, len(poly)
+
+
+def live_mode():
+    """Poll every 3 min from 6pm–11pm ET. Alert immediately on ≥7% new edges."""
+    print(f"PARLAY OS — LIVE MODE — {LIVE_INTERVAL//60}min interval, {LIVE_START_HOUR}pm–{LIVE_END_HOUR-12}pm ET")
+    send_telegram(f"PARLAY OS LIVE MODE STARTED\nPolling every {LIVE_INTERVAL//60} min · Alert threshold: {LIVE_ALERT_THRESHOLD*100:.0f}%\n{datetime.now(ET).strftime('%I:%M %p ET')}")
+
+    run_num = 0
+    # Track alerted edge keys per session to avoid duplicate pings
+    alerted = set()
+    alerted_day = datetime.now(ET).strftime("%Y-%m-%d")
+
+    while True:
+        now  = datetime.now(ET)
+        hour = now.hour
+
+        # Reset alerted set at midnight
+        today = now.strftime("%Y-%m-%d")
+        if today != alerted_day:
+            alerted.clear()
+            alerted_day = today
+
+        # Outside window — stop after 11pm, wait before 6pm
+        if hour >= LIVE_END_HOUR:
+            print(f"[{now.strftime('%I:%M %p ET')}] 11pm ET reached — live mode stopping")
+            send_telegram(f"PARLAY OS LIVE MODE ENDED\n{run_num} runs completed\n{now.strftime('%I:%M %p ET')}")
+            break
+
+        if hour < LIVE_START_HOUR:
+            wait_sec = (LIVE_START_HOUR - hour) * 3600 - now.minute * 60 - now.second
+            print(f"[{now.strftime('%I:%M %p ET')}] Game window starts at 6pm ET — waiting {wait_sec//60}m {wait_sec%60}s")
+            time.sleep(min(wait_sec, 300))
+            continue
+
+        run_num += 1
+        print(f"\n[{now.strftime('%I:%M %p ET')}] Live run #{run_num}")
+
+        try:
+            edges, us_odds, poly_count = _run_one(now)
+            print(f"  {len(us_odds)} games | {poly_count} poly | {len(edges)} edges logged")
+
+            # Find new 7%+ edges not yet alerted this session
+            hot = [e for e in edges if e["edge_pct"] >= LIVE_ALERT_THRESHOLD * 100]
+            new_hot = [e for e in hot
+                       if f"{e['game']}|{e['team']}|{e['alt_source']}" not in alerted]
+
+            if new_hot:
+                msg = format_live_alert(new_hot, run_num)
+                send_telegram(msg)
+                for e in new_hot:
+                    alerted.add(f"{e['game']}|{e['team']}|{e['alt_source']}")
+                print(f"  Telegram sent: {len(new_hot)} new edge(s) ≥{LIVE_ALERT_THRESHOLD*100:.0f}%")
+            else:
+                print(f"  No new edges ≥{LIVE_ALERT_THRESHOLD*100:.0f}% — no alert")
+
+        except Exception as exc:
+            print(f"  Run #{run_num} error: {exc}")
+            try:
+                send_telegram(f"PARLAY OS LIVE ERROR (run #{run_num})\n{exc}\n{now.strftime('%I:%M %p ET')}")
+            except Exception:
+                pass
+
+        # Sleep until next run, but bail early if we drift past 11pm
+        print(f"  Sleeping {LIVE_INTERVAL//60}m...")
+        time.sleep(LIVE_INTERVAL)
+
+
+def main():
+    now = datetime.now(ET)
+    print(f"[{now.strftime('%H:%M ET')}] Arbitrage engine running — {now.strftime('%Y-%m-%d')}")
+
+    edges, us_odds, poly_count = _run_one(now)
+
+    print(f"US books: {len(us_odds)} games | Poly: {poly_count}")
     print(f"  Edges ≥{EDGE_THRESHOLD*100:.0f}%: {len(edges)}")
 
     if edges:
@@ -524,8 +620,11 @@ def main():
     else:
         print("  No significant edges — no Telegram alert sent")
 
-    print(f"Done. Log entry saved.")
+    print("Done. Log entry saved.")
 
 
 if __name__ == "__main__":
-    main()
+    if "--live" in sys.argv or "-l" in sys.argv:
+        live_mode()
+    else:
+        main()

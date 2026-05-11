@@ -413,6 +413,7 @@ body{background:#00070d;color:#b8d4e8;font-family:'JetBrains Mono',monospace;min
     <span class="badge blue"><span class="dot"></span>MLB</span>
   </div>
   <div class="hdr-right">
+    <span class="badge red" id="live-indicator" style="display:none;"><span class="dot blink"></span>LIVE</span>
     <div class="hdr-bankroll">
       <div class="label">BANKROLL</div>
       <div class="amount" id="hdr-br">—</div>
@@ -1377,10 +1378,64 @@ async function doRefresh() {
   if (btn) btn.textContent='↻ REFRESH';
 }
 
+// ── LIVE AUTO-REFRESH (edges tab, 60s) ──
+const LIVE_REFRESH_MS = 60_000;
+let liveTimer = null;
+
+function isGameHour() {
+  const h = new Date().getHours(); // local time — Codespace is ET
+  return h >= 18 && h < 23;
+}
+
+function updateLiveIndicator(secondsLeft) {
+  const el = $('live-indicator');
+  if (!el) return;
+  if (!isGameHour()) { el.style.display = 'none'; return; }
+  el.style.display = 'inline-flex';
+  el.textContent = `LIVE — next refresh in ${secondsLeft}s`;
+}
+
+async function liveRefreshTick() {
+  // Only silently refresh arb data; re-render edges if that tab is active
+  try {
+    const fresh = await fetch('arbitrage_log.json').then(r=>r.json()).catch(()=>null);
+    if (fresh) APP.arb = fresh;
+  } catch(_) {}
+  const active = document.querySelector('.tab.active')?.dataset.tab;
+  if (active === 'edges') renderEdges();
+}
+
+function startLiveTimer() {
+  if (liveTimer) clearInterval(liveTimer);
+  if (!isGameHour()) return;
+
+  let countdown = LIVE_REFRESH_MS / 1000;
+  updateLiveIndicator(countdown);
+
+  liveTimer = setInterval(async () => {
+    countdown -= 1;
+    if (countdown <= 0) {
+      countdown = LIVE_REFRESH_MS / 1000;
+      await liveRefreshTick();
+    }
+    updateLiveIndicator(countdown);
+    // Stop outside game hours
+    if (!isGameHour()) {
+      clearInterval(liveTimer);
+      liveTimer = null;
+      const el = $('live-indicator');
+      if (el) el.style.display = 'none';
+    }
+  }, 1000);
+}
+
 async function init() {
   setupTabs();
   await loadData();
   renderToday();
+  startLiveTimer();
+  // Re-check every 5 min whether game hours started
+  setInterval(() => { if (!liveTimer && isGameHour()) startLiveTimer(); }, 300_000);
 }
 
 document.addEventListener('DOMContentLoaded',init);
