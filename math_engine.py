@@ -4,7 +4,19 @@ All betting math. Runs automatically on every bet.
 No manual calculations ever.
 """
 
+import json, os
+from datetime import datetime
 from typing import Optional
+import pytz
+
+ET = pytz.timezone("America/New_York")
+
+STARTING_BANKROLL   = 150.0
+DAILY_CAP_PCT       = 0.15    # max 15% of bankroll per day
+DRAWDOWN_REDUCE_PCT = 0.20    # cut stakes 50% at 20% peak-to-trough drawdown
+DRAWDOWN_STOP_PCT   = 0.40    # stop + Telegram alert at 40% drawdown
+KELLY_FRACTION      = 0.25    # quarter Kelly
+MAX_BET_PCT         = 0.05    # hard cap: 5% of bankroll per bet
 
 
 def american_to_decimal(ml: str) -> Optional[float]:
@@ -251,6 +263,146 @@ def clv_stats_summary(log: list) -> dict:
             if len(resolved) < 100 else "Sufficient sample size"
         )
     }
+
+
+class BankrollManager:
+    """Fractional Kelly sizing with conviction tiers and drawdown protection."""
+
+    def __init__(self, bankroll_file="bankroll.json"):
+        self.file = bankroll_file
+        self.data = self._load()
+
+    def _load(self):
+        try:
+            with open(self.file) as f:
+                return json.load(f)
+        except Exception:
+            return {
+                "starting":     STARTING_BANKROLL,
+                "current":      STARTING_BANKROLL,
+                "peak":         STARTING_BANKROLL,
+                "sessions":     0,
+                "total_wagered": 0,
+                "day_wagered":  0,
+                "day_start":    "",
+                "stop_betting": False,
+            }
+
+    def save(self):
+        with open(self.file, "w") as f:
+            json.dump(self.data, f, indent=2)
+
+    @property
+    def current(self):
+        return self.data["current"]
+
+    @property
+    def peak(self):
+        return self.data.get("peak", self.data["starting"])
+
+    @property
+    def drawdown_pct(self):
+        if self.peak <= 0:
+            return 0.0
+        return (self.peak - self.current) / self.peak
+
+    @property
+    def stopped(self):
+        return self.data.get("stop_betting", False)
+
+    def stake_for_conviction(self, conviction: str, edge_pct: float,
+                             ml_str: str, model_prob_pct: float) -> float:
+        """
+        Return recommended stake based on conviction and Kelly.
+        HIGH  edge → 3–5% of bankroll
+        MEDIUM edge → 1–3% of bankroll
+        PASS → 0
+        Hard caps: 5% per bet, 15% daily, 25% fractional Kelly.
+        Down 20% from peak → stakes cut 50%.
+        Down 40% from peak → stop (returns 0).
+        """
+        if self.stopped:
+            return 0.0
+
+        br = self.current
+        dd = self.drawdown_pct
+
+        if dd >= DRAWDOWN_STOP_PCT:
+            self.data["stop_betting"] = True
+            self.save()
+            return 0.0
+
+        stake_mult = 0.5 if dd >= DRAWDOWN_REDUCE_PCT else 1.0
+
+        if conviction == "HIGH":
+            base_pct, max_pct = 0.03, 0.05
+        elif conviction == "MEDIUM":
+            base_pct, max_pct = 0.01, 0.03
+        else:
+            return 0.0
+
+        # Scale within range by edge magnitude
+        edge_norm = min(max(edge_pct / 10.0, 0.0), 1.0)
+        target_pct = base_pct + edge_norm * (max_pct - base_pct)
+
+        # Kelly ceiling
+        kelly_result = kelly_criterion(ml_str, model_prob_pct, br, KELLY_FRACTION)
+        kelly_pct = (kelly_result.get("kelly_pct") or 0) / 100
+
+        final_pct = min(target_pct, kelly_pct if kelly_pct > 0 else target_pct, MAX_BET_PCT)
+        final_pct *= stake_mult
+
+        # Daily cap
+        today = datetime.now(ET).strftime("%Y-%m-%d")
+        if self.data.get("day_start") != today:
+            self.data["day_start"] = today
+            self.data["day_wagered"] = 0.0
+
+        daily_cap      = br * DAILY_CAP_PCT
+        already_wagered = self.data.get("day_wagered", 0.0)
+        remaining      = max(daily_cap - already_wagered, 0.0)
+
+        stake = round(min(br * final_pct, remaining), 2)
+        return max(stake, 0.0)
+
+    def record_wager(self, stake: float):
+        self.data["day_wagered"] = round(
+            self.data.get("day_wagered", 0.0) + stake, 2)
+        self.data["total_wagered"] = round(
+            self.data.get("total_wagered", 0.0) + stake, 2)
+        self.save()
+
+    def record_result(self, pnl: float):
+        self.data["current"] = round(self.data["current"] + pnl, 2)
+        if self.data["current"] > self.peak:
+            self.data["peak"] = self.data["current"]
+        self.data["sessions"] = self.data.get("sessions", 0) + 1
+        self.save()
+
+    def send_stop_alert(self, telegram_token: str, telegram_chat: str):
+        try:
+            import requests
+            dd = self.drawdown_pct
+            msg = (f"PARLAY OS — BANKROLL ALERT\n"
+                   f"Down {dd*100:.0f}% from peak (${self.peak:.2f} → ${self.current:.2f})\n"
+                   f"Betting STOPPED. Review model before resuming.\n"
+                   f"{datetime.now(ET).strftime('%I:%M %p ET')}")
+            requests.post(
+                f"https://api.telegram.org/bot{telegram_token}/sendMessage",
+                json={"chat_id": telegram_chat, "text": msg},
+                timeout=10)
+        except Exception as e:
+            print(f"Stop alert err: {e}")
+
+    def status_str(self) -> str:
+        br = self.current
+        dd = self.drawdown_pct
+        flag = ""
+        if dd >= DRAWDOWN_STOP_PCT:
+            flag = f"  STOPPED — DD {dd*100:.0f}%"
+        elif dd >= DRAWDOWN_REDUCE_PCT:
+            flag = f"  REDUCED stakes — DD {dd*100:.0f}%"
+        return f"${br:.2f} (peak ${self.peak:.2f}){flag}"
 
 
 def format_clv_stats_telegram(stats: dict) -> str:

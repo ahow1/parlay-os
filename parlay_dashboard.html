@@ -321,6 +321,55 @@ body{background:#00070d;color:#b8d4e8;font-family:'JetBrains Mono',monospace;min
 .jb{color:var(--purple);}
 .jnull{color:var(--t3);}
 
+/* ── BET SLIP ── */
+.bs-header{display:flex;align-items:center;justify-content:space-between;
+  background:var(--bg1);border:1px solid var(--border2);border-radius:6px;
+  padding:12px 16px;margin-bottom:14px;}
+.bs-bankroll{font-size:22px;font-weight:700;color:var(--blue);}
+.bs-pnl{font-size:11px;color:var(--t2);margin-top:2px;}
+.bs-api-note{font-size:9px;color:var(--t3);letter-spacing:1px;}
+.slip-section{margin-bottom:20px;}
+.slip-title{font-size:9px;font-weight:700;letter-spacing:2px;color:var(--t2);
+  margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.slip-card{
+  background:var(--bg1);border:1px solid var(--border2);border-radius:6px;
+  padding:12px 14px;margin-bottom:8px;transition:border-color 0.15s;
+}
+.slip-card:hover{border-color:rgba(0,180,255,0.25);}
+.slip-card.logged{border-color:rgba(0,255,136,0.2);background:rgba(0,255,136,0.02);}
+.sc-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.sc-game{flex:1;font-size:13px;font-weight:700;color:#fff;}
+.sc-time{font-size:9px;color:var(--t2);}
+.sc-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+.sc-pick{font-size:11px;color:var(--amber);font-weight:700;}
+.sc-odds{font-size:11px;color:var(--blue);}
+.sc-edge{font-size:10px;color:var(--green);}
+.sc-stake{font-size:10px;color:var(--t1);}
+.sc-towin{font-size:10px;color:var(--green);}
+.sc-actions{display:flex;gap:6px;flex-wrap:wrap;}
+.slip-btn{
+  cursor:pointer;font-family:inherit;font-size:9px;font-weight:700;
+  letter-spacing:1.5px;padding:5px 12px;border-radius:3px;border:1px solid;
+  transition:all 0.15s;
+}
+.slip-btn.bet-btn{
+  background:rgba(0,180,255,0.1);border-color:rgba(0,180,255,0.35);
+  color:var(--blue);
+}
+.slip-btn.bet-btn:hover{background:rgba(0,180,255,0.2);}
+.slip-btn.win-btn{background:rgba(0,255,136,0.1);border-color:rgba(0,255,136,0.35);color:var(--green);}
+.slip-btn.win-btn:hover{background:rgba(0,255,136,0.25);}
+.slip-btn.loss-btn{background:rgba(255,51,85,0.1);border-color:rgba(255,51,85,0.35);color:var(--red);}
+.slip-btn.loss-btn:hover{background:rgba(255,51,85,0.25);}
+.slip-btn.push-btn{background:rgba(74,106,138,0.1);border-color:rgba(74,106,138,0.3);color:var(--t2);}
+.slip-btn.push-btn:hover{background:rgba(74,106,138,0.2);}
+.slip-btn:disabled{opacity:0.4;cursor:default;}
+.slip-status{font-size:9px;font-weight:700;letter-spacing:1.5px;padding:2px 8px;border-radius:3px;}
+.slip-status.win{color:var(--green);background:rgba(0,255,136,0.08);}
+.slip-status.loss{color:var(--red);background:rgba(255,51,85,0.08);}
+.slip-status.push{color:var(--t2);background:rgba(74,106,138,0.08);}
+.slip-status.logged{color:var(--blue);background:rgba(0,180,255,0.08);}
+
 /* ── EMPTY STATE ── */
 .empty{text-align:center;padding:55px 20px;color:var(--t3);}
 .e-icon{font-size:28px;margin-bottom:13px;opacity:0.35;}
@@ -374,6 +423,7 @@ body{background:#00070d;color:#b8d4e8;font-family:'JetBrains Mono',monospace;min
 
 <nav id="tabs">
   <button class="tab active" data-tab="today">TODAY'S PICKS</button>
+  <button class="tab" data-tab="betslip">BET SLIP</button>
   <button class="tab" data-tab="monitor">LIVE MONITOR</button>
   <button class="tab" data-tab="edges">EDGE FINDER</button>
   <button class="tab" data-tab="props">PROPS</button>
@@ -384,6 +434,7 @@ body{background:#00070d;color:#b8d4e8;font-family:'JetBrains Mono',monospace;min
 
 <main id="content">
   <div id="today"    class="tab-content active"></div>
+  <div id="betslip"  class="tab-content"></div>
   <div id="monitor"  class="tab-content"></div>
   <div id="edges"    class="tab-content"></div>
   <div id="props"    class="tab-content"></div>
@@ -394,18 +445,58 @@ body{background:#00070d;color:#b8d4e8;font-family:'JetBrains Mono',monospace;min
 
 <script>
 // ── STATE ──
-const APP = { scout:null, arb:[], clv:[], props:null, live:[], activeLog:'scout', START:150 };
+const APP = {
+  scout:null, arb:[], clv:[], props:null, live:[], activeLog:'scout', START:150,
+  bankroll:null, loggedBets:{},  // {game_key: {logged:bool, result:'W'/'L'/'P'/null}}
+};
+
+// API base — works when served by Flask at localhost:5000, falls back silently otherwise
+const API = (()=>{
+  try {
+    const h = window.location.hostname;
+    const p = window.location.port;
+    if (h==='localhost'||h==='127.0.0.1') return `http://${h}:${p||5000}/api`;
+    if (window.location.protocol!=='file:') return '/api';
+  } catch(_){}
+  return 'http://localhost:5000/api';
+})();
+
+async function apiGet(path) {
+  try { return await fetch(API+path).then(r=>r.json()); } catch(_){ return null; }
+}
+async function apiPost(path, body) {
+  try {
+    const r = await fetch(API+path, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body),
+    });
+    return await r.json();
+  } catch(e){ return {error: String(e)}; }
+}
 
 // ── FETCH ──
 async function loadData() {
-  const [scout, arb, clv, props, live] = await Promise.all([
-    fetch('last_scout.json').then(r=>r.json()).catch(()=>null),
-    fetch('arbitrage_log.json').then(r=>r.json()).catch(()=>[]),
-    fetch('clv_log.json').then(r=>r.json()).catch(()=>[]),
+  // Try API first, fall back to static files
+  const [scout, arb, clv, props, live, bankroll] = await Promise.all([
+    apiGet('/scout').then(d=>d||null).catch(()=>null)
+      .then(d=>d||fetch('last_scout.json').then(r=>r.json()).catch(()=>null)),
+    apiGet('/arbitrage').then(d=>d||null).catch(()=>null)
+      .then(d=>d||fetch('arbitrage_log.json').then(r=>r.json()).catch(()=>[])),
+    apiGet('/clv').then(d=>d||null).catch(()=>null)
+      .then(d=>d||fetch('clv_log.json').then(r=>r.json()).catch(()=>[])),
     fetch('props_output.json').then(r=>r.json()).catch(()=>null),
     fetch('live_alerts.json').then(r=>r.json()).catch(()=>[]),
+    apiGet('/bankroll').catch(()=>null),
   ]);
-  APP.scout=scout; APP.arb=arb||[]; APP.clv=clv||[]; APP.props=props; APP.live=live||[];
+  APP.scout=scout; APP.arb=arb||[]; APP.clv=clv||[];
+  APP.props=props; APP.live=live||[]; APP.bankroll=bankroll||null;
+
+  // Load logged bets state from localStorage
+  try {
+    const saved = JSON.parse(localStorage.getItem('parlayos_bets')||'{}');
+    APP.loggedBets = saved;
+  } catch(_){ APP.loggedBets = {}; }
+
   if (!scout) document.querySelectorAll('.fetch-notice').forEach(n=>n.style.display='block');
 }
 
@@ -1034,6 +1125,231 @@ function syntaxHL(json) {
     });
 }
 
+// ── BET SLIP ──────────────────────────────────────────────────────────────────
+
+function saveBetState() {
+  try { localStorage.setItem('parlayos_bets', JSON.stringify(APP.loggedBets)); } catch(_){}
+}
+
+function calcToWin(odds, stake) {
+  const n = parseInt(String(odds).replace(/[^\d-]/g,''));
+  if (isNaN(n) || n===0) return 0;
+  return n>0 ? (n/100)*stake : (100/Math.abs(n))*stake;
+}
+
+async function logBet(g, btnEl) {
+  const key = `${g.away}@${g.home}`;
+  const stake = parseFloat(g.stake)||0;
+  btnEl.disabled = true;
+  btnEl.textContent = 'LOGGING…';
+
+  const body = {
+    bet: g.pick, type: (g.pick||'').includes('F5')?'F5':'ML',
+    game: key, sp: g.asp||'', park: g.home||'',
+    umpire: g.umpire||'', odds: g.pick_odds,
+    model_prob: g.pick_wp, market_prob: g.pick_side==='home'?g.home_market_p:g.away_market_p,
+    edge_pct: g.edge_pct, conviction: g.conviction, stake,
+  };
+
+  const res = await apiPost('/bet', body);
+  if (res && res.ok) {
+    APP.loggedBets[key] = { logged:true, result:null, bet:g.pick,
+      odds:g.pick_odds, stake, date: new Date().toISOString().slice(0,10) };
+    saveBetState();
+    renderBetSlip();
+  } else {
+    btnEl.disabled = false;
+    btnEl.textContent = 'LOG BET';
+    alert('API error: ' + (res?.error||'Is api.py running at localhost:5000?'));
+  }
+}
+
+async function resolveBet(g, result) {
+  const key = `${g.away}@${g.home}`;
+  const state = APP.loggedBets[key];
+  if (!state) return;
+
+  const body = {
+    bet: state.bet||g.pick, result,
+    date: state.date || new Date().toISOString().slice(0,10),
+    closing_odds: String(g.pick_odds||''),
+    game_score: '', notes: '',
+  };
+
+  const res = await apiPost('/resolve', body);
+  if (res && res.ok) {
+    APP.loggedBets[key].result = result;
+    saveBetState();
+    // Refresh bankroll
+    const br = await apiGet('/bankroll');
+    if (br) APP.bankroll = br;
+    renderBetSlip();
+  } else {
+    alert('Resolve error: ' + (res?.error||'Is api.py running?'));
+  }
+}
+
+function renderBetSlip() {
+  const div = $('betslip');
+  const page = mk('div','page fade-in');
+
+  const sh = mk('div','sec-hdr');
+  sh.innerHTML = `<div class="sec-title">BET SLIP</div>
+    <div class="sec-meta">${new Date().toLocaleTimeString()}</div>`;
+  page.appendChild(sh);
+
+  // Bankroll header
+  const bk = APP.bankroll;
+  const cur = bk ? bk.current : APP.START;
+  const pnl = cur - APP.START;
+  const hdr = mk('div','bs-header');
+  hdr.innerHTML = `
+    <div>
+      <div class="bs-bankroll">$${cur.toFixed(2)}</div>
+      <div class="bs-pnl">${pnl>=0?'▲ +':'▼ '}$${Math.abs(pnl).toFixed(2)} vs $${APP.START} start</div>
+    </div>
+    <div class="bs-api-note">API: ${API}</div>
+  `;
+  page.appendChild(hdr);
+
+  const s = APP.scout;
+  const todayPicks = (s?.games||[]).filter(g=>
+    g.conviction!=='PASS' && g.pick && parseFloat(g.stake)>0
+  );
+
+  // Pending bets that need resolution
+  const pending = todayPicks.filter(g=>{
+    const key=`${g.away}@${g.home}`;
+    const st = APP.loggedBets[key];
+    return st && st.logged && !st.result;
+  });
+
+  // Unlogged picks
+  const unlogged = todayPicks.filter(g=>{
+    const key=`${g.away}@${g.home}`;
+    return !APP.loggedBets[key]?.logged;
+  });
+
+  // Resolved today
+  const resolved = todayPicks.filter(g=>{
+    const key=`${g.away}@${g.home}`;
+    return APP.loggedBets[key]?.result;
+  });
+
+  // ── PICKS TO LOG ──
+  if (unlogged.length) {
+    const sec = mk('div','slip-section');
+    sec.appendChild(mk('div','slip-title',`TODAY'S PICKS — ${s?.date||'—'} (${unlogged.length} to log)`));
+    unlogged.forEach(g=>{
+      const key=`${g.away}@${g.home}`;
+      const stake=parseFloat(g.stake)||0;
+      const toWin=calcToWin(g.pick_odds, stake);
+      const card=mk('div','slip-card');
+      const convCls=g.conviction==='HIGH'?'high':'medium';
+      card.innerHTML=`
+        <div class="sc-top">
+          <span class="conv-badge ${convCls}">${g.conviction}</span>
+          <span class="sc-game">${g.away} @ ${g.home}</span>
+          <span class="sc-time">${g.time||''}</span>
+        </div>
+        <div class="sc-row">
+          <span class="sc-pick">${g.pick||'—'}</span>
+          <span class="sc-odds">${fmtOdds(g.pick_odds)}</span>
+          <span class="sc-edge">${fmtEdge(g.edge_pct)}</span>
+          <span class="sc-stake">Stake: $${stake.toFixed(2)}</span>
+          <span class="sc-towin">To win: +$${toWin.toFixed(2)}</span>
+        </div>
+        <div class="sc-actions"></div>
+      `;
+      const btn=mk('button','slip-btn bet-btn','LOG BET');
+      btn.onclick=()=>logBet(g, btn);
+      card.querySelector('.sc-actions').appendChild(btn);
+      sec.appendChild(card);
+    });
+    page.appendChild(sec);
+  }
+
+  // ── PENDING RESOLUTION ──
+  if (pending.length) {
+    const sec=mk('div','slip-section');
+    sec.appendChild(mk('div','slip-title',`PENDING RESULTS (${pending.length} awaiting)`));
+    pending.forEach(g=>{
+      const key=`${g.away}@${g.home}`;
+      const st=APP.loggedBets[key];
+      const stake=st.stake||parseFloat(g.stake)||0;
+      const toWin=calcToWin(st.odds||g.pick_odds, stake);
+      const card=mk('div','slip-card logged');
+      card.innerHTML=`
+        <div class="sc-top">
+          <span class="slip-status logged">LOGGED</span>
+          <span class="sc-game">${g.away} @ ${g.home}</span>
+          <span class="sc-time">${g.time||''}</span>
+        </div>
+        <div class="sc-row">
+          <span class="sc-pick">${st.bet||g.pick||'—'}</span>
+          <span class="sc-odds">${fmtOdds(st.odds||g.pick_odds)}</span>
+          <span class="sc-stake">$${stake.toFixed(2)} risked</span>
+          <span class="sc-towin">+$${toWin.toFixed(2)} to win</span>
+        </div>
+        <div class="sc-actions"></div>
+      `;
+      const acts=card.querySelector('.sc-actions');
+      ['W','L','P'].forEach(r=>{
+        const cls={'W':'win-btn','L':'loss-btn','P':'push-btn'}[r];
+        const lbl={'W':'WIN','L':'LOSS','P':'PUSH'}[r];
+        const b=mk('button',`slip-btn ${cls}`,lbl);
+        b.onclick=()=>resolveBet(g, r);
+        acts.appendChild(b);
+      });
+      sec.appendChild(card);
+    });
+    page.appendChild(sec);
+  }
+
+  // ── RESOLVED ──
+  if (resolved.length) {
+    const sec=mk('div','slip-section');
+    sec.appendChild(mk('div','slip-title','SETTLED TODAY'));
+    resolved.forEach(g=>{
+      const key=`${g.away}@${g.home}`;
+      const st=APP.loggedBets[key];
+      const stake=st.stake||parseFloat(g.stake)||0;
+      const result=st.result;
+      let pnl=0;
+      if (result==='W') pnl=calcToWin(st.odds||g.pick_odds, stake);
+      else if (result==='L') pnl=-stake;
+      const resCls={'W':'win','L':'loss','P':'push'}[result]||'';
+      const resLbl={'W':'WIN','L':'LOSS','P':'PUSH'}[result]||'?';
+      const card=mk('div',`slip-card ${result==='W'?'logged':''}`);
+      card.innerHTML=`
+        <div class="sc-top">
+          <span class="slip-status ${resCls}">${resLbl}</span>
+          <span class="sc-game">${g.away} @ ${g.home}</span>
+          <span class="sc-time">${g.time||''}</span>
+        </div>
+        <div class="sc-row">
+          <span class="sc-pick">${st.bet||g.pick||'—'}</span>
+          <span class="sc-odds">${fmtOdds(st.odds||g.pick_odds)}</span>
+          <span style="color:${pnl>=0?'var(--green)':'var(--red)'};font-size:11px;font-weight:700">
+            ${pnl>=0?'+':''}$${pnl.toFixed(2)}
+          </span>
+        </div>
+      `;
+      sec.appendChild(card);
+    });
+    page.appendChild(sec);
+  }
+
+  if (!todayPicks.length) {
+    page.appendChild(emptyState(
+      'NO PICKS TODAY',
+      'Scout found no HIGH or MEDIUM conviction picks. Run scout.py to generate picks.'
+    ));
+  }
+
+  div.innerHTML=''; div.appendChild(page);
+}
+
 // ── TABS ──
 function setupTabs() {
   document.querySelectorAll('.tab').forEach(tab=>{
@@ -1049,7 +1365,7 @@ function setupTabs() {
 }
 
 function renderTab(name) {
-  ({today:renderToday,monitor:renderMonitor,edges:renderEdges,
+  ({today:renderToday,betslip:renderBetSlip,monitor:renderMonitor,edges:renderEdges,
     props:renderProps,clv:renderCLV,bankroll:renderBankroll,log:renderLog})[name]?.();
 }
 
