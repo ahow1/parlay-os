@@ -576,37 +576,96 @@ def find_top_props(results):
 
 
 def format_message(results, top_props):
-    lines = [f"PARLAY OS — PROPS MODEL — {DATE}", ""]
+    def _fmt_ml(ml):
+        try:
+            v = int(str(ml).replace("+", ""))
+            return f"+{v}" if v > 0 else str(v)
+        except Exception:
+            return str(ml) if ml is not None else "n/a"
 
-    # Top edges first
-    if top_props:
-        lines.append(f"TOP PROPS ({len(top_props)} edges ≥ 5%):")
-        for p in top_props[:5]:
-            lines.append(f"  [{p['type']}] {p['game']} {p['time']}")
-            if p["type"] == "K_PROP":
-                lines.append(f"  {p.get('sp','')} | Exp K: {p.get('expected_k','')} | Line: {p.get('model_line','')}")
-                lines.append(f"  Model: O{p.get('model_over_ml','')} / U{p.get('model_under_ml','')}")
-                lines.append(f"  Edge: {p.get('edge_pct',0):+.1f}% → {p.get('recommendation','')}")
-            elif p["type"] == "NRFI":
-                lines.append(f"  NRFI {p.get('p_nrfi',0)*100:.1f}% | Model: {p.get('model_nrfi_ml','')}")
-                lines.append(f"  Edge: {p.get('edge_pct',0):+.1f}% → {p.get('recommendation','')}")
-            elif p["type"] == "TOTAL":
-                lines.append(f"  Model total: {p.get('model_total','')} | Market: {p.get('market_line','')}")
-                lines.append(f"  Edge: {p.get('edge_pct',0):+.1f}% → {p.get('recommendation','')}")
-            lines.append("")
+    def _prop_stake(p_win, ml, bankroll=150.0, frac=0.25):
+        try:
+            v = float(str(ml).replace("+", ""))
+            dec = (v / 100 + 1) if v > 0 else (100 / abs(v) + 1)
+            b = dec - 1
+            q = 1 - p_win
+            full_k = (b * p_win - q) / b
+            if full_k <= 0:
+                return 0
+            return round(min(bankroll * full_k * frac, bankroll * 0.05))
+        except Exception:
+            return 0
 
-    lines.append("─────────────────────────────")
-    lines.append("GAME BREAKDOWN:")
+    send_telegram(f"PARLAY OS — PROPS MODEL — {DATE}")
+
     for game in results:
-        lines.append(f"\n{game['away']} @ {game['home']} — {game.get('time','')}")
-        lines.append(f"  SP: {game['asp']} (K/9 {game['asp_k9']}, xFIP {game['asp_xfip']}) vs {game['hsp']} (K/9 {game['hsp_k9']}, xFIP {game['hsp_xfip']})")
-        lines.append(f"  Model total: {game.get('model_total','?')} ({game['away']} {game.get('away_exp_rs','?')} + {game['home']} {game.get('home_exp_rs','?')})")
-        nrfi = game.get("nrfi", {})
-        if nrfi:
-            lines.append(f"  NRFI: {nrfi.get('p_nrfi',0)*100:.1f}% ({nrfi.get('model_nrfi_ml','')})")
+        away = game["away"]; home = game["home"]
+        lines = [f"PROPS — {away} @ {home} — {game.get('time', '')}", ""]
 
-    lines.append(f"\nGenerated {NOW.strftime('%I:%M %p ET')} — Parlay OS Props Model")
-    return "\n".join(lines)
+        for prop in game.get("props", []):
+            ptype = prop.get("type", "")
+
+            if ptype == "K_PROP":
+                sp      = prop.get("sp", "SP")
+                exp_k   = prop.get("expected_k", 0)
+                line    = prop.get("model_line", 0)
+                p_over  = prop.get("p_over", 0.0)
+                mkt_ml  = prop.get("market_over_ml") or prop.get("model_over_ml", -110)
+                p_imp   = ip_prob(mkt_ml) or 0.524
+                edge    = edge_pct(p_over, p_imp)
+                if edge >= 5.0:
+                    stake = _prop_stake(p_over, mkt_ml)
+                    lines.append(f"✅ BET: {sp} O{line}K {_fmt_ml(mkt_ml)} — ${stake} — MODEL: {p_over*100:.0f}% hit probability")
+                else:
+                    lines.append(f"❌ PASS: {sp} O{line}K — model {p_over*100:.0f}% probability, edge {edge:+.1f}% under 5% threshold")
+
+            elif ptype == "NRFI":
+                p_nrfi  = prop.get("p_nrfi", 0.0)
+                mkt_ml  = prop.get("market_nrfi_ml") or prop.get("model_nrfi_ml", -110)
+                p_imp   = ip_prob(mkt_ml) or 0.524
+                nrfi_edge = edge_pct(p_nrfi, p_imp)
+                rec     = prop.get("recommendation", "PASS")
+                if nrfi_edge >= 5.0 and rec in ("NRFI", "YRFI"):
+                    stake = _prop_stake(p_nrfi, mkt_ml)
+                    lines.append(f"✅ BET: NRFI {_fmt_ml(mkt_ml)} — ${stake} — MODEL: {p_nrfi*100:.0f}% probability")
+                elif rec == "YRFI":
+                    p_yrfi = prop.get("p_yrfi", 0.0)
+                    yrfi_ml = prop.get("model_yrfi_ml", -110)
+                    yrfi_edge = edge_pct(p_yrfi, ip_prob(yrfi_ml) or 0.524)
+                    if yrfi_edge >= 5.0:
+                        stake = _prop_stake(p_yrfi, yrfi_ml)
+                        lines.append(f"✅ BET: YRFI {_fmt_ml(yrfi_ml)} — ${stake} — MODEL: {p_yrfi*100:.0f}% probability")
+                    else:
+                        lines.append(f"❌ PASS: NRFI/YRFI — model NRFI {p_nrfi*100:.0f}%, edge {nrfi_edge:+.1f}% under 5% threshold")
+                else:
+                    lines.append(f"❌ PASS: NRFI — model {p_nrfi*100:.0f}% probability, edge {nrfi_edge:+.1f}% under 5% threshold")
+
+            elif ptype == "TOTAL":
+                model_t  = prop.get("model_total", 0)
+                mkt_line = prop.get("market_line")
+                mkt_o_ml = prop.get("market_over_ml")
+                mkt_u_ml = prop.get("market_under_ml")
+                ep       = prop.get("edge_pct", 0.0) or 0.0
+                rec      = prop.get("recommendation", "PASS") or "PASS"
+                if mkt_line and abs(ep) >= 5.0 and "PASS" not in rec:
+                    if ep > 0:
+                        bet_ml = mkt_o_ml; p_win = prop.get("model_p_over", 0.55)
+                        label  = f"OVER {mkt_line}"
+                    else:
+                        bet_ml = mkt_u_ml; p_win = 1 - prop.get("model_p_over", 0.45)
+                        label  = f"UNDER {mkt_line}"
+                    stake = _prop_stake(p_win, bet_ml)
+                    lines.append(f"✅ BET: TOTAL {label} {_fmt_ml(bet_ml)} — ${stake} — EDGE: {ep:+.1f}%")
+                elif mkt_line:
+                    lines.append(f"❌ PASS: TOTAL O/U {mkt_line} — model projects {model_t}, edge {ep:+.1f}% under 5% threshold")
+                else:
+                    lines.append(f"❌ PASS: TOTAL — no market line available (model projects {model_t})")
+
+        lines.append("─────")
+        send_telegram("\n".join(lines))
+        time.sleep(0.3)
+
+    send_telegram(f"Parlay OS Props Model — {NOW.strftime('%I:%M %p ET')}")
 
 
 def main():
@@ -637,8 +696,7 @@ def main():
         json.dump(output, f, indent=2)
     print(f"Saved {PROPS_FILE}")
 
-    msg = format_message(results, top_props)
-    send_telegram(msg)
+    format_message(results, top_props)
     print("Done.")
 
 

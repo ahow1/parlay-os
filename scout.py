@@ -1303,64 +1303,120 @@ def run_scout():
 
 
 def format_and_send(data):
+    bm = BankrollManager()
     verdict = data.get("verdict", "")
     tag = "GREEN" if "GREEN" in verdict else "YELLOW" if "YELLOW" in verdict else "RED"
 
-    msg = [
+    send_telegram("\n".join([
         f"PARLAY OS — SCOUT v4 — {data['date']}",
-        f"{tag}  {verdict}",
-        data.get("note", ""),
-        f"Bankroll: {data.get('bankroll','')}",
-        "",
-    ]
-    high   = data.get("high", [])
-    medium = data.get("medium", [])
-    if high:   msg.append(f"HIGH:   {', '.join(high)}")
-    if medium: msg.append(f"MEDIUM: {', '.join(medium)}")
+        f"{tag}  {data.get('note', '')}",
+        f"Bankroll: {data.get('bankroll', '')}",
+    ]))
 
-    legs = data.get("parlay_legs", [])
-    if len(legs) >= 2:
-        msg.append(f"\nPARLAY LEGS: {' + '.join(legs)}")
+    games      = data.get("games", [])
+    high_games = [g for g in games if g["conviction"] == "HIGH" and g.get("pick")]
 
-    send_telegram("\n".join(msg))
+    def fmt_ml(ml):
+        try:
+            v = int(str(ml).replace("+", ""))
+            return f"+{v}" if v > 0 else str(v)
+        except Exception:
+            return str(ml)
 
-    for g in data.get("games", []):
-        if g["conviction"] == "PASS":
-            continue
+    for g in games:
+        conv       = g["conviction"]
+        pick_side  = g.get("pick_side", "home")
+        pick_team  = g["away"] if pick_side == "away" else g["home"]
+        other_team = g["home"] if pick_side == "away" else g["away"]
+        pick_ml    = g.get("pick_odds", "")
+        stake      = g.get("stake", 0.0)
+        edge       = g.get("edge_pct", 0.0)
+        pick       = g.get("pick", "")
+        other_ml   = g.get("aml") if pick_side == "home" else g.get("hml")
+        other_wp   = g.get("away_wp") if pick_side == "home" else g.get("home_wp")
+        other_mkt  = g.get("away_market_p") if pick_side == "home" else g.get("home_market_p")
 
-        conv = g["conviction"]
-        lbl  = f"[{conv}]"
-        ml_s = f"+{g['pick_odds']}" if str(g['pick_odds']).lstrip('-').isdigit() and int(str(g['pick_odds']).lstrip('+-')) > 0 and not str(g['pick_odds']).startswith('-') else str(g['pick_odds'])
+        lines = [f"[{conv}] {g['away']} @ {g['home']} — {g.get('time', '')}", ""]
 
-        lines = [
-            f"\n{lbl} {g['away']} @ {g['home']} — {g.get('time','')}",
-            f"  {g['away']} {g['away_record']} | {g['home']} {g['home_record']}",
-            f"  SP: {g['asp']} ({g['asp_hand']}HP, xFIP {g['asp_xfip']}) vs {g['hsp']} ({g['hsp_hand']}HP, xFIP {g['hsp_xfip']})",
-            f"  Offense: {g['away']} wRC+{int(g['away_wrc'])} ({g['away_wrc_adj']:+.0f} plat) / {g['home']} wRC+{int(g['home_wrc'])} ({g['home_wrc_adj']:+.0f} plat)",
-            f"  Bullpen: {g['away']} {g['away_bp_era']} ERA (fat:{g['away_fat_score']}) / {g['home']} {g['home_bp_era']} ERA (fat:{g['home_fat_score']})",
-        ]
-        if g.get("umpire"):
-            lines.append(f"  Umpire: {g['umpire']}{' — ' + g['umpire_note'] if g['umpire_note'] else ''}")
-        if g.get("weather_note"):
-            lines.append(f"  Weather: {g['weather_note']}")
-        lines += [
-            f"  Model WP: {g['away']} {g['away_wp']}% / {g['home']} {g['home_wp']}%",
-            f"  Market:   {g['away']} {g['aml']} ({g['away_market_p']}%) / {g['home']} {g['hml']} ({g['home_market_p']}%)",
-            f"  PICK: {g.get('pick','')} {ml_s}   EDGE: {g['edge_pct']:+.1f}%   CONVICTION: {conv}",
-            f"  STAKE: ${g['stake']:.2f}",
-            f"  NARRATIVE: {g.get('narrative','')}",
-        ]
+        # ── MAIN BET ──────────────────────────────────────────────────────────
+        lines.append("MAIN BET:")
+        if conv != "PASS" and pick:
+            bet_type = "F5" if "F5" in pick else "ML"
+            lines.append(f"✅ BET: {pick_team} {bet_type} {fmt_ml(pick_ml)} — ${stake:.0f} — EDGE: {edge:+.1f}%")
+            lines.append(f"❌ PASS: {other_team} ML {fmt_ml(other_ml)} — model {other_wp:.0f}% vs market {other_mkt:.0f}%")
+        else:
+            lines.append(f"❌ PASS: {g['away']} ML {fmt_ml(g.get('aml', ''))} — edge {g.get('away_edge', 0):+.1f}% below 4% threshold")
+            lines.append(f"❌ PASS: {g['home']} ML {fmt_ml(g.get('hml', ''))} — edge {g.get('home_edge', 0):+.1f}% below 4% threshold")
+
+        lines.append("")
+
+        # ── PROPS ─────────────────────────────────────────────────────────────
+        lines.append("PROPS:")
+
+        k_data   = g.get("k_data", {})
+        asp_name = g.get("asp", "SP")
+        k_line   = k_data.get("k_line", 0)
+        k_p_over = k_data.get("p_over", 0.0)
+        k_ml     = k_data.get("model_over_ml", -110)
+        if k_line and k_p_over:
+            k_edge_pct = (k_p_over - 0.524) * 100
+            if k_edge_pct >= 5.0:
+                k_stake = bm.stake_for_conviction("MEDIUM", k_edge_pct, k_ml, k_p_over * 100)
+                lines.append(f"✅ BET: {asp_name} O{k_line}K {fmt_ml(k_ml)} — ${k_stake:.0f}")
+            else:
+                lines.append(f"❌ PASS: {asp_name} O{k_line}K — model {k_p_over*100:.0f}% probability, edge {k_edge_pct:+.1f}% under 5% threshold")
+        else:
+            lines.append(f"❌ PASS: {asp_name} Ks — insufficient SP data")
+
+        asp_xfip  = g.get("asp_xfip", 4.20)
+        hsp_xfip  = g.get("hsp_xfip", 4.20)
+        nrfi_prob = exp(-asp_xfip * 0.92 / 9) * exp(-hsp_xfip * 0.92 / 9)
+        nrfi_ml   = prob_to_american(nrfi_prob)
         if g.get("nrfi") == "yes":
-            lines.append("  NRFI: both SPs elite — lean toward scoreless 1st")
-        if g.get("k_prop"):
-            lines.append(f"  K PROP: {g['k_prop']}")
-        if g.get("total"):
-            lines.append(f"  MODEL TOTAL: O/U {g['total']}")
-        lines.append("  ─────")
-        send_telegram("\n".join(lines))
-        time.sleep(0.5)
+            nrfi_edge = (nrfi_prob - 0.524) * 100
+            nrfi_stake = bm.stake_for_conviction("MEDIUM", nrfi_edge, nrfi_ml, nrfi_prob * 100) if nrfi_edge >= 5 else 0
+            lines.append(f"✅ BET: NRFI {fmt_ml(nrfi_ml)} — ${nrfi_stake:.0f}")
+        else:
+            lines.append(f"❌ PASS: NRFI — model {nrfi_prob*100:.0f}% probability, SP quality below NRFI threshold")
 
-    send_telegram(f"\nParlay OS Scout v4 — {NOW.strftime('%I:%M %p ET')}")
+        model_total = g.get("total", "")
+        lines.append(f"❌ PASS: TOTAL O/U {model_total} — no live market line in scout data")
+
+        lines.append("")
+
+        # ── NARRATIVE ─────────────────────────────────────────────────────────
+        lines.append("NARRATIVE:")
+        lines.append(g.get("narrative", ""))
+        lines.append("─────")
+
+        send_telegram("\n".join(lines))
+        time.sleep(0.3)
+
+    # ── PARLAY OPTION (only when 2+ HIGH conviction bets exist) ───────────────
+    if len(high_games) >= 2:
+        g1, g2 = high_games[0], high_games[1]
+
+        def parlay_dec(ml):
+            try:
+                v = float(str(ml).replace("+", ""))
+                return (v / 100 + 1) if v > 0 else (100 / abs(v) + 1)
+            except Exception:
+                return 1.91
+
+        combined = parlay_dec(g1.get("pick_odds", -110)) * parlay_dec(g2.get("pick_odds", -110))
+        try:
+            p_ml_val = round((combined - 1) * 100) if combined >= 2 else round(-100 / (combined - 1))
+            p_ml_str = f"+{p_ml_val}" if p_ml_val > 0 else str(p_ml_val)
+        except Exception:
+            p_ml_str = "?"
+
+        l1 = f"{g1['away'] if g1.get('pick_side')=='away' else g1['home']} {'F5' if 'F5' in g1.get('pick','') else 'ML'}"
+        l2 = f"{g2['away'] if g2.get('pick_side')=='away' else g2['home']} {'F5' if 'F5' in g2.get('pick','') else 'ML'}"
+        p_stake = round(min(g1.get("stake", 0), g2.get("stake", 0)) * 0.5)
+
+        send_telegram(f"PARLAY OPTION (both HIGH conviction):\n{l1} + {l2} ({p_ml_str}) — ${p_stake}")
+
+    send_telegram(f"Parlay OS Scout v4 — {NOW.strftime('%I:%M %p ET')}")
 
 
 def main():

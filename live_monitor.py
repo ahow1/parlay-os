@@ -846,44 +846,29 @@ def evaluate_conviction(state, book_odds, poly_prices, scout_ctx, history):
 # ── ALERT FORMATTING ──────────────────────────────────────────────────────────
 
 def format_live_alert(cv):
-    """Sharp analyst Telegram message for a conviction play."""
+    """Clean categorized live alert matching PARLAY OS format spec."""
     half_str = cv["half"].capitalize()
-    inn_str  = f"{half_str} {cv['inning']}, {cv['outs']} out{'s' if cv['outs'] != 1 else ''}"
-    runners  = ", ".join(cv["runners"]) if cv["runners"] else "bases empty"
+    inn_str  = f"{half_str} {cv['inning']}"
     score    = f"{cv['away_abr']} {cv['away_score']} — {cv['home_abr']} {cv['home_score']}"
-
-    batters_str = ", ".join(b for b in cv["next_batters"] if b)
-    batters_line = f"\nNext up ({cv['trailing_abr']}): {batters_str}" if batters_str else ""
-    pitcher_line = f"\nPitching ({cv['leading_abr']}): {cv['curr_pitcher']}" if cv.get("curr_pitcher") else ""
-
-    gates = cv["gates"]
-    gate_icons = {k: ("✓" if v else "✗") for k, v in gates.items()}
-    gate_line = "  ".join(f"{icon} {k.replace('_',' ').title()}" for k, icon in gate_icons.items())
+    stake_str = f"${cv['stake']:.0f}" if cv["stake"] > 0 else "size to model"
 
     why = (
         f"{cv['run_context']} "
-        f"{cv['bullpen_context']} "
-        f"Polymarket is pricing {cv['trailing_abr']} at {cv['poly_p']:.1f}% — "
-        f"model puts true win probability at {cv['model_p']:.1f}%, "
-        f"a {cv['edge_pct']:.1f}% gap that meets our conviction threshold."
-    )
+        f"{cv['bullpen_context']}"
+    ).strip()
 
-    stake_line = f"${cv['stake']:.2f} (Kelly)" if cv["stake"] > 0 else "size to your model"
-    action_line = f"{cv['line_status']} — {cv['sharp_desc']}"
-    ts = datetime.now(ET).strftime("%I:%M %p ET")
-
-    return (
-        f"LIVE EDGE — {cv['conviction']} CONVICTION\n"
-        f"{score}  |  {inn_str}  |  {runners}"
-        f"{pitcher_line}{batters_line}\n\n"
-        f"Live odds: {cv['book_ml']} / Poly: {cv['poly_ml']} ({cv['poly_p']:.1f}%)  "
-        f"|  Model: {cv['model_p']:.1f}%  |  EDGE: +{cv['edge_pct']:.1f}%\n\n"
-        f"WHY THIS HAS VALUE: {why}\n\n"
-        f"STAKE: {stake_line}\n"
-        f"{action_line}\n\n"
-        f"Gates [{cv['gates_passed']}/6]: {gate_line}\n"
-        f"{ts}"
-    )
+    lines = [
+        f"🚨 LIVE EDGE — {cv['conviction']} CONVICTION",
+        f"{cv['away_abr']} @ {cv['home_abr']} — {inn_str} | {score}",
+        f"Live {cv['book_ml']} vs Model {cv['model_p']:.0f}% — EDGE: +{cv['edge_pct']:.1f}%",
+        "",
+        f"✅ BET: {cv['trailing_abr']} ML {cv['book_ml']} — {stake_str}",
+        "",
+        f"WHY: {why}",
+        "",
+        f"{cv['line_status']} — {cv['sharp_desc']}",
+    ]
+    return "\n".join(lines)
 
 
 def is_duplicate(game_key, trailing_side, alert_log):
