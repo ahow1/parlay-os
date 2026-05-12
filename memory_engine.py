@@ -237,6 +237,59 @@ def init_memory_tables():
             status          TEXT DEFAULT 'pending',
             notes           TEXT
         );
+
+        -- ── CLV analytics by dimension ────────────────────────────────────
+        CREATE TABLE IF NOT EXISTS clv_analytics (
+            dimension       TEXT NOT NULL,  -- 'team','sp','park','umpire','weather','bet_type'
+            dimension_value TEXT NOT NULL,
+            bets_total      INTEGER DEFAULT 0,
+            bets_won        INTEGER DEFAULT 0,
+            clv_sum         REAL DEFAULT 0.0,  -- sum of (closing_odds - entry_odds)
+            avg_clv         REAL DEFAULT 0.0,
+            win_rate        REAL DEFAULT 0.0,
+            last_updated    TEXT,
+            PRIMARY KEY (dimension, dimension_value)
+        );
+
+        -- ── Worst bets log (rolling 20) ───────────────────────────────────
+        CREATE TABLE IF NOT EXISTS worst_bets_log (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            game_pk         INTEGER,
+            game_date       TEXT,
+            bet_side        TEXT,
+            entry_odds      REAL,
+            closing_odds    REAL,
+            model_prob      REAL,
+            clv             REAL,
+            loss_amount     REAL DEFAULT 1.0,
+            context_json    TEXT,
+            factors_json    TEXT,
+            logged_at       TEXT
+        );
+
+        -- ── Blind spots (recurring losing factor combos) ──────────────────
+        CREATE TABLE IF NOT EXISTS blind_spots (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            factor_combo    TEXT NOT NULL UNIQUE,  -- JSON sorted key list
+            occurrence_count INTEGER DEFAULT 1,
+            total_loss      REAL DEFAULT 0.0,
+            first_detected  TEXT,
+            last_detected   TEXT,
+            suppressed      INTEGER DEFAULT 0
+        );
+
+        -- ── Model accuracy log by month and bet type ──────────────────────
+        CREATE TABLE IF NOT EXISTS model_accuracy_log (
+            month           TEXT NOT NULL,  -- 'YYYY-MM'
+            bet_type        TEXT NOT NULL,  -- 'ML','total','runline','live'
+            games           INTEGER DEFAULT 0,
+            correct         INTEGER DEFAULT 0,
+            accuracy        REAL DEFAULT 0.0,
+            brier_score     REAL DEFAULT 0.0,
+            avg_clv         REAL DEFAULT 0.0,
+            logged_at       TEXT,
+            PRIMARY KEY (month, bet_type)
+        );
         """)
 
         # Seed calibration buckets
@@ -334,32 +387,6 @@ def _update_factor_reliability(factors: dict, actual_outcome: int):
                   last_updated = ?
             """, (factor, correct, datetime.utcnow().isoformat(),
                   correct, datetime.utcnow().isoformat()))
-
-
-def _check_improvement_triggers():
-    """Check if we should retrain / recalibrate based on game count."""
-    with _conn() as conn:
-        total = conn.execute(
-            "SELECT SUM(total) FROM model_calibration"
-        ).fetchone()[0] or 0
-
-        # Retrieve the current trigger
-        row = conn.execute(
-            "SELECT * FROM improvement_schedule WHERE trigger_type='n_bets' LIMIT 1"
-        ).fetchone()
-        if not row:
-            return
-
-        trigger_val = row["trigger_value"]
-        if total >= trigger_val:
-            log.info(f"Improvement trigger: {total} bets >= {trigger_val} — scheduling recalibration")
-            # Update next trigger
-            next_val = trigger_val + 50
-            conn.execute("""
-                UPDATE improvement_schedule
-                SET trigger_value=?, last_run=?, status='triggered', next_run='pending'
-                WHERE trigger_type='n_bets'
-            """, (next_val, datetime.utcnow().isoformat()))
 
 
 # ── ORIGINAL CALIBRATION FUNCTIONS (unchanged for compatibility) ──────────────
@@ -723,6 +750,387 @@ def should_retrain_ml() -> bool:
             )
         """).fetchone()[0]
     return n_new >= 200
+
+
+# ── CLV ANALYTICS ─────────────────────────────────────────────────────────────
+
+def update_clv_analytics(
+    entry_odds: float,
+    closing_odds: float,
+    won: bool,
+    dimensions: dict,
+):
+    """
+    Record one resolved bet across all dimensions.
+    dimensions: {'team': 'NYY', 'sp': 'Cole', 'park': 'NYY', 'umpire': 'Meals',
+                 'weather': 'rain', 'bet_type': 'ML'}
+    """
+    clv = closing_odds - entry_odds
+    won_int = 1 if won else 0
+    now = datetime.utcnow().isoformat()
+
+    with _conn() as conn:
+        for dim, val in dimensions.items():
+            if not val:
+                continue
+            conn.execute("""
+                INSERT INTO clv_analytics
+                  (dimension, dimension_value, bets_total, bets_won, clv_sum,
+                   avg_clv, win_rate, last_updated)
+                VALUES (?,?,1,?,?,?,?,?)
+                ON CONFLICT(dimension, dimension_value) DO UPDATE SET
+                  bets_total  = bets_total + 1,
+                  bets_won    = bets_won + ?,
+                  clv_sum     = clv_sum + ?,
+                  avg_clv     = (clv_sum + ?) / (bets_total + 1),
+                  win_rate    = CAST(bets_won + ? AS REAL) / (bets_total + 1),
+                  last_updated = ?
+            """, (
+                dim, str(val), won_int, clv, clv, now,
+                won_int, clv, clv, won_int, now,
+            ))
+
+
+def get_clv_by_dimension(dimension: str, min_bets: int = 10) -> list[dict]:
+    """Return CLV leaderboard for a dimension (e.g. 'team', 'park')."""
+    with _conn() as conn:
+        rows = conn.execute("""
+            SELECT dimension_value, bets_total, bets_won, avg_clv, win_rate
+            FROM clv_analytics
+            WHERE dimension=? AND bets_total >= ?
+            ORDER BY avg_clv DESC
+        """, (dimension, min_bets)).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ── WORST BETS LOG ────────────────────────────────────────────────────────────
+
+def log_worst_bet(
+    game_pk: int,
+    game_date: str,
+    bet_side: str,
+    entry_odds: float,
+    closing_odds: float,
+    model_prob: float,
+    loss_amount: float = 1.0,
+    context: dict = None,
+    factors: dict = None,
+):
+    """
+    Record a losing bet. Keeps only 20 most recent rows.
+    Called after a loss is confirmed by clv_tracker.
+    """
+    clv = closing_odds - entry_odds if closing_odds else 0.0
+    now = datetime.utcnow().isoformat()
+
+    with _conn() as conn:
+        conn.execute("""
+            INSERT INTO worst_bets_log
+              (game_pk, game_date, bet_side, entry_odds, closing_odds,
+               model_prob, clv, loss_amount, context_json, factors_json, logged_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)
+        """, (
+            game_pk, game_date, bet_side, entry_odds, closing_odds,
+            model_prob, clv, loss_amount,
+            json.dumps(context or {}), json.dumps(factors or {}), now,
+        ))
+        # Keep rolling 20
+        conn.execute("""
+            DELETE FROM worst_bets_log
+            WHERE id NOT IN (
+                SELECT id FROM worst_bets_log ORDER BY logged_at DESC LIMIT 20
+            )
+        """)
+
+    # Immediately check for blind spots after each loss
+    if factors:
+        _record_blind_spot(factors)
+
+
+def _record_blind_spot(factors: dict):
+    """Increment blind spot counter for this factor combination."""
+    active = sorted(k for k, v in factors.items() if v)
+    if len(active) < 2:
+        return
+    combo_key = json.dumps(active)
+    now = datetime.utcnow().isoformat()
+    with _conn() as conn:
+        conn.execute("""
+            INSERT INTO blind_spots (factor_combo, occurrence_count, first_detected, last_detected)
+            VALUES (?,1,?,?)
+            ON CONFLICT(factor_combo) DO UPDATE SET
+              occurrence_count = occurrence_count + 1,
+              last_detected    = ?
+        """, (combo_key, now, now, now))
+
+
+def detect_blind_spots(min_occurrences: int = 3) -> list[dict]:
+    """Return factor combos that appear ≥ min_occurrences times in worst bets."""
+    with _conn() as conn:
+        rows = conn.execute("""
+            SELECT factor_combo, occurrence_count, last_detected
+            FROM blind_spots
+            WHERE occurrence_count >= ? AND suppressed=0
+            ORDER BY occurrence_count DESC
+        """, (min_occurrences,)).fetchall()
+    result = []
+    for r in rows:
+        result.append({
+            "factors":    json.loads(r["factor_combo"]),
+            "occurrences": r["occurrence_count"],
+            "last_seen":   r["last_detected"],
+        })
+    return result
+
+
+def get_worst_bets(n: int = 20) -> list[dict]:
+    with _conn() as conn:
+        rows = conn.execute("""
+            SELECT * FROM worst_bets_log ORDER BY logged_at DESC LIMIT ?
+        """, (n,)).fetchall()
+    result = []
+    for r in rows:
+        d = dict(r)
+        try:
+            d["context"] = json.loads(d.get("context_json") or "{}")
+            d["factors"] = json.loads(d.get("factors_json") or "{}")
+        except Exception:
+            pass
+        result.append(d)
+    return result
+
+
+# ── MODEL ACCURACY LOG ────────────────────────────────────────────────────────
+
+def log_monthly_accuracy(bet_type: str = "ML"):
+    """
+    Aggregate current month's game_updates_log into model_accuracy_log.
+    Call at end of each day or after audits.
+    """
+    month = datetime.utcnow().strftime("%Y-%m")
+    now   = datetime.utcnow().isoformat()
+
+    with _conn() as conn:
+        rows = conn.execute("""
+            SELECT our_prediction, actual_outcome
+            FROM game_updates_log
+            WHERE strftime('%Y-%m', game_date) = ?
+              AND our_prediction IS NOT NULL
+              AND actual_outcome IS NOT NULL
+        """, (month,)).fetchall()
+
+    if not rows:
+        return
+
+    games   = len(rows)
+    correct = sum(1 for r in rows if (r["our_prediction"] >= 0.5) == bool(r["actual_outcome"]))
+    brier   = sum((r["our_prediction"] - r["actual_outcome"]) ** 2 for r in rows) / games
+    acc     = round(correct / games, 4)
+
+    with _conn() as conn:
+        conn.execute("""
+            INSERT INTO model_accuracy_log
+              (month, bet_type, games, correct, accuracy, brier_score, logged_at)
+            VALUES (?,?,?,?,?,?,?)
+            ON CONFLICT(month, bet_type) DO UPDATE SET
+              games       = ?,
+              correct     = ?,
+              accuracy    = ?,
+              brier_score = ?,
+              logged_at   = ?
+        """, (month, bet_type, games, correct, acc, round(brier, 5), now,
+              games, correct, acc, round(brier, 5), now))
+
+    log.info(f"[accuracy_log] {month} {bet_type}: {acc:.1%} over {games} games (Brier={brier:.4f})")
+
+
+def get_accuracy_trend(bet_type: str = "ML", months: int = 6) -> list[dict]:
+    """Return accuracy by month for the last N months."""
+    with _conn() as conn:
+        rows = conn.execute("""
+            SELECT month, games, accuracy, brier_score
+            FROM model_accuracy_log
+            WHERE bet_type=?
+            ORDER BY month DESC LIMIT ?
+        """, (bet_type, months)).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ── SELF-IMPROVEMENT LOOP ──────────────────────────────────────────────────────
+
+def run_50_bet_audit() -> dict:
+    """
+    Audit after 50 bets: factor reliability report + accuracy snapshot.
+    Identifies overweighted/underweighted factors.
+    """
+    log.info("[improvement] Running 50-bet factor audit...")
+    reliability = factor_reliability_report()
+    accuracy    = weekly_accuracy_report()
+    blind       = detect_blind_spots(min_occurrences=2)
+
+    overweight  = [f for f in reliability if f["accuracy"] < 0.48 and f["bets_evaluated"] >= 15]
+    underweight = [f for f in reliability if f["accuracy"] > 0.62 and f["bets_evaluated"] >= 15]
+
+    report = {
+        "audit_type":         "50_bet",
+        "run_at":             datetime.utcnow().isoformat(),
+        "weekly_accuracy":    accuracy,
+        "overweighted":       [f["factor_name"] for f in overweight],
+        "underweighted":      [f["factor_name"] for f in underweight],
+        "blind_spots":        blind,
+        "total_factors":      len(reliability),
+    }
+    _log_improvement_run("50_bet_audit", report)
+    log.info(f"[improvement] 50-bet audit: {len(overweight)} over, {len(underweight)} under, "
+             f"{len(blind)} blind spots")
+    return report
+
+
+def run_100_bet_retrain() -> dict:
+    """
+    After 100 bets: retrain ML with new data + recalibrate Platt scaling.
+    Also logs monthly accuracy and updates CLV analytics summary.
+    """
+    log.info("[improvement] Running 100-bet ML recalibration...")
+    log_monthly_accuracy("ML")
+
+    # Attempt ML retrain if available
+    retrained = False
+    try:
+        from ml_model import train_all
+        train_all()
+        retrained = True
+        log.info("[improvement] ML retrained successfully")
+    except Exception as e:
+        log.warning(f"[improvement] ML retrain skipped: {e}")
+
+    accuracy = weekly_accuracy_report()
+    cal_data = calibration_summary()
+
+    report = {
+        "audit_type":    "100_bet",
+        "run_at":        datetime.utcnow().isoformat(),
+        "ml_retrained":  retrained,
+        "accuracy":      accuracy,
+        "calibration":   cal_data[:5],
+    }
+    _log_improvement_run("100_bet_retrain", report)
+    return report
+
+
+def run_200_bet_retrain() -> dict:
+    """
+    After 200 bets: full deep retrain + rebuild factor weights + audit blind spots.
+    """
+    log.info("[improvement] Running 200-bet FULL retrain...")
+    report_100 = run_100_bet_retrain()
+    audit_50   = run_50_bet_audit()
+
+    worst = get_worst_bets(20)
+    blind = detect_blind_spots(min_occurrences=3)
+
+    report = {
+        "audit_type":    "200_bet",
+        "run_at":        datetime.utcnow().isoformat(),
+        "retrain":       report_100,
+        "factor_audit":  audit_50,
+        "worst_bets":    len(worst),
+        "blind_spots":   blind,
+        "recommendation": _generate_improvement_rec(audit_50, blind),
+    }
+    _log_improvement_run("200_bet_full", report)
+    log.info(f"[improvement] 200-bet full retrain complete: {report['recommendation']}")
+    return report
+
+
+def _generate_improvement_rec(audit: dict, blind_spots: list) -> str:
+    lines = []
+    if audit.get("overweighted"):
+        lines.append(f"Reduce weight on: {', '.join(audit['overweighted'][:3])}")
+    if audit.get("underweighted"):
+        lines.append(f"Increase weight on: {', '.join(audit['underweighted'][:3])}")
+    if blind_spots:
+        combos = ["+".join(b["factors"][:3]) for b in blind_spots[:2]]
+        lines.append(f"Avoid combo: {', '.join(combos)}")
+    return " | ".join(lines) if lines else "No structural changes needed"
+
+
+def _log_improvement_run(run_type: str, report: dict):
+    now = datetime.utcnow().isoformat()
+    with _conn() as conn:
+        conn.execute("""
+            INSERT OR REPLACE INTO improvement_schedule
+              (trigger_type, trigger_value, last_run, status, notes)
+            VALUES (?, 0, ?, 'completed', ?)
+        """, (run_type, now, json.dumps(report)[:2000]))
+
+
+def _check_improvement_triggers():
+    """Check if we should retrain / recalibrate based on game count."""
+    with _conn() as conn:
+        total = conn.execute(
+            "SELECT SUM(total) FROM model_calibration"
+        ).fetchone()[0] or 0
+
+        row = conn.execute(
+            "SELECT * FROM improvement_schedule WHERE trigger_type='n_bets' LIMIT 1"
+        ).fetchone()
+        if not row:
+            return
+
+        trigger_val = row["trigger_value"]
+        if total >= trigger_val:
+            log.info(f"Improvement trigger: {total} bets >= {trigger_val}")
+            next_val = trigger_val + 50
+            conn.execute("""
+                UPDATE improvement_schedule
+                SET trigger_value=?, last_run=?, status='triggered', next_run='pending'
+                WHERE trigger_type='n_bets'
+            """, (next_val, datetime.utcnow().isoformat()))
+
+            # Fire the right audit based on milestone
+            if trigger_val % 200 == 0:
+                run_200_bet_retrain()
+            elif trigger_val % 100 == 0:
+                run_100_bet_retrain()
+            else:
+                run_50_bet_audit()
+
+
+# ── WEEKLY SELF-IMPROVEMENT (Sunday 2am) ─────────────────────────────────────
+
+def run_weekly_maintenance() -> dict:
+    """
+    Full weekly maintenance pass. Called by scheduler every Sunday ~2am ET.
+    """
+    log.info("[maintenance] Starting weekly maintenance...")
+    log_monthly_accuracy("ML")
+    accuracy  = weekly_accuracy_report()
+    cal       = calibration_summary()
+    blind     = detect_blind_spots(min_occurrences=2)
+    factors   = factor_reliability_report()
+
+    # Rebuild CLV summaries
+    clv_teams = get_clv_by_dimension("team", min_bets=5)
+    clv_parks = get_clv_by_dimension("park", min_bets=5)
+    clv_umps  = get_clv_by_dimension("umpire", min_bets=5)
+
+    report = {
+        "run_at":       datetime.utcnow().isoformat(),
+        "accuracy":     accuracy,
+        "blind_spots":  blind,
+        "top_factors":  factors[:5],
+        "clv_leaders": {
+            "teams":   clv_teams[:3],
+            "parks":   clv_parks[:3],
+            "umpires": clv_umps[:3],
+        },
+        "calibration_ok": len([b for b in cal if abs(b["hit_rate"] - b["expected"]) > 0.10]) == 0,
+    }
+    _log_improvement_run("weekly_maintenance", report)
+    log.info(f"[maintenance] Weekly done: accuracy={accuracy.get('accuracy','?')}, "
+             f"{len(blind)} blind spots")
+    return report
 
 
 if __name__ == "__main__":
