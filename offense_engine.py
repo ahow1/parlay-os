@@ -364,8 +364,8 @@ def analyze_offense(team_code: str, game_pk: int = None, side: str = "away",
         # Platoon-adjusted
         "adj_wrc_plus":           wrc_plus_adj,
         "platoon_delta":          round(platoon_delta, 1),
-        "platoon_vs_lhp":         splits.get("vs_lhp", {}).get("wrc_plus"),
-        "platoon_vs_rhp":         splits.get("vs_rhp", {}).get("wrc_plus"),
+        "platoon_vs_lhp":         splits.get("vs_lhp"),
+        "platoon_vs_rhp":         splits.get("vs_rhp"),
         # RISP
         "risp_avg":               risp.get("risp_avg"),
         "risp_ops":               risp.get("risp_ops"),

@@ -235,15 +235,19 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     away_lineup_tag = "UNCONFIRMED" if away_off.get("lineup_unconfirmed") else "confirmed"
     home_lineup_tag = "UNCONFIRMED" if home_off.get("lineup_unconfirmed") else "confirmed"
 
-    away_plat = away_off.get("platoon_vs_lhp") or {}
-    home_plat = home_off.get("platoon_vs_lhp") or {}
+    def _plat_wrc(val, default=100.0) -> float:
+        """Safely extract wrc_plus from a platoon value that may be a dict, float, or None."""
+        if isinstance(val, dict):
+            return val.get("wrc_plus", default)
+        if isinstance(val, (int, float)):
+            return float(val)
+        return default
+
     away_platoon_delta = round(
-        (away_off.get("platoon_vs_rhp", {}) or {}).get("wrc_plus", 100) -
-        (away_off.get("platoon_vs_lhp", {}) or {}).get("wrc_plus", 100), 1
+        _plat_wrc(away_off.get("platoon_vs_rhp")) - _plat_wrc(away_off.get("platoon_vs_lhp")), 1
     )
     home_platoon_delta = round(
-        (home_off.get("platoon_vs_rhp", {}) or {}).get("wrc_plus", 100) -
-        (home_off.get("platoon_vs_lhp", {}) or {}).get("wrc_plus", 100), 1
+        _plat_wrc(home_off.get("platoon_vs_rhp")) - _plat_wrc(home_off.get("platoon_vs_lhp")), 1
     )
 
     wx_adj = weather.get("run_adjustment", 0.0)
