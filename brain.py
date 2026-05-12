@@ -656,6 +656,7 @@ if __name__ == "__main__":
         start_auto_settler()
         print("Parlay OS bot running (Ctrl-C to stop)...")
         _poll_loop()
+        sys.exit(0)  # never fall through to scout
 
     elif "--live" in args:
         start_listener()

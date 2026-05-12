@@ -13,6 +13,7 @@ Falls back to Pythagorean model if models/home_win.pkl does not exist.
 import os
 import sys
 import json
+import math
 import logging
 import warnings
 import hashlib
@@ -63,46 +64,280 @@ requests_cache.install_cache(
 
 # ── Data loading ──────────────────────────────────────────────────────────────
 
-def _load_pybaseball_safe(func_name: str, *args, **kwargs):
-    """Call a pybaseball function with retries and disk caching."""
-    cache_key = hashlib.md5(f"{func_name}{args}{sorted(kwargs.items())}".encode()).hexdigest()
-    cache_path = CACHE_DIR / f"{func_name}_{cache_key}.parquet"
+STATSAPI = "https://statsapi.mlb.com/api/v1"
 
+# League-average OPS used for wRC+ proxy (2022-2025 era)
+_LG_OPS = 0.720
+
+
+def _safe_int(val) -> int:
+    """Convert to int, treating NaN/None as 0."""
+    if val is None:
+        return 0
+    try:
+        f = float(val)
+        if math.isnan(f):
+            return 0
+        return int(f)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _safe_float(val, default: float) -> float:
+    if val is None or val == "--" or val == "":
+        return default
+    try:
+        f = float(val)
+        return default if math.isnan(f) else f
+    except (TypeError, ValueError):
+        return default
+
+
+def _ip_to_float(ip_str) -> float:
+    """Convert '123.1' (innings.outs) format to decimal innings."""
+    try:
+        parts = str(ip_str).split(".")
+        full  = int(parts[0])
+        outs  = int(parts[1]) if len(parts) > 1 else 0
+        return full + outs / 3.0
+    except Exception:
+        return 0.0
+
+
+def _fetch_player_pitching_mlbapi(season: int) -> pd.DataFrame:
+    """Player pitching stats from MLB Stats API for one season."""
+    import requests as _req
+    cache_path = CACHE_DIR / f"pitching_mlbapi_{season}.parquet"
     if cache_path.exists():
         log.info(f"  Cache hit: {cache_path.name}")
         return pd.read_parquet(cache_path)
 
-    import pybaseball as pb
-    pb.cache.enable()
-
-    func = getattr(pb, func_name)
-    log.info(f"  Fetching {func_name}({args}, {kwargs})...")
+    log.info(f"  Fetching player pitching stats {season} from MLB Stats API...")
     try:
-        df = func(*args, **kwargs)
-        if df is not None and not df.empty:
+        r = _req.get(
+            f"{STATSAPI}/stats",
+            params={
+                "stats": "season", "group": "pitching",
+                "sportId": 1, "season": season,
+                "gameType": "R", "playerPool": "ALL", "limit": 2000,
+            },
+            timeout=30,
+        )
+        r.raise_for_status()
+        rows = []
+        for grp in r.json().get("stats", []):
+            for split in grp.get("splits", []):
+                player = split.get("player", {})
+                stat   = split.get("stat", {})
+                pid    = player.get("id", 0)
+                ip     = _ip_to_float(stat.get("inningsPitched", "0"))
+                if ip < 1:
+                    continue
+                era  = _safe_float(stat.get("era"),  4.35)
+                whip = _safe_float(stat.get("whip"), 1.30)
+                k9   = 9 * _safe_int(stat.get("strikeOuts")) / ip
+                bb9  = 9 * _safe_int(stat.get("baseOnBalls")) / ip
+                hr9  = 9 * _safe_int(stat.get("homeRuns")) / ip
+                fip  = (13 * hr9 + 3 * bb9 - 2 * k9) / 9 + 3.17
+                rows.append({
+                    "IDfg":   pid,        # MLB ID, reused as FG ID key for compat
+                    "season": season,
+                    "ERA":    era,
+                    "FIP":    round(fip, 2),
+                    "xFIP":   round(fip, 2),   # FIP is proxy for xFIP
+                    "SIERA":  round(fip, 2),   # FIP is proxy for SIERA
+                    "K/9":    round(k9, 2),
+                    "BB/9":   round(bb9, 2),
+                    "HR/9":   round(hr9, 2),
+                    "WHIP":   whip,
+                    "LOB%":   0.72,
+                    "GB%":    0.44,
+                    "Hard%":  0.32,
+                })
+        df = pd.DataFrame(rows)
+        if not df.empty:
             df.to_parquet(cache_path)
         return df
     except Exception as e:
-        log.warning(f"  {func_name} failed: {e}")
+        log.warning(f"  MLB pitching stats {season}: {e}")
+        return pd.DataFrame()
+
+
+def _fetch_player_batting_mlbapi(season: int) -> pd.DataFrame:
+    """Player hitting stats from MLB Stats API for one season."""
+    import requests as _req
+    cache_path = CACHE_DIR / f"batting_mlbapi_{season}.parquet"
+    if cache_path.exists():
+        log.info(f"  Cache hit: {cache_path.name}")
+        return pd.read_parquet(cache_path)
+
+    log.info(f"  Fetching player batting stats {season} from MLB Stats API...")
+    try:
+        r = _req.get(
+            f"{STATSAPI}/stats",
+            params={
+                "stats": "season", "group": "hitting",
+                "sportId": 1, "season": season,
+                "gameType": "R", "playerPool": "ALL", "limit": 2000,
+            },
+            timeout=30,
+        )
+        r.raise_for_status()
+        rows = []
+        for grp in r.json().get("stats", []):
+            for split in grp.get("splits", []):
+                player = split.get("player", {})
+                stat   = split.get("stat", {})
+                team   = split.get("team", {})
+                pa     = _safe_int(stat.get("plateAppearances"))
+                if pa < 10:
+                    continue
+                obp  = _safe_float(stat.get("obp"),  0.320)
+                slg  = _safe_float(stat.get("slg"),  0.410)
+                avg  = _safe_float(stat.get("avg"),  0.250)
+                ops  = _safe_float(stat.get("ops"),  0.730)
+                so   = _safe_int(stat.get("strikeOuts"))
+                bb   = _safe_int(stat.get("baseOnBalls"))
+                ab   = _safe_int(stat.get("atBats"))
+                hr   = _safe_int(stat.get("homeRuns"))
+                h    = _safe_int(stat.get("hits"))
+                babip = (h - hr) / max(ab - so - hr + 1, 1)
+                rows.append({
+                    "IDfg":   player.get("id", 0),
+                    "Team":   team.get("abbreviation", ""),
+                    "season": season,
+                    "wRC+":   round(100 * ops / _LG_OPS, 1),  # rough proxy
+                    "wOBA":   round(obp, 3),                   # obp as proxy
+                    "BB%":    round(bb / pa, 4) if pa else 0.09,
+                    "K%":     round(so / pa, 4) if pa else 0.22,
+                    "ISO":    round(max(slg - avg, 0), 3),
+                    "BABIP":  round(min(max(babip, 0.100), 0.500), 3),
+                    "Hard%":  0.37,
+                    "Barrel%":0.08,
+                })
+        df = pd.DataFrame(rows)
+        if not df.empty:
+            df.to_parquet(cache_path)
+        return df
+    except Exception as e:
+        log.warning(f"  MLB batting stats {season}: {e}")
+        return pd.DataFrame()
+
+
+def _fetch_team_batting_mlbapi(season: int) -> pd.DataFrame:
+    """Team hitting stats from MLB Stats API for one season."""
+    import requests as _req
+    cache_path = CACHE_DIR / f"team_batting_mlbapi_{season}.parquet"
+    if cache_path.exists():
+        log.info(f"  Cache hit: {cache_path.name}")
+        return pd.read_parquet(cache_path)
+
+    log.info(f"  Fetching team batting stats {season} from MLB Stats API...")
+    try:
+        r = _req.get(
+            f"{STATSAPI}/teams/stats",
+            params={
+                "stats": "season", "group": "hitting",
+                "sportId": 1, "season": season, "gameType": "R",
+            },
+            timeout=30,
+        )
+        r.raise_for_status()
+        rows = []
+        for grp in r.json().get("stats", []):
+            for split in grp.get("splits", []):
+                team = split.get("team", {})
+                stat = split.get("stat", {})
+                pa   = _safe_int(stat.get("plateAppearances"))
+                so   = _safe_int(stat.get("strikeOuts"))
+                bb   = _safe_int(stat.get("baseOnBalls"))
+                ab   = _safe_int(stat.get("atBats"))
+                hr   = _safe_int(stat.get("homeRuns"))
+                h    = _safe_int(stat.get("hits"))
+                obp  = _safe_float(stat.get("obp"),  0.320)
+                slg  = _safe_float(stat.get("slg"),  0.410)
+                avg  = _safe_float(stat.get("avg"),  0.250)
+                ops  = _safe_float(stat.get("ops"),  0.730)
+                babip = (h - hr) / max(ab - so - hr + 1, 1)
+                rows.append({
+                    "Team":   team.get("abbreviation", ""),
+                    "season": season,
+                    "wRC+":   round(100 * ops / _LG_OPS, 1),
+                    "wOBA":   round(obp, 3),
+                    "BB%":    round(bb / pa, 4) if pa else 0.09,
+                    "K%":     round(so / pa, 4) if pa else 0.22,
+                    "ISO":    round(max(slg - avg, 0), 3),
+                    "BABIP":  round(min(max(babip, 0.100), 0.500), 3),
+                    "Hard%":  0.37,
+                    "Barrel%":0.08,
+                })
+        df = pd.DataFrame(rows)
+        if not df.empty:
+            df.to_parquet(cache_path)
+        return df
+    except Exception as e:
+        log.warning(f"  MLB team batting stats {season}: {e}")
+        return pd.DataFrame()
+
+
+def _fetch_team_pitching_mlbapi(season: int) -> pd.DataFrame:
+    """Team pitching stats from MLB Stats API for one season."""
+    import requests as _req
+    cache_path = CACHE_DIR / f"team_pitching_mlbapi_{season}.parquet"
+    if cache_path.exists():
+        log.info(f"  Cache hit: {cache_path.name}")
+        return pd.read_parquet(cache_path)
+
+    log.info(f"  Fetching team pitching stats {season} from MLB Stats API...")
+    try:
+        r = _req.get(
+            f"{STATSAPI}/teams/stats",
+            params={
+                "stats": "season", "group": "pitching",
+                "sportId": 1, "season": season, "gameType": "R",
+            },
+            timeout=30,
+        )
+        r.raise_for_status()
+        rows = []
+        for grp in r.json().get("stats", []):
+            for split in grp.get("splits", []):
+                team = split.get("team", {})
+                stat = split.get("stat", {})
+                ip   = _ip_to_float(stat.get("inningsPitched", "0"))
+                era  = _safe_float(stat.get("era"),  4.35)
+                whip = _safe_float(stat.get("whip"), 1.30)
+                k9   = 9 * _safe_int(stat.get("strikeOuts")) / ip if ip > 0 else 8.5
+                bb9  = 9 * _safe_int(stat.get("baseOnBalls")) / ip if ip > 0 else 3.0
+                hr9  = 9 * _safe_int(stat.get("homeRuns")) / ip if ip > 0 else 1.2
+                rows.append({
+                    "Team":   team.get("abbreviation", ""),
+                    "season": season,
+                    "ERA":    era,
+                    "WHIP":   whip,
+                    "K/9":    round(k9, 2),
+                    "BB/9":   round(bb9, 2),
+                    "HR/9":   round(hr9, 2),
+                })
+        df = pd.DataFrame(rows)
+        if not df.empty:
+            df.to_parquet(cache_path)
+        return df
+    except Exception as e:
+        log.warning(f"  MLB team pitching stats {season}: {e}")
         return pd.DataFrame()
 
 
 def load_schedule_results(seasons: list) -> pd.DataFrame:
-    """Load game results for multiple seasons."""
-    import pybaseball as pb
+    """Load game results for multiple seasons from MLB Stats API."""
     dfs = []
     for s in seasons:
         cache_path = CACHE_DIR / f"schedule_{s}.parquet"
         if cache_path.exists():
+            log.info(f"  Cache hit: schedule_{s}.parquet")
             dfs.append(pd.read_parquet(cache_path))
             continue
-        log.info(f"  Loading schedule {s}...")
-        try:
-            df = pb.schedule_and_record(s, "ARI")   # any team works as anchor
-        except Exception as e:
-            log.warning(f"  schedule {s} failed: {e}")
-            continue
-        # Actually we need all teams — use statsapi schedule instead
+        log.info(f"  Fetching schedule {s} from MLB Stats API...")
         df = _fetch_mlb_schedule(s)
         if not df.empty:
             df.to_parquet(cache_path)
@@ -160,44 +395,30 @@ def _fetch_mlb_schedule(season: int) -> pd.DataFrame:
 
 
 def load_pitching_stats(seasons: list) -> pd.DataFrame:
-    """FanGraphs SP stats per season."""
-    dfs = []
-    for s in seasons:
-        df = _load_pybaseball_safe("pitching_stats", s, s, ind=True, qual=1)
-        if not df.empty:
-            df["season"] = s
-            dfs.append(df)
+    """Player pitching stats from MLB Stats API."""
+    dfs = [_fetch_player_pitching_mlbapi(s) for s in seasons]
+    dfs = [d for d in dfs if not d.empty]
     return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
 
 
 def load_batting_stats(seasons: list) -> pd.DataFrame:
-    """FanGraphs batting stats per season."""
-    dfs = []
-    for s in seasons:
-        df = _load_pybaseball_safe("batting_stats", s, s, ind=True, qual=1)
-        if not df.empty:
-            df["season"] = s
-            dfs.append(df)
+    """Player batting stats from MLB Stats API."""
+    dfs = [_fetch_player_batting_mlbapi(s) for s in seasons]
+    dfs = [d for d in dfs if not d.empty]
     return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
 
 
 def load_team_batting(seasons: list) -> pd.DataFrame:
-    dfs = []
-    for s in seasons:
-        df = _load_pybaseball_safe("team_batting", s, s, ind=True)
-        if not df.empty:
-            df["season"] = s
-            dfs.append(df)
+    """Team batting stats from MLB Stats API."""
+    dfs = [_fetch_team_batting_mlbapi(s) for s in seasons]
+    dfs = [d for d in dfs if not d.empty]
     return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
 
 
 def load_team_pitching(seasons: list) -> pd.DataFrame:
-    dfs = []
-    for s in seasons:
-        df = _load_pybaseball_safe("team_pitching", s, s, ind=True)
-        if not df.empty:
-            df["season"] = s
-            dfs.append(df)
+    """Team pitching stats from MLB Stats API."""
+    dfs = [_fetch_team_pitching_mlbapi(s) for s in seasons]
+    dfs = [d for d in dfs if not d.empty]
     return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
 
 
@@ -327,8 +548,8 @@ def build_feature_matrix(
         home_team = game.get("home_team", "")
 
         # SP features
-        away_sp_id = int(game.get("away_sp_id") or 0)
-        home_sp_id = int(game.get("home_sp_id") or 0)
+        away_sp_id = _safe_int(game.get("away_sp_id"))
+        home_sp_id = _safe_int(game.get("home_sp_id"))
 
         def _sp(sp_id: int) -> dict:
             return sp_feats.get((sp_id, season), {

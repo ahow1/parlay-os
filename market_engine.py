@@ -119,9 +119,12 @@ def _parse_ml_bookmakers(odds_data: dict | None, away_team: str, home_team: str)
             for outcome in market.get("outcomes", []):
                 t   = outcome.get("name", "")
                 prc = outcome.get("price")
-                if _names_match(t, away_team):
+                ma  = _names_match(t, away_team)
+                mh  = _names_match(t, home_team)
+                print(f"[MKT]   {key}: outcome='{t}' away='{away_team}'({ma}) home='{home_team}'({mh}) price={prc}")
+                if ma:
                     book_odds["away"] = prc
-                elif _names_match(t, home_team):
+                elif mh:
                     book_odds["home"] = prc
             if book_odds:
                 result[key] = {"name": name, **book_odds}
@@ -301,7 +304,10 @@ def full_market_snapshot(event_id: str, away_team: str, home_team: str,
     """Single call to get all market data for a game."""
     odds    = get_odds_for_event(event_id)
     ml_raw  = odds.get("ml")
+    n_books = len(ml_raw.get("bookmakers", [])) if ml_raw else 0
+    print(f"[MKT] {away_team} @ {home_team}: ml_raw={'None' if ml_raw is None else f'{n_books} books'}")
     ml_books = _parse_ml_bookmakers(ml_raw, away_team, home_team)
+    print(f"[MKT]   matched books: {list(ml_books.keys())}")
     nv      = pinnacle_no_vig(ml_books, away_team, home_team)
     totals  = _parse_totals(odds.get("totals"))
     f5_books = _parse_ml_bookmakers(odds.get("f5"), away_team, home_team)
