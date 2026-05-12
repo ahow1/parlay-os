@@ -121,12 +121,16 @@ def pinnacle_no_vig(books: dict, away_team: str, home_team: str) -> dict | None:
                 p_away = implied_prob(str(away_odds))
                 p_home = implied_prob(str(home_odds))
                 if p_away and p_home:
-                    nv_a, nv_h = no_vig_prob(str(away_odds), str(home_odds))
+                    nv = no_vig_prob(str(away_odds), str(home_odds))
+                    nv_a = (nv.get("side1_true") or 0) / 100
+                    nv_h = (nv.get("side2_true") or 0) / 100
+                    if not nv_a or not nv_h:
+                        continue
                     return {
                         "book":    preferred,
                         "away":    round(nv_a, 4),
                         "home":    round(nv_h, 4),
-                        "vig":     round((p_away + p_home - 1), 4),
+                        "vig":     round((p_away + p_home - 100) / 100, 4),
                     }
     return None
 

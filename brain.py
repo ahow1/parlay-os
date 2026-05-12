@@ -398,7 +398,7 @@ def run_daily_scout():
     all_bets  = []
     all_pass  = []
     scout_out = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(pytz.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "date":      today,
         "bankroll":  br,
         "games":     [],
