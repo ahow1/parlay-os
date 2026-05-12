@@ -1,8 +1,11 @@
 """PARLAY OS — SQLite database layer (items 11, 10, 7)."""
 
-import sqlite3, json, os
+import sqlite3, json, os, shutil, time, glob
 from datetime import datetime
 import pytz
+
+BACKUP_DIR  = "backups"
+MAX_BACKUPS = 7
 
 DB_PATH = os.environ.get("PARLAY_DB", "parlay_os.db")
 ET = pytz.timezone("America/New_York")
@@ -13,7 +16,23 @@ def _conn():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA foreign_keys=ON")
     return conn
+
+
+def _conn_with_retry(retries: int = 3, delay: float = 1.0):
+    """Open connection; retry on OperationalError (database locked)."""
+    last_exc: Exception | None = None
+    for attempt in range(retries):
+        try:
+            return _conn()
+        except sqlite3.OperationalError as e:
+            if "locked" in str(e).lower() and attempt < retries - 1:
+                time.sleep(delay)
+                last_exc = e
+            else:
+                raise
+    raise last_exc  # type: ignore
 
 
 def check_integrity() -> bool:
@@ -22,10 +41,50 @@ def check_integrity() -> bool:
         conn = sqlite3.connect(DB_PATH)
         result = conn.execute("PRAGMA integrity_check").fetchone()[0]
         conn.close()
-        return result == "ok"
+        if result != "ok":
+            print(f"DB integrity check FAILED: {result}")
+            _restore_from_backup()
+            return False
+        return True
     except Exception as e:
         print(f"DB integrity check failed: {e}")
         return False
+
+
+def _restore_from_backup():
+    """Attempt to restore DB from most recent backup."""
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    backups = sorted(glob.glob(f"{BACKUP_DIR}/parlay_os_*.db"), reverse=True)
+    if not backups:
+        print("[DB] No backup found — cannot restore")
+        return
+    latest = backups[0]
+    print(f"[DB] Restoring from backup: {latest}")
+    shutil.copy2(latest, DB_PATH)
+    print("[DB] Restore complete")
+
+
+def backup_database() -> str | None:
+    """
+    Copy DB to backups/parlay_os_YYYY-MM-DD.db.
+    Keeps last MAX_BACKUPS daily backups. Returns backup path on success.
+    """
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    today   = datetime.now(ET).strftime("%Y-%m-%d")
+    dest    = f"{BACKUP_DIR}/parlay_os_{today}.db"
+    try:
+        shutil.copy2(DB_PATH, dest)
+        # Prune old backups — keep newest MAX_BACKUPS only
+        all_backups = sorted(glob.glob(f"{BACKUP_DIR}/parlay_os_*.db"), reverse=True)
+        for old in all_backups[MAX_BACKUPS:]:
+            try:
+                os.remove(old)
+            except OSError:
+                pass
+        return dest
+    except Exception as e:
+        print(f"[DB] Backup failed: {e}")
+        return None
 
 
 def init_db():

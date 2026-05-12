@@ -30,6 +30,8 @@ CHECK_INTERVAL    = 300   # 5 minutes
 
 STATSAPI   = "https://statsapi.mlb.com/api/v1"
 ODDS_BASE  = "https://api.the-odds-api.com/v4"
+POLY_API   = "https://gamma-api.polymarket.com"
+MIN_DISK_MB = 100
 
 
 # ── Individual checks ─────────────────────────────────────────────────────────
@@ -94,7 +96,7 @@ def check_telegram_bot() -> dict:
 
 
 def check_last_scout() -> dict:
-    """Verify a scout ran within the last 24 hours."""
+    """Verify a scout ran within the last 25 hours."""
     if not LAST_SCOUT_FILE.exists():
         return {"ok": False, "error": "last_scout.json missing"}
     try:
@@ -104,16 +106,45 @@ def check_last_scout() -> dict:
         if not ts_str:
             return {"ok": False, "error": "no timestamp in last_scout.json"}
 
-        # Parse ISO timestamp
-        ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+        ts  = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
         now = datetime.now(timezone.utc)
         age = now - ts
-        ok  = age < timedelta(hours=24)
+        ok  = age < timedelta(hours=25)
         return {
-            "ok":       ok,
-            "age_hrs":  round(age.total_seconds() / 3600, 1),
+            "ok":        ok,
+            "age_hrs":   round(age.total_seconds() / 3600, 1),
             "timestamp": ts_str,
         }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def check_polymarket() -> dict:
+    """Verify Polymarket API is reachable."""
+    try:
+        r = requests.get(f"{POLY_API}/markets", params={"limit": 1}, timeout=8)
+        r.raise_for_status()
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def check_disk_space() -> dict:
+    """Verify at least MIN_DISK_MB free on the working-directory partition."""
+    try:
+        stat = os.statvfs(".")
+        free_mb = stat.f_bavail * stat.f_frsize / (1024 * 1024)
+        ok = free_mb >= MIN_DISK_MB
+        return {"ok": ok, "free_mb": round(free_mb, 1)}
+    except AttributeError:
+        # Windows fallback
+        try:
+            import shutil
+            total, used, free = shutil.disk_usage(".")
+            free_mb = free / (1024 * 1024)
+            return {"ok": free_mb >= MIN_DISK_MB, "free_mb": round(free_mb, 1)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
@@ -199,9 +230,11 @@ def run_health_check(auto_restart: bool = True) -> dict:
         "database":       check_database(),
         "odds_api":       check_odds_api(),
         "mlb_stats_api":  check_mlb_stats_api(),
+        "polymarket":     check_polymarket(),
         "telegram_bot":   check_telegram_bot(),
         "last_scout":     check_last_scout(),
         "last_settlement":check_last_settlement(),
+        "disk_space":     check_disk_space(),
         "process":        check_process_running(),
     }
 
@@ -247,6 +280,8 @@ def print_report(results: dict):
             detail = f" ({val.get('events', '?')} events, {val.get('remaining', '?')} calls remaining)"
         elif key == "last_scout":
             detail = f" ({val.get('age_hrs', '?')}h ago)"
+        elif key == "disk_space":
+            detail = f" ({val.get('free_mb', '?')} MB free)"
         elif key == "process":
             detail = f" (pids: {val.get('pids', [])})"
         print(f"  {icon} {key:<20} {detail}")

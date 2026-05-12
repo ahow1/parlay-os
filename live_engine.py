@@ -11,6 +11,7 @@ import time
 import json
 import sqlite3
 import requests
+from api_client import get as _http_get
 from datetime import datetime, date, timedelta
 from collections import defaultdict
 import pytz
@@ -221,7 +222,7 @@ def _log_alert(
 def _fetch_live_games(game_date: str) -> list:
     """Pull all in-progress and recently completed games with full state."""
     try:
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/schedule",
             params={
                 "sportId":  1,
@@ -245,7 +246,7 @@ def _fetch_live_games(game_date: str) -> list:
 def _fetch_scoring_plays(game_pk: int) -> list:
     """Return last 10 scoring plays (play-by-play) for a game."""
     try:
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/game/{game_pk}/playByPlay",
             params={"fields": "allPlays,result,about,matchup"},
             timeout=10,

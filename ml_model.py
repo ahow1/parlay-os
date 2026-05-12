@@ -355,11 +355,11 @@ def load_schedule_results(seasons: list) -> pd.DataFrame:
 
 def _fetch_mlb_schedule(season: int) -> pd.DataFrame:
     """Pull complete season schedule + results from MLB Stats API."""
-    import requests
+    from api_client import get as _http_get
     STATSAPI = "https://statsapi.mlb.com/api/v1"
     games = []
     try:
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/schedule",
             params={
                 "sportId": 1,

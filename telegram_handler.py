@@ -22,6 +22,7 @@ import json
 import time
 import threading
 import requests
+from api_client import get as _http_get
 from datetime import date, datetime
 import pytz
 
@@ -164,7 +165,7 @@ def _fetch_closing_odds(team_code: str, bet_type: str = "ML") -> str | None:
         market_key = "totals"
 
     try:
-        r = requests.get(
+        r = _http_get(
             "https://api.the-odds-api.com/v4/sports/baseball_mlb/odds",
             params={
                 "apiKey": ODDS_API_KEY,
@@ -559,7 +560,7 @@ _FINAL_STATES = {"Final", "Game Over", "Completed Early", "Completed"}
 def _fetch_final_games(game_date: str) -> list[dict]:
     """Return all completed MLB games for game_date with linescore data."""
     try:
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/schedule",
             params={"sportId": 1, "date": game_date, "hydrate": "linescore,team"},
             timeout=12,
@@ -596,7 +597,7 @@ def _f5_runs(game_pk: int, game: dict) -> tuple[int, int]:
     innings = (game.get("linescore") or {}).get("innings", [])
     if not innings:
         try:
-            r = requests.get(f"{STATSAPI}/game/{game_pk}/linescore", timeout=8)
+            r = _http_get(f"{STATSAPI}/game/{game_pk}/linescore", timeout=8)
             innings = r.json().get("innings", [])
         except Exception:
             pass
@@ -872,7 +873,7 @@ def _poll_loop() -> None:
 
     while True:
         try:
-            r = requests.get(
+            r = _http_get(
                 f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates",
                 params={"timeout": 30, "offset": offset},
                 timeout=35,

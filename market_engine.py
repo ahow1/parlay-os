@@ -4,12 +4,19 @@ Detects line movement, sharp money, and computes no-vig implied probabilities.
 """
 
 import os
+import logging
 import requests
+from api_client import get as _http_get
 from math_engine import american_to_decimal, implied_prob, no_vig_prob
 from constants import BOOK_PRIORITY, TEAM_SLUGS
 
-ODDS_API_KEY = os.getenv("ODDS_API_KEY", "")
-ODDS_BASE    = "https://api.the-odds-api.com/v4"
+ODDS_API_KEY        = os.getenv("ODDS_API_KEY", "")
+ODDS_API_KEY_BACKUP = os.getenv("ODDS_API_KEY_BACKUP", "")
+ODDS_BASE           = "https://api.the-odds-api.com/v4"
+_log = logging.getLogger(__name__)
+
+# Active key — switches to backup automatically on 429/401
+_active_key: list[str] = [ODDS_API_KEY]   # mutable container for in-place swap
 POLY_API     = "https://gamma-api.polymarket.com"
 
 SPORT_KEY    = "baseball_mlb"
@@ -73,14 +80,30 @@ def _names_match(outcome_name: str, team_name: str) -> bool:
 
 
 def _odds_request(endpoint: str, params: dict) -> dict | list | None:
-    if not ODDS_API_KEY:
+    key = _active_key[0] or ODDS_API_KEY
+    if not key:
         print("[MKT] ODDS_API_KEY not set — no market data")
         return None
     try:
-        params["apiKey"] = ODDS_API_KEY
-        r = requests.get(f"{ODDS_BASE}/{endpoint}", params=params, timeout=10)
+        params["apiKey"] = key
+        r = _http_get(f"{ODDS_BASE}/{endpoint}", params=params, timeout=10)
         r.raise_for_status()
         return r.json()
+    except requests.exceptions.HTTPError as e:
+        status = e.response.status_code if e.response is not None else 0
+        if status in (401, 429) and ODDS_API_KEY_BACKUP and key != ODDS_API_KEY_BACKUP:
+            _log.warning(f"[MKT] Primary key {status} — switching to backup key")
+            _active_key[0] = ODDS_API_KEY_BACKUP
+            params["apiKey"] = ODDS_API_KEY_BACKUP
+            try:
+                r = _http_get(f"{ODDS_BASE}/{endpoint}", params=params, timeout=10, skip_cache=True)
+                r.raise_for_status()
+                return r.json()
+            except Exception as e2:
+                print(f"[MKT] backup key also failed: {e2}")
+                return None
+        print(f"[MKT] odds request failed ({endpoint}): {e}")
+        return None
     except Exception as e:
         print(f"[MKT] odds request failed ({endpoint}): {e}")
         return None
@@ -245,7 +268,7 @@ def polymarket_prob(away_slug: str, home_slug: str, game_date: str) -> dict | No
     """
     slug = f"mlb-{away_slug}-{home_slug}-{game_date}"
     try:
-        r = requests.get(f"{POLY_API}/markets", params={"slug": slug}, timeout=8)
+        r = _http_get(f"{POLY_API}/markets", params={"slug": slug}, timeout=8, skip_cache=True)
         r.raise_for_status()
         events = r.json()
         if not events:
@@ -262,7 +285,8 @@ def polymarket_prob(away_slug: str, home_slug: str, game_date: str) -> dict | No
                 result["home"] = round(price, 4)
         return result if result else None
     except Exception:
-        return None
+        # NO_POLY_DATA: Polymarket unavailable — model analysis runs without market comparison
+        return {"NO_POLY_DATA": True}
 
 
 def detect_line_movement(event_id: str, current_books: dict, side: str = "away") -> dict:

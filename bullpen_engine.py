@@ -4,6 +4,7 @@ Fatigue scale: 0–10 (10 = exhausted). Arms scoring ≥7 are flagged.
 """
 
 import requests
+from api_client import get as _http_get
 from datetime import date, timedelta
 
 STATSAPI = "https://statsapi.mlb.com/api/v1"
@@ -12,7 +13,7 @@ STATSAPI = "https://statsapi.mlb.com/api/v1"
 def _team_roster(team_id: int, game_date: str) -> list:
     """Return list of active pitchers (player_id, full_name, position)."""
     try:
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/teams/{team_id}/roster/Active?date={game_date}",
             timeout=8
         )
@@ -42,7 +43,7 @@ def _pitcher_game_log(pitcher_id: int, days: int = 5) -> list:
             f"?stats=gameLog&group=pitching&season=2026"
             f"&startDate={start.isoformat()}&endDate={end.isoformat()}"
         )
-        r = requests.get(url, timeout=8)
+        r = _http_get(url, timeout=8)
         splits = r.json().get("stats", [{}])[0].get("splits", [])
         games  = []
         for s in splits:

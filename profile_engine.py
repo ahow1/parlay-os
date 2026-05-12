@@ -10,6 +10,7 @@ Data sources:
 
 import math
 import requests
+from api_client import get as _http_get
 import json
 from datetime import date, timedelta, datetime
 from functools import lru_cache
@@ -72,7 +73,7 @@ def _ip_to_float(s) -> float:
 def _sp_game_log(pitcher_id: int, n: int = 12) -> list:
     """Pull last N starts from game log."""
     try:
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/people/{pitcher_id}/stats",
             params={"stats": "gameLog", "group": "pitching",
                     "season": SEASON, "gameType": "R"},
@@ -105,7 +106,7 @@ def _sp_game_log(pitcher_id: int, n: int = 12) -> list:
 
 def _sp_season_stats(pitcher_id: int) -> dict:
     try:
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/people/{pitcher_id}/stats",
             params={"stats": "season", "group": "pitching", "season": SEASON},
             timeout=_TIMEOUT,
@@ -133,7 +134,7 @@ def _sp_situation_splits(pitcher_id: int) -> dict:
     result = {}
     for sit, key in (("vl", "vs_lhb"), ("vr", "vs_rhb")):
         try:
-            r = requests.get(
+            r = _http_get(
                 f"{STATSAPI}/people/{pitcher_id}/stats",
                 params={"stats": "statSplits", "group": "pitching",
                         "season": SEASON, "sitCodes": sit},
@@ -147,7 +148,7 @@ def _sp_situation_splits(pitcher_id: int) -> dict:
             pass
     for sit, key in (("h", "era_home"), ("a", "era_away")):
         try:
-            r = requests.get(
+            r = _http_get(
                 f"{STATSAPI}/people/{pitcher_id}/stats",
                 params={"stats": "statSplits", "group": "pitching",
                         "season": SEASON, "sitCodes": sit},
@@ -377,7 +378,7 @@ def update_sp_profile(pitcher_name: str, pitcher_id: int) -> dict:
 
 def _hitter_game_log(player_id: int, n: int = 30) -> list:
     try:
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/people/{player_id}/stats",
             params={"stats": "gameLog", "group": "hitting",
                     "season": SEASON, "gameType": "R"},
@@ -407,7 +408,7 @@ def _hitter_game_log(player_id: int, n: int = 30) -> list:
 
 def _hitter_season_stats(player_id: int) -> dict:
     try:
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/people/{player_id}/stats",
             params={"stats": "season", "group": "hitting", "season": SEASON},
             timeout=_TIMEOUT,
@@ -445,7 +446,7 @@ def _hitter_splits(player_id: int) -> dict:
     }
     for sit, key in sit_map.items():
         try:
-            r = requests.get(
+            r = _http_get(
                 f"{STATSAPI}/people/{player_id}/stats",
                 params={"stats": "statSplits", "group": "hitting",
                         "season": SEASON, "sitCodes": sit},
@@ -639,7 +640,7 @@ def update_bullpen_profile(team_id: int, team_code: str) -> dict:
         if not arm_id:
             continue
         try:
-            r = requests.get(
+            r = _http_get(
                 f"{STATSAPI}/people/{arm_id}/stats",
                 params={"stats": "gameLog", "group": "pitching", "season": SEASON},
                 timeout=_TIMEOUT,
@@ -693,7 +694,7 @@ def _team_game_log_30(team_id: int) -> list:
     try:
         end_dt   = date.today()
         start_dt = end_dt - timedelta(days=30)
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/schedule",
             params={
                 "sportId": 1, "teamId": team_id, "gameType": "R",
@@ -794,7 +795,7 @@ def _compute_travel_record(team_id: int, team_code: str) -> dict:
     Uses schedule from current season.
     """
     try:
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/schedule",
             params={
                 "sportId": 1, "teamId": team_id, "gameType": "R",
@@ -874,7 +875,7 @@ def _compute_manager_tendencies(team_id: int) -> dict:
     try:
         end_dt   = date.today()
         start_dt = end_dt - timedelta(days=30)
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/teams/{team_id}/stats",
             params={"stats": "season", "group": "hitting", "season": SEASON},
             timeout=_TIMEOUT,

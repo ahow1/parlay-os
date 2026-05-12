@@ -8,6 +8,7 @@ Note: Baseball Savant's CSV endpoint is undocumented; falls back gracefully if u
 import csv
 import io
 import requests
+from api_client import get as _http_get
 from functools import lru_cache
 
 SAVANT_BASE = "https://baseballsavant.mlb.com"
@@ -102,7 +103,7 @@ def get_pitcher_statcast(pitcher_id: int, season: int = 2026) -> dict:
     """
     try:
         url = _savant_pitcher_url(pitcher_id, season)
-        r   = requests.get(url, timeout=TIMEOUT,
+        r   = _http_get(url, timeout=TIMEOUT,
                            headers={"User-Agent": "Mozilla/5.0 (compatible; ParlayOS/1.0)"})
         if r.status_code != 200 or not r.text.strip():
             return {}
@@ -121,7 +122,7 @@ def get_batter_statcast(batter_id: int, season: int = 2026) -> dict:
     """
     try:
         url = _savant_batter_url(batter_id, season)
-        r   = requests.get(url, timeout=TIMEOUT,
+        r   = _http_get(url, timeout=TIMEOUT,
                            headers={"User-Agent": "Mozilla/5.0 (compatible; ParlayOS/1.0)"})
         if r.status_code != 200 or not r.text.strip():
             return {}

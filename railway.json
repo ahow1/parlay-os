@@ -6,7 +6,7 @@
   "deploy": {
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,
-    "startCommand": "python brain.py --bot",
-    "healthcheckPath": null
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 30
   }
 }

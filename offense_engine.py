@@ -3,6 +3,7 @@ Fetches team offensive stats, lineup confirmation, platoon splits, RISP, recent 
 """
 
 import requests
+from api_client import get as _http_get
 from datetime import date, timedelta
 from constants import MLB_TEAM_IDS, TEAM_LHB_PCT, LG_RPG, PARK_FACTORS
 
@@ -31,7 +32,7 @@ def _rolling_hitting_window(team_id: int, days: int = 14,
     end_dt   = date.today()
     start_dt = end_dt - timedelta(days=days)
     try:
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/teams/{team_id}/stats",
             params={
                 "stats":     "byDateRange",
@@ -93,7 +94,7 @@ def _platoon_splits_real(team_id: int) -> dict:
     result: dict = {}
     for sit, key in (("vl", "vs_lhp"), ("vr", "vs_rhp")):
         try:
-            r = requests.get(
+            r = _http_get(
                 f"{STATSAPI}/teams/{team_id}/stats",
                 params={
                     "stats":    "statSplits",
@@ -147,7 +148,7 @@ def _platoon_adjustment_real(splits: dict, opp_sp_hand: str) -> tuple[float, flo
 def _team_hitting_stats(team_id: int) -> dict:
     """Season team hitting stats from Stats API."""
     try:
-        r      = requests.get(
+        r      = _http_get(
             f"{STATSAPI}/teams/{team_id}/stats",
             params={"stats": "season", "group": "hitting", "season": "2026"},
             timeout=8,
@@ -171,7 +172,7 @@ def _team_hitting_stats(team_id: int) -> dict:
 def _recent_form(team_id: int, last_n: int = 7) -> dict:
     """Runs/game over last N games."""
     try:
-        r      = requests.get(
+        r      = _http_get(
             f"{STATSAPI}/teams/{team_id}/stats",
             params={
                 "stats":    "lastXGames",
@@ -200,7 +201,7 @@ def _recent_form(team_id: int, last_n: int = 7) -> dict:
 def _risp_stats(team_id: int) -> dict:
     """Runners in scoring position OPS — proxy from splits."""
     try:
-        r      = requests.get(
+        r      = _http_get(
             f"{STATSAPI}/teams/{team_id}/stats",
             params={
                 "stats":    "statSplits",
@@ -232,7 +233,7 @@ def _lineup_from_schedule(game_pk: int) -> dict:
     if not game_pk:
         return out
     try:
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/schedule",
             params={
                 "gamePk":  game_pk,
@@ -265,7 +266,7 @@ def _lineup_from_schedule(game_pk: int) -> dict:
 def _lineup_from_boxscore(game_pk: int, side: str) -> list:
     """Extract confirmed batting order from today's boxscore (if posted)."""
     try:
-        r   = requests.get(f"{STATSAPI}/game/{game_pk}/boxscore", timeout=8)
+        r   = _http_get(f"{STATSAPI}/game/{game_pk}/boxscore", timeout=8)
         box = r.json()
         t   = box.get("teams", {}).get(side, {})
         order = t.get("battingOrder", [])

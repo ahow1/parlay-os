@@ -15,6 +15,10 @@ import requests
 import traceback
 from datetime import date, datetime
 import pytz
+import error_logger
+error_logger.setup()
+
+from api_client import get as _http_get
 
 # Force line-buffered stdout so every print() appears immediately in the terminal,
 # even when brain.py is launched as a subprocess or inside a PTY wrapper.
@@ -594,7 +598,7 @@ def _send_telegram(msg: str):
 
 def _resolve_game_pk(team_name: str, game_date: str) -> int | None:
     try:
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/schedule?sportId=1&date={game_date}&hydrate=game",
             timeout=8
         )
@@ -615,7 +619,7 @@ def _get_umpire(game_pk: int | None) -> str:
         return ""
     # Pre-game: schedule hydrate=officials is populated day-of before first pitch
     try:
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/schedule",
             params={"gamePk": game_pk, "hydrate": "officials", "sportId": 1},
             timeout=8,
@@ -633,7 +637,7 @@ def _get_umpire(game_pk: int | None) -> str:
         pass
     # In-game / post-game fallback: boxscore
     try:
-        r   = requests.get(f"{STATSAPI}/game/{game_pk}/boxscore", timeout=8)
+        r   = _http_get(f"{STATSAPI}/game/{game_pk}/boxscore", timeout=8)
         for u in r.json().get("officials", []):
             if u.get("officialType") == "Home Plate":
                 name = u.get("official", {}).get("fullName", "")
@@ -766,19 +770,31 @@ def run_daily_scout():
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    from telegram_handler import start_listener, start_auto_settler, sync_scout_json
+    try:
+        from telegram_handler import start_listener, start_auto_settler, sync_scout_json
+    except Exception as _te:
+        print(f"[WARN] telegram_handler import failed: {_te}")
+        # Define no-op stubs so the rest of __main__ still works
+        def start_listener(): pass
+        def start_auto_settler(): pass
+        def sync_scout_json(): pass
 
     args = set(sys.argv[1:])
 
     if "--bot" in args:
         # Persistent bot mode: Telegram listener + auto-settler only — never run scout
-        from telegram_handler import _poll_loop
-        start_auto_settler()
-        print("Parlay OS bot running (Ctrl-C to stop)...")
         try:
-            _poll_loop()
+            from telegram_handler import _poll_loop
+            start_auto_settler()
+            print("Parlay OS bot running (Ctrl-C to stop)...")
+            try:
+                _poll_loop()
+            except Exception as e:
+                error_logger.log_error("brain.__bot", e)
+                print(f"[BOT] poll loop ended: {e}")
         except Exception as e:
-            print(f"[BOT] poll loop ended: {e}")
+            error_logger.log_error("brain.__bot_init", e)
+            print(f"[BOT] startup failed: {e}")
         sys.exit(0)  # hard exit — never fall through to any other branch
 
     elif "--live" in args:
@@ -794,6 +810,14 @@ if __name__ == "__main__":
         br       = current_bankroll()
         print(f"Debrief: {len(resolved)} resolved, {len(pending)} pending | Bankroll: ${br:.2f}")
         sync_scout_json()
+        # Daily DB backup (runs as part of nightly debrief job)
+        try:
+            from db import backup_database
+            backup_path = backup_database()
+            if backup_path:
+                print(f"DB backup: {backup_path}")
+        except Exception as e:
+            print(f"DB backup warning: {e}")
 
     elif "--weekly" in args:
         from math_engine import clv_stats_summary
@@ -807,10 +831,18 @@ if __name__ == "__main__":
 
     else:
         # Default: start Telegram listener + auto-settler in background, run scout once, exit
-        print("Starting Telegram listener...")
-        start_listener()
-        print("Starting auto-settler...")
-        start_auto_settler()
-        print("Running daily scout (this is the main blocking call)...")
-        run_daily_scout()
-        print("Scout complete — exiting")
+        try:
+            print("Starting Telegram listener...")
+            start_listener()
+            print("Starting auto-settler...")
+            start_auto_settler()
+            print("Running daily scout (this is the main blocking call)...")
+            run_daily_scout()
+            print("Scout complete — exiting")
+        except KeyboardInterrupt:
+            print("Scout interrupted by user")
+        except Exception as e:
+            error_logger.log_error("brain.run_daily_scout", e)
+            print(f"[FATAL] Scout crashed: {e}")
+            traceback.print_exc()
+            sys.exit(1)

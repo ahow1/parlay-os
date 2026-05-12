@@ -7,6 +7,8 @@ from flask_cors import CORS
 import json, os
 from datetime import datetime
 import pytz
+import error_logger
+error_logger.setup()
 
 import db as _db
 from math_engine import american_to_decimal, clv_stats_summary, STARTING_BANKROLL
@@ -45,6 +47,18 @@ def _calc_bankroll(bets):
 
 
 # ── STATIC DASHBOARD ──────────────────────────────────────────────────────────
+
+@app.route("/health")
+def health():
+    """Railway healthcheck endpoint."""
+    try:
+        from health_check import run_health_check
+        r = run_health_check(auto_restart=False)
+        status = 200 if r.get("all_ok") else 503
+        return jsonify({"ok": r.get("all_ok"), "failures": r.get("failures", [])}), status
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 503
+
 
 @app.route("/")
 def index():

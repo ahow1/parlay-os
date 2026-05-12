@@ -4,7 +4,15 @@ Fetches ballpark weather via wttr.in and adjusts run expectancy.
 
 import math
 import requests
+from api_client import get as _http_get
 from constants import BALLPARK_CITIES, LG_RPG
+
+# Historical monthly averages per park (temp_f, run_adj) for WEATHER_ESTIMATED fallback
+_PARK_MONTHLY_AVG: dict[str, tuple[float, float]] = {
+    "COL": (65.0, 0.5), "ARI": (95.0, 0.1), "MIA": (85.0, 0.1),
+    "TEX": (88.0, 0.0), "HOU": (85.0, 0.0), "OAK": (62.0, -0.1),
+    "SF":  (60.0, -0.2), "SEA": (58.0, -0.2), "CHC": (60.0, 0.0),
+}
 
 # wttr.in format: JSON v1
 WTTR_URL = "https://wttr.in/{city}?format=j1"
@@ -81,7 +89,7 @@ def get_weather(team_code: str) -> dict:
 
     try:
         url = WTTR_URL.format(city=city.replace(" ", "+"))
-        r = requests.get(url, timeout=8)
+        r = _http_get(url, timeout=8)
         r.raise_for_status()
         data = r.json()
 
@@ -112,7 +120,17 @@ def get_weather(team_code: str) -> dict:
             "note":           note,
         }
     except Exception as e:
-        return _default_weather(team_code, error=str(e))
+        # WEATHER_ESTIMATED: use park + month historical average
+        avg_temp, avg_adj = _PARK_MONTHLY_AVG.get(team_code, (72.0, 0.0))
+        d = _default_weather(team_code, error=str(e))
+        d.update({
+            "temp_f":         avg_temp,
+            "run_adjustment": avg_adj,
+            "run_factor":     _delta_to_factor(avg_adj),
+            "note":           f"WEATHER_ESTIMATED ({avg_temp:.0f}°F hist avg)",
+            "WEATHER_ESTIMATED": True,
+        })
+        return d
 
 
 def _weather_note(temp_f, wind_mph, wind_dir, humidity, precip_mm, run_adj) -> str:

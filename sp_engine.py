@@ -4,6 +4,7 @@ Includes last-3-start rolling ERA/K/BB and K-rate velocity-trend proxy.
 """
 
 import requests
+from api_client import get as _http_get
 from constants import (
     MLB_TEAM_IDS, UMPIRE_TENDENCIES,
     ABS_COMMAND_BONUS, ABS_FB_HEAVY_MALUS,
@@ -16,7 +17,7 @@ STATSAPI = "https://statsapi.mlb.com/api/v1"
 def _get_probable_pitchers(game_pk: int) -> dict:
     """Returns {away_id, home_id, away_name, home_name} from boxscore/schedule."""
     try:
-        r2 = requests.get(f"{STATSAPI}/game/{game_pk}/boxscore", timeout=8)
+        r2 = _http_get(f"{STATSAPI}/game/{game_pk}/boxscore", timeout=8)
         box = r2.json()
         teams = box.get("teams", {})
         result = {}
@@ -33,7 +34,7 @@ def _get_probable_pitchers(game_pk: int) -> dict:
 def _pitcher_season_stats(pitcher_id: int) -> dict:
     """Pull current-season pitching stats from Stats API."""
     try:
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/people/{pitcher_id}/stats",
             params={"stats": "season", "group": "pitching", "season": "2026"},
             timeout=8,
@@ -69,7 +70,7 @@ def _pitcher_game_log_starts(pitcher_id: int, n: int = 10) -> list:
     Returns list of per-game stat dicts, sorted oldest→newest.
     """
     try:
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/people/{pitcher_id}/stats",
             params={
                 "stats":    "gameLog",
@@ -167,7 +168,7 @@ def _last_3_starts_summary(pitcher_id: int) -> dict:
 def _pitcher_meta(pitcher_id: int) -> dict:
     """Pull handedness from Stats API."""
     try:
-        r = requests.get(
+        r = _http_get(
             f"{STATSAPI}/people/{pitcher_id}?hydrate=pitchingStats",
             timeout=8,
         )
