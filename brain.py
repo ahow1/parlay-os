@@ -12,8 +12,13 @@ import os
 import sys
 import json
 import requests
+import traceback
 from datetime import date, datetime
 import pytz
+
+# Force line-buffered stdout so every print() appears immediately in the terminal,
+# even when brain.py is launched as a subprocess or inside a PTY wrapper.
+sys.stdout.reconfigure(line_buffering=True)
 
 # ── Engine imports ────────────────────────────────────────────────────────────
 import db as _db
@@ -396,12 +401,20 @@ def _get_umpire(game_pk: int | None) -> str:
 
 def run_daily_scout():
     """Full daily analysis: all games → recommendations → Telegram."""
+    print("=" * 60)
+    print("Brain starting — daily scout")
     init_memory_tables()
 
     today     = date.today().isoformat()
+    print(f"Date: {today} — fetching events from Odds API...")
     events    = get_mlb_events()
+    print(f"Games from Odds API: {len(events)}")
+    if not events:
+        print("WARNING: 0 games returned — check ODDS_API_KEY env var and API quota")
+
     br        = current_bankroll()
     mem       = memory_report()
+    print(f"Bankroll: ${br:.2f} | Memory cal ready: {mem['ready_to_recalibrate']}")
 
     now_et    = datetime.now(ET).strftime("%Y-%m-%d %H:%M ET")
     header    = (
@@ -424,13 +437,18 @@ def run_daily_scout():
     }
 
     for event in events:
+        away_n = event.get("away", "?")
+        home_n = event.get("home", "?")
+        print(f"\n--- Analyzing: {away_n} @ {home_n} ---")
         try:
             analysis = analyze_game(event, today)
         except Exception as e:
-            print(f"Error analyzing {event.get('away')} @ {event.get('home')}: {e}")
+            print(f"  ERROR in analyze_game: {e}")
+            traceback.print_exc()
             continue
 
         if analysis is None:
+            print(f"  SKIP {away_n} @ {home_n}: no market data or unrecognised team code")
             continue
 
         scout_out["games"].append({
@@ -555,6 +573,10 @@ if __name__ == "__main__":
 
     else:
         # Default: start Telegram listener + auto-settler in background, run scout once, exit
+        print("Starting Telegram listener...")
         start_listener()
+        print("Starting auto-settler...")
         start_auto_settler()
+        print("Running daily scout (this is the main blocking call)...")
         run_daily_scout()
+        print("Scout complete — exiting")
