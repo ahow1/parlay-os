@@ -441,53 +441,106 @@ def handle_results() -> str:
     return "\n".join(lines)
 
 
+def handle_update(identifier: str, new_stake_str: str) -> str:
+    try:
+        new_stake = round(float(new_stake_str.lstrip("$")), 2)
+    except ValueError:
+        return "❓ Invalid stake. Try: /update 3 6.50"
+    if new_stake <= 0:
+        return "❓ Stake must be positive."
+
+    bet = _find_pending(identifier)
+    if not bet:
+        return f"❓ No pending bet found for '{identifier}' — try /bets to see IDs"
+
+    _db.update_bet_stake(bet["id"], new_stake)
+    sync_scout_json()
+
+    to_win = _to_win(new_stake, str(bet.get("bet_odds", "")))
+    bd     = _bankroll_display()
+    return (
+        f"✏️ Updated — [{bet['id']}] {bet['bet']} {bet.get('type','ML')} "
+        f"{bet.get('bet_odds','')} ${new_stake:.2f} | To win: ${to_win:.2f}"
+        f" | Bankroll: ${bd['bankroll']:.2f} (${bd['pending_risk']:.2f} at risk)"
+    )
+
+
 HELP_TEXT = (
-    "PARLAY OS Bot\n"
-    "━━━━━━━━━━━━━━\n"
-    "bet SF ML +162 5.32\n"
-    "bet TB TOR over 6.5 -115 3.55\n"
-    "win SF  |  won SF  |  SF won\n"
-    "loss BAL  |  lost 3  |  BAL lost\n"
-    "push TEX\n"
-    "bankroll  |  bets  |  results"
+    "PARLAY OS Commands\n"
+    "━━━━━━━━━━━━━━━━━━\n"
+    "/bet [team] [type] [odds] [stake]\n"
+    "  e.g. /bet SF ML +162 5.32\n"
+    "  e.g. /bet TB TOR over 6.5 -115 3.55\n"
+    "/update [id] [stake]  — edit stake\n"
+    "/win [id or team]     — settle win\n"
+    "/loss [id or team]    — settle loss\n"
+    "/push [id or team]    — settle push\n"
+    "/bets                 — pending bets\n"
+    "/bankroll             — balance + P&L\n"
+    "/results              — today's bets\n"
+    "\nSlash optional — plain text works too."
 )
 
 
 # ── DISPATCHER ────────────────────────────────────────────────────────────────
 
 def dispatch(text: str) -> None:
-    """Route incoming message to the right handler and send reply."""
+    """Route incoming message to the right handler.
+    Accepts both /command and plain-text command — slash is stripped first."""
     t = text.strip()
     if not t:
         return
 
+    # Normalise: strip leading slash so /bet == bet, /win == win, etc.
+    if t.startswith("/"):
+        t = t[1:]
+
     lower = t.lower()
 
-    # BET LOGGING
+    # /bet [team] [type] [odds] [stake]
     if lower.startswith("bet "):
-        parsed = parse_bet(t)
+        parsed = parse_bet(t)   # t already starts with "bet " (slash stripped above)
         _send(handle_bet(parsed) if parsed else
-              "❓ Couldn't parse bet. Try: bet SF ML +162 5.32")
+              "❓ Couldn't parse. Try: /bet SF ML +162 5.32")
         return
 
-    # SETTLE
+    # /update [id] [stake]
+    if lower.startswith("update "):
+        parts = t.split()
+        if len(parts) >= 3:
+            _send(handle_update(parts[1], parts[2]))
+        else:
+            _send("❓ Try: /update [id] [stake] — e.g. /update 3 6.50")
+        return
+
+    # /win, /loss, /push — explicit slash settle commands
+    for cmd, result_code in (("win ", "W"), ("loss ", "L"), ("push ", "P")):
+        if lower.startswith(cmd):
+            identifier = t[len(cmd):].strip()
+            if identifier:
+                _send(handle_settle(result_code, identifier))
+            else:
+                _send(f"❓ Try: /{cmd.strip()} [id or team] — e.g. /{cmd.strip()} SF")
+            return
+
+    # Natural-language settle ("won SF", "SF lost", etc.)
     settle = parse_settle(t)
     if settle:
-        result, identifier = settle
-        _send(handle_settle(result, identifier))
+        result_code, identifier = settle
+        _send(handle_settle(result_code, identifier))
         return
 
-    # INFO
-    if re.match(r'^(bankroll|br)$', lower):
-        _send(handle_bankroll())
-        return
+    # /bets  /bankroll  /results  /help
     if re.match(r'^(bets|pending)$', lower):
         _send(handle_bets())
+        return
+    if re.match(r'^(bankroll|br)$', lower):
+        _send(handle_bankroll())
         return
     if re.match(r'^(results|today)$', lower):
         _send(handle_results())
         return
-    if lower in ("help", "/help", "/start"):
+    if lower in ("help", "start"):
         _send(HELP_TEXT)
         return
 

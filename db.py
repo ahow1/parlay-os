@@ -110,6 +110,15 @@ def log_bet(date, bet, bet_type, game, sp, park, umpire,
               bet_odds, model_prob, market_prob, edge_pct, conviction, stake))
 
 
+def update_bet_stake(bet_id: int, new_stake: float):
+    """Update stake on a pending bet (used by /update command)."""
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE bets SET stake=? WHERE id=? AND result IS NULL",
+            (round(new_stake, 2), bet_id),
+        )
+
+
 def resolve_bet_by_id(bet_id: int, closing_odds: str, result: str,
                        game_score: str, notes: str = ""):
     """Settle a specific bet by primary key — used by auto-settler."""
