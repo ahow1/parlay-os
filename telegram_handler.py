@@ -492,6 +492,303 @@ def dispatch(text: str) -> None:
         return
 
 
+# ── AUTO-SETTLEMENT ──────────────────────────────────────────────────────────
+# Runs every 30 minutes from 9 pm – 1 am ET.
+# Pulls final scores from MLB Stats API, matches pending bets, settles each one,
+# fetches closing line for CLV, and pushes a Telegram confirmation.
+
+STATSAPI = "https://statsapi.mlb.com/api/v1"
+
+# Games are considered final when status is one of these
+_FINAL_STATES = {"Final", "Game Over", "Completed Early", "Completed"}
+
+
+def _fetch_final_games(game_date: str) -> list[dict]:
+    """Return all completed MLB games for game_date with linescore data."""
+    try:
+        r = requests.get(
+            f"{STATSAPI}/schedule",
+            params={"sportId": 1, "date": game_date, "hydrate": "linescore,team"},
+            timeout=12,
+        )
+        r.raise_for_status()
+        out = []
+        for gd in r.json().get("dates", []):
+            for g in gd.get("games", []):
+                if g.get("status", {}).get("detailedState", "") in _FINAL_STATES:
+                    out.append(g)
+        return out
+    except Exception as e:
+        print(f"[AUTO] schedule fetch error: {e}")
+        return []
+
+
+def _game_side(game: dict, team_code: str) -> str | None:
+    """Return 'away' or 'home' if team_code plays in this game, else None."""
+    from constants import MLB_TEAM_IDS, MLB_TEAM_NAMES
+    tid   = MLB_TEAM_IDS.get(team_code)
+    names = [n.lower() for n in MLB_TEAM_NAMES.get(team_code, [team_code])]
+    for side in ("away", "home"):
+        t = game.get("teams", {}).get(side, {}).get("team", {})
+        if tid and t.get("id") == tid:
+            return side
+        if any(n in t.get("name", "").lower() for n in names):
+            return side
+    return None
+
+
+def _f5_runs(game_pk: int, game: dict) -> tuple[int, int]:
+    """Return (away_f5, home_f5) — sum of innings 1-5.
+    Prefers inline linescore from hydrated schedule; falls back to API call."""
+    innings = (game.get("linescore") or {}).get("innings", [])
+    if not innings:
+        try:
+            r = requests.get(f"{STATSAPI}/game/{game_pk}/linescore", timeout=8)
+            innings = r.json().get("innings", [])
+        except Exception:
+            pass
+    first5  = [inn for inn in innings if 1 <= int(inn.get("num", 0)) <= 5]
+    away_r  = sum(int(i.get("away", {}).get("runs") or 0) for i in first5)
+    home_r  = sum(int(i.get("home", {}).get("runs") or 0) for i in first5)
+    return away_r, home_r
+
+
+def _determine_outcome(bet: dict, game: dict, side: str) -> str | None:
+    """
+    W/L/P based on bet type and final score. Returns None if undetermined.
+    Handles: ML, F5, O{line}, U{line}
+    """
+    bet_type = (bet.get("type") or "ML").strip().upper()
+    teams    = game.get("teams", {})
+    opp_side = "home" if side == "away" else "away"
+    game_pk  = game.get("gamePk")
+
+    # Use isWinner when available (handles walk-offs, extra innings cleanly)
+    our_winner = teams.get(side, {}).get("isWinner")
+    opp_winner = teams.get(opp_side, {}).get("isWinner")
+    our_score  = int(teams.get(side, {}).get("score") or 0)
+    opp_score  = int(teams.get(opp_side, {}).get("score") or 0)
+
+    if bet_type in ("ML", "MONEYLINE"):
+        if our_winner is not None:
+            return "W" if our_winner else "L"
+        if our_score > opp_score:  return "W"
+        if our_score < opp_score:  return "L"
+        return "P"
+
+    if bet_type == "F5":
+        if game_pk:
+            away_f5, home_f5 = _f5_runs(game_pk, game)
+            our_f5  = away_f5 if side == "away" else home_f5
+            opp_f5  = home_f5 if side == "away" else away_f5
+        else:
+            return None
+        if our_f5 > opp_f5:  return "W"
+        if our_f5 < opp_f5:  return "L"
+        return "P"
+
+    # Over / Under — e.g. "O8.5", "U7.5"
+    if bet_type and bet_type[0] in ("O", "U"):
+        try:
+            line = float(bet_type[1:])
+        except ValueError:
+            return None
+        away_r = int(teams.get("away", {}).get("score") or 0)
+        home_r = int(teams.get("home", {}).get("score") or 0)
+        total  = away_r + home_r
+        if bet_type[0] == "O":
+            if total > line:  return "W"
+            if total < line:  return "L"
+            return "P"
+        else:
+            if total < line:  return "W"
+            if total > line:  return "L"
+            return "P"
+
+    return None
+
+
+def _score_str(game: dict) -> str:
+    teams  = game.get("teams", {})
+    away_t = teams.get("away", {}).get("team", {}).get("abbreviation", "?")
+    home_t = teams.get("home", {}).get("team", {}).get("abbreviation", "?")
+    away_r = teams.get("away", {}).get("score", "?")
+    home_r = teams.get("home", {}).get("score", "?")
+    return f"{away_t} {away_r}-{home_r} {home_t}"
+
+
+def _clv_str(bet_odds: str, closing: str) -> str:
+    if not closing:
+        return ""
+    clv = calc_clv(str(bet_odds), closing)
+    if clv.get("clv_pct") is None:
+        return ""
+    sign = "+" if clv["clv_pct"] >= 0 else ""
+    return f" | CLV {sign}{clv['clv_pct']:.1f}% ({clv['verdict']})"
+
+
+def _update_clv_log(settled: list[dict]) -> None:
+    """Append settled bets to clv_log.json for dashboard CLV tab."""
+    try:
+        try:
+            with open("clv_log.json") as f:
+                log = json.load(f)
+        except Exception:
+            log = []
+        for b in settled:
+            log.append({
+                "date":         b.get("date"),
+                "bet":          b.get("bet"),
+                "type":         b.get("type"),
+                "game":         b.get("game"),
+                "bet_odds":     b.get("bet_odds"),
+                "closing_odds": b.get("closing"),
+                "clv_pct":      b.get("clv_pct"),
+                "result":       b.get("outcome"),
+                "stake":        b.get("stake"),
+                "settled_at":   datetime.now(ET).isoformat(),
+            })
+        with open("clv_log.json", "w") as f:
+            json.dump(log, f, indent=2)
+    except Exception as e:
+        print(f"[AUTO] clv_log update error: {e}")
+
+
+def run_settlement_check() -> list[dict]:
+    """
+    Core auto-settlement function.
+    Checks every pending bet. For any whose game is final, determines
+    outcome, fetches closing odds, settles in DB, and sends notification.
+    Returns list of dicts describing what was settled.
+    """
+    pending = [b for b in _db.get_bets() if not b.get("result")]
+    if not pending:
+        return []
+
+    # Group by date — fetch schedule once per date
+    by_date: dict[str, list] = {}
+    for b in pending:
+        d = b.get("date") or date.today().isoformat()
+        by_date.setdefault(d, []).append(b)
+
+    settled_log = []
+
+    for game_date, bets in by_date.items():
+        games = _fetch_final_games(game_date)
+        if not games:
+            continue
+
+        for bet in bets:
+            team_code = bet["bet"]
+
+            # Find matching final game
+            matched_game = None
+            matched_side = None
+            for g in games:
+                s = _game_side(g, team_code)
+                if s:
+                    matched_game = g
+                    matched_side = s
+                    break
+
+            if matched_game is None:
+                continue  # game not over yet
+
+            outcome = _determine_outcome(bet, matched_game, matched_side)
+            if outcome is None:
+                print(f"[AUTO] couldn't determine outcome for {team_code} {bet.get('type')}")
+                continue
+
+            # Closing line for CLV
+            closing = _fetch_closing_odds(team_code, bet.get("type", "ML"))
+
+            score   = _score_str(matched_game)
+            clv_txt = _clv_str(str(bet.get("bet_odds", "")), closing or "")
+
+            # Settle by ID for precision
+            _db.resolve_bet_by_id(
+                bet_id=bet["id"],
+                closing_odds=closing or "",
+                result=outcome,
+                game_score=score,
+            )
+
+            # P&L for message
+            stake   = float(bet.get("stake") or 0)
+            to_win  = _to_win(stake, str(bet.get("bet_odds", "")))
+            pnl_str = (f"+${to_win:.2f}" if outcome == "W"
+                       else f"-${stake:.2f}" if outcome == "L"
+                       else "$0.00")
+            em      = "✅" if outcome == "W" else "❌" if outcome == "L" else "🔄"
+            r_lab   = {"W": "WIN", "L": "LOSS", "P": "PUSH"}[outcome]
+            bd      = _bankroll_display()
+
+            msg = (
+                f"{em} AUTO-SETTLE: {team_code} {bet.get('type','ML')} {r_lab}\n"
+                f"{score} | {pnl_str}{clv_txt}\n"
+                f"Bankroll: ${bd['bankroll']:.2f}"
+            )
+            _send(msg)
+            print(f"[AUTO] settled bet #{bet['id']}: {team_code} {outcome} {score}")
+
+            settled_log.append({
+                **bet,
+                "outcome":  outcome,
+                "score":    score,
+                "closing":  closing,
+                "clv_pct":  calc_clv(str(bet.get("bet_odds","")), closing).get("clv_pct") if closing else None,
+            })
+
+    if settled_log:
+        sync_scout_json()
+        _update_clv_log(settled_log)
+
+    return settled_log
+
+
+def _in_settlement_window() -> bool:
+    """True between 9 pm and 1 am ET (covers all game endings)."""
+    hour = datetime.now(ET).hour
+    return hour >= 21 or hour < 1
+
+
+def _next_window_sleep() -> int:
+    """Seconds until 9 pm ET if we're outside the window."""
+    now    = datetime.now(ET)
+    hour   = now.hour
+    minute = now.minute
+    if hour >= 21 or hour < 1:
+        return 30 * 60  # already in window — standard 30-min interval
+    # Calculate seconds until 9 pm ET
+    target_hour   = 21
+    minutes_left  = (target_hour - hour) * 60 - minute
+    return max(minutes_left * 60, 60)
+
+
+def _settler_loop() -> None:
+    """Background daemon: run settlement check every 30 min, 9 pm–1 am ET."""
+    print("[AUTO] Settlement loop started")
+    while True:
+        sleep_secs = _next_window_sleep()
+        time.sleep(sleep_secs)
+        if _in_settlement_window():
+            try:
+                settled = run_settlement_check()
+                if settled:
+                    print(f"[AUTO] Settled {len(settled)} bet(s)")
+                else:
+                    print("[AUTO] Check complete — no new settlements")
+            except Exception as e:
+                print(f"[AUTO] settlement error: {e}")
+
+
+def start_auto_settler() -> threading.Thread:
+    """Start auto-settlement as a daemon background thread."""
+    t = threading.Thread(target=_settler_loop, daemon=True, name="auto-settler")
+    t.start()
+    return t
+
+
 # ── TELEGRAM I/O ─────────────────────────────────────────────────────────────
 
 def _send(msg: str) -> None:

@@ -518,18 +518,20 @@ def run_daily_scout():
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    from telegram_handler import start_listener, sync_scout_json
+    from telegram_handler import start_listener, start_auto_settler, sync_scout_json
 
     args = set(sys.argv[1:])
 
     if "--bot" in args:
-        # Persistent bot mode: Telegram listener only, no scout
+        # Persistent bot mode: Telegram listener + auto-settler, no scout
         from telegram_handler import _poll_loop
+        start_auto_settler()
         print("Parlay OS bot running (Ctrl-C to stop)...")
         _poll_loop()
 
     elif "--live" in args:
         start_listener()
+        start_auto_settler()
         from live_engine import run_live_monitor
         run_live_monitor()
 
@@ -552,6 +554,7 @@ if __name__ == "__main__":
         print(f"Bankroll: ${br:.2f}")
 
     else:
-        # Default: start Telegram listener in background, run scout once, then exit
+        # Default: start Telegram listener + auto-settler in background, run scout once, exit
         start_listener()
+        start_auto_settler()
         run_daily_scout()

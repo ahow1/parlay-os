@@ -110,6 +110,26 @@ def log_bet(date, bet, bet_type, game, sp, park, umpire,
               bet_odds, model_prob, market_prob, edge_pct, conviction, stake))
 
 
+def resolve_bet_by_id(bet_id: int, closing_odds: str, result: str,
+                       game_score: str, notes: str = ""):
+    """Settle a specific bet by primary key — used by auto-settler."""
+    clv = None
+    if closing_odds:
+        try:
+            from math_engine import calc_clv
+            with _conn() as c:
+                row = c.execute("SELECT bet_odds FROM bets WHERE id=?", (bet_id,)).fetchone()
+            if row:
+                clv = calc_clv(row["bet_odds"], closing_odds).get("clv_pct")
+        except Exception:
+            pass
+    with _conn() as conn:
+        conn.execute("""
+            UPDATE bets SET closing_odds=?, clv_pct=?, result=?, game_score=?, notes=?
+            WHERE id=? AND result IS NULL
+        """, (closing_odds, clv, result, game_score, notes, bet_id))
+
+
 def resolve_bet(bet, date, closing_odds, result, game_score, notes=""):
     clv = None
     if closing_odds:
