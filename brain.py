@@ -205,6 +205,16 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     away_model_p = recalibrate_model_prob(away_model_p)
     home_model_p = recalibrate_model_prob(home_model_p)
 
+    # ── SP unknown → reduce confidence by 15% (pull toward 0.5) ─────────────
+    # A missing SP means we don't know the run-prevention side of the ledger.
+    # Rather than blocking the bet entirely, we shrink the edge conservatively.
+    _SP_TBD_REDUCTION = 0.15
+    away_sp_tbd = not away_sp.get("name") or away_sp.get("name") == "TBD"
+    home_sp_tbd = not home_sp.get("name") or home_sp.get("name") == "TBD"
+    if away_sp_tbd or home_sp_tbd:
+        away_model_p = round(away_model_p - _SP_TBD_REDUCTION * (away_model_p - 0.5), 4)
+        home_model_p = round(home_model_p - _SP_TBD_REDUCTION * (home_model_p - 0.5), 4)
+
     # ── Regression / intelligence flags ──────────────────────────────────────
     reg_flags = detect_regression_flags(away_sp, home_sp, away_off, home_off)
     momentum  = _momentum_score(away_code, home_code)
@@ -229,12 +239,14 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     home_r3_era   = home_sp.get("rolling_era_3")
     away_sp_flags = []
     home_sp_flags = []
-    if away_sp.get("worsening_walk"):   away_sp_flags.append("BB↑")
-    if away_sp.get("velocity_decline"): away_sp_flags.append("velo↓")
-    if away_sp.get("k9_declining"):     away_sp_flags.append("K↓")
-    if home_sp.get("worsening_walk"):   home_sp_flags.append("BB↑")
-    if home_sp.get("velocity_decline"): home_sp_flags.append("velo↓")
-    if home_sp.get("k9_declining"):     home_sp_flags.append("K↓")
+    if away_sp_tbd:                      away_sp_flags.append("TBD(-15%)")
+    if away_sp.get("worsening_walk"):    away_sp_flags.append("BB↑")
+    if away_sp.get("velocity_decline"):  away_sp_flags.append("velo↓")
+    if away_sp.get("k9_declining"):      away_sp_flags.append("K↓")
+    if home_sp_tbd:                      home_sp_flags.append("TBD(-15%)")
+    if home_sp.get("worsening_walk"):    home_sp_flags.append("BB↑")
+    if home_sp.get("velocity_decline"):  home_sp_flags.append("velo↓")
+    if home_sp.get("k9_declining"):      home_sp_flags.append("K↓")
 
     away_lineup_tag = "UNCONFIRMED" if away_off.get("lineup_unconfirmed") else "confirmed"
     home_lineup_tag = "UNCONFIRMED" if home_off.get("lineup_unconfirmed") else "confirmed"
@@ -479,12 +491,6 @@ def _should_recommend(game: dict, side: str) -> bool:
         return False
     if is_drawdown_pause():
         print(f"  PASS {team}: drawdown pause active")
-        return False
-
-    sp_key = f"{side}_sp"
-    sp = game.get(sp_key, {})
-    if not sp.get("name") or sp.get("name") == "TBD":
-        print(f"  PASS {team}: SP TBD — no starter confirmed")
         return False
 
     print(f"  BET  {team}: edge {edge:+.1f}% model={model:.3f} nv={nv:.3f} stake=${stake:.2f} [{conv}]")
