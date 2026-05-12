@@ -61,6 +61,33 @@ def api_scout():
     return jsonify(data)
 
 
+@app.route("/api/memory")
+def api_memory():
+    try:
+        from memory_engine import memory_report, calibration_summary
+        return jsonify({
+            "report": memory_report(),
+            "calibration": calibration_summary(),
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/bankroll/sizing", methods=["POST"])
+def api_sizing():
+    data = request.get_json(silent=True) or {}
+    try:
+        from bankroll_engine import sizing_summary
+        result = sizing_summary(
+            model_prob=float(data.get("model_prob", 0.55)),
+            odds=str(data.get("odds", "-110")),
+            conviction=data.get("conviction", "MEDIUM"),
+        )
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/arbitrage")
 def api_arbitrage():
     data = _load_json("arbitrage_log.json")

@@ -233,6 +233,11 @@ def save_scout_run(date, games_analyzed, high_count, medium_count, pass_count,
               pass_count, avg_edge, data_json_str))
 
 
+def log_scout_run(date, bets_found, data_json_str):
+    """Simplified scout run logger called by brain.py."""
+    save_scout_run(date, 0, 0, 0, 0, 0.0, data_json_str)
+
+
 # ─── ROI REPORTS ──────────────────────────────────────────────────────────────
 
 def get_roi_by_type():
