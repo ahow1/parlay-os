@@ -50,6 +50,16 @@ except ImportError:
     def models_available(): return False
     def detect_regression_flags(*a, **k): return {"flags": [], "count": 0}
 
+# Statcast — imported lazily; non-critical, degrades gracefully
+try:
+    from statcast_engine import get_pitcher_statcast, get_lineup_statcast, sp_statcast_summary
+    _STATCAST_AVAILABLE = True
+except ImportError:
+    _STATCAST_AVAILABLE = False
+    def get_pitcher_statcast(*a, **k): return {}
+    def get_lineup_statcast(*a, **k): return {}
+    def sp_statcast_summary(*a, **k): return ""
+
 STATSAPI  = "https://statsapi.mlb.com/api/v1"
 ET        = pytz.timezone("America/New_York")
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
@@ -203,9 +213,45 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     best_away_odds = market.get("best_away_odds")
     best_home_odds = market.get("best_home_odds")
 
+    # ── Statcast for SPs ─────────────────────────────────────────────────────
+    away_sc_str = sp_statcast_summary(away_sp.get("pitcher_id")) if away_sp.get("pitcher_id") else ""
+    home_sc_str = sp_statcast_summary(home_sp.get("pitcher_id")) if home_sp.get("pitcher_id") else ""
+
     # Verbose per-game log
     away_sp_name = away_sp.get("name", "TBD") if away_sp else "TBD"
     home_sp_name = home_sp.get("name", "TBD") if home_sp else "TBD"
+
+    away_r3_era   = away_sp.get("rolling_era_3")
+    home_r3_era   = home_sp.get("rolling_era_3")
+    away_sp_flags = []
+    home_sp_flags = []
+    if away_sp.get("worsening_walk"):   away_sp_flags.append("BB↑")
+    if away_sp.get("velocity_decline"): away_sp_flags.append("velo↓")
+    if away_sp.get("k9_declining"):     away_sp_flags.append("K↓")
+    if home_sp.get("worsening_walk"):   home_sp_flags.append("BB↑")
+    if home_sp.get("velocity_decline"): home_sp_flags.append("velo↓")
+    if home_sp.get("k9_declining"):     home_sp_flags.append("K↓")
+
+    away_lineup_tag = "UNCONFIRMED" if away_off.get("lineup_unconfirmed") else "confirmed"
+    home_lineup_tag = "UNCONFIRMED" if home_off.get("lineup_unconfirmed") else "confirmed"
+
+    away_plat = away_off.get("platoon_vs_lhp") or {}
+    home_plat = home_off.get("platoon_vs_lhp") or {}
+    away_platoon_delta = round(
+        (away_off.get("platoon_vs_rhp", {}) or {}).get("wrc_plus", 100) -
+        (away_off.get("platoon_vs_lhp", {}) or {}).get("wrc_plus", 100), 1
+    )
+    home_platoon_delta = round(
+        (home_off.get("platoon_vs_rhp", {}) or {}).get("wrc_plus", 100) -
+        (home_off.get("platoon_vs_lhp", {}) or {}).get("wrc_plus", 100), 1
+    )
+
+    wx_adj = weather.get("run_adjustment", 0.0)
+    wx_label = weather.get("wind_label", weather.get("note", ""))
+
+    away_hi_arms = away_bp.get("high_fatigue_arms", [])
+    home_hi_arms = home_bp.get("high_fatigue_arms", [])
+
     print(
         f"[{away_code}@{home_code}] "
         f"model={away_model_p:.3f}/{home_model_p:.3f}  "
@@ -214,6 +260,28 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         f"xR={away_xr:.2f}/{home_xr:.2f}  "
         f"SP: {away_sp_name} vs {home_sp_name}"
     )
+    # Lineup status
+    print(f"  Lineup: {away_code}={away_lineup_tag}  {home_code}={home_lineup_tag}")
+    # SP rolling ERA
+    away_r3_str = f"{away_r3_era:.2f}" if away_r3_era is not None else "N/A"
+    home_r3_str = f"{home_r3_era:.2f}" if home_r3_era is not None else "N/A"
+    print(f"  SP last-3 ERA: {away_sp_name}={away_r3_str}{' ['+','.join(away_sp_flags)+']' if away_sp_flags else ''}  "
+          f"{home_sp_name}={home_r3_str}{' ['+','.join(home_sp_flags)+']' if home_sp_flags else ''}")
+    if away_sc_str or home_sc_str:
+        print(f"  Statcast: {away_sp_name}: {away_sc_str or 'N/A'}  |  {home_sp_name}: {home_sc_str or 'N/A'}")
+    # Bullpen fatigue
+    away_bp_str = f"{away_bp['fatigue_tier']}({away_bp['avg_fatigue']:.1f})"
+    home_bp_str = f"{home_bp['fatigue_tier']}({home_bp['avg_fatigue']:.1f})"
+    hi_str = ""
+    if away_hi_arms:
+        hi_str += f" ⚠ {away_code} HI-FAT: {', '.join(away_hi_arms)}"
+    if home_hi_arms:
+        hi_str += f" ⚠ {home_code} HI-FAT: {', '.join(home_hi_arms)}"
+    print(f"  Bullpen: {away_code}={away_bp_str}  {home_code}={home_bp_str}{hi_str}")
+    # Umpire + weather
+    print(f"  Ump: {umpire or 'unknown'}  |  Wx: {wx_label} adj={wx_adj:+.2f}r/g  rf={wx_rf:.3f}")
+    # Platoon splits
+    print(f"  Platoon Δ(vR-vL wRC+): {away_code}={away_platoon_delta:+.0f}  {home_code}={home_platoon_delta:+.0f}")
     # Print any regression/narrative flags
     for flag in reg_flags.get("flags", []):
         print(f"  FLAG: {flag['message']}")
@@ -254,8 +322,20 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         "weather":    weather,
         "away_off":   away_off,
         "home_off":   home_off,
-        "away_bp":    {"fatigue_tier": away_bp["fatigue_tier"], "closer": away_bp["closer_name"]},
-        "home_bp":    {"fatigue_tier": home_bp["fatigue_tier"], "closer": home_bp["closer_name"]},
+        "away_bp":    {
+            "fatigue_tier":     away_bp["fatigue_tier"],
+            "avg_fatigue":      away_bp["avg_fatigue"],
+            "closer":           away_bp["closer_name"],
+            "closer_available": away_bp["closer_available"],
+            "high_fatigue_arms": away_hi_arms,
+        },
+        "home_bp":    {
+            "fatigue_tier":     home_bp["fatigue_tier"],
+            "avg_fatigue":      home_bp["avg_fatigue"],
+            "closer":           home_bp["closer_name"],
+            "closer_available": home_bp["closer_available"],
+            "high_fatigue_arms": home_hi_arms,
+        },
         "away_xr":    away_xr,
         "home_xr":    home_xr,
         "away_model_p": away_model_p,
@@ -288,6 +368,19 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         "reg_flags":     reg_flags.get("flags", []),
         "momentum":      momentum,
         "narrative":     narrative.get("flags", []),
+        # New engine fields
+        "away_lineup_confirmed": not away_off.get("lineup_unconfirmed", True),
+        "home_lineup_confirmed": not home_off.get("lineup_unconfirmed", True),
+        "away_sp_rolling_era":   away_sp.get("rolling_era_3"),
+        "home_sp_rolling_era":   home_sp.get("rolling_era_3"),
+        "away_sp_flags":         away_sp_flags,
+        "home_sp_flags":         home_sp_flags,
+        "away_sp_statcast":      away_sc_str,
+        "home_sp_statcast":      home_sc_str,
+        "wx_run_adjustment":     wx_adj,
+        "wx_label":              wx_label,
+        "away_platoon_delta":    away_platoon_delta,
+        "home_platoon_delta":    home_platoon_delta,
     }
 
 
@@ -513,15 +606,35 @@ def _resolve_game_pk(team_name: str, game_date: str) -> int | None:
 
 
 def _get_umpire(game_pk: int | None) -> str:
+    """Pull HP umpire name. Tries schedule/officials first (pre-game), then boxscore."""
     if not game_pk:
         return ""
+    # Pre-game: schedule hydrate=officials is populated day-of before first pitch
     try:
-        r     = requests.get(f"{STATSAPI}/game/{game_pk}/boxscore", timeout=8)
-        box   = r.json()
-        umps  = box.get("officials", [])
-        for u in umps:
+        r = requests.get(
+            f"{STATSAPI}/schedule",
+            params={"gamePk": game_pk, "hydrate": "officials", "sportId": 1},
+            timeout=8,
+        )
+        for day in r.json().get("dates", []):
+            for g in day.get("games", []):
+                if g.get("gamePk") != game_pk:
+                    continue
+                for official in g.get("officials", []):
+                    if official.get("officialType") == "Home Plate":
+                        name = official.get("official", {}).get("fullName", "")
+                        if name:
+                            return name
+    except Exception:
+        pass
+    # In-game / post-game fallback: boxscore
+    try:
+        r   = requests.get(f"{STATSAPI}/game/{game_pk}/boxscore", timeout=8)
+        for u in r.json().get("officials", []):
             if u.get("officialType") == "Home Plate":
-                return u.get("official", {}).get("fullName", "")
+                name = u.get("official", {}).get("fullName", "")
+                if name:
+                    return name
     except Exception:
         pass
     return ""
