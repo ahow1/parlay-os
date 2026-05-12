@@ -150,6 +150,18 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     best_away_odds = market.get("best_away_odds")
     best_home_odds = market.get("best_home_odds")
 
+    # Verbose per-game log
+    away_sp_name = away_sp.get("name", "TBD") if away_sp else "TBD"
+    home_sp_name = home_sp.get("name", "TBD") if home_sp else "TBD"
+    print(
+        f"[{away_code}@{home_code}] "
+        f"model={away_model_p:.3f}/{home_model_p:.3f}  "
+        f"nv={away_nv:.3f}/{home_nv:.3f}  "
+        f"edge={away_edge:+.1f}/{home_edge:+.1f}%  "
+        f"xR={away_xr:.2f}/{home_xr:.2f}  "
+        f"SP: {away_sp_name} vs {home_sp_name}"
+    )
+
     # ── Props ─────────────────────────────────────────────────────────────────
     nrfi_r = nrfi_prob(away_sp, home_sp, park_rf, wx_rf)
     total_r = game_total_prob(away_xr, home_xr,
@@ -237,24 +249,29 @@ def _should_recommend(game: dict, side: str) -> bool:
     conv  = game.get(f"{side}_conv", "PASS")
     stake = game.get(f"{side}_stake", 0)
     model = game.get(f"{side}_model_p", 0)
+    nv    = game.get(f"{side}_nv", 0)
+    team  = game.get(f"{side}_name", side)
 
-    if conv == "PASS":
-        return False
-    if edge < MIN_EDGE_PCT:
+    if conv == "PASS" or edge < MIN_EDGE_PCT:
+        print(f"  PASS {team}: edge {edge:+.1f}% (need >{MIN_EDGE_PCT}%) model={model:.3f} nv={nv:.3f}")
         return False
     if stake <= 0:
+        print(f"  PASS {team}: stake=0 (daily cap hit or drawdown pause)")
         return False
     if model < MIN_PROB:
+        print(f"  PASS {team}: model {model:.3f} < min {MIN_PROB}")
         return False
     if is_drawdown_pause():
+        print(f"  PASS {team}: drawdown pause active")
         return False
 
-    # Suppress if SP is TBD for our side
     sp_key = f"{side}_sp"
     sp = game.get(sp_key, {})
     if not sp.get("name") or sp.get("name") == "TBD":
+        print(f"  PASS {team}: SP TBD — no starter confirmed")
         return False
 
+    print(f"  BET  {team}: edge {edge:+.1f}% model={model:.3f} nv={nv:.3f} stake=${stake:.2f} [{conv}]")
     return True
 
 
@@ -501,12 +518,31 @@ def run_daily_scout():
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    if "--live" in sys.argv:
+    args = set(sys.argv[1:])
+    if "--live" in args:
         from live_engine import run_live_monitor
         run_live_monitor()
-    elif "--props" in sys.argv:
-        # Props-only scan: run scout but filter to props only
-        print("Props scan not yet implemented standalone — running full scout")
-        run_daily_scout()
+    elif "--debrief" in args:
+        # Nightly debrief: just print summary, no new bets
+        import db as _db2
+        bets = _db2.get_bets()
+        resolved = [b for b in bets if b.get("result") in ("W", "L")]
+        pending  = [b for b in bets if not b.get("result")]
+        print(f"Debrief: {len(resolved)} resolved, {len(pending)} pending")
+        br = current_bankroll()
+        print(f"Bankroll: ${br:.2f}")
+    elif "--weekly" in args:
+        # Weekly ROI report: print stats, no new scout run
+        import db as _db2
+        from math_engine import clv_stats_summary
+        bets = _db2.get_bets()
+        wins   = sum(1 for b in bets if b.get("result") == "W")
+        losses = sum(1 for b in bets if b.get("result") == "L")
+        total  = wins + losses
+        br     = current_bankroll()
+        print(f"Weekly ROI Report")
+        print(f"Record: {wins}-{losses} ({wins/total*100:.1f}%)" if total else "No resolved bets")
+        print(f"Bankroll: ${br:.2f}")
     else:
+        # Default: run scout exactly once
         run_daily_scout()
