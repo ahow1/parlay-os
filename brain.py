@@ -518,31 +518,40 @@ def run_daily_scout():
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    from telegram_handler import start_listener, sync_scout_json
+
     args = set(sys.argv[1:])
-    if "--live" in args:
+
+    if "--bot" in args:
+        # Persistent bot mode: Telegram listener only, no scout
+        from telegram_handler import _poll_loop
+        print("Parlay OS bot running (Ctrl-C to stop)...")
+        _poll_loop()
+
+    elif "--live" in args:
+        start_listener()
         from live_engine import run_live_monitor
         run_live_monitor()
+
     elif "--debrief" in args:
-        # Nightly debrief: just print summary, no new bets
-        import db as _db2
-        bets = _db2.get_bets()
+        bets     = _db.get_bets()
         resolved = [b for b in bets if b.get("result") in ("W", "L")]
         pending  = [b for b in bets if not b.get("result")]
-        print(f"Debrief: {len(resolved)} resolved, {len(pending)} pending")
-        br = current_bankroll()
-        print(f"Bankroll: ${br:.2f}")
+        br       = current_bankroll()
+        print(f"Debrief: {len(resolved)} resolved, {len(pending)} pending | Bankroll: ${br:.2f}")
+        sync_scout_json()
+
     elif "--weekly" in args:
-        # Weekly ROI report: print stats, no new scout run
-        import db as _db2
         from math_engine import clv_stats_summary
-        bets = _db2.get_bets()
+        bets   = _db.get_bets()
         wins   = sum(1 for b in bets if b.get("result") == "W")
         losses = sum(1 for b in bets if b.get("result") == "L")
         total  = wins + losses
         br     = current_bankroll()
-        print(f"Weekly ROI Report")
-        print(f"Record: {wins}-{losses} ({wins/total*100:.1f}%)" if total else "No resolved bets")
+        print(f"Weekly ROI: {wins}-{losses} ({wins/total*100:.1f}%)" if total else "No resolved bets")
         print(f"Bankroll: ${br:.2f}")
+
     else:
-        # Default: run scout exactly once
+        # Default: start Telegram listener in background, run scout once, then exit
+        start_listener()
         run_daily_scout()
