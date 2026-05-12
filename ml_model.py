@@ -342,7 +342,15 @@ def load_schedule_results(seasons: list) -> pd.DataFrame:
         if not df.empty:
             df.to_parquet(cache_path)
             dfs.append(df)
-    return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+    df = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+    if not df.empty:
+        for col in ("away_sp_id", "home_sp_id"):
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
+        for col in ("home_win", "away_score", "home_score", "total_runs", "season"):
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+    return df
 
 
 def _fetch_mlb_schedule(season: int) -> pd.DataFrame:
@@ -398,28 +406,32 @@ def load_pitching_stats(seasons: list) -> pd.DataFrame:
     """Player pitching stats from MLB Stats API."""
     dfs = [_fetch_player_pitching_mlbapi(s) for s in seasons]
     dfs = [d for d in dfs if not d.empty]
-    return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+    df = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+    return df.fillna(0) if not df.empty else df
 
 
 def load_batting_stats(seasons: list) -> pd.DataFrame:
     """Player batting stats from MLB Stats API."""
     dfs = [_fetch_player_batting_mlbapi(s) for s in seasons]
     dfs = [d for d in dfs if not d.empty]
-    return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+    df = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+    return df.fillna(0) if not df.empty else df
 
 
 def load_team_batting(seasons: list) -> pd.DataFrame:
     """Team batting stats from MLB Stats API."""
     dfs = [_fetch_team_batting_mlbapi(s) for s in seasons]
     dfs = [d for d in dfs if not d.empty]
-    return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+    df = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+    return df.fillna(0) if not df.empty else df
 
 
 def load_team_pitching(seasons: list) -> pd.DataFrame:
     """Team pitching stats from MLB Stats API."""
     dfs = [_fetch_team_pitching_mlbapi(s) for s in seasons]
     dfs = [d for d in dfs if not d.empty]
-    return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+    df = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+    return df.fillna(0) if not df.empty else df
 
 
 # ── Feature engineering ───────────────────────────────────────────────────────
@@ -524,6 +536,15 @@ def build_feature_matrix(
     if schedule.empty:
         log.warning("Schedule empty — cannot build features")
         return pd.DataFrame()
+
+    # Safe numeric conversions — guard against NaN from incomplete games or parquet artifacts
+    schedule = schedule.copy()
+    for col in ("home_win", "away_score", "home_score", "total_runs", "season"):
+        if col in schedule.columns:
+            schedule[col] = pd.to_numeric(schedule[col], errors="coerce").fillna(0)
+    for col in ("away_sp_id", "home_sp_id"):
+        if col in schedule.columns:
+            schedule[col] = pd.to_numeric(schedule[col], errors="coerce").fillna(0).astype(int)
 
     # Rolling team run stats (14-game and 7-game)
     roll14 = _rolling_team_stats(schedule, 14)

@@ -18,9 +18,8 @@ MARKETS_ML   = "h2h"
 MARKETS_TOT  = "totals"
 MARKETS_F5   = "h2h_1st_5_innings"
 
-# Full team names exactly as returned by the Odds API → internal short code.
-# Used as a fallback when outcome names don't match event names verbatim.
-_FULL_NAME_TO_CODE: dict[str, str] = {
+# Full team name → 3-letter abbreviation. Public so other modules can import.
+TEAM_NAME_TO_ABR: dict[str, str] = {
     "San Francisco Giants": "SF",   "Los Angeles Dodgers": "LAD",
     "New York Yankees": "NYY",      "Baltimore Orioles": "BAL",
     "Boston Red Sox": "BOS",        "Tampa Bay Rays": "TB",
@@ -38,20 +37,37 @@ _FULL_NAME_TO_CODE: dict[str, str] = {
     "Washington Nationals": "WAS",  "Athletics": "ATH",
     "Oakland Athletics": "ATH",
 }
-# Reverse: code → canonical full name (for matching outcome names)
-_CODE_TO_FULL: dict[str, str] = {v: k for k, v in _FULL_NAME_TO_CODE.items()}
+# Backward-compat alias (private name used internally)
+_FULL_NAME_TO_CODE = TEAM_NAME_TO_ABR
+
+# Reverse: 3-letter code → canonical full name
+ABR_TO_TEAM_NAME: dict[str, str] = {v: k for k, v in TEAM_NAME_TO_ABR.items()}
+_CODE_TO_FULL = ABR_TO_TEAM_NAME
+
+
+def normalize_team_name(name: str) -> str:
+    """Return 3-letter abbreviation for a full team name, or name unchanged if not found."""
+    return TEAM_NAME_TO_ABR.get(name, name)
 
 
 def _names_match(outcome_name: str, team_name: str) -> bool:
     """True when an Odds-API outcome name refers to the same team as team_name.
-    Handles exact match, substring containment, and code-based lookup."""
+    Handles exact match, code-based lookup, abbr→canonical, and substring containment."""
     if outcome_name == team_name:
         return True
-    code = _FULL_NAME_TO_CODE.get(team_name)
+    # team_name is a full name → look up its code → compare to canonical form of that code
+    code = TEAM_NAME_TO_ABR.get(team_name)
     if code:
-        canonical = _CODE_TO_FULL.get(code, "")
+        canonical = ABR_TO_TEAM_NAME.get(code, "")
         if outcome_name == canonical:
             return True
+    # team_name might itself be a 3-letter abbr → check if outcome_name is its canonical full name
+    canonical2 = ABR_TO_TEAM_NAME.get(team_name, "")
+    if canonical2 and outcome_name == canonical2:
+        return True
+    # outcome_name might be the abbr of team_name
+    if TEAM_NAME_TO_ABR.get(outcome_name) == TEAM_NAME_TO_ABR.get(team_name) and TEAM_NAME_TO_ABR.get(team_name):
+        return True
     # Substring guard — one name must wholly contain the other (e.g. "Cubs" ⊂ "Chicago Cubs")
     return outcome_name in team_name or team_name in outcome_name
 

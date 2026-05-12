@@ -87,6 +87,7 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     away_tid  = MLB_TEAM_IDS.get(away_code)
     home_tid  = MLB_TEAM_IDS.get(home_code)
     if not away_tid or not home_tid:
+        print(f"  SKIP [{away_name} @ {home_name}]: unknown team code — away={away_code} home={home_code}")
         return None
 
     # Resolve game_pk from schedule
@@ -99,6 +100,8 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     )
     nv = market.get("no_vig") or {}
     if not nv:
+        books = list(market.get("ml_books", {}).keys())
+        print(f"  SKIP [{away_name} @ {home_name}]: no market data — books matched: {books or 'none'}")
         return None
 
     away_nv = nv.get("away", 0.5)
@@ -651,12 +654,15 @@ if __name__ == "__main__":
     args = set(sys.argv[1:])
 
     if "--bot" in args:
-        # Persistent bot mode: Telegram listener + auto-settler, no scout
+        # Persistent bot mode: Telegram listener + auto-settler only — never run scout
         from telegram_handler import _poll_loop
         start_auto_settler()
         print("Parlay OS bot running (Ctrl-C to stop)...")
-        _poll_loop()
-        sys.exit(0)  # never fall through to scout
+        try:
+            _poll_loop()
+        except Exception as e:
+            print(f"[BOT] poll loop ended: {e}")
+        sys.exit(0)  # hard exit — never fall through to any other branch
 
     elif "--live" in args:
         start_listener()
