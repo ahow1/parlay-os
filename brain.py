@@ -416,15 +416,6 @@ def run_daily_scout():
     mem       = memory_report()
     print(f"Bankroll: ${br:.2f} | Memory cal ready: {mem['ready_to_recalibrate']}")
 
-    now_et    = datetime.now(ET).strftime("%Y-%m-%d %H:%M ET")
-    header    = (
-        f"🧠 PARLAY OS — Daily Scout\n"
-        f"{now_et}\n"
-        f"Bankroll: ${br:.2f} | {len(events)} games today\n"
-        f"Cal ready: {mem['ready_to_recalibrate']}"
-    )
-    _send_telegram(header)
-
     all_bets  = []
     all_pass  = []
     scout_out = {
@@ -510,19 +501,11 @@ def run_daily_scout():
                 "edges": {"away": analysis["away_edge"], "home": analysis["home_edge"]},
             })
 
-    # Summary
     n_bets = len(all_bets)
     total_risk = sum(
         a.get("away_stake", 0) + a.get("home_stake", 0) for a in all_bets
     )
-    summary = (
-        f"📊 Scout Complete\n"
-        f"Games: {len(events)} | Bets: {n_bets} | Pass: {len(all_pass)}\n"
-        f"Total risk: ${total_risk:.2f} of ${br:.2f}\n"
-    )
-    if n_bets == 0:
-        summary += "No edges found today — no action."
-    _send_telegram(summary)
+    print(f"\nScout done — {len(events)} games | {n_bets} bets | ${total_risk:.2f} at risk")
 
     # Save scout output
     if not DRY_RUN:

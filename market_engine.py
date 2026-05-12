@@ -18,16 +18,55 @@ MARKETS_ML   = "h2h"
 MARKETS_TOT  = "totals"
 MARKETS_F5   = "h2h_1st_5_innings"
 
+# Full team names exactly as returned by the Odds API → internal short code.
+# Used as a fallback when outcome names don't match event names verbatim.
+_FULL_NAME_TO_CODE: dict[str, str] = {
+    "San Francisco Giants": "SF",   "Los Angeles Dodgers": "LAD",
+    "New York Yankees": "NYY",      "Baltimore Orioles": "BAL",
+    "Boston Red Sox": "BOS",        "Tampa Bay Rays": "TB",
+    "Toronto Blue Jays": "TOR",     "Cleveland Guardians": "CLE",
+    "Los Angeles Angels": "LAA",    "Houston Astros": "HOU",
+    "Seattle Mariners": "SEA",      "Texas Rangers": "TEX",
+    "Arizona Diamondbacks": "AZ",   "Atlanta Braves": "ATL",
+    "Chicago Cubs": "CHC",          "Chicago White Sox": "CWS",
+    "Cincinnati Reds": "CIN",       "Colorado Rockies": "COL",
+    "Detroit Tigers": "DET",        "Kansas City Royals": "KC",
+    "Miami Marlins": "MIA",         "Milwaukee Brewers": "MIL",
+    "Minnesota Twins": "MIN",       "New York Mets": "NYM",
+    "Philadelphia Phillies": "PHI", "Pittsburgh Pirates": "PIT",
+    "San Diego Padres": "SD",       "St. Louis Cardinals": "STL",
+    "Washington Nationals": "WAS",  "Athletics": "ATH",
+    "Oakland Athletics": "ATH",
+}
+# Reverse: code → canonical full name (for matching outcome names)
+_CODE_TO_FULL: dict[str, str] = {v: k for k, v in _FULL_NAME_TO_CODE.items()}
+
+
+def _names_match(outcome_name: str, team_name: str) -> bool:
+    """True when an Odds-API outcome name refers to the same team as team_name.
+    Handles exact match, substring containment, and code-based lookup."""
+    if outcome_name == team_name:
+        return True
+    code = _FULL_NAME_TO_CODE.get(team_name)
+    if code:
+        canonical = _CODE_TO_FULL.get(code, "")
+        if outcome_name == canonical:
+            return True
+    # Substring guard — one name must wholly contain the other (e.g. "Cubs" ⊂ "Chicago Cubs")
+    return outcome_name in team_name or team_name in outcome_name
+
 
 def _odds_request(endpoint: str, params: dict) -> dict | list | None:
     if not ODDS_API_KEY:
+        print("[MKT] ODDS_API_KEY not set — no market data")
         return None
     try:
         params["apiKey"] = ODDS_API_KEY
         r = requests.get(f"{ODDS_BASE}/{endpoint}", params=params, timeout=10)
         r.raise_for_status()
         return r.json()
-    except Exception:
+    except Exception as e:
+        print(f"[MKT] odds request failed ({endpoint}): {e}")
         return None
 
 
@@ -80,9 +119,9 @@ def _parse_ml_bookmakers(odds_data: dict | None, away_team: str, home_team: str)
             for outcome in market.get("outcomes", []):
                 t   = outcome.get("name", "")
                 prc = outcome.get("price")
-                if t == away_team:
+                if _names_match(t, away_team):
                     book_odds["away"] = prc
-                elif t == home_team:
+                elif _names_match(t, home_team):
                     book_odds["home"] = prc
             if book_odds:
                 result[key] = {"name": name, **book_odds}
@@ -111,27 +150,35 @@ def best_odds(books: dict, side: str) -> tuple[str, int | None]:
 
 
 def pinnacle_no_vig(books: dict, away_team: str, home_team: str) -> dict | None:
-    """Return no-vig probs from Pinnacle if available, else best sharp book."""
-    for preferred in ["pinnacle", "betonlineag", "draftkings"]:
-        if preferred in books:
-            info = books[preferred]
-            away_odds = info.get("away")
-            home_odds = info.get("home")
-            if away_odds and home_odds:
-                p_away = implied_prob(str(away_odds))
-                p_home = implied_prob(str(home_odds))
-                if p_away and p_home:
-                    nv = no_vig_prob(str(away_odds), str(home_odds))
-                    nv_a = (nv.get("side1_true") or 0) / 100
-                    nv_h = (nv.get("side2_true") or 0) / 100
-                    if not nv_a or not nv_h:
-                        continue
-                    return {
-                        "book":    preferred,
-                        "away":    round(nv_a, 4),
-                        "home":    round(nv_h, 4),
-                        "vig":     round((p_away + p_home - 100) / 100, 4),
-                    }
+    """Return no-vig probs using the sharpest available book.
+    Priority: Pinnacle → betonlineag → DraftKings → any book with both sides."""
+    priority = ["pinnacle", "betonlineag", "draftkings"]
+    # Build ordered list: preferred books first, then all others
+    ordered = priority + [k for k in books if k not in priority]
+    for bk in ordered:
+        info = books.get(bk)
+        if not info:
+            continue
+        away_odds = info.get("away")
+        home_odds = info.get("home")
+        if not away_odds or not home_odds:
+            continue
+        p_away = implied_prob(str(away_odds))
+        p_home = implied_prob(str(home_odds))
+        if not p_away or not p_home:
+            continue
+        nv   = no_vig_prob(str(away_odds), str(home_odds))
+        nv_a = (nv.get("side1_true") or 0) / 100
+        nv_h = (nv.get("side2_true") or 0) / 100
+        if not nv_a or not nv_h:
+            continue
+        return {
+            "book": bk,
+            "away": round(nv_a, 4),
+            "home": round(nv_h, 4),
+            "vig":  round((p_away + p_home - 100) / 100, 4),
+        }
+    print(f"[MKT] no_vig: no book with both sides found in {list(books.keys())}")
     return None
 
 
