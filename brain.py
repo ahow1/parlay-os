@@ -38,6 +38,17 @@ from memory_engine  import (
     init_memory_tables, recalibrate_model_prob, adjust_model_prob,
     memory_report
 )
+# ML model — imported lazily so brain.py still starts if models not trained
+try:
+    from ml_model import (
+        predict_game, build_game_features, detect_regression_flags,
+        models_available,
+    )
+    _ML_AVAILABLE = True
+except ImportError:
+    _ML_AVAILABLE = False
+    def models_available(): return False
+    def detect_regression_flags(*a, **k): return {"flags": [], "count": 0}
 
 STATSAPI  = "https://statsapi.mlb.com/api/v1"
 ET        = pytz.timezone("America/New_York")
@@ -133,20 +144,54 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         park_rf, wx_rf, home_bp_rf
     )
 
-    # ── Pythagorean ──────────────────────────────────────────────────────────
-    raw_away_prob = pythagorean_prob(away_xr, home_xr)
-    raw_home_prob = pythagorean_prob(home_xr, away_xr)
-
-    # Home field advantage (already baked in by park/offense, but apply small boost)
+    # ── Pythagorean base probability ─────────────────────────────────────────
     from constants import HOME_ADV
-    adj_home_xr = home_xr * HOME_ADV
-    adj_away_xr = away_xr
-    away_model_p = pythagorean_prob(adj_away_xr, adj_home_xr)
-    home_model_p = round(1.0 - away_model_p, 4)
+    adj_home_xr  = home_xr * HOME_ADV
+    pyth_away_p  = pythagorean_prob(away_xr, adj_home_xr)
+    pyth_home_p  = round(1.0 - pyth_away_p, 4)
+
+    # ── ML ensemble blend (if models trained, else use Pythagorean only) ─────
+    if _ML_AVAILABLE and models_available():
+        try:
+            feat_vec = build_game_features(
+                away_sp, home_sp, away_off, home_off,
+                away_xr, home_xr, weather, park_rf,
+            )
+            ml_pred      = predict_game(feat_vec)
+            ml_home_p    = ml_pred.get("home_win_prob", pyth_home_p)
+            ml_away_p    = ml_pred.get("away_win_prob", pyth_away_p)
+            shap_home    = ml_pred.get("shap_home", [])
+            shap_away    = ml_pred.get("shap_away", [])
+            ml_total     = ml_pred.get("total_runs_pred")
+            ml_nrfi_p    = ml_pred.get("nrfi_prob")
+            ml_conf      = ml_pred.get("confidence", "low")
+            # Blend: 60% ML + 40% Pythagorean (conservative until model matures)
+            away_model_p = round(0.60 * ml_away_p + 0.40 * pyth_away_p, 4)
+            home_model_p = round(0.60 * ml_home_p + 0.40 * pyth_home_p, 4)
+            print(f"  ML: home={ml_home_p:.3f} pyth={pyth_home_p:.3f} "
+                  f"blend={home_model_p:.3f} conf={ml_conf}")
+        except Exception as e:
+            print(f"  ML predict failed ({e}), using Pythagorean")
+            away_model_p = pyth_away_p
+            home_model_p = pyth_home_p
+            shap_home = shap_away = []
+            ml_total = ml_nrfi_p = None
+            ml_conf  = "fallback"
+    else:
+        away_model_p = pyth_away_p
+        home_model_p = pyth_home_p
+        shap_home = shap_away = []
+        ml_total = ml_nrfi_p = None
+        ml_conf  = "pythagorean"
 
     # Memory calibration
     away_model_p = recalibrate_model_prob(away_model_p)
     home_model_p = recalibrate_model_prob(home_model_p)
+
+    # ── Regression / intelligence flags ──────────────────────────────────────
+    reg_flags = detect_regression_flags(away_sp, home_sp, away_off, home_off)
+    momentum  = _momentum_score(away_code, home_code)
+    narrative = _narrative_flags(market, away_nv, home_nv)
 
     # ── Edge Calculation ─────────────────────────────────────────────────────
     away_edge = round((away_model_p - away_nv) * 100, 2)
@@ -166,6 +211,11 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         f"xR={away_xr:.2f}/{home_xr:.2f}  "
         f"SP: {away_sp_name} vs {home_sp_name}"
     )
+    # Print any regression/narrative flags
+    for flag in reg_flags.get("flags", []):
+        print(f"  FLAG: {flag['message']}")
+    for flag in narrative.get("flags", []):
+        print(f"  FLAG: {flag['message']}")
 
     # ── Props ─────────────────────────────────────────────────────────────────
     nrfi_r = nrfi_prob(away_sp, home_sp, park_rf, wx_rf)
@@ -219,14 +269,71 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         "home_conv":  home_conv,
         "away_stake": away_stake,
         "home_stake": home_stake,
-        "nrfi":       nrfi_r,
-        "total":      total_r,
-        "f5_away_xr": f5_away_xr,
-        "f5_home_xr": f5_home_xr,
-        "polymarket": market.get("polymarket"),
+        "nrfi":          nrfi_r,
+        "total":         total_r,
+        "f5_away_xr":    f5_away_xr,
+        "f5_home_xr":    f5_home_xr,
+        "polymarket":    market.get("polymarket"),
         "line_movement": market.get("line_movement"),
-        "totals_line":  market.get("totals", {}).get("line") if market.get("totals") else None,
+        "totals_line":   market.get("totals", {}).get("line") if market.get("totals") else None,
+        # Intelligence layer
+        "ml_model":      ml_conf,
+        "shap_home":     shap_home,
+        "shap_away":     shap_away,
+        "ml_total":      ml_total,
+        "ml_nrfi_p":     ml_nrfi_p,
+        "reg_flags":     reg_flags.get("flags", []),
+        "momentum":      momentum,
+        "narrative":     narrative.get("flags", []),
     }
+
+
+def _momentum_score(away_code: str, home_code: str) -> dict:
+    """
+    Simple momentum proxy: win% in last 7 games from team_memory.
+    Returns dict with away/home momentum scores (-1 to +1).
+    """
+    from memory_engine import team_prior
+    away_m = team_prior(away_code, "home", 7) or 0.50
+    home_m = team_prior(home_code, "home", 7) or 0.50
+    return {
+        "away": round(away_m - 0.50, 3),
+        "home": round(home_m - 0.50, 3),
+    }
+
+
+def _narrative_flags(market: dict, away_nv: float, home_nv: float) -> dict:
+    """
+    Detect public narrative / fade opportunities.
+    Heavy public action (estimated via line gap), primetime games.
+    """
+    flags = []
+    lm = market.get("line_movement") or {}
+
+    # If line moved significantly toward one side, public may be piling in
+    direction = lm.get("direction", "")
+    magnitude = lm.get("magnitude", 0)
+    if magnitude > 0.08 and direction not in ("unknown", "stable"):
+        fading_side = "away" if "home" in direction else "home"
+        flags.append({
+            "type":    "LINE_STEAM",
+            "message": f"Large line move {direction} ({magnitude:.3f}) — consider fade of {fading_side}",
+        })
+
+    # Polymarket vs sharp book gap > 15% = narrative divergence
+    poly = market.get("polymarket") or {}
+    for side in ("away", "home"):
+        poly_p = poly.get(side)
+        nv_p   = away_nv if side == "away" else home_nv
+        if poly_p and nv_p:
+            gap = abs(poly_p - nv_p)
+            if gap > 0.15:
+                flags.append({
+                    "type":    "POLY_DIVERGENCE",
+                    "message": f"Polymarket {side} {poly_p:.1%} vs sharp {nv_p:.1%} — {gap*100:.0f}pt gap",
+                })
+
+    return {"flags": flags}
 
 
 def _conviction(edge_pct: float, model_p: float, bp: dict, market: dict) -> str:
@@ -329,6 +436,26 @@ def _format_bet_message(game: dict, side: str) -> str:
     lm = game.get("line_movement") or {}
     if lm.get("direction") not in ("unknown", "stable", None):
         lines.append(f"Line: {lm['direction']} Δ{lm['magnitude']:.3f}")
+
+    # SHAP explanation
+    shap_key  = f"shap_{side}"
+    shap_data = game.get(shap_key, [])
+    if shap_data:
+        parts = []
+        for s in shap_data[:3]:
+            feat = s.get("feature", "").replace("_", " ")
+            val  = s.get("shap_val", 0)
+            parts.append(f"{feat} {'+' if val > 0 else ''}{val*100:.1f}%")
+        lines.append(f"Why: {' | '.join(parts)}")
+
+    # Regression / intelligence flags
+    reg_flags = game.get("reg_flags", [])
+    for flag in reg_flags[:2]:
+        lines.append(f"⚠ {flag.get('message', '')}")
+
+    ml_model = game.get("ml_model", "")
+    if ml_model and ml_model not in ("pythagorean", "pythagorean_fallback"):
+        lines.append(f"Model: {ml_model}")
 
     return "\n".join(lines)
 

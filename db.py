@@ -11,7 +11,21 @@ ET = pytz.timezone("America/New_York")
 def _conn():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
     return conn
+
+
+def check_integrity() -> bool:
+    """Return True if DB passes integrity check. Called on startup."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        result = conn.execute("PRAGMA integrity_check").fetchone()[0]
+        conn.close()
+        return result == "ok"
+    except Exception as e:
+        print(f"DB integrity check failed: {e}")
+        return False
 
 
 def init_db():

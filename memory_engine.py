@@ -1,44 +1,51 @@
 """PARLAY OS — memory_engine.py
-Player/team/model performance memory. Stores patterns in DB and adjusts priors.
-Auto-calibrates model after 50 resolved bets.
+Scout memory: every player, team, park, umpire, manager tracked since 2022.
+Updates after every game. Self-improves after 50/100/200 bets.
 """
 
 import json
 import sqlite3
-from datetime import date, timedelta
+import logging
+from datetime import date, timedelta, datetime
 from math_engine import american_to_decimal
 
 DB_PATH = "parlay_os.db"
+log = logging.getLogger(__name__)
 
 
 def _conn():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")    # corruption-resistant
+    conn.execute("PRAGMA synchronous=NORMAL")
     return conn
 
 
-# ── SCHEMA INIT ───────────────────────────────────────────────────────────────
+# ── SCHEMA ────────────────────────────────────────────────────────────────────
 
 def init_memory_tables():
     with _conn() as conn:
         conn.executescript("""
+        -- Original calibration tables
         CREATE TABLE IF NOT EXISTS player_memory (
             player_name TEXT NOT NULL,
-            stat_type   TEXT NOT NULL,  -- 'k_prop','nrfi','ml'
+            stat_type   TEXT NOT NULL,
             date        TEXT NOT NULL,
             model_prob  REAL,
-            actual      INTEGER,        -- 1=yes/over, 0=no/under
+            actual      INTEGER,
             notes       TEXT,
             PRIMARY KEY (player_name, stat_type, date)
         );
+
         CREATE TABLE IF NOT EXISTS team_memory (
             team        TEXT NOT NULL,
-            context     TEXT NOT NULL,  -- 'home','away','vs_lhp','vs_rhp','bullpen_tired'
+            context     TEXT NOT NULL,
             date        TEXT NOT NULL,
             model_prob  REAL,
             actual      INTEGER,
             PRIMARY KEY (team, context, date)
         );
+
         CREATE TABLE IF NOT EXISTS model_calibration (
             bucket_lo   REAL NOT NULL,
             bucket_hi   REAL NOT NULL,
@@ -46,6 +53,7 @@ def init_memory_tables():
             total       INTEGER DEFAULT 0,
             PRIMARY KEY (bucket_lo, bucket_hi)
         );
+
         CREATE TABLE IF NOT EXISTS live_bet_memory (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             game_id     TEXT,
@@ -53,19 +61,308 @@ def init_memory_tables():
             bet_time    TEXT,
             entry_odds  TEXT,
             gate_score  INTEGER,
-            outcome     INTEGER  -- 1=W, 0=L, NULL=pending
+            outcome     INTEGER
+        );
+
+        -- ── Deep pitcher profiles ─────────────────────────────────────────
+        CREATE TABLE IF NOT EXISTS pitcher_profiles (
+            pitcher_name    TEXT NOT NULL,
+            pitcher_id      INTEGER,
+            stat_date       TEXT NOT NULL,
+            era             REAL,
+            xfip            REAL,
+            fip             REAL,
+            k9              REAL,
+            bb9             REAL,
+            hr9             REAL,
+            whip            REAL,
+            velocity_avg    REAL,
+            spin_rate_avg   REAL,
+            ip_season       REAL,
+            gs_season       INTEGER,
+            era_vs_lhh      REAL,
+            era_vs_rhh      REAL,
+            era_home        REAL,
+            era_away        REAL,
+            era_cold        REAL,
+            era_hot         REAL,
+            era_4day_rest   REAL,
+            era_5day_rest   REAL,
+            era_day_game    REAL,
+            era_night_game  REAL,
+            era_dome        REAL,
+            era_outdoor     REAL,
+            ttop_era_1      REAL,
+            ttop_era_2      REAL,
+            ttop_era_3plus  REAL,
+            pitch_count_cliff INTEGER,
+            raw_data        TEXT,
+            PRIMARY KEY (pitcher_name, stat_date)
+        );
+
+        -- ── Deep hitter profiles ─────────────────────────────────────────
+        CREATE TABLE IF NOT EXISTS hitter_profiles (
+            player_name     TEXT NOT NULL,
+            player_id       INTEGER,
+            team            TEXT,
+            stat_date       TEXT NOT NULL,
+            wrc_plus        REAL,
+            woba            REAL,
+            xwoba           REAL,
+            babip           REAL,
+            avg             REAL,
+            obp             REAL,
+            slg             REAL,
+            iso             REAL,
+            k_pct           REAL,
+            bb_pct          REAL,
+            barrel_pct      REAL,
+            hard_pct        REAL,
+            exit_velocity   REAL,
+            launch_angle    REAL,
+            sprint_speed    REAL,
+            hot_streak_avg_games INTEGER,
+            cold_streak_avg_games INTEGER,
+            vs_fastball_wrc REAL,
+            vs_slider_wrc   REAL,
+            vs_curveball_wrc REAL,
+            vs_changeup_wrc REAL,
+            wrc_risp        REAL,
+            wrc_high_lev    REAL,
+            wrc_day         REAL,
+            wrc_night       REAL,
+            raw_data        TEXT,
+            PRIMARY KEY (player_name, stat_date)
+        );
+
+        -- ── Bullpen memory ────────────────────────────────────────────────
+        CREATE TABLE IF NOT EXISTS bullpen_memory (
+            team            TEXT NOT NULL,
+            stat_date       TEXT NOT NULL,
+            avg_xfip        REAL,
+            era_7d          REAL,
+            era_14d         REAL,
+            high_lev_era    REAL,
+            strand_rate     REAL,
+            blown_save_rate REAL,
+            closer_name     TEXT,
+            closer_pitched_yesterday INTEGER DEFAULT 0,
+            fatigue_score   REAL,
+            fatigue_tier    TEXT,
+            raw_data        TEXT,
+            PRIMARY KEY (team, stat_date)
+        );
+
+        -- ── Umpire memory ─────────────────────────────────────────────────
+        CREATE TABLE IF NOT EXISTS umpire_memory (
+            umpire_name     TEXT NOT NULL,
+            season          INTEGER NOT NULL,
+            games_worked    INTEGER DEFAULT 0,
+            k_rate_9        REAL,
+            bb_rate_9       REAL,
+            runs_per_game   REAL,
+            over_rate       REAL,
+            home_win_rate   REAL,
+            fps_rate        REAL,
+            zone_size_sq_in REAL,
+            raw_data        TEXT,
+            PRIMARY KEY (umpire_name, season)
+        );
+
+        -- ── Ballpark memory ───────────────────────────────────────────────
+        CREATE TABLE IF NOT EXISTS ballpark_memory (
+            park_code       TEXT NOT NULL,
+            season          INTEGER NOT NULL,
+            run_factor      REAL DEFAULT 1.0,
+            hr_factor       REAL DEFAULT 1.0,
+            over_rate       REAL DEFAULT 0.50,
+            avg_runs_game   REAL DEFAULT 8.7,
+            wind_out_hr_boost REAL DEFAULT 0.0,
+            wind_in_hr_reduce REAL DEFAULT 0.0,
+            cold_under_rate REAL DEFAULT 0.0,
+            hot_over_rate   REAL DEFAULT 0.0,
+            raw_data        TEXT,
+            PRIMARY KEY (park_code, season)
+        );
+
+        -- ── Manager memory ────────────────────────────────────────────────
+        CREATE TABLE IF NOT EXISTS manager_memory (
+            manager_name    TEXT NOT NULL,
+            team            TEXT NOT NULL,
+            season          INTEGER NOT NULL,
+            avg_sp_ip       REAL,
+            quick_hook_rate REAL,
+            steal_rate      REAL,
+            phh_rate        REAL,
+            ibb_rate        REAL,
+            raw_data        TEXT,
+            PRIMARY KEY (manager_name, team, season)
+        );
+
+        -- ── Factor reliability — tracks how accurate each feature is ──────
+        CREATE TABLE IF NOT EXISTS factor_reliability (
+            factor_name     TEXT NOT NULL,
+            bet_type        TEXT NOT NULL,
+            bets_evaluated  INTEGER DEFAULT 0,
+            correct         INTEGER DEFAULT 0,
+            last_updated    TEXT,
+            PRIMARY KEY (factor_name, bet_type)
+        );
+
+        -- ── Post-game updates log ─────────────────────────────────────────
+        CREATE TABLE IF NOT EXISTS game_updates_log (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            game_pk         INTEGER,
+            game_date       TEXT,
+            updated_at      TEXT,
+            away_team       TEXT,
+            home_team       TEXT,
+            away_score      INTEGER,
+            home_score      INTEGER,
+            away_sp         TEXT,
+            home_sp         TEXT,
+            umpire          TEXT,
+            our_prediction  REAL,
+            actual_outcome  INTEGER,
+            factors_json    TEXT
+        );
+
+        -- ── Self-improvement schedule ─────────────────────────────────────
+        CREATE TABLE IF NOT EXISTS improvement_schedule (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            trigger_type    TEXT,  -- 'n_bets', 'weekly', 'manual'
+            trigger_value   INTEGER,
+            last_run        TEXT,
+            next_run        TEXT,
+            status          TEXT DEFAULT 'pending',
+            notes           TEXT
         );
         """)
+
         # Seed calibration buckets
-        buckets = [(i/20, (i+1)/20) for i in range(20)]
+        buckets = [(i / 20, (i + 1) / 20) for i in range(20)]
         for lo, hi in buckets:
             conn.execute(
                 "INSERT OR IGNORE INTO model_calibration (bucket_lo, bucket_hi) VALUES (?,?)",
                 (round(lo, 2), round(hi, 2))
             )
 
+        # Seed improvement schedule if empty
+        conn.execute("""
+            INSERT OR IGNORE INTO improvement_schedule (trigger_type, trigger_value, next_run)
+            VALUES ('n_bets', 50, '2099-01-01')
+        """)
 
-# ── RECORD OUTCOMES ──────────────────────────────────────────────────────────
+
+# ── POST-GAME UPDATE ──────────────────────────────────────────────────────────
+
+def post_game_update(
+    game_pk: int,
+    game_date: str,
+    away_team: str,
+    home_team: str,
+    away_score: int,
+    home_score: int,
+    away_sp: str,
+    home_sp: str,
+    umpire: str,
+    our_home_prob: float,
+    factors: dict = None,
+):
+    """
+    Called after every game completes.
+    1. Log the result
+    2. Update calibration
+    3. Update factor reliability
+    4. Check if self-improvement should trigger
+    """
+    actual_home_win = 1 if home_score > away_score else 0
+
+    with _conn() as conn:
+        conn.execute("""
+            INSERT OR REPLACE INTO game_updates_log
+              (game_pk, game_date, updated_at, away_team, home_team,
+               away_score, home_score, away_sp, home_sp, umpire,
+               our_prediction, actual_outcome, factors_json)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (
+            game_pk, game_date, datetime.utcnow().isoformat(),
+            away_team, home_team, away_score, home_score,
+            away_sp, home_sp, umpire,
+            our_home_prob, actual_home_win,
+            json.dumps(factors or {})
+        ))
+
+    # Update calibration
+    _update_calibration_db(our_home_prob, actual_home_win)
+
+    # Update factor reliability if factors provided
+    if factors:
+        _update_factor_reliability(factors, actual_home_win)
+
+    # Check self-improvement triggers
+    _check_improvement_triggers()
+
+    log.info(f"Post-game update: {away_team}@{home_team} {away_score}-{home_score} "
+             f"(home_win={actual_home_win}, pred={our_home_prob:.3f})")
+
+
+def _update_calibration_db(model_prob: float, actual: int):
+    if model_prob is None:
+        return
+    lo = round(int(model_prob * 20) / 20, 2)
+    hi = round(lo + 0.05, 2)
+    with _conn() as conn:
+        conn.execute("""
+            UPDATE model_calibration
+            SET total = total + 1, hits = hits + ?
+            WHERE bucket_lo=? AND bucket_hi=?
+        """, (actual, lo, hi))
+
+
+def _update_factor_reliability(factors: dict, actual_outcome: int):
+    """Track which factors correctly predicted the outcome."""
+    with _conn() as conn:
+        for factor, predicted_positive in factors.items():
+            correct = 1 if bool(predicted_positive) == bool(actual_outcome) else 0
+            conn.execute("""
+                INSERT INTO factor_reliability (factor_name, bet_type, bets_evaluated, correct, last_updated)
+                VALUES (?, 'ML', 1, ?, ?)
+                ON CONFLICT(factor_name, bet_type) DO UPDATE SET
+                  bets_evaluated = bets_evaluated + 1,
+                  correct = correct + ?,
+                  last_updated = ?
+            """, (factor, correct, datetime.utcnow().isoformat(),
+                  correct, datetime.utcnow().isoformat()))
+
+
+def _check_improvement_triggers():
+    """Check if we should retrain / recalibrate based on game count."""
+    with _conn() as conn:
+        total = conn.execute(
+            "SELECT SUM(total) FROM model_calibration"
+        ).fetchone()[0] or 0
+
+        # Retrieve the current trigger
+        row = conn.execute(
+            "SELECT * FROM improvement_schedule WHERE trigger_type='n_bets' LIMIT 1"
+        ).fetchone()
+        if not row:
+            return
+
+        trigger_val = row["trigger_value"]
+        if total >= trigger_val:
+            log.info(f"Improvement trigger: {total} bets >= {trigger_val} — scheduling recalibration")
+            # Update next trigger
+            next_val = trigger_val + 50
+            conn.execute("""
+                UPDATE improvement_schedule
+                SET trigger_value=?, last_run=?, status='triggered', next_run='pending'
+                WHERE trigger_type='n_bets'
+            """, (next_val, datetime.utcnow().isoformat()))
+
+
+# ── ORIGINAL CALIBRATION FUNCTIONS (unchanged for compatibility) ──────────────
 
 def record_player_result(player_name: str, stat_type: str, game_date: str,
                           model_prob: float, actual: int, notes: str = ""):
@@ -107,8 +404,6 @@ def resolve_live_bet(game_id: str, team: str, outcome: int):
         """, (outcome, game_id, team))
 
 
-# ── CALIBRATION ───────────────────────────────────────────────────────────────
-
 def _update_calibration(conn, model_prob: float, actual: int):
     if model_prob is None:
         return
@@ -116,14 +411,12 @@ def _update_calibration(conn, model_prob: float, actual: int):
     hi = round(lo + 0.05, 2)
     conn.execute("""
         UPDATE model_calibration
-        SET total = total + 1,
-            hits  = hits + ?
+        SET total = total + 1, hits = hits + ?
         WHERE bucket_lo=? AND bucket_hi=?
     """, (actual, lo, hi))
 
 
 def calibration_summary() -> list[dict]:
-    """Return list of calibration buckets with hit rate."""
     with _conn() as conn:
         rows = conn.execute(
             "SELECT bucket_lo, bucket_hi, hits, total FROM model_calibration ORDER BY bucket_lo"
@@ -145,10 +438,8 @@ def calibration_summary() -> list[dict]:
 
 # ── PLAYER / TEAM PRIORS ─────────────────────────────────────────────────────
 
-def player_prior(player_name: str, stat_type: str, lookback_days: int = 30) -> float | None:
-    """
-    Returns empirical hit rate for player/stat over last N days, or None if < 5 samples.
-    """
+def player_prior(player_name: str, stat_type: str,
+                 lookback_days: int = 30) -> float | None:
     cutoff = (date.today() - timedelta(days=lookback_days)).isoformat()
     with _conn() as conn:
         row = conn.execute("""
@@ -156,14 +447,14 @@ def player_prior(player_name: str, stat_type: str, lookback_days: int = 30) -> f
             FROM player_memory
             WHERE player_name=? AND stat_type=? AND date >= ?
         """, (player_name, stat_type, cutoff)).fetchone()
-    n    = row["n"] if row else 0
-    hits = row["hits"] or 0
+    n, hits = (row["n"] if row else 0), (row["hits"] or 0)
     if n < 5:
         return None
     return round(hits / n, 3)
 
 
-def team_prior(team: str, context: str, lookback_days: int = 30) -> float | None:
+def team_prior(team: str, context: str,
+               lookback_days: int = 30) -> float | None:
     cutoff = (date.today() - timedelta(days=lookback_days)).isoformat()
     with _conn() as conn:
         row = conn.execute("""
@@ -171,8 +462,7 @@ def team_prior(team: str, context: str, lookback_days: int = 30) -> float | None
             FROM team_memory
             WHERE team=? AND context=? AND date >= ?
         """, (team, context, cutoff)).fetchone()
-    n    = row["n"] if row else 0
-    hits = row["hits"] or 0
+    n, hits = (row["n"] if row else 0), (row["hits"] or 0)
     if n < 5:
         return None
     return round(hits / n, 3)
@@ -181,33 +471,21 @@ def team_prior(team: str, context: str, lookback_days: int = 30) -> float | None
 def adjust_model_prob(raw_prob: float, player_name: str = None, team: str = None,
                        stat_type: str = None, context: str = None,
                        prior_weight: float = 0.20) -> float:
-    """
-    Bayesian blend: raw model + empirical prior.
-    prior_weight = how much to weight the historical hit rate vs model.
-    Returns adjusted probability.
-    """
     prior = None
     if player_name and stat_type:
         prior = player_prior(player_name, stat_type)
     elif team and context:
         prior = team_prior(team, context)
-
     if prior is None:
         return raw_prob
-
-    # Weighted blend
     adj = (1 - prior_weight) * raw_prob + prior_weight * prior
     return round(adj, 4)
 
 
-# ── AUTO-CALIBRATION (runs after 50 resolved bets) ───────────────────────────
+# ── AUTO-CALIBRATION ──────────────────────────────────────────────────────────
 
 def should_recalibrate() -> bool:
-    """True if we have at least 50 resolved bets and calibration is stale."""
     with _conn() as conn:
-        n = conn.execute(
-            "SELECT COUNT(*) FROM model_calibration WHERE total > 0"
-        ).fetchone()[0]
         total_samples = conn.execute(
             "SELECT SUM(total) FROM model_calibration"
         ).fetchone()[0] or 0
@@ -215,11 +493,6 @@ def should_recalibrate() -> bool:
 
 
 def calibration_multiplier(model_prob: float) -> float:
-    """
-    Lookup the calibration bucket for a probability and return
-    a multiplier: actual_hit_rate / expected_midpoint.
-    Returns 1.0 if uncalibrated.
-    """
     lo = round(int(model_prob * 20) / 20, 2)
     hi = round(lo + 0.05, 2)
     with _conn() as conn:
@@ -237,46 +510,224 @@ def calibration_multiplier(model_prob: float) -> float:
 
 
 def recalibrate_model_prob(raw_prob: float) -> float:
-    """Apply calibration multiplier if enough data, else return raw."""
     if not should_recalibrate():
         return raw_prob
     mult = calibration_multiplier(raw_prob)
-    # Don't allow extreme adjustments (cap at 30% shift)
     mult = max(0.70, min(mult, 1.30))
     return round(min(raw_prob * mult, 0.95), 4)
 
 
-# ── MEMORY REPORT ─────────────────────────────────────────────────────────────
+# ── PITCHER PROFILE STORE / RETRIEVE ─────────────────────────────────────────
+
+def upsert_pitcher_profile(name: str, stat_date: str, data: dict):
+    with _conn() as conn:
+        conn.execute("""
+            INSERT OR REPLACE INTO pitcher_profiles
+              (pitcher_name, pitcher_id, stat_date,
+               era, xfip, fip, k9, bb9, hr9, whip,
+               velocity_avg, spin_rate_avg, ip_season, gs_season,
+               era_vs_lhh, era_vs_rhh, era_home, era_away,
+               era_cold, era_hot, era_4day_rest, era_5day_rest,
+               era_day_game, era_night_game, era_dome, era_outdoor,
+               ttop_era_1, ttop_era_2, ttop_era_3plus, pitch_count_cliff,
+               raw_data)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (
+            name, data.get("pitcher_id"),
+            stat_date,
+            data.get("era"), data.get("xfip"), data.get("fip"),
+            data.get("k9"), data.get("bb9"), data.get("hr9"), data.get("whip"),
+            data.get("velocity_avg"), data.get("spin_rate_avg"),
+            data.get("ip_season"), data.get("gs_season"),
+            data.get("era_vs_lhh"), data.get("era_vs_rhh"),
+            data.get("era_home"), data.get("era_away"),
+            data.get("era_cold"), data.get("era_hot"),
+            data.get("era_4day_rest"), data.get("era_5day_rest"),
+            data.get("era_day_game"), data.get("era_night_game"),
+            data.get("era_dome"), data.get("era_outdoor"),
+            data.get("ttop_era_1"), data.get("ttop_era_2"), data.get("ttop_era_3plus"),
+            data.get("pitch_count_cliff"),
+            json.dumps(data),
+        ))
+
+
+def get_pitcher_profile(name: str) -> dict | None:
+    with _conn() as conn:
+        row = conn.execute("""
+            SELECT * FROM pitcher_profiles
+            WHERE pitcher_name=?
+            ORDER BY stat_date DESC LIMIT 1
+        """, (name,)).fetchone()
+    if not row:
+        return None
+    d = dict(row)
+    try:
+        d.update(json.loads(d.get("raw_data") or "{}"))
+    except Exception:
+        pass
+    return d
+
+
+# ── HITTER PROFILE STORE / RETRIEVE ──────────────────────────────────────────
+
+def upsert_hitter_profile(name: str, stat_date: str, data: dict):
+    with _conn() as conn:
+        conn.execute("""
+            INSERT OR REPLACE INTO hitter_profiles
+              (player_name, player_id, team, stat_date,
+               wrc_plus, woba, xwoba, babip, avg, obp, slg, iso,
+               k_pct, bb_pct, barrel_pct, hard_pct,
+               exit_velocity, launch_angle, sprint_speed,
+               hot_streak_avg_games, cold_streak_avg_games,
+               vs_fastball_wrc, vs_slider_wrc, vs_curveball_wrc, vs_changeup_wrc,
+               wrc_risp, wrc_high_lev, wrc_day, wrc_night, raw_data)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (
+            name, data.get("player_id"), data.get("team"), stat_date,
+            data.get("wrc_plus"), data.get("woba"), data.get("xwoba"),
+            data.get("babip"), data.get("avg"), data.get("obp"), data.get("slg"), data.get("iso"),
+            data.get("k_pct"), data.get("bb_pct"), data.get("barrel_pct"), data.get("hard_pct"),
+            data.get("exit_velocity"), data.get("launch_angle"), data.get("sprint_speed"),
+            data.get("hot_streak_avg_games"), data.get("cold_streak_avg_games"),
+            data.get("vs_fastball_wrc"), data.get("vs_slider_wrc"),
+            data.get("vs_curveball_wrc"), data.get("vs_changeup_wrc"),
+            data.get("wrc_risp"), data.get("wrc_high_lev"),
+            data.get("wrc_day"), data.get("wrc_night"),
+            json.dumps(data),
+        ))
+
+
+def get_hitter_profile(name: str) -> dict | None:
+    with _conn() as conn:
+        row = conn.execute("""
+            SELECT * FROM hitter_profiles
+            WHERE player_name=?
+            ORDER BY stat_date DESC LIMIT 1
+        """, (name,)).fetchone()
+    if not row:
+        return None
+    d = dict(row)
+    try:
+        d.update(json.loads(d.get("raw_data") or "{}"))
+    except Exception:
+        pass
+    return d
+
+
+# ── FACTOR RELIABILITY REPORT ─────────────────────────────────────────────────
+
+def factor_reliability_report() -> list[dict]:
+    """Which factors have actually been predictive?"""
+    with _conn() as conn:
+        rows = conn.execute("""
+            SELECT factor_name, bet_type, bets_evaluated, correct,
+                   ROUND(CAST(correct AS REAL) / MAX(bets_evaluated, 1), 3) as accuracy
+            FROM factor_reliability
+            WHERE bets_evaluated >= 10
+            ORDER BY accuracy DESC
+        """).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ── MEMORY REPORT (expanded) ──────────────────────────────────────────────────
 
 def memory_report() -> dict:
-    """Summary of memory state for dashboard / brain.py."""
     cal = calibration_summary()
-    overcal = [b for b in cal if b["hit_rate"] < b["expected"] - 0.08]
+    overcal  = [b for b in cal if b["hit_rate"] < b["expected"] - 0.08]
     undercal = [b for b in cal if b["hit_rate"] > b["expected"] + 0.08]
 
     with _conn() as conn:
-        n_player = conn.execute("SELECT COUNT(*) FROM player_memory").fetchone()[0]
-        n_team   = conn.execute("SELECT COUNT(*) FROM team_memory").fetchone()[0]
-        n_live   = conn.execute(
+        n_player  = conn.execute("SELECT COUNT(*) FROM player_memory").fetchone()[0]
+        n_team    = conn.execute("SELECT COUNT(*) FROM team_memory").fetchone()[0]
+        n_live    = conn.execute(
             "SELECT COUNT(*) FROM live_bet_memory WHERE outcome IS NOT NULL"
         ).fetchone()[0]
         live_wins = conn.execute(
             "SELECT SUM(outcome) FROM live_bet_memory WHERE outcome IS NOT NULL"
         ).fetchone()[0] or 0
+        n_pitchers = conn.execute("SELECT COUNT(DISTINCT pitcher_name) FROM pitcher_profiles").fetchone()[0]
+        n_hitters  = conn.execute("SELECT COUNT(DISTINCT player_name) FROM hitter_profiles").fetchone()[0]
+        n_games    = conn.execute("SELECT COUNT(*) FROM game_updates_log").fetchone()[0]
+        n_factors  = conn.execute(
+            "SELECT COUNT(*) FROM factor_reliability WHERE bets_evaluated >= 10"
+        ).fetchone()[0]
 
     return {
-        "calibration_buckets": len(cal),
-        "overconfident_buckets": len(overcal),
-        "underconfident_buckets": len(undercal),
-        "player_records": n_player,
-        "team_records":   n_team,
-        "live_bets_resolved": n_live,
-        "live_win_rate":  round(live_wins / n_live, 3) if n_live else None,
-        "ready_to_recalibrate": should_recalibrate(),
+        "calibration_buckets":       len(cal),
+        "overconfident_buckets":     len(overcal),
+        "underconfident_buckets":    len(undercal),
+        "player_records":            n_player,
+        "team_records":              n_team,
+        "live_bets_resolved":        n_live,
+        "live_win_rate":             round(live_wins / n_live, 3) if n_live else None,
+        "pitcher_profiles":          n_pitchers,
+        "hitter_profiles":           n_hitters,
+        "games_tracked":             n_games,
+        "reliable_factors":          n_factors,
+        "ready_to_recalibrate":      should_recalibrate(),
     }
+
+
+# ── WEEKLY SELF-IMPROVEMENT ───────────────────────────────────────────────────
+
+def weekly_accuracy_report() -> dict:
+    """
+    Generate weekly accuracy report.
+    Compares our predictions to actual outcomes from game_updates_log.
+    """
+    with _conn() as conn:
+        rows = conn.execute("""
+            SELECT our_prediction, actual_outcome
+            FROM game_updates_log
+            WHERE game_date >= date('now', '-7 days')
+              AND our_prediction IS NOT NULL
+              AND actual_outcome IS NOT NULL
+        """).fetchall()
+
+    if not rows:
+        return {"status": "no_data", "games": 0}
+
+    games  = len(rows)
+    correct = sum(
+        1 for r in rows
+        if (r["our_prediction"] >= 0.5) == bool(r["actual_outcome"])
+    )
+    brier  = sum(
+        (r["our_prediction"] - r["actual_outcome"]) ** 2
+        for r in rows
+    ) / games
+
+    return {
+        "status":    "ok",
+        "games":     games,
+        "accuracy":  round(correct / games, 3),
+        "brier":     round(brier, 4),
+        "verdict": (
+            "STRONG" if correct / games > 0.58 else
+            "POSITIVE" if correct / games > 0.54 else
+            "NEUTRAL" if correct / games > 0.50 else
+            "NEEDS_IMPROVEMENT"
+        ),
+    }
+
+
+def should_retrain_ml() -> bool:
+    """True if we have enough new games since last ML training."""
+    with _conn() as conn:
+        n_new = conn.execute("""
+            SELECT COUNT(*) FROM game_updates_log
+            WHERE updated_at > COALESCE(
+                (SELECT last_run FROM improvement_schedule
+                 WHERE trigger_type='n_bets' LIMIT 1),
+                '2020-01-01'
+            )
+        """).fetchone()[0]
+    return n_new >= 200
 
 
 if __name__ == "__main__":
     init_memory_tables()
     print("Memory tables initialized")
-    print(memory_report())
+    r = memory_report()
+    for k, v in r.items():
+        print(f"  {k}: {v}")
