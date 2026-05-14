@@ -87,6 +87,20 @@ def backup_database() -> str | None:
         return None
 
 
+def _ensure_bets_unique_index():
+    """Remove duplicate bets (keep earliest id per date+game+bet+type) then create unique index."""
+    with _conn() as conn:
+        conn.execute("""
+            DELETE FROM bets WHERE id NOT IN (
+                SELECT MIN(id) FROM bets GROUP BY date, game, bet, type
+            )
+        """)
+        conn.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_bets_no_dup
+            ON bets(date, game, bet, type)
+        """)
+
+
 def init_db():
     with _conn() as conn:
         conn.executescript("""
@@ -166,6 +180,7 @@ def init_db():
             edge_pct     REAL
         );
         """)
+    _ensure_bets_unique_index()
 
 
 # ─── BETS ─────────────────────────────────────────────────────────────────────
@@ -175,7 +190,7 @@ def log_bet(date, bet, bet_type, game, sp, park, umpire,
     now = datetime.now(ET).isoformat()
     with _conn() as conn:
         conn.execute("""
-            INSERT INTO bets
+            INSERT OR IGNORE INTO bets
               (date, timestamp, bet, type, game, sp, park, umpire,
                bet_odds, model_prob, market_prob, edge_pct, conviction, stake)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)

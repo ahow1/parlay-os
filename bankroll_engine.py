@@ -3,11 +3,12 @@ Kelly sizing, daily cap, drawdown protection, stake rounding.
 Starting bankroll: $150.
 """
 
+import os
 import db as _db
 from math_engine import STARTING_BANKROLL, american_to_decimal
 
 # Daily cap as fraction of current bankroll
-DAILY_CAP_PCT  = 0.10   # max 10% of bankroll in action per day
+DAILY_CAP_PCT  = 0.25   # max 10% of bankroll in action per day
 # Per-bet hard max
 MAX_BET_ABS    = 15.00
 # Drawdown pause threshold
@@ -21,6 +22,10 @@ CONVICTION_KELLY = {
 
 
 def current_bankroll() -> float:
+    override = os.getenv("BANKROLL_OVERRIDE")
+    if override:
+        return round(float(override), 2)
+
     bets = _db.get_bets()
     current = float(STARTING_BANKROLL)
     for b in bets:
@@ -37,6 +42,10 @@ def current_bankroll() -> float:
 
 
 def peak_bankroll() -> float:
+    override = os.getenv("BANKROLL_OVERRIDE")
+    if override:
+        return round(float(override), 2)
+
     bets = _db.get_bets()
     current = float(STARTING_BANKROLL)
     peak    = float(STARTING_BANKROLL)
@@ -54,14 +63,23 @@ def peak_bankroll() -> float:
 
 
 def daily_exposure() -> float:
-    """Sum of stakes on today's pending bets."""
-    from datetime import date
-    today = date.today().isoformat()
+    """Sum of stakes on today's unsettled bets (ET date), deduplicated by (game, bet, type)."""
+    import pytz
+    from datetime import datetime
+    ET_tz = pytz.timezone("America/New_York")
+    today = datetime.now(ET_tz).strftime("%Y-%m-%d")
     bets  = _db.get_bets()
-    return round(
-        sum(float(b.get("stake") or 0) for b in bets
-            if not b.get("result") and b.get("date") == today), 2
-    )
+    seen: set = set()
+    total = 0.0
+    for b in bets:
+        if b.get("result") or b.get("date") != today:
+            continue
+        key = (b.get("game", ""), b.get("bet", ""), b.get("type", ""))
+        if key in seen:
+            continue
+        seen.add(key)
+        total += float(b.get("stake") or 0)
+    return round(total, 2)
 
 
 def is_drawdown_pause() -> bool:

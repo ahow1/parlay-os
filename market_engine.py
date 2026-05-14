@@ -6,6 +6,8 @@ Detects line movement, sharp money, and computes no-vig implied probabilities.
 import os
 import logging
 import requests
+from datetime import datetime, timedelta
+import pytz
 from api_client import get as _http_get
 from math_engine import american_to_decimal, implied_prob, no_vig_prob
 from constants import BOOK_PRIORITY, TEAM_SLUGS
@@ -20,7 +22,7 @@ _active_key: list[str] = [ODDS_API_KEY]   # mutable container for in-place swap
 POLY_API     = "https://gamma-api.polymarket.com"
 
 SPORT_KEY    = "baseball_mlb"
-REGIONS      = "us,us2"
+REGIONS      = "us"
 MARKETS_ML   = "h2h"
 MARKETS_TOT  = "totals"
 MARKETS_F5   = "h2h_1st_5_innings"
@@ -109,38 +111,110 @@ def _odds_request(endpoint: str, params: dict) -> dict | list | None:
         return None
 
 
+_ET = pytz.timezone("America/New_York")
+
+
 def get_mlb_events() -> list:
-    """Return today's MLB events with game_id, teams, commence_time."""
+    """Return today's MLB events (ET) with game_id, teams, commence_time.
+    Skips games from yesterday/tomorrow and games starting within 10 minutes."""
     data = _odds_request(f"sports/{SPORT_KEY}/events", {})
     if not data:
         return []
-    return [
-        {
+
+    now_et       = datetime.now(_ET)
+    today_et     = now_et.date()
+    cutoff_et    = now_et + timedelta(minutes=10)
+
+    events = []
+    for e in data:
+        commence_utc = e.get("commence_time", "")
+        if not commence_utc:
+            continue
+        try:
+            commence_dt = datetime.fromisoformat(commence_utc.replace("Z", "+00:00"))
+            commence_et = commence_dt.astimezone(_ET)
+        except Exception:
+            _log.warning(f"[MKT] Could not parse commence_time={commence_utc!r}")
+            continue
+
+        if commence_et.date() != today_et:
+            _log.debug(f"[MKT] SKIP {e.get('away_team','?')} @ {e.get('home_team','?')}: not today ET ({commence_et.date()})")
+            continue
+
+        if commence_et <= cutoff_et:
+            print(f"[MKT] SKIP {e.get('away_team','?')} @ {e.get('home_team','?')}: starts at {commence_et.strftime('%H:%M ET')} (<10 min — live or imminent)")
+            continue
+
+        event = {
             "id":           e["id"],
             "away":         e.get("away_team", ""),
             "home":         e.get("home_team", ""),
-            "commence_utc": e.get("commence_time", ""),
+            "commence_utc": commence_utc,
         }
-        for e in data
-    ]
+        _EVENT_TEAM_MAP[event["id"]] = {
+            "away": event["away"],
+            "home": event["home"],
+        }
+        events.append(event)
+
+    return events
+
+
+_SLATE_ODDS_CACHE = {}
+_EVENT_TEAM_MAP = {}
+
+def _get_slate_odds(market: str) -> list:
+    """
+    Use slate-wide Odds API endpoint instead of event-level endpoint.
+    Event-level /events/{id}/odds returns 401 on current key/plan.
+    """
+    if market in _SLATE_ODDS_CACHE:
+        return _SLATE_ODDS_CACHE[market]
+
+    data = _odds_request(
+        f"sports/{SPORT_KEY}/odds",
+        {"regions": REGIONS, "markets": market, "oddsFormat": "american"}
+    )
+
+    if not isinstance(data, list):
+        data = []
+
+    _SLATE_ODDS_CACHE[market] = data
+    return data
+
+
+def _find_event_from_slate(event_id: str, market: str) -> dict | None:
+    slate = _get_slate_odds(market)
+
+    # First try direct event ID match
+    for event in slate:
+        if event.get("id") == event_id:
+            return event
+
+    # Fallback: match by away/home team names from get_mlb_events()
+    teams = _EVENT_TEAM_MAP.get(event_id, {})
+    away = teams.get("away", "")
+    home = teams.get("home", "")
+
+    if away and home:
+        for event in slate:
+            ev_away = event.get("away_team", "")
+            ev_home = event.get("home_team", "")
+
+            if _names_match(ev_away, away) and _names_match(ev_home, home):
+                return event
+
+    return None
 
 
 def get_odds_for_event(event_id: str) -> dict:
-    """Pull ML, totals, F5 odds for a single event across all books."""
-    ml   = _odds_request(
-        f"sports/{SPORT_KEY}/events/{event_id}/odds",
-        {"regions": REGIONS, "markets": MARKETS_ML, "oddsFormat": "american"}
-    )
-    tot  = _odds_request(
-        f"sports/{SPORT_KEY}/events/{event_id}/odds",
-        {"regions": REGIONS, "markets": MARKETS_TOT, "oddsFormat": "american"}
-    )
-    f5   = _odds_request(
-        f"sports/{SPORT_KEY}/events/{event_id}/odds",
-        {"regions": REGIONS, "markets": MARKETS_F5, "oddsFormat": "american"}
-    )
-    return {"ml": ml, "totals": tot, "f5": f5}
-
+    """
+    Pull odds from slate-wide endpoint and match by event_id.
+    For today, only ML is required for picks. Totals/F5 are disabled to avoid
+    optional market failures tripping the circuit breaker.
+    """
+    ml = _find_event_from_slate(event_id, MARKETS_ML)
+    return {"ml": ml, "totals": None, "f5": None}
 
 def _parse_ml_bookmakers(odds_data: dict | None, away_team: str, home_team: str) -> dict:
     """Extract ML odds by book for away and home teams."""
@@ -291,53 +365,10 @@ def polymarket_prob(away_slug: str, home_slug: str, game_date: str) -> dict | No
 
 def detect_line_movement(event_id: str, current_books: dict, side: str = "away") -> dict:
     """
-    Detect sharp line movement by comparing opening vs current odds.
-    Simplified: uses historical odds endpoint if available.
-    Returns direction and magnitude.
+    Historical odds endpoint disabled for now because it returns 404 and trips
+    the Odds API circuit breaker. Keep scout running with no line movement.
     """
-    hist = _odds_request(
-        f"sports/{SPORT_KEY}/events/{event_id}/odds/history",
-        {"regions": "us", "markets": MARKETS_ML, "oddsFormat": "american"}
-    )
-    if not hist:
-        return {"direction": "unknown", "magnitude": 0}
-
-    links = hist.get("links", {})
-    prev  = hist.get("data", [])
-    if len(prev) < 2:
-        return {"direction": "unknown", "magnitude": 0}
-
-    # Compare first available to current
-    def get_price(snapshot):
-        for bk in snapshot.get("bookmakers", []):
-            if bk.get("key") == "pinnacle":
-                for mkt in bk.get("markets", []):
-                    for oc in mkt.get("outcomes", []):
-                        if side in oc.get("name", "").lower():
-                            return oc.get("price")
-        return None
-
-    opening = get_price(prev[0])
-    current = get_price(prev[-1])
-
-    if opening is None or current is None:
-        return {"direction": "unknown", "magnitude": 0}
-
-    dec_open = american_to_decimal(str(opening))
-    dec_cur  = american_to_decimal(str(current))
-    if not dec_open or not dec_cur:
-        return {"direction": "unknown", "magnitude": 0}
-
-    shift = round(dec_cur - dec_open, 3)
-    if shift > 0.03:
-        direction = "steam_away" if side == "away" else "steam_home"
-    elif shift < -0.03:
-        direction = "reverse" if side == "away" else "reverse_home"
-    else:
-        direction = "stable"
-
-    return {"direction": direction, "magnitude": round(abs(shift), 3), "opening": opening, "current": current}
-
+    return {"direction": "unknown", "magnitude": 0}
 
 def full_market_snapshot(event_id: str, away_team: str, home_team: str,
                          away_code: str, home_code: str, game_date: str) -> dict:
