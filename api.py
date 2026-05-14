@@ -40,17 +40,32 @@ def _calc_bankroll(bets):
             peak = max(peak, current)
         elif result == "L":
             current -= stake
-    # Pending bets: stake is locked/at-risk, reduce available bankroll
     pending_stakes = sum(float(b.get("stake") or 0) for b in bets if not b.get("result"))
     current = round(current - pending_stakes, 2)
     return current, round(peak, 2)
+
+
+def _today_pnl(bets):
+    today = datetime.now(ET).strftime("%Y-%m-%d")
+    pnl = 0.0
+    for b in bets:
+        if b.get("date") != today:
+            continue
+        result = b.get("result")
+        stake  = float(b.get("stake") or 0)
+        if result == "W":
+            dec = american_to_decimal(str(b.get("bet_odds", "")))
+            if dec:
+                pnl += (dec - 1) * stake
+        elif result == "L":
+            pnl -= stake
+    return round(pnl, 2)
 
 
 # ── STATIC DASHBOARD ──────────────────────────────────────────────────────────
 
 @app.route("/health")
 def health():
-    """Railway healthcheck endpoint."""
     try:
         from health_check import run_health_check
         r = run_health_check(auto_restart=False)
@@ -72,7 +87,107 @@ def api_scout():
     data = _load_json("last_scout.json")
     if data is None:
         return jsonify({"error": "last_scout.json not found"}), 404
+    # Enrich game objects with full team names for dashboard matching
+    try:
+        from market_engine import ABR_TO_TEAM_NAME
+        for g in (data.get("games") or []):
+            g.setdefault("away_name", ABR_TO_TEAM_NAME.get(g.get("away", ""), g.get("away", "")))
+            g.setdefault("home_name", ABR_TO_TEAM_NAME.get(g.get("home", ""), g.get("home", "")))
+    except Exception:
+        pass
     return jsonify(data)
+
+
+@app.route("/api/bets")
+def api_bets():
+    bets = _db.get_bets()
+    return jsonify(bets)
+
+
+@app.route("/api/bankroll")
+def api_bankroll():
+    bets = _db.get_bets()
+    current, peak = _calc_bankroll(bets)
+    today = datetime.now(ET).strftime("%Y-%m-%d")
+    today_bets = [b for b in bets if b.get("date") == today]
+    resolved = [b for b in bets if b.get("result") in ("W", "L")]
+    wins   = sum(1 for b in resolved if b["result"] == "W")
+    losses = sum(1 for b in resolved if b["result"] == "L")
+    pending_today = [b for b in today_bets if not b.get("result")]
+    return jsonify({
+        "starting":      STARTING_BANKROLL,
+        "current":       current,
+        "peak":          peak,
+        "drawdown_pct":  round((peak - current) / peak * 100, 1) if peak > 0 else 0.0,
+        "today_pnl":     _today_pnl(bets),
+        "wins":          wins,
+        "losses":        losses,
+        "win_rate":      round(wins / len(resolved) * 100, 1) if resolved else None,
+        "total_bets":    len(bets),
+        "pending_count": len(pending_today),
+        "bets":          bets,
+    })
+
+
+@app.route("/api/live")
+def api_live():
+    data = _load_json("live_alerts.json") or []
+    return jsonify(data)
+
+
+@app.route("/api/props")
+def api_props():
+    data = _load_json("props_output.json")
+    if data is None:
+        return jsonify({"error": "props_output.json not found"}), 404
+    return jsonify(data)
+
+
+@app.route("/api/edges")
+def api_edges():
+    data = _load_json("arbitrage_log.json")
+    if data is None:
+        return jsonify({"error": "arbitrage_log.json not found"}), 404
+    return jsonify(data)
+
+
+@app.route("/api/clv")
+def api_clv():
+    return jsonify(_load_json("clv_log.json") or [])
+
+
+@app.route("/api/summary")
+def api_summary():
+    date = datetime.now(ET).strftime("%Y-%m-%d")
+    bets = _db.get_bets()
+    today_bets = [b for b in bets if b.get("date") == date]
+
+    daily_pnl = _today_pnl(bets)
+    resolved  = [b for b in bets if b.get("result") in ("W", "L", "P")]
+    wins   = sum(1 for b in resolved if b["result"] == "W")
+    losses = sum(1 for b in resolved if b["result"] == "L")
+
+    current, _ = _calc_bankroll(bets)
+    total_wagered = sum(float(b.get("stake") or 0) for b in bets)
+    total_pnl = current - STARTING_BANKROLL
+    roi = (total_pnl / total_wagered * 100) if total_wagered > 0 else 0.0
+
+    clv_log   = _load_json("clv_log.json") or []
+    clv_stats = clv_stats_summary(clv_log)
+
+    return jsonify({
+        "date":             date,
+        "daily_pnl":        round(daily_pnl, 2),
+        "win_rate":         round(wins / len(resolved) * 100, 1) if resolved else None,
+        "wins":             wins,
+        "losses":           losses,
+        "avg_clv":          clv_stats.get("avg_clv"),
+        "roi":              round(roi, 2),
+        "current_bankroll": current,
+        "total_bets":       len(bets),
+        "total_resolved":   len(resolved),
+        "total_wagered":    round(total_wagered, 2),
+    })
 
 
 @app.route("/api/memory")
@@ -102,75 +217,6 @@ def api_sizing():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/arbitrage")
-def api_arbitrage():
-    data = _load_json("arbitrage_log.json")
-    if data is None:
-        return jsonify({"error": "arbitrage_log.json not found"}), 404
-    return jsonify(data)
-
-
-@app.route("/api/clv")
-def api_clv():
-    return jsonify(_load_json("clv_log.json") or [])
-
-
-@app.route("/api/bankroll")
-def api_bankroll():
-    bets = _db.get_bets()
-    current, peak = _calc_bankroll(bets)
-    return jsonify({
-        "starting": STARTING_BANKROLL,
-        "current":  current,
-        "peak":     peak,
-        "bets":     bets,
-    })
-
-
-@app.route("/api/summary")
-def api_summary():
-    date = datetime.now(ET).strftime("%Y-%m-%d")
-    bets = _db.get_bets()
-    today_bets = [b for b in bets if b.get("date") == date]
-
-    daily_pnl = 0.0
-    for b in today_bets:
-        result = b.get("result")
-        stake  = float(b.get("stake") or 0)
-        if result == "W":
-            dec = american_to_decimal(str(b.get("bet_odds", "")))
-            if dec:
-                daily_pnl += (dec - 1) * stake
-        elif result == "L":
-            daily_pnl -= stake
-
-    resolved = [b for b in bets if b.get("result") in ("W", "L", "P")]
-    wins   = sum(1 for b in resolved if b["result"] == "W")
-    losses = sum(1 for b in resolved if b["result"] == "L")
-
-    current, _ = _calc_bankroll(bets)
-    total_wagered = sum(float(b.get("stake") or 0) for b in bets)
-    total_pnl = current - STARTING_BANKROLL
-    roi = (total_pnl / total_wagered * 100) if total_wagered > 0 else 0.0
-
-    clv_log   = _load_json("clv_log.json") or []
-    clv_stats = clv_stats_summary(clv_log)
-
-    return jsonify({
-        "date":             date,
-        "daily_pnl":        round(daily_pnl, 2),
-        "win_rate":         round(wins / len(resolved) * 100, 1) if resolved else None,
-        "wins":             wins,
-        "losses":           losses,
-        "avg_clv":          clv_stats.get("avg_clv"),
-        "roi":              round(roi, 2),
-        "current_bankroll": current,
-        "total_bets":       len(bets),
-        "total_resolved":   len(resolved),
-        "total_wagered":    round(total_wagered, 2),
-    })
-
-
 # ── WRITE ENDPOINTS ────────────────────────────────────────────────────────────
 
 @app.route("/api/bet", methods=["POST"])
@@ -193,6 +239,47 @@ def api_log_bet():
             conviction=data.get("conviction", ""),
             stake=float(data.get("stake") or 0),
         )
+        # Return the DB bet ID so the frontend can use it for settlement
+        bets = _db.get_bets(date=date)
+        logged = [b for b in bets if b.get("bet") == (data.get("bet") or data.get("team", ""))
+                  and b.get("game") == data.get("game", "")]
+        bet_id = logged[0]["id"] if logged else None
+        return jsonify({"ok": True, "bet_id": bet_id})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/settle", methods=["POST"])
+def api_settle():
+    data = request.get_json(silent=True) or {}
+    bet_id = data.get("bet_id")
+    result = data.get("result", "")
+    if not bet_id:
+        return jsonify({"error": "bet_id required"}), 400
+    if result not in ("W", "L", "P"):
+        return jsonify({"error": "result must be W, L, or P"}), 400
+    try:
+        _db.resolve_bet_by_id(
+            bet_id=int(bet_id),
+            closing_odds=data.get("closing_odds", ""),
+            result=result,
+            game_score=data.get("game_score", ""),
+            notes=data.get("notes", ""),
+        )
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/update", methods=["POST"])
+def api_update():
+    data = request.get_json(silent=True) or {}
+    bet_id = data.get("bet_id")
+    stake  = data.get("stake")
+    if not bet_id or stake is None:
+        return jsonify({"error": "bet_id and stake required"}), 400
+    try:
+        _db.update_bet_stake(int(bet_id), float(stake))
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
