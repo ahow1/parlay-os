@@ -190,6 +190,11 @@ def api_summary():
     })
 
 
+@app.route("/record")
+def record_page():
+    return send_from_directory(".", "record.html")
+
+
 @app.route("/api/record")
 def api_record():
     bets     = _db.get_bets()
@@ -239,6 +244,62 @@ def api_record():
         t = rec["total"]
         rec["win_rate"] = round(rec["wins"] / t * 100, 1) if t > 0 else None
 
+    # Monthly breakdown
+    by_month: dict = {}
+    for b in resolved:
+        month = (b.get("date") or "")[:7]
+        if not month:
+            continue
+        rec = by_month.setdefault(month, {
+            "wins": 0, "losses": 0, "pushes": 0, "total": 0,
+            "pnl": 0.0, "wagered": 0.0,
+        })
+        rec["total"] += 1
+        stake = float(b.get("stake") or 0)
+        if b["result"] == "W":
+            rec["wins"] += 1
+            dec = american_to_decimal(str(b.get("bet_odds", "")))
+            if dec:
+                rec["pnl"] += (dec - 1) * stake
+            rec["wagered"] += stake
+        elif b["result"] == "L":
+            rec["losses"] += 1
+            rec["pnl"] -= stake
+            rec["wagered"] += stake
+        else:
+            rec["pushes"] += 1
+    for rec in by_month.values():
+        rec["pnl"]      = round(rec["pnl"], 2)
+        rec["roi"]      = round(rec["pnl"] / rec["wagered"] * 100, 1) if rec["wagered"] > 0 else 0.0
+        wl = rec["wins"] + rec["losses"]
+        rec["win_rate"] = round(rec["wins"] / wl * 100, 1) if wl > 0 else None
+
+    # Social proof stats
+    sorted_resolved = sorted(resolved, key=lambda x: x.get("timestamp") or "", reverse=True)
+    win_streak = 0
+    for b in sorted_resolved:
+        if b["result"] == "W":
+            win_streak += 1
+        else:
+            break
+
+    verified_since = None
+    if resolved:
+        dates = [b.get("date") for b in resolved if b.get("date")]
+        verified_since = min(dates) if dates else None
+
+    best_month = None
+    best_month_roi = None
+    if by_month:
+        bm = max(by_month.items(), key=lambda x: x[1]["roi"])
+        best_month, best_month_roi = bm[0], bm[1]["roi"]
+
+    clv_vals = [b.get("clv_pct") for b in resolved if b.get("clv_pct") is not None]
+    clv_positive_rate = (
+        round(sum(1 for v in clv_vals if v > 0) / len(clv_vals) * 100, 1)
+        if clv_vals else clv_stats.get("positive_rate")
+    )
+
     return jsonify({
         "wins":              wins,
         "losses":            losses,
@@ -247,24 +308,55 @@ def api_record():
         "win_rate":          round(wins / (wins + losses) * 100, 1) if (wins + losses) > 0 else None,
         "roi":               round(roi, 2),
         "avg_clv":           clv_stats.get("avg_clv"),
-        "clv_positive_rate": clv_stats.get("positive_rate"),
+        "clv_positive_rate": clv_positive_rate,
         "by_conviction":     by_conviction,
         "by_type":           by_type,
+        "by_month":          by_month,
+        "social_proof": {
+            "win_streak":     win_streak,
+            "verified_since": verified_since,
+            "best_month":     best_month,
+            "best_month_roi": best_month_roi,
+        },
         "picks": [
             {
-                "id":         b["id"],
-                "date":       b.get("date"),
-                "bet":        b.get("bet"),
-                "type":       b.get("type"),
-                "game":       b.get("game"),
-                "odds":       b.get("bet_odds"),
-                "stake":      b.get("stake"),
-                "result":     b.get("result"),
-                "conviction": b.get("conviction"),
-                "edge_pct":   b.get("edge_pct"),
+                "id":          b["id"],
+                "date":        b.get("date"),
+                "timestamp":   b.get("timestamp"),
+                "bet":         b.get("bet"),
+                "type":        b.get("type"),
+                "game":        b.get("game"),
+                "odds":        b.get("bet_odds"),
+                "result":      b.get("result"),
+                "conviction":  b.get("conviction"),
+                "edge_pct":    b.get("edge_pct"),
+                "clv_pct":     b.get("clv_pct"),
+                "verify_hash": b.get("verify_hash"),
             }
-            for b in resolved
+            for b in sorted_resolved
         ],
+    })
+
+
+@app.route("/api/verify/<verify_hash>")
+def api_verify_pick(verify_hash):
+    pick = _db.get_pick_by_hash(verify_hash)
+    if not pick:
+        return jsonify({"verified": False, "error": "Pick not found"}), 404
+    return jsonify({
+        "verified":   True,
+        "id":         pick.get("id"),
+        "date":       pick.get("date"),
+        "timestamp":  pick.get("timestamp"),
+        "bet":        pick.get("bet"),
+        "type":       pick.get("type"),
+        "game":       pick.get("game"),
+        "odds":       pick.get("bet_odds"),
+        "result":     pick.get("result"),
+        "conviction": pick.get("conviction"),
+        "edge_pct":   pick.get("edge_pct"),
+        "clv_pct":    pick.get("clv_pct"),
+        "verify_hash": verify_hash,
     })
 
 

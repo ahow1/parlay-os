@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PARLAY OS — Verified Track Record</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:     #0a0a0f;
+    --panel:  #111118;
+    --border: #1e1e2e;
+    --blue:   #00b4ff;
+    --green:  #00ff88;
+    --red:    #ff3355;
+    --amber:  #ffaa00;
+    --dim:    #888;
+    --text:   #e0e0e0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+    font-size: 13px;
+    min-height: 100vh;
+  }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo { font-size: 18px; font-weight: 700; letter-spacing: 2px; color: var(--blue); }
+  .logo span { color: var(--green); }
+  .subtitle { color: var(--dim); font-size: 11px; margin-top: 3px; }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  /* ── Badges ── */
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .badge {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 20px;
+    min-width: 140px;
+    flex: 1;
+  }
+  .badge .label { color: var(--dim); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+  .badge .value { font-size: 22px; font-weight: 700; }
+  .badge .value.green  { color: var(--green); }
+  .badge .value.blue   { color: var(--blue); }
+  .badge .value.amber  { color: var(--amber); }
+  .badge .value.red    { color: var(--red); }
+  .badge .sub { font-size: 10px; color: var(--dim); margin-top: 4px; }
+
+  /* ── Section heading ── */
+  .section-head {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin: 28px 0 12px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+  }
+
+  /* ── Chart ── */
+  .chart-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+  .chart-wrap canvas { max-height: 220px; }
+
+  /* ── Conviction grid ── */
+  .conv-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .conv-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+  }
+  .conv-card .conv-label { font-size: 11px; color: var(--dim); margin-bottom: 8px; }
+  .conv-card .conv-wr { font-size: 20px; font-weight: 700; color: var(--green); }
+  .conv-card .conv-record { font-size: 11px; color: var(--dim); margin-top: 4px; }
+
+  /* ── Picks table ── */
+  .table-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .table-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .filter-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--dim);
+    padding: 5px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+  .filter-btn.active { border-color: var(--blue); color: var(--blue); }
+  .search-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 11px;
+    width: 180px;
+    margin-left: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th {
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--dim);
+    padding: 10px 14px;
+    background: var(--bg);
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  th:hover { color: var(--blue); }
+  th .sort-icon { margin-left: 4px; opacity: 0.4; }
+  th.sorted .sort-icon { opacity: 1; color: var(--blue); }
+  td {
+    padding: 9px 14px;
+    border-bottom: 1px solid #16161f;
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #13131c; }
+
+  .result-w { color: var(--green); font-weight: 700; }
+  .result-l { color: var(--red); font-weight: 700; }
+  .result-p { color: var(--dim); font-weight: 700; }
+
+  .conv-high   { color: var(--green); }
+  .conv-medium { color: var(--amber); }
+  .conv-manual { color: var(--dim); }
+
+  .clv-pos { color: var(--green); }
+  .clv-neg { color: var(--red); }
+  .clv-na  { color: var(--dim); }
+
+  .verify-link {
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 1px;
+    font-family: monospace;
+  }
+  .verify-link:hover { color: var(--blue); }
+
+  /* ── Disclaimer ── */
+  .disclaimer {
+    margin-top: 40px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 11px;
+    color: var(--dim);
+    line-height: 1.6;
+  }
+
+  /* ── Loading / error ── */
+  .loading { text-align: center; padding: 60px; color: var(--dim); }
+  .error-msg { color: var(--red); padding: 20px; text-align: center; }
+
+  @media (max-width: 600px) {
+    .badges { gap: 8px; }
+    .badge { min-width: 120px; }
+    td, th { padding: 8px 10px; font-size: 11px; }
+    .col-game, .col-edge, .col-verify { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">PARLAY<span>OS</span></div>
+    <div class="subtitle">MLB quantitative model — verified picks record</div>
+  </div>
+  <div style="text-align:right; color:var(--dim); font-size:11px;" id="last-updated"></div>
+</header>
+
+<main>
+  <div id="loading" class="loading">Loading verified record...</div>
+  <div id="content" style="display:none">
+
+    <!-- Social proof badges -->
+    <div class="badges" id="badges"></div>
+
+    <!-- Monthly chart -->
+    <div class="section-head">Monthly Performance</div>
+    <div class="chart-wrap">
+      <canvas id="monthly-chart"></canvas>
+    </div>
+
+    <!-- Conviction breakdown -->
+    <div class="section-head">By Conviction</div>
+    <div class="conv-grid" id="conv-grid"></div>
+
+    <!-- Picks table -->
+    <div class="section-head">All Verified Picks</div>
+    <div class="table-wrap">
+      <div class="table-controls">
+        <button class="filter-btn active" data-filter="ALL">ALL</button>
+        <button class="filter-btn" data-filter="W">WINS</button>
+        <button class="filter-btn" data-filter="L">LOSSES</button>
+        <button class="filter-btn" data-filter="HIGH">HIGH</button>
+        <input class="search-box" id="search" placeholder="Search team / game..." type="text">
+      </div>
+      <div style="overflow-x:auto">
+        <table id="picks-table">
+          <thead>
+            <tr>
+              <th data-col="date">Date <span class="sort-icon">▼</span></th>
+              <th data-col="game" class="col-game">Game <span class="sort-icon">▼</span></th>
+              <th data-col="bet">Pick <span class="sort-icon">▼</span></th>
+              <th data-col="type">Type <span class="sort-icon">▼</span></th>
+              <th data-col="odds">Odds <span class="sort-icon">▼</span></th>
+              <th data-col="conviction">Level <span class="sort-icon">▼</span></th>
+              <th data-col="edge_pct" class="col-edge">Edge <span class="sort-icon">▼</span></th>
+              <th data-col="clv_pct">CLV <span class="sort-icon">▼</span></th>
+              <th data-col="result">Result <span class="sort-icon">▼</span></th>
+              <th data-col="verify_hash" class="col-verify">Verify <span class="sort-icon">▼</span></th>
+            </tr>
+          </thead>
+          <tbody id="picks-body"></tbody>
+        </table>
+      </div>
+      <div id="table-footer" style="padding:10px 16px; color:var(--dim); font-size:11px; border-top:1px solid var(--border)"></div>
+    </div>
+
+    <div class="disclaimer">
+      <strong style="color:var(--amber)">Disclaimer:</strong> These picks are for informational and educational purposes only.
+      Past performance does not guarantee future results. Sports betting involves risk. Only bet what you can afford to lose.
+      Please bet responsibly — if you need help, visit <a href="https://www.ncpgambling.org" target="_blank">ncpgambling.org</a>.
+      All picks are cryptographically verified using SHA256 hashes and timestamped at the time of model output.
+    </div>
+  </div>
+</main>
+
+<script>
+let allPicks = [];
+let sortCol = 'date';
+let sortDir = -1; // -1 = desc
+let activeFilter = 'ALL';
+let searchTerm = '';
+let monthlyChart = null;
+
+async function loadRecord() {
+  try {
+    const r = await fetch('/api/record');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+    document.getElementById('last-updated').textContent =
+      'Updated: ' + new Date().toLocaleString('en-US', {timeZone:'America/New_York', hour12:true});
+    renderBadges(data);
+    renderChart(data.by_month || {});
+    renderConviction(data.by_conviction || {});
+    allPicks = data.picks || [];
+    renderTable();
+  } catch (e) {
+    document.getElementById('loading').innerHTML =
+      `<div class="error-msg">Failed to load record: ${e.message}</div>`;
+  }
+}
+
+function renderBadges(data) {
+  const sp = data.social_proof || {};
+  const wr = data.win_rate != null ? data.win_rate.toFixed(1) + '%' : '—';
+  const roi = data.roi != null ? (data.roi >= 0 ? '+' : '') + data.roi.toFixed(1) + '%' : '—';
+  const clv = data.clv_positive_rate != null ? data.clv_positive_rate.toFixed(1) + '%' : '—';
+  const streak = sp.win_streak > 0 ? sp.win_streak + ' W' : '—';
+  const verifiedSince = sp.verified_since || null;
+
+  const badges = [
+    { label: 'Record', value: `${data.wins || 0}-${data.losses || 0}`, cls: 'green', sub: `${data.total_resolved || 0} settled picks` },
+    { label: 'Win Rate', value: wr, cls: data.win_rate >= 55 ? 'green' : data.win_rate >= 50 ? 'amber' : 'red', sub: 'ML + totals + props' },
+    { label: 'ROI', value: roi, cls: data.roi >= 0 ? 'green' : 'red', sub: 'units profit / wagered' },
+    { label: '+CLV Rate', value: clv, cls: data.clv_positive_rate >= 60 ? 'green' : 'amber', sub: 'beat closing line' },
+    { label: 'Avg CLV', value: data.avg_clv != null ? (data.avg_clv >= 0 ? '+' : '') + data.avg_clv.toFixed(2) + '%' : '—', cls: 'blue', sub: 'edge at close' },
+    { label: 'Win Streak', value: streak, cls: 'amber', sub: 'current streak' },
+    { label: 'Verified Since', value: verifiedSince || '—', cls: 'blue', sub: 'first timestamped pick' },
+  ];
+  if (sp.best_month) {
+    badges.push({ label: 'Best Month', value: sp.best_month, cls: 'green',
+      sub: (sp.best_month_roi >= 0 ? '+' : '') + sp.best_month_roi.toFixed(1) + '% ROI' });
+  }
+
+  document.getElementById('badges').innerHTML = badges.map(b =>
+    `<div class="badge">
+      <div class="label">${b.label}</div>
+      <div class="value ${b.cls}">${b.value}</div>
+      <div class="sub">${b.sub}</div>
+    </div>`
+  ).join('');
+}
+
+function renderChart(byMonth) {
+  const months = Object.keys(byMonth).sort();
+  if (!months.length) {
+    document.querySelector('.chart-wrap').innerHTML =
+      '<div style="padding:20px;color:var(--dim);text-align:center">No monthly data yet</div>';
+    return;
+  }
+  const wins   = months.map(m => byMonth[m].wins);
+  const losses = months.map(m => byMonth[m].losses);
+  const rois   = months.map(m => byMonth[m].roi);
+
+  if (monthlyChart) monthlyChart.destroy();
+  const ctx = document.getElementById('monthly-chart').getContext('2d');
+  monthlyChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: [
+        { label: 'Wins', data: wins, backgroundColor: '#00ff8844', borderColor: '#00ff88', borderWidth: 1 },
+        { label: 'Losses', data: losses, backgroundColor: '#ff335544', borderColor: '#ff3355', borderWidth: 1 },
+        { label: 'ROI %', data: rois, type: 'line', yAxisID: 'roi',
+          borderColor: '#00b4ff', backgroundColor: 'transparent',
+          borderWidth: 2, pointRadius: 3, tension: 0.3 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { labels: { color: '#888', font: { family: 'monospace', size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#888' }, grid: { color: '#1e1e2e' } },
+        y: { ticks: { color: '#888' }, grid: { color: '#1e1e2e' }, title: { display: true, text: 'Picks', color: '#888' } },
+        roi: { position: 'right', ticks: { color: '#00b4ff', callback: v => v + '%' },
+          grid: { drawOnChartArea: false }, title: { display: true, text: 'ROI %', color: '#00b4ff' } },
+      }
+    }
+  });
+}
+
+function renderConviction(byConv) {
+  const order = ['HIGH', 'MEDIUM', 'MANUAL'];
+  const html = order.filter(k => byConv[k]).map(k => {
+    const c = byConv[k];
+    return `<div class="conv-card">
+      <div class="conv-label">${k} CONVICTION</div>
+      <div class="conv-wr">${c.win_rate != null ? c.win_rate.toFixed(1) : '—'}%</div>
+      <div class="conv-record">${c.wins}W - ${c.losses}L</div>
+    </div>`;
+  }).join('');
+  document.getElementById('conv-grid').innerHTML = html ||
+    '<div style="color:var(--dim);padding:20px">No conviction data yet</div>';
+}
+
+function renderTable() {
+  let picks = [...allPicks];
+
+  // Filter
+  if (activeFilter === 'W') picks = picks.filter(p => p.result === 'W');
+  else if (activeFilter === 'L') picks = picks.filter(p => p.result === 'L');
+  else if (activeFilter === 'HIGH') picks = picks.filter(p => (p.conviction || '').toUpperCase() === 'HIGH');
+
+  // Search
+  if (searchTerm) {
+    const q = searchTerm.toLowerCase();
+    picks = picks.filter(p =>
+      (p.bet || '').toLowerCase().includes(q) ||
+      (p.game || '').toLowerCase().includes(q) ||
+      (p.type || '').toLowerCase().includes(q)
+    );
+  }
+
+  // Sort
+  picks.sort((a, b) => {
+    let va = a[sortCol], vb = b[sortCol];
+    if (va == null) va = sortDir > 0 ? '' : '￿';
+    if (vb == null) vb = sortDir > 0 ? '' : '￿';
+    if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * sortDir;
+    return String(va).localeCompare(String(vb)) * sortDir;
+  });
+
+  const tbody = document.getElementById('picks-body');
+  if (!picks.length) {
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--dim);padding:30px">No picks match filter</td></tr>';
+    document.getElementById('table-footer').textContent = '0 picks';
+    return;
+  }
+
+  tbody.innerHTML = picks.map(p => {
+    const resultCls = p.result === 'W' ? 'result-w' : p.result === 'L' ? 'result-l' : 'result-p';
+    const convCls   = (p.conviction || '').toUpperCase() === 'HIGH' ? 'conv-high' :
+                      (p.conviction || '').toUpperCase() === 'MEDIUM' ? 'conv-medium' : 'conv-manual';
+    const clvVal    = p.clv_pct != null ? ((p.clv_pct >= 0 ? '+' : '') + p.clv_pct.toFixed(2) + '%') : '—';
+    const clvCls    = p.clv_pct == null ? 'clv-na' : p.clv_pct > 0 ? 'clv-pos' : 'clv-neg';
+    const edgeVal   = p.edge_pct != null ? '+' + p.edge_pct.toFixed(1) + '%' : '—';
+    const verifyCell = p.verify_hash
+      ? `<a class="verify-link" href="/api/verify/${p.verify_hash}" target="_blank" title="${p.verify_hash}">${p.verify_hash.slice(0,8)}…</a>`
+      : '<span class="clv-na">—</span>';
+
+    return `<tr>
+      <td>${p.date || '—'}</td>
+      <td class="col-game" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.game || ''}">${p.game || '—'}</td>
+      <td style="font-weight:600">${p.bet || '—'}</td>
+      <td>${p.type || '—'}</td>
+      <td>${p.odds || '—'}</td>
+      <td class="${convCls}">${p.conviction || 'MANUAL'}</td>
+      <td class="col-edge">${edgeVal}</td>
+      <td class="${clvCls}">${clvVal}</td>
+      <td class="${resultCls}">${p.result || '—'}</td>
+      <td class="col-verify">${verifyCell}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('table-footer').textContent =
+    `${picks.length} pick${picks.length !== 1 ? 's' : ''} shown`;
+}
+
+// Sort headers
+document.querySelectorAll('th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (sortCol === col) { sortDir *= -1; }
+    else { sortCol = col; sortDir = -1; }
+    document.querySelectorAll('th').forEach(t => t.classList.remove('sorted'));
+    th.classList.add('sorted');
+    th.querySelector('.sort-icon').textContent = sortDir > 0 ? '▲' : '▼';
+    renderTable();
+  });
+});
+
+// Filter buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    activeFilter = btn.dataset.filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderTable();
+  });
+});
+
+// Search
+document.getElementById('search').addEventListener('input', e => {
+  searchTerm = e.target.value;
+  renderTable();
+});
+
+loadRecord();
+</script>
+</body>
+</html>

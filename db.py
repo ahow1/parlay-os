@@ -1,6 +1,6 @@
 """PARLAY OS — SQLite database layer (items 11, 10, 7)."""
 
-import sqlite3, json, os, shutil, time, glob
+import sqlite3, json, os, shutil, time, glob, hashlib
 from datetime import datetime
 import pytz
 
@@ -124,7 +124,8 @@ def init_db():
             clv_pct      REAL,
             result       TEXT,
             game_score   TEXT,
-            notes        TEXT
+            notes        TEXT,
+            verify_hash  TEXT
         );
 
         CREATE TABLE IF NOT EXISTS bankroll_log (
@@ -180,6 +181,12 @@ def init_db():
             edge_pct     REAL
         );
         """)
+    # Add verify_hash column to existing DBs that predate this schema
+    with _conn() as conn:
+        try:
+            conn.execute("ALTER TABLE bets ADD COLUMN verify_hash TEXT")
+        except sqlite3.OperationalError:
+            pass  # column already exists
     _ensure_bets_unique_index()
 
 
@@ -188,14 +195,43 @@ def init_db():
 def log_bet(date, bet, bet_type, game, sp, park, umpire,
             bet_odds, model_prob, market_prob, edge_pct, conviction, stake):
     now = datetime.now(ET).isoformat()
+    verify_hash = hashlib.sha256(
+        f"{game}|{bet}|{bet_odds}|{now}".encode()
+    ).hexdigest()
     with _conn() as conn:
         conn.execute("""
             INSERT OR IGNORE INTO bets
               (date, timestamp, bet, type, game, sp, park, umpire,
-               bet_odds, model_prob, market_prob, edge_pct, conviction, stake)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               bet_odds, model_prob, market_prob, edge_pct, conviction, stake, verify_hash)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (date, now, bet, bet_type, game, sp, park, umpire,
-              bet_odds, model_prob, market_prob, edge_pct, conviction, stake))
+              bet_odds, model_prob, market_prob, edge_pct, conviction, stake, verify_hash))
+
+
+def get_pick_by_hash(verify_hash: str) -> dict | None:
+    """Look up a single pick by its SHA256 verification hash."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM bets WHERE verify_hash=?", (verify_hash,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def reset_daily_exposure(date: str | None = None) -> int:
+    """
+    Delete all pending (unsettled) bets for the given date.
+    Defaults to today. Returns the number of rows deleted.
+    Used by /resetcap when the daily cap needs to be cleared mid-day.
+    """
+    if date is None:
+        from datetime import date as _date
+        date = _date.today().isoformat()
+    with _conn_with_retry() as conn:
+        cur = conn.execute(
+            "DELETE FROM bets WHERE date=? AND result IS NULL",
+            (date,),
+        )
+        return cur.rowcount
 
 
 def update_bet_stake(bet_id: int, new_stake: float):

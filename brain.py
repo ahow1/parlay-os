@@ -80,8 +80,9 @@ except ImportError:
 
 STATSAPI  = "https://statsapi.mlb.com/api/v1"
 ET        = pytz.timezone("America/New_York")
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
-CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID", "")
+BOT_TOKEN         = os.getenv("TELEGRAM_BOT_TOKEN", "")
+CHAT_ID           = os.getenv("TELEGRAM_CHAT_ID", "")
+PUBLIC_CHANNEL_ID = os.getenv("TELEGRAM_PUBLIC_CHANNEL_ID", "")
 
 DRY_RUN   = "--test" in sys.argv
 
@@ -1147,6 +1148,70 @@ def _send_telegram(msg: str):
         print(f"Telegram error: {e}")
 
 
+def _generate_pick_narrative(analysis: dict, side: str) -> str:
+    """One-line narrative bullet for a pick — why the model likes it."""
+    sp_key   = f"{side}_sp"
+    sp       = (analysis.get(sp_key) or {})
+    sp_name  = sp.get("name") or "SP"
+    k9       = sp.get("k9")
+    xfip     = sp.get("xfip")
+    edge     = analysis.get(f"{side}_edge_pct")
+    momentum = (analysis.get("momentum") or {}).get(f"{side}_score")
+
+    parts = []
+    if k9 and k9 >= 9.0:
+        parts.append(f"{sp_name} K9={k9:.1f}")
+    if xfip and xfip <= 3.8:
+        parts.append(f"elite xFIP {xfip:.2f}")
+    if edge and edge >= 8:
+        parts.append(f"{edge:.1f}% model edge")
+    if momentum and momentum >= 2:
+        parts.append("hot streak")
+    return " | ".join(parts) if parts else "Model consensus play"
+
+
+def _post_public_channel(locks: list, flips: list, today: str) -> None:
+    """Post clean pick summary to public Telegram channel (no bankroll info)."""
+    if not PUBLIC_CHANNEL_ID or not BOT_TOKEN or DRY_RUN:
+        return
+    picks = locks + flips
+    if not picks:
+        return
+
+    lines = [
+        f"<b>PARLAY OS — {today}</b>",
+        f"<i>MLB Model Picks • {len(picks)} play{'s' if len(picks) != 1 else ''}</i>",
+        "",
+    ]
+    for analysis, side in picks:
+        team    = analysis.get(f"{side}_team", side.upper())
+        odds    = analysis.get(f"best_{side}_odds", "")
+        conv    = analysis.get("conviction", "")
+        game    = analysis.get("game_label", analysis.get("away_team", "") + " vs " + analysis.get("home_team", ""))
+        edge    = analysis.get(f"{side}_edge_pct")
+        narr    = _generate_pick_narrative(analysis, side)
+        tag     = "🔒" if conv == "HIGH" else "⚡"
+        edge_str = f" | edge +{edge:.1f}%" if edge else ""
+        lines.append(f"{tag} <b>{team}</b> {odds}")
+        lines.append(f"   {game}{edge_str}")
+        lines.append(f"   <i>{narr}</i>")
+        lines.append("")
+
+    lines.append("━━━━━━━━━━━━━━━━━━━━")
+    lines.append("⚠️ For educational purposes only. Bet responsibly.")
+    lines.append("📊 Full verified record: /record")
+
+    msg = "\n".join(lines)
+    try:
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            data={"chat_id": PUBLIC_CHANNEL_ID, "text": msg, "parse_mode": "HTML"},
+            timeout=8,
+        )
+    except Exception as e:
+        print(f"[TG] Public channel post error: {e}")
+
+
 # ── HELPERS ───────────────────────────────────────────────────────────────────
 
 def _resolve_game_pk(team_name: str, game_date: str) -> int | None:
@@ -1672,6 +1737,13 @@ def run_daily_scout():
                         all_nrfi, all_totals, all_hitter_props, all_k_props, all_injuries)
     except Exception as slip_err:
         print(f"Daily slip error: {slip_err}")
+
+    # ── Public channel post ───────────────────────────────────────────────────
+    if PUBLIC_CHANNEL_ID:
+        try:
+            _post_public_channel(all_locks, all_flips, today)
+        except Exception as pub_err:
+            print(f"Public channel error: {pub_err}")
 
     # Save scout output
     if not DRY_RUN:
