@@ -46,6 +46,12 @@ from bet_type_validator import (
     validate_bet, BetValidationError, day_classification,
     MAX_LOCKS_PER_DAY, MAX_FLIPS_PER_DAY, DAILY_RISK_CAP_PCT,
 )
+from intelligence_engine import (
+    sp_regression_flags, offense_regression_flags, bullpen_regression_flags,
+    get_injury_flags, format_injury_section,
+    weighted_momentum,
+    format_sharp_pick, format_discord_pick,
+)
 from memory_engine  import (
     init_memory_tables, recalibrate_model_prob, adjust_model_prob,
     memory_report
@@ -118,7 +124,8 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     # ── Market ───────────────────────────────────────────────────────────────
     market = full_market_snapshot(
         event["id"], away_name, home_name,
-        away_code, home_code, game_date
+        away_code, home_code, game_date,
+        commence_utc=event.get("commence_utc", ""),
     )
     nv = market.get("no_vig") or {}
     if not nv:
@@ -225,7 +232,31 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
 
     # ── Regression / intelligence flags ──────────────────────────────────────
     reg_flags = detect_regression_flags(away_sp, home_sp, away_off, home_off)
-    momentum  = _momentum_score(away_code, home_code)
+
+    # SP regression (ERA vs xFIP, velocity, control)
+    away_sp_intel = sp_regression_flags(away_sp, label=away_code)
+    home_sp_intel = sp_regression_flags(home_sp, label=home_code)
+
+    # Offense regression (BABIP, BA trend)
+    away_off_intel = offense_regression_flags(away_tid, away_code)
+    home_off_intel = offense_regression_flags(home_tid, home_code)
+
+    # All intelligence flags combined
+    intel_flags = away_sp_intel + home_sp_intel + away_off_intel + home_off_intel
+
+    # Injury flags (IL transactions + SP velocity risk)
+    injury_flags = get_injury_flags(away_code, home_code, away_sp, home_sp)
+
+    # Enhanced momentum
+    away_momentum = weighted_momentum(away_tid, away_code)
+    home_momentum = weighted_momentum(home_tid, home_code)
+    momentum = {
+        "away":     away_momentum["score"],
+        "home":     home_momentum["score"],
+        "away_sum": away_momentum["summary"],
+        "home_sum": home_momentum["summary"],
+    }
+
     narrative = _narrative_flags(market, away_nv, home_nv)
 
     # ── Edge Calculation ─────────────────────────────────────────────────────
@@ -310,11 +341,22 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     print(f"  Ump: {umpire or 'unknown'}  |  Wx: {wx_label} adj={wx_adj:+.2f}r/g  rf={wx_rf:.3f}")
     # Platoon splits
     print(f"  Platoon Δ(vR-vL wRC+): {away_code}={away_platoon_delta:+.0f}  {home_code}={home_platoon_delta:+.0f}")
-    # Print any regression/narrative flags
+    # Print regression / narrative flags
     for flag in reg_flags.get("flags", []):
         print(f"  FLAG: {flag['message']}")
     for flag in narrative.get("flags", []):
         print(f"  FLAG: {flag['message']}")
+    # Intelligence flags (SP regression, offense regression)
+    for flag in intel_flags:
+        print(f"  INTEL [{flag.get('type','')}]: {flag.get('emoji','')} {flag['message']}")
+    # Injury flags
+    if injury_flags:
+        print(f"  ⚠️ INJURIES ({len(injury_flags)}):")
+        for inj in injury_flags:
+            print(f"    {inj.get('emoji','⚠️')} {inj['message']}")
+    # Momentum
+    print(f"  {away_momentum.get('summary','')}")
+    print(f"  {home_momentum.get('summary','')}")
 
     # ── Props ─────────────────────────────────────────────────────────────────
     nrfi_r = nrfi_prob(away_sp, home_sp, park_rf, wx_rf)
@@ -409,14 +451,31 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         "wx_label":              wx_label,
         "away_platoon_delta":    away_platoon_delta,
         "home_platoon_delta":    home_platoon_delta,
+        # Intelligence flags (SP/offense regression)
+        "intel_flags":    intel_flags,
+        "injury_flags":   injury_flags,
+        # Enhanced momentum
+        "away_momentum":  away_momentum,
+        "home_momentum":  home_momentum,
+        # Game time ET (for picks format and primetime detection)
+        "game_time_et":   _parse_game_time_et(event.get("commence_utc", "")),
     }
 
 
+def _parse_game_time_et(commence_utc: str) -> str:
+    """Convert UTC ISO string to '7:05 PM ET' format."""
+    if not commence_utc:
+        return ""
+    try:
+        dt_utc = datetime.fromisoformat(commence_utc.replace("Z", "+00:00"))
+        dt_et  = dt_utc.astimezone(ET)
+        return dt_et.strftime("%-I:%M %p ET")
+    except Exception:
+        return ""
+
+
 def _momentum_score(away_code: str, home_code: str) -> dict:
-    """
-    Simple momentum proxy: win% in last 7 games from team_memory.
-    Returns dict with away/home momentum scores (-1 to +1).
-    """
+    """Legacy simple momentum proxy (kept for fallback use)."""
     from memory_engine import team_prior
     away_m = team_prior(away_code, "home", 7) or 0.50
     home_m = team_prior(home_code, "home", 7) or 0.50
@@ -428,13 +487,14 @@ def _momentum_score(away_code: str, home_code: str) -> dict:
 
 def _narrative_flags(market: dict, away_nv: float, home_nv: float) -> dict:
     """
-    Detect public narrative / fade opportunities.
-    Heavy public action (estimated via line gap), primetime games.
+    Detect public narrative / fade opportunities:
+    line steam, Polymarket divergence, primetime inflation,
+    public bias, and sharp reverse line movement.
     """
     flags = []
     lm = market.get("line_movement") or {}
 
-    # If line moved significantly toward one side, public may be piling in
+    # Line steam
     direction = lm.get("direction", "")
     magnitude = lm.get("magnitude", 0)
     if magnitude > 0.08 and direction not in ("unknown", "stable"):
@@ -444,7 +504,7 @@ def _narrative_flags(market: dict, away_nv: float, home_nv: float) -> dict:
             "message": f"Large line move {direction} ({magnitude:.3f}) — consider fade of {fading_side}",
         })
 
-    # Polymarket vs sharp book gap > 15% = narrative divergence
+    # Polymarket vs sharp book gap > 15%
     poly = market.get("polymarket") or {}
     for side in ("away", "home"):
         poly_p = poly.get(side)
@@ -456,6 +516,30 @@ def _narrative_flags(market: dict, away_nv: float, home_nv: float) -> dict:
                     "type":    "POLY_DIVERGENCE",
                     "message": f"Polymarket {side} {poly_p:.1%} vs sharp {nv_p:.1%} — {gap*100:.0f}pt gap",
                 })
+
+    # Primetime public inflation
+    pt = market.get("primetime") or {}
+    if pt.get("primetime"):
+        flags.append({
+            "type":    "PRIMETIME_PUBLIC_OVERREACTION",
+            "message": pt.get("message", "Nationally televised — expect public inflation on favorite"),
+        })
+
+    # Public bias (square vs sharp book gap)
+    pb = market.get("public_bias") or {}
+    if pb.get("fade_signal"):
+        flags.append({
+            "type":    "PUBLIC_FADE_CANDIDATE",
+            "message": pb.get("message", "Public bias detected"),
+        })
+
+    # Sharp reverse line movement
+    rlm = market.get("reverse_line") or {}
+    if rlm.get("sharp_side"):
+        flags.append({
+            "type":    "SHARP_REVERSE",
+            "message": rlm.get("message", "Sharp reverse line movement detected"),
+        })
 
     return {"flags": flags}
 
@@ -903,6 +987,26 @@ def _format_bet_message(game: dict, side: str) -> str:
     for flag in reg_flags[:2]:
         lines.append(f"⚠ {flag.get('message', '')}")
 
+    # SP intelligence flags (ERA vs xFIP, velocity, control)
+    intel_flags = game.get("intel_flags", [])
+    for flag in intel_flags[:3]:
+        emoji = flag.get("emoji", "⚠️")
+        lines.append(f"{emoji} {flag.get('message', '')}")
+
+    # Injury flags
+    injury_flags = game.get("injury_flags", [])
+    for inj in injury_flags[:2]:
+        lines.append(f"{inj.get('emoji','🚑')} {inj['message']}")
+
+    # Momentum
+    away_mom = game.get("away_momentum") or {}
+    home_mom = game.get("home_momentum") or {}
+    if away_mom.get("summary") or home_mom.get("summary"):
+        for mom in (away_mom, home_mom):
+            s = mom.get("summary", "")
+            if s:
+                lines.append(s)
+
     ml_model = game.get("ml_model", "")
     if ml_model and ml_model not in ("pythagorean", "pythagorean_fallback"):
         lines.append(f"Model: {ml_model}")
@@ -1059,6 +1163,13 @@ def run_daily_scout():
 
         # Store for series analysis
         game_key_map[(analysis["away"], analysis["home"])] = analysis
+
+        # ── Injury flag alert ─────────────────────────────────────────────────
+        if analysis.get("injury_flags"):
+            game_label = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
+            inj_msg = format_injury_section(analysis["injury_flags"], game_label)
+            if inj_msg:
+                _send_telegram(inj_msg)
 
         # ── SGP suggestions for this game ─────────────────────────────────────
         try:

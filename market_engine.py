@@ -365,13 +365,138 @@ def polymarket_prob(away_slug: str, home_slug: str, game_date: str) -> dict | No
 
 def detect_line_movement(event_id: str, current_books: dict, side: str = "away") -> dict:
     """
-    Historical odds endpoint disabled for now because it returns 404 and trips
-    the Odds API circuit breaker. Keep scout running with no line movement.
+    Historical odds endpoint returns 404 on current plan — no live tracking.
+    Opening line cache: store current lines on first sight; compare on subsequent calls.
     """
-    return {"direction": "unknown", "magnitude": 0}
+    global _opening_line_cache
+    best_away = None
+    best_home = None
+    for bk in ("pinnacle", "betonlineag", "draftkings"):
+        info = current_books.get(bk) or {}
+        if info.get("away") and info.get("home"):
+            best_away = info["away"]
+            best_home = info["home"]
+            break
+
+    if best_away is None:
+        return {"direction": "unknown", "magnitude": 0}
+
+    cached = _opening_line_cache.get(event_id)
+    if cached is None:
+        _opening_line_cache[event_id] = {"away": best_away, "home": best_home}
+        return {"direction": "stable", "magnitude": 0}
+
+    open_away = cached["away"]
+    open_home  = cached["home"]
+    # Away line movement: negative movement = line moving toward home (away got more expensive)
+    try:
+        dec_curr_away = american_to_decimal(str(best_away)) or 1.0
+        dec_open_away = american_to_decimal(str(open_away)) or 1.0
+        magnitude = round(abs(dec_curr_away - dec_open_away), 4)
+        if magnitude < 0.01:
+            direction = "stable"
+        elif dec_curr_away > dec_open_away:
+            direction = "toward_away"   # away got longer (worse for away backers)
+        else:
+            direction = "toward_home"
+        return {"direction": direction, "magnitude": magnitude,
+                "open_away": open_away, "curr_away": best_away}
+    except Exception:
+        return {"direction": "unknown", "magnitude": 0}
+
+
+_opening_line_cache: dict = {}
+
+
+def detect_primetime(commence_utc: str) -> dict:
+    """
+    Flag nationally televised primetime games (7 PM+ ET weeknights).
+    Public bets disproportionately on primetime games — inflates favorite price.
+    """
+    if not commence_utc:
+        return {}
+    try:
+        from datetime import datetime
+        import pytz
+        ET = pytz.timezone("America/New_York")
+        dt = datetime.fromisoformat(commence_utc.replace("Z", "+00:00")).astimezone(ET)
+        if dt.hour >= 19 and dt.weekday() < 5:  # 7 PM+ Mon-Fri
+            return {
+                "primetime": True,
+                "message":   (
+                    f"Potential nationally televised game ({dt.strftime('%I:%M %p ET')}) — "
+                    f"expect public inflation on the favorite"
+                ),
+            }
+    except Exception:
+        pass
+    return {}
+
+
+def detect_public_bias(event_id: str, ml_books: dict) -> dict:
+    """
+    Estimate public bias from line gap between sharp (Pinnacle) and square (DK/FD) books.
+    Wide spread = square books taking heavy public action on one side.
+    """
+    pin  = ml_books.get("pinnacle") or {}
+    dk   = ml_books.get("draftkings") or ml_books.get("fanduel") or {}
+    if not pin.get("away") or not dk.get("away"):
+        return {}
+    try:
+        pin_away = american_to_decimal(str(pin["away"])) or 1.0
+        dk_away  = american_to_decimal(str(dk["away"])) or 1.0
+        gap = round(abs(pin_away - dk_away), 4)
+        if gap > 0.08:
+            # Square books paying better on away = public backing away
+            if dk_away > pin_away:
+                biased_side = "away"
+                msg = f"Square books ({gap:.3f} gap) better on away — public backing away team"
+            else:
+                biased_side = "home"
+                msg = f"Square books ({gap:.3f} gap) better on home — public backing home team"
+            return {
+                "biased_side": biased_side,
+                "gap":         gap,
+                "message":     msg,
+                "fade_signal": True,
+            }
+    except Exception:
+        pass
+    return {}
+
+
+def detect_reverse_line_movement(lm: dict, public_bias: dict) -> dict:
+    """
+    Reverse line movement: public money on one side but line moves the other way.
+    Strong signal for sharp money on the opposite side.
+    """
+    direction = lm.get("direction", "stable")
+    biased    = public_bias.get("biased_side", "")
+    if not biased or direction in ("unknown", "stable"):
+        return {}
+
+    # Public likes away but line moved toward home = sharp money on home
+    if biased == "away" and direction == "toward_home":
+        return {
+            "sharp_side": "home",
+            "message":    (
+                f"Public backing away but line moved toward home — "
+                f"SHARP REVERSE: sharp money on home"
+            ),
+        }
+    if biased == "home" and direction == "toward_away":
+        return {
+            "sharp_side": "away",
+            "message":    (
+                f"Public backing home but line moved toward away — "
+                f"SHARP REVERSE: sharp money on away"
+            ),
+        }
+    return {}
 
 def full_market_snapshot(event_id: str, away_team: str, home_team: str,
-                         away_code: str, home_code: str, game_date: str) -> dict:
+                         away_code: str, home_code: str, game_date: str,
+                         commence_utc: str = "") -> dict:
     """Single call to get all market data for a game."""
     odds    = get_odds_for_event(event_id)
     ml_raw  = odds.get("ml")
@@ -379,10 +504,10 @@ def full_market_snapshot(event_id: str, away_team: str, home_team: str,
     print(f"[MKT] {away_team} @ {home_team}: ml_raw={'None' if ml_raw is None else f'{n_books} books'}")
     ml_books = _parse_ml_bookmakers(ml_raw, away_team, home_team)
     print(f"[MKT]   matched books: {list(ml_books.keys())}")
-    nv      = pinnacle_no_vig(ml_books, away_team, home_team)
-    totals  = _parse_totals(odds.get("totals"))
+    nv       = pinnacle_no_vig(ml_books, away_team, home_team)
+    totals   = _parse_totals(odds.get("totals"))
     f5_books = _parse_ml_bookmakers(odds.get("f5"), away_team, home_team)
-    lm      = detect_line_movement(event_id, ml_books)
+    lm       = detect_line_movement(event_id, ml_books)
 
     away_slug = TEAM_SLUGS.get(away_code, away_code.lower())
     home_slug = TEAM_SLUGS.get(home_code, home_code.lower())
@@ -390,6 +515,10 @@ def full_market_snapshot(event_id: str, away_team: str, home_team: str,
 
     best_away_book, best_away_odds = best_odds(ml_books, "away")
     best_home_book, best_home_odds = best_odds(ml_books, "home")
+
+    primetime   = detect_primetime(commence_utc)
+    public_bias = detect_public_bias(event_id, ml_books)
+    rlm         = detect_reverse_line_movement(lm, public_bias)
 
     return {
         "event_id":        event_id,
@@ -405,6 +534,10 @@ def full_market_snapshot(event_id: str, away_team: str, home_team: str,
         "best_away_odds":  best_away_odds,
         "best_home_book":  best_home_book,
         "best_home_odds":  best_home_odds,
+        # Intelligence signals
+        "primetime":       primetime,
+        "public_bias":     public_bias,
+        "reverse_line":    rlm,
     }
 
 

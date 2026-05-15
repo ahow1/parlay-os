@@ -190,6 +190,116 @@ def api_summary():
     })
 
 
+@app.route("/api/record")
+def api_record():
+    bets     = _db.get_bets()
+    resolved = [b for b in bets if b.get("result") in ("W", "L", "P")]
+    wins     = sum(1 for b in resolved if b["result"] == "W")
+    losses   = sum(1 for b in resolved if b["result"] == "L")
+    pushes   = sum(1 for b in resolved if b["result"] == "P")
+
+    total_wagered = sum(float(b.get("stake") or 0) for b in resolved if b["result"] != "P")
+    total_pnl = 0.0
+    for b in resolved:
+        stake = float(b.get("stake") or 0)
+        if b["result"] == "W":
+            dec = american_to_decimal(str(b.get("bet_odds", "")))
+            if dec:
+                total_pnl += (dec - 1) * stake
+        elif b["result"] == "L":
+            total_pnl -= stake
+    roi = (total_pnl / total_wagered * 100) if total_wagered > 0 else 0.0
+
+    clv_log   = _load_json("clv_log.json") or []
+    clv_stats = clv_stats_summary(clv_log)
+
+    by_conviction: dict = {}
+    for conv in ("HIGH", "MEDIUM", "MANUAL"):
+        cb = [b for b in resolved if (b.get("conviction") or "MANUAL").upper() == conv]
+        if cb:
+            cw = sum(1 for b in cb if b["result"] == "W")
+            cl = sum(1 for b in cb if b["result"] == "L")
+            by_conviction[conv] = {
+                "wins":     cw,
+                "losses":   cl,
+                "win_rate": round(cw / len(cb) * 100, 1),
+            }
+
+    by_type: dict = {}
+    for b in resolved:
+        raw = (b.get("type") or "ML").strip().upper()
+        btype = "TOTAL" if raw and raw[0] in ("O", "U") else raw
+        rec = by_type.setdefault(btype, {"wins": 0, "losses": 0, "total": 0})
+        rec["total"] += 1
+        if b["result"] == "W":
+            rec["wins"] += 1
+        elif b["result"] == "L":
+            rec["losses"] += 1
+    for btype, rec in by_type.items():
+        t = rec["total"]
+        rec["win_rate"] = round(rec["wins"] / t * 100, 1) if t > 0 else None
+
+    return jsonify({
+        "wins":              wins,
+        "losses":            losses,
+        "pushes":            pushes,
+        "total_resolved":    len(resolved),
+        "win_rate":          round(wins / (wins + losses) * 100, 1) if (wins + losses) > 0 else None,
+        "roi":               round(roi, 2),
+        "avg_clv":           clv_stats.get("avg_clv"),
+        "clv_positive_rate": clv_stats.get("positive_rate"),
+        "by_conviction":     by_conviction,
+        "by_type":           by_type,
+        "picks": [
+            {
+                "id":         b["id"],
+                "date":       b.get("date"),
+                "bet":        b.get("bet"),
+                "type":       b.get("type"),
+                "game":       b.get("game"),
+                "odds":       b.get("bet_odds"),
+                "stake":      b.get("stake"),
+                "result":     b.get("result"),
+                "conviction": b.get("conviction"),
+                "edge_pct":   b.get("edge_pct"),
+            }
+            for b in resolved
+        ],
+    })
+
+
+@app.route("/api/picks/<pick_date>")
+def api_picks_by_date(pick_date):
+    try:
+        datetime.strptime(pick_date, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({"error": "Invalid date. Use YYYY-MM-DD"}), 400
+
+    bets = _db.get_bets(date=pick_date)
+    return jsonify({
+        "date":  pick_date,
+        "picks": [
+            {
+                "id":           b["id"],
+                "bet":          b.get("bet"),
+                "type":         b.get("type"),
+                "game":         b.get("game"),
+                "odds":         b.get("bet_odds"),
+                "stake":        b.get("stake"),
+                "result":       b.get("result"),
+                "conviction":   b.get("conviction"),
+                "edge_pct":     b.get("edge_pct"),
+                "model_prob":   b.get("model_prob"),
+                "market_prob":  b.get("market_prob"),
+                "sp":           b.get("sp"),
+                "park":         b.get("park"),
+                "umpire":       b.get("umpire"),
+            }
+            for b in bets
+        ],
+    })
+
+
 @app.route("/api/memory")
 def api_memory():
     try:

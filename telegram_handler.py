@@ -479,8 +479,77 @@ HELP_TEXT = (
     "/bets                 — pending bets\n"
     "/bankroll             — balance + P&L\n"
     "/results              — today's bets\n"
+    "/share                — today's picks (Twitter + Discord)\n"
+    "/fade [team] [reason] — log a manual fade\n"
     "\nSlash optional — plain text works too."
 )
+
+
+# ── SHARE / FADE HANDLERS ─────────────────────────────────────────────────────
+
+def handle_share() -> str:
+    """Return today's picks formatted for Twitter and Discord."""
+    today = date.today().isoformat()
+    bets  = [b for b in _db.get_bets() if b.get("date") == today]
+    if not bets:
+        return f"No picks logged for {today}."
+
+    def _fmt_pick(b: dict) -> str:
+        conv     = b.get("conviction", "MANUAL") or "MANUAL"
+        team     = b.get("bet", "")
+        btype    = b.get("type", "ML") or "ML"
+        odds     = b.get("bet_odds", "")
+        stake    = float(b.get("stake") or 0)
+        edge     = b.get("edge_pct")
+        result   = b.get("result", "")
+        em       = " ✅" if result == "W" else " ❌" if result == "L" else ""
+        edge_str = f" | Edge: +{edge:.1f}%" if edge else ""
+        tag      = f"[{conv}] " if conv and conv not in ("MANUAL", "") else ""
+        return f"{tag}{team} {btype} {odds}{em}{edge_str} | ${stake:.2f}"
+
+    today_label = datetime.now(ET).strftime("%b %d, %Y")
+    twitter_lines = [f"PARLAY OS — {today_label}"]
+    for b in bets:
+        twitter_lines.append(_fmt_pick(b))
+    twitter_lines.append("#MLB #BettingPicks")
+
+    discord_lines = [f"**PARLAY OS — {today_label}**", "```"]
+    for b in bets:
+        discord_lines.append(f"  {_fmt_pick(b)}")
+    discord_lines.append("```")
+
+    twitter_text  = "\n".join(twitter_lines)
+    discord_text  = "\n".join(discord_lines)
+    return f"TWITTER:\n{twitter_text}\n\nDISCORD:\n{discord_text}"
+
+
+def handle_fade(team_arg: str, reason: str) -> str:
+    """Store a manual fade to fades.json."""
+    team_code = _team_code(team_arg)
+    if not team_code:
+        return f"❓ Unknown team '{team_arg}' — try the abbreviation (e.g. SF, LAD, NYY)"
+
+    today = date.today().isoformat()
+    entry = {
+        "date":      today,
+        "team":      team_code,
+        "reason":    reason,
+        "timestamp": datetime.now(ET).isoformat(),
+    }
+
+    try:
+        try:
+            with open("fades.json") as f:
+                fades = json.load(f)
+        except Exception:
+            fades = []
+        fades.append(entry)
+        with open("fades.json", "w") as f:
+            json.dump(fades, f, indent=2)
+    except Exception as e:
+        return f"❌ Error saving fade: {e}"
+
+    return f"✅ Fade logged — {team_code}: {reason}"
 
 
 # ── DISPATCHER ────────────────────────────────────────────────────────────────
@@ -529,6 +598,22 @@ def dispatch(text: str) -> None:
     if settle:
         result_code, identifier = settle
         _send(handle_settle(result_code, identifier))
+        return
+
+    # /share — today's picks in Twitter + Discord format
+    if lower == "share":
+        _send(handle_share())
+        return
+
+    # /fade [TEAM] [REASON]
+    if lower.startswith("fade "):
+        parts = t.split(None, 2)  # ["fade", "TEAM", "reason..."]
+        if len(parts) >= 2:
+            team_arg = parts[1]
+            reason   = parts[2] if len(parts) >= 3 else "manual fade"
+            _send(handle_fade(team_arg, reason))
+        else:
+            _send("❓ Try: /fade [TEAM] [REASON] — e.g. /fade SF public overreaction")
         return
 
     # /bets  /bankroll  /results  /help
