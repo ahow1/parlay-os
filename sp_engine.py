@@ -15,7 +15,32 @@ STATSAPI = "https://statsapi.mlb.com/api/v1"
 
 
 def _get_probable_pitchers(game_pk: int) -> dict:
-    """Returns {away_id, home_id, away_name, home_name} from boxscore/schedule."""
+    """Returns {away_id, home_id, away_name, home_name} via schedule (pre-game) then boxscore fallback."""
+    # Primary: schedule endpoint with probablePitcher hydration — populated before first pitch
+    try:
+        r = _http_get(
+            f"{STATSAPI}/schedule",
+            params={"gamePk": game_pk, "hydrate": "probablePitcher", "sportId": 1},
+            timeout=8,
+        )
+        for day in r.json().get("dates", []):
+            for g in day.get("games", []):
+                if g.get("gamePk") != game_pk:
+                    continue
+                teams = g.get("teams", {})
+                result = {}
+                found  = False
+                for side in ("away", "home"):
+                    pp = teams.get(side, {}).get("probablePitcher") or {}
+                    result[f"{side}_id"]   = pp.get("id")
+                    result[f"{side}_name"] = pp.get("fullName", "")
+                    if pp.get("id"):
+                        found = True
+                if found:
+                    return result
+    except Exception:
+        pass
+    # Fallback: boxscore endpoint — populated in-game / post-game only
     try:
         r2 = _http_get(f"{STATSAPI}/game/{game_pk}/boxscore", timeout=8)
         box = r2.json()
@@ -279,6 +304,7 @@ def _default_sp(pitcher_id, opp_team, umpire) -> dict:
     ump_k, ump_run, ump_note = UMPIRE_TENDENCIES.get(umpire, (1.0, 1.0, ""))
     return {
         "pitcher_id":       pitcher_id,
+        "sp_missing":       True,
         "hand":             "R",
         "era":              4.35,
         "effective_era":    4.35,

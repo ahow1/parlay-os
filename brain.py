@@ -547,13 +547,11 @@ def _narrative_flags(market: dict, away_nv: float, home_nv: float) -> dict:
 def _conviction(edge_pct: float, model_p: float, bp: dict, market: dict) -> str:
     if edge_pct < MIN_EDGE_PCT:
         return "PASS"
-
-    tier = "LOW"
-    if edge_pct >= 7 and bp.get("fatigue_tier") in ("FRESH", "MODERATE"):
-        tier = "HIGH"
-    elif edge_pct >= 4:
-        tier = "MEDIUM"
-    return tier
+    if edge_pct >= 7:
+        return "HIGH"
+    if edge_pct >= 4:
+        return "MEDIUM"
+    return "LOW"
 
 
 # ── SGP FORMAT ───────────────────────────────────────────────────────────────
@@ -766,28 +764,64 @@ def _daily_bet_slip(
     all_props: list,
     all_fades: list,
     br: float,
+    all_nrfi: list | None = None,
+    all_totals: list | None = None,
 ) -> None:
     """Format and send the complete daily bet slip to Telegram."""
     today = date.today().strftime("%b %d, %Y")
 
-    locks = all_locks[:MAX_LOCKS_PER_DAY]
-    flips = all_flips[:MAX_FLIPS_PER_DAY]
+    locks       = all_locks[:MAX_LOCKS_PER_DAY]
+    flips       = all_flips[:MAX_FLIPS_PER_DAY]
+    nrfi_bets   = list(all_nrfi or [])
+    totals_bets = list(all_totals or [])
 
-    n_locks  = len(locks)
-    day_cls  = day_classification(n_locks)
-    s_mult   = day_cls["stake_mult"]
+    n_locks = len(locks)
+    day_cls = day_classification(n_locks)
+    s_mult  = day_cls["stake_mult"]
 
-    # Calculate today's total risk and to-win
+    def _ml_stake(analysis, side):
+        return round((analysis.get(f"{side}_stake") or 0) * s_mult, 2)
+
+    # Pre-compute parlay so its stake is included in the header total
+    parlay_candidates = [
+        (a, s) for a, s in locks
+        if a.get(f"best_{s}_odds") is not None
+    ][:3]
+    prl_valid = False
+    prl_stake = 0.0
+    prl_win   = 0.0
+    prl_data  = None
+    if len(parlay_candidates) >= 2 and day_cls["ml_allowed"]:
+        odds_strs = [str(a.get(f"best_{s}_odds", "")) for a, s in parlay_candidates]
+        prl = parlay_odds(odds_strs)
+        if prl.get("valid"):
+            prl_stake = round(min(br * 0.02, 10.0) * s_mult, 2)
+            prl_win   = round((prl["decimal"] - 1) * prl_stake, 2)
+            prl_valid = True
+            prl_data  = prl
+
+    # Total risk = ML locks/flips + parlay + NRFI + totals + SGP props
     total_risk = 0.0
     total_win  = 0.0
     for analysis, side in locks + flips:
-        stake = round((analysis.get(f"{side}_stake") or 0) * s_mult, 2)
+        stake = _ml_stake(analysis, side)
         odds  = analysis.get(f"best_{side}_odds")
         if odds and stake > 0:
             dec = american_to_decimal(str(odds))
             if dec:
                 total_risk += stake
                 total_win  += round((dec - 1) * stake, 2)
+    if prl_valid:
+        total_risk += prl_stake
+        total_win  += prl_win
+    for bet in nrfi_bets:
+        total_risk += bet.get("stake", 0)
+    for bet in totals_bets:
+        total_risk += bet.get("stake", 0)
+    for prop in all_props[:2]:
+        total_risk += prop.get("kelly_stake", 0) or 0
+    total_risk = round(total_risk, 2)
+    total_win  = round(total_win, 2)
 
     # ── Header ────────────────────────────────────────────────────────────────
     lines = [
@@ -796,32 +830,36 @@ def _daily_bet_slip(
         "",
     ]
 
-    # ── Locks ─────────────────────────────────────────────────────────────────
+    listed_total = 0.0  # running sum of stakes printed, for audit
+
+    # ── ML Locks ──────────────────────────────────────────────────────────────
     lines.append(f"🔒 LOCKS ({n_locks} found — HIGH conviction 7%+ edge):")
     if locks:
         for analysis, side in locks:
-            stake  = round((analysis.get(f"{side}_stake") or 0) * s_mult, 2)
+            stake  = _ml_stake(analysis, side)
             odds   = analysis.get(f"best_{side}_odds", "")
             edge   = analysis.get(f"{side}_edge", 0)
             team   = analysis.get(f"{side}_name", "")
             game   = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
             odds_s = (f"+{odds}" if isinstance(odds, int) and odds > 0 else str(odds or ""))
             lines.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}%")
+            listed_total += stake
     else:
         lines.append("  None today")
     lines.append("")
 
-    # ── Coin flips ────────────────────────────────────────────────────────────
+    # ── ML Coin Flips ─────────────────────────────────────────────────────────
     lines.append(f"🪙 COIN FLIPS ({len(flips)} found — MEDIUM conviction 4-7% edge):")
     if flips and day_cls["ml_allowed"]:
         for analysis, side in flips:
-            stake  = round((analysis.get(f"{side}_stake") or 0) * s_mult, 2)
+            stake  = _ml_stake(analysis, side)
             odds   = analysis.get(f"best_{side}_odds", "")
             edge   = analysis.get(f"{side}_edge", 0)
             team   = analysis.get(f"{side}_name", "")
             game   = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
             odds_s = (f"+{odds}" if isinstance(odds, int) and odds > 0 else str(odds or ""))
             lines.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}%")
+            listed_total += stake
     elif not day_cls["ml_allowed"]:
         lines.append("  🔴 RED day — no ML bets")
     else:
@@ -829,29 +867,38 @@ def _daily_bet_slip(
     lines.append("")
 
     # ── Parlay (locks only, 2-3 legs) ─────────────────────────────────────────
-    parlay_candidates = [
-        (a, s) for a, s in locks
-        if a.get(f"best_{s}_odds") is not None
-    ][:3]
+    if prl_valid and prl_data:
+        leg_parts = []
+        for a, s in parlay_candidates:
+            t     = a.get(f"{s}_name", "")
+            o     = a.get(f"best_{s}_odds", "")
+            o_str = (f"+{o}" if isinstance(o, int) and o > 0 else str(o or ""))
+            leg_parts.append(f"{t} ML {o_str}")
+        lines.append("PARLAY (locks only):")
+        lines.append(f"  {' + '.join(leg_parts)}")
+        lines.append(f"  ({prl_data['american']}) — ${prl_stake:.2f} — to win ${prl_win:.2f}")
+        lines.append("")
+        listed_total += prl_stake
 
-    if len(parlay_candidates) >= 2 and day_cls["ml_allowed"]:
-        odds_strs = [str(a.get(f"best_{s}_odds", "")) for a, s in parlay_candidates]
-        prl = parlay_odds(odds_strs)
-        if prl.get("valid"):
-            prl_stake = round(min(br * 0.02, 10.0) * s_mult, 2)
-            prl_win   = round((prl["decimal"] - 1) * prl_stake, 2)
-            leg_parts = []
-            for a, s in parlay_candidates:
-                t     = a.get(f"{s}_name", "")
-                o     = a.get(f"best_{s}_odds", "")
-                o_str = (f"+{o}" if isinstance(o, int) and o > 0 else str(o or ""))
-                leg_parts.append(f"{t} ML {o_str}")
-            lines.append("PARLAY (locks only):")
-            lines.append(f"  {' + '.join(leg_parts)}")
-            lines.append(f"  ({prl['american']}) — ${prl_stake:.2f} — to win ${prl_win:.2f}")
-            lines.append("")
-            total_risk += prl_stake
-            total_win  += prl_win
+    # ── NRFI / YRFI ───────────────────────────────────────────────────────────
+    if nrfi_bets:
+        lines.append(f"🌅 NRFI/YRFI ({len(nrfi_bets)} bets):")
+        for bet in nrfi_bets:
+            lines.append(
+                f"  {bet['game']} — {bet['direction']} ({bet['prob']:.1%}) — ${bet['stake']:.2f}"
+            )
+            listed_total += bet.get("stake", 0)
+        lines.append("")
+
+    # ── Totals ────────────────────────────────────────────────────────────────
+    if totals_bets:
+        lines.append(f"📊 TOTALS ({len(totals_bets)} bets):")
+        for bet in totals_bets:
+            lines.append(
+                f"  {bet['game']} — {bet['direction']} {bet['line']} ({bet['prob']:.1%}) — ${bet['stake']:.2f}"
+            )
+            listed_total += bet.get("stake", 0)
+        lines.append("")
 
     # ── Props slate ───────────────────────────────────────────────────────────
     if all_props:
@@ -862,6 +909,7 @@ def _daily_bet_slip(
             ev       = prop.get("ev", 0) or 0
             ptype    = prop.get("type", "SGP")
             lines.append(f"  [{ptype}] {legs_str} — ${stake:.2f} — EV: {ev:+.4f}")
+            listed_total += stake
         lines.append("")
 
     # ── Fades ─────────────────────────────────────────────────────────────────
@@ -889,6 +937,21 @@ def _daily_bet_slip(
         f"Daily risk: {risk_cap_pct:.1f}% of bankroll "
         f"(cap: {DAILY_RISK_CAP_PCT * 100:.0f}%)"
     )
+
+    # ── Pre-send stake audit ──────────────────────────────────────────────────
+    listed_total = round(listed_total, 2)
+    discrepancy  = abs(total_risk - listed_total)
+    if discrepancy > 0.01:
+        audit_msg = (
+            f"[AUDIT] Risk Today ${total_risk:.2f} ≠ listed stakes ${listed_total:.2f} "
+            f"(Δ${discrepancy:.2f})"
+        )
+        print(audit_msg)
+        try:
+            with open("errors.log", "a") as _f:
+                _f.write(f"{datetime.now().isoformat()} {audit_msg}\n")
+        except Exception:
+            pass
 
     _send_telegram("\n".join(lines))
 
@@ -1124,6 +1187,8 @@ def run_daily_scout():
     all_flips:    list = []   # (analysis, side) — MEDIUM conviction, edge 4-7%
     all_fades:    list = []   # (analysis, side, reason)
     all_sgp:      list = []   # correlated SGP suggestions across all games
+    all_nrfi:     list = []   # {game, direction, prob, stake}
+    all_totals:   list = []   # {game, direction, line, prob, stake}
     game_key_map: dict = {}   # (away_code, home_code) → analysis
     props_games:  list = []   # per-game props data for props_output.json
 
@@ -1273,6 +1338,26 @@ def run_daily_scout():
                     reason = flags[0].get("message", "no edge found")
                     all_fades.append((analysis, side, reason))
 
+        # ── Collect NRFI and totals for daily slip ─────────────────────────────
+        nrfi_r_g  = analysis.get("nrfi") or {}
+        total_r_g = analysis.get("total") or {}
+        game_lbl  = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
+
+        nrfi_note = nrfi_r_g.get("note")
+        if nrfi_note in ("nrfi", "yrfi"):
+            direction = "NRFI" if nrfi_note == "nrfi" else "YRFI"
+            prob  = nrfi_r_g["p_nrfi"] if direction == "NRFI" else nrfi_r_g["p_yrfi"]
+            stake = round(min(br * 0.010, 5.0), 2)
+            all_nrfi.append({"game": game_lbl, "direction": direction, "prob": prob, "stake": stake})
+
+        total_note = total_r_g.get("note")
+        if total_note and total_note != "neutral":
+            direction = total_note.upper()
+            prob  = total_r_g["p_over"] if direction == "OVER" else total_r_g["p_under"]
+            line  = analysis.get("totals_line") or 8.5
+            stake = round(min(br * 0.0075, 4.0), 2)
+            all_totals.append({"game": game_lbl, "direction": direction, "line": line, "prob": prob, "stake": stake})
+
         if not bet_found:
             all_pass.append(analysis)
             scout_out["passes"].append({
@@ -1296,7 +1381,7 @@ def run_daily_scout():
     # ── Daily bet slip ────────────────────────────────────────────────────────
     print("Building daily bet slip...")
     try:
-        _daily_bet_slip(all_locks, all_flips, all_sgp, all_fades, br)
+        _daily_bet_slip(all_locks, all_flips, all_sgp, all_fades, br, all_nrfi, all_totals)
     except Exception as slip_err:
         print(f"Daily slip error: {slip_err}")
 
