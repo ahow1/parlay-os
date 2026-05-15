@@ -843,6 +843,223 @@ def start_auto_settler() -> threading.Thread:
     return t
 
 
+# ── HEDGE MONITOR ────────────────────────────────────────────────────────────
+
+def _fetch_event_ml_odds(team_code: str) -> tuple[str | None, str | None]:
+    """
+    Fetch current ML odds for team_code and its opponent from the-odds-api.
+    Returns (our_odds, opp_odds) as American strings, or (None, None).
+    """
+    if not ODDS_API_KEY:
+        return None, None
+    from constants import MLB_TEAM_NAMES
+    names = MLB_TEAM_NAMES.get(team_code, [team_code])
+    try:
+        r = _http_get(
+            "https://api.the-odds-api.com/v4/sports/baseball_mlb/odds",
+            params={
+                "apiKey":    ODDS_API_KEY,
+                "regions":   "us",
+                "markets":   "h2h",
+                "oddsFormat": "american",
+                "bookmakers": "pinnacle,draftkings",
+            },
+            timeout=10,
+        )
+        r.raise_for_status()
+        for event in r.json():
+            for bk in event.get("bookmakers", []):
+                for mkt in bk.get("markets", []):
+                    if mkt.get("key") != "h2h":
+                        continue
+                    outcomes = mkt.get("outcomes", [])
+                    if len(outcomes) < 2:
+                        continue
+                    our_idx = None
+                    for i, oc in enumerate(outcomes):
+                        if any(n.lower() in oc.get("name", "").lower() for n in names):
+                            our_idx = i
+                            break
+                    if our_idx is not None:
+                        opp_idx = 1 - our_idx  # works for 2-outcome h2h
+                        return str(outcomes[our_idx]["price"]), str(outcomes[opp_idx]["price"])
+    except Exception:
+        pass
+    return None, None
+
+
+def check_hedge_opportunities() -> list[dict]:
+    """
+    Check all pending bets for full hedge, partial hedge, or middle opportunities.
+    Sends Telegram alert for each and returns list of opportunity dicts.
+
+    Triggers:
+    - Odds moved 15+ points in our favor (orig_int - curr_int >= 15)
+    - Team was underdog (orig > 0), now a 150+ favorite
+    Middle window: line moved 10+ points (both bets could cash).
+    """
+    pending = [b for b in _db.get_bets() if not b.get("result")]
+    if not pending:
+        return []
+
+    opportunities = []
+
+    for bet in pending:
+        team_code = bet["bet"]
+        orig_odds = str(bet.get("bet_odds", ""))
+        stake     = float(bet.get("stake") or 0)
+        if not orig_odds or stake <= 0:
+            continue
+
+        try:
+            orig_int = int(orig_odds.replace("+", ""))
+        except ValueError:
+            continue
+
+        orig_dec = american_to_decimal(orig_odds)
+        if not orig_dec or orig_dec <= 1:
+            continue
+
+        to_return = round(stake * orig_dec, 2)
+
+        curr_odds_str, opp_odds_str = _fetch_event_ml_odds(team_code)
+        if not curr_odds_str or not opp_odds_str:
+            continue
+
+        try:
+            curr_int = int(curr_odds_str.replace("+", ""))
+        except ValueError:
+            continue
+
+        curr_dec = american_to_decimal(curr_odds_str)
+        opp_dec  = american_to_decimal(opp_odds_str)
+        if not curr_dec or not opp_dec or curr_dec <= 1 or opp_dec <= 1:
+            continue
+
+        # Positive shift = team became more favored (moved in our favor)
+        odds_shift   = orig_int - curr_int
+        was_underdog = orig_int > 0
+        now_big_fav  = curr_int < -100 and abs(curr_int) >= 150
+
+        if odds_shift < 15 and not (was_underdog and now_big_fav):
+            continue
+
+        # ── Hedge math ────────────────────────────────────────────────────────
+        hedge_stake   = round(to_return / opp_dec, 2)
+        locked_profit = round(to_return - stake - hedge_stake, 2)
+
+        partial_stake           = round(hedge_stake * 0.5, 2)
+        partial_win_orig        = round(to_return - stake - partial_stake, 2)
+        partial_win_opp         = round(partial_stake * (opp_dec - 1) - stake, 2)
+
+        has_middle = abs(odds_shift) >= 10
+
+        # Recommendation
+        if locked_profit >= stake * 0.20:
+            recommendation = "FULL HEDGE"
+            rec_reason     = f"Lock ${locked_profit:.2f} profit guaranteed"
+        elif locked_profit > 0:
+            recommendation = "PARTIAL HEDGE"
+            rec_reason     = f"Reduce variance — floor ~${round(locked_profit * 0.5, 2):.2f}"
+        else:
+            recommendation = "LET IT RIDE"
+            rec_reason     = "Hedge not profitable at current odds"
+
+        # Format opponent odds for display
+        opp_int = int(opp_odds_str.replace("+", ""))
+        opp_disp = (f"+{opp_int}" if opp_int > 0 else str(opp_int))
+
+        # Parse opponent team from game string
+        game_str = bet.get("game", team_code)
+        opp_parts = [p for p in game_str.replace(" @ ", "@").split("@") if p != team_code]
+        opp_team  = opp_parts[0].strip() if opp_parts else "OPP"
+
+        full_win        = round(to_return - stake, 2)
+        curr_disp       = curr_odds_str if curr_odds_str.startswith(("-", "+")) else f"+{curr_odds_str}"
+        partial_loss_opp = round(abs(partial_win_opp), 2) if partial_win_opp < 0 else None
+
+        lines = [
+            "💰 HEDGE OPPORTUNITY",
+            f"Original: {team_code} {bet.get('type','ML')} {orig_odds} ${stake:.2f} — to win ${full_win:.2f}",
+            f"Current situation: {team_code} now {curr_disp} (moved {odds_shift:+d} pts)",
+            "",
+            f"FULL HEDGE: Bet {opp_team} {opp_disp} ${hedge_stake:.2f}",
+            f"  → If original wins: +${locked_profit:.2f}",
+            f"  → If hedge wins:    +${locked_profit:.2f}",
+            f"  → Guaranteed profit: ${locked_profit:.2f}",
+            "",
+            f"PARTIAL HEDGE (50%): Bet {opp_team} ${partial_stake:.2f}",
+            f"  → If original wins: +${partial_win_orig:.2f}",
+        ]
+        if partial_loss_opp is not None:
+            lines.append(f"  → If hedge wins:   +${round(partial_win_opp + stake, 2):.2f} or -${partial_loss_opp:.2f}")
+        else:
+            lines.append(f"  → If hedge wins:   +${partial_win_opp:.2f}")
+        lines += [
+            "",
+            f"LET IT RIDE: Original to win ${full_win:.2f} or lose ${stake:.2f}",
+            "",
+        ]
+        if has_middle:
+            middle_total = round(stake + hedge_stake, 2)
+            worst_case   = min(locked_profit, partial_win_opp)
+            lines += [
+                f"⚡ MIDDLE WINDOW: line moved {abs(odds_shift)} pts",
+                f"  Both stakes: ${stake:.2f} (orig) + ${hedge_stake:.2f} (hedge) = ${middle_total:.2f}",
+                f"  If original wins: +${locked_profit:.2f}",
+                f"  If hedge wins:    +${locked_profit:.2f}",
+                f"  Worst case: ${worst_case:.2f}",
+                "",
+            ]
+        lines.append(f"RECOMMENDED: {recommendation} — {rec_reason}")
+
+        _send("\n".join(lines))
+
+        opportunities.append({
+            "bet_id":        bet["id"],
+            "team":          team_code,
+            "orig_odds":     orig_odds,
+            "curr_odds":     curr_odds_str,
+            "stake":         stake,
+            "to_return":     to_return,
+            "hedge_stake":   hedge_stake,
+            "locked_profit": locked_profit,
+            "recommendation": recommendation,
+            "has_middle":    has_middle,
+        })
+
+    return opportunities
+
+
+def _in_game_hours() -> bool:
+    """True between noon and midnight ET — covers all MLB game windows."""
+    hour = datetime.now(ET).hour
+    return 12 <= hour < 24
+
+
+def _hedge_loop() -> None:
+    """Background daemon: run hedge check every 30 min during game hours (noon–midnight ET)."""
+    print("[HEDGE] Monitor started")
+    while True:
+        time.sleep(30 * 60)
+        if _in_game_hours():
+            try:
+                opps = check_hedge_opportunities()
+                if opps:
+                    print(f"[HEDGE] {len(opps)} opportunity/ies found")
+                else:
+                    print("[HEDGE] Check complete — no opportunities")
+            except Exception as e:
+                print(f"[HEDGE] error: {e}")
+
+
+def start_hedge_monitor() -> threading.Thread:
+    """Start hedge monitor as a daemon background thread."""
+    t = threading.Thread(target=_hedge_loop, daemon=True, name="hedge-monitor")
+    t.start()
+    return t
+
+
 # ── TELEGRAM I/O ─────────────────────────────────────────────────────────────
 
 def _send(msg: str) -> None:

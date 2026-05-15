@@ -27,7 +27,10 @@ sys.stdout.reconfigure(line_buffering=True)
 # ── Engine imports ────────────────────────────────────────────────────────────
 import db as _db
 from constants      import MLB_TEAM_MAP, MLB_TEAM_IDS, TEAM_SLUGS, PARK_FACTORS, UMPIRE_TENDENCIES
-from math_engine    import american_to_decimal, implied_prob, no_vig_prob, expected_value, STARTING_BANKROLL
+from math_engine    import (
+    american_to_decimal, decimal_to_american, implied_prob,
+    no_vig_prob, expected_value, parlay_odds, STARTING_BANKROLL,
+)
 from weather_engine import get_weather
 from sp_engine      import get_game_sps
 from bullpen_engine import analyze_bullpen, bullpen_run_factor
@@ -36,7 +39,12 @@ from market_engine  import get_mlb_events, full_market_snapshot
 from bankroll_engine import kelly_stake, sizing_summary, current_bankroll, is_drawdown_pause
 from props_engine   import (
     k_prop, nrfi_prob, team_run_expectancy, game_total_prob,
-    f5_run_expectancy, correlated_parlay, scan_k_prop
+    f5_run_expectancy, correlated_parlay, scan_k_prop,
+    build_sgp_suggestions,
+)
+from bet_type_validator import (
+    validate_bet, BetValidationError, day_classification,
+    MAX_LOCKS_PER_DAY, MAX_FLIPS_PER_DAY, DAILY_RISK_CAP_PCT,
 )
 from memory_engine  import (
     init_memory_tables, recalibrate_model_prob, adjust_model_prob,
@@ -455,18 +463,350 @@ def _narrative_flags(market: dict, away_nv: float, home_nv: float) -> dict:
 def _conviction(edge_pct: float, model_p: float, bp: dict, market: dict) -> str:
     if edge_pct < MIN_EDGE_PCT:
         return "PASS"
-    poly = market.get("polymarket") or {}
-    poly_confirms = False
-    if poly:
-        poly_p = poly.get("away") or poly.get("home") or 0
-        poly_confirms = poly_p > 0.5 and model_p > 0.5
 
     tier = "LOW"
-    if edge_pct >= 6 and bp.get("fatigue_tier") in ("FRESH", "MODERATE") and poly_confirms:
+    if edge_pct >= 7 and bp.get("fatigue_tier") in ("FRESH", "MODERATE"):
         tier = "HIGH"
     elif edge_pct >= 4:
         tier = "MEDIUM"
     return tier
+
+
+# ── SGP FORMAT ───────────────────────────────────────────────────────────────
+
+def _format_sgp(sgp: dict, game_label: str = "") -> str:
+    """Format a correlated SGP suggestion for Telegram."""
+    sgp_type = sgp.get("type", "SGP")
+    sp_name  = sgp.get("sp_name", "")
+    header   = f"🔗 SAME-GAME PARLAY — {sgp_type}"
+    if sp_name:
+        header += f" ({sp_name})"
+    if game_label:
+        header += f"\n{game_label}"
+
+    lines = [header]
+    for leg in sgp.get("legs", []):
+        lines.append(f"  • {leg}")
+    lines += [
+        f"Correlation: {sgp.get('correlation', '')}",
+        f"Joint prob:  {sgp.get('joint_prob', 0):.1%}",
+        f"Kelly stake: ${sgp.get('kelly_stake', 0):.2f}",
+        f"EV:          {sgp.get('ev', 0):+.4f}",
+    ]
+    return "\n".join(lines)
+
+
+# ── SERIES BETTING MODEL ─────────────────────────────────────────────────────
+
+def _fetch_polymarket_series(team_code: str, team_name: str) -> float | None:
+    """Try to fetch Polymarket series winner probability. Returns 0-1 float or None."""
+    try:
+        r = _http_get(
+            "https://clob.polymarket.com/markets",
+            params={"tag": "mlb", "closed": "false"},
+            timeout=8,
+        )
+        raw = r.json()
+        markets = raw.get("data", []) if isinstance(raw, dict) else raw
+        if not isinstance(markets, list):
+            return None
+        needle = team_name.lower().split()[-1]  # e.g. "dodgers"
+        for mkt in markets:
+            q = mkt.get("question", "").lower()
+            if "series" not in q or needle not in q:
+                continue
+            for tok in mkt.get("tokens", []):
+                if needle in tok.get("outcome", "").lower():
+                    price = float(tok.get("price") or 0)
+                    if 0 < price < 1:
+                        return price
+    except Exception:
+        pass
+    return None
+
+
+def _series_analysis(events: list, game_date: str, game_analyses: dict) -> None:
+    """
+    For each game 1 of a series today, check SP xFIP advantage across all series games.
+    If one team has xFIP advantage ≥ 0.8 in 2+ games, alert with series win probability.
+    game_analyses: {(away_code, home_code): analysis_dict}
+    """
+    from datetime import date as _date, timedelta
+
+    try:
+        r = _http_get(
+            f"{STATSAPI}/schedule",
+            params={"sportId": 1, "date": game_date, "hydrate": "game,team"},
+            timeout=8,
+        )
+        schedule_games = [
+            g
+            for gd in r.json().get("dates", [])
+            for g in gd.get("games", [])
+        ]
+    except Exception:
+        return
+
+    for g in schedule_games:
+        if g.get("seriesGameNumber") != 1:
+            continue
+        n_games = g.get("gamesInSeries", 0)
+        if n_games < 2:
+            continue
+
+        away_name = g.get("teams", {}).get("away", {}).get("team", {}).get("name", "")
+        home_name = g.get("teams", {}).get("home", {}).get("team", {}).get("name", "")
+        away_code = MLB_TEAM_MAP.get(away_name, "")
+        home_code = MLB_TEAM_MAP.get(home_name, "")
+        if not away_code or not home_code:
+            continue
+
+        # Find matching analysis
+        analysis = game_analyses.get((away_code, home_code))
+        if analysis is None:
+            continue
+
+        away_sp_g1 = analysis.get("away_sp", {}) or {}
+        home_sp_g1 = analysis.get("home_sp", {}) or {}
+        away_p_g1  = analysis.get("away_model_p", 0.5)
+        home_p_g1  = analysis.get("home_model_p", 0.5)
+
+        xfip_edges = {away_code: 0, home_code: 0}  # count of games with 0.8+ xFIP edge
+        xfip_details: list[str] = []
+
+        # Game 1
+        ax1 = away_sp_g1.get("xfip", 4.35)
+        hx1 = home_sp_g1.get("xfip", 4.35)
+        diff1 = hx1 - ax1  # positive = away SP dominant
+        if abs(diff1) >= 0.8:
+            winner = away_code if diff1 > 0 else home_code
+            xfip_edges[winner] += 1
+            xfip_details.append(f"G1 {winner} {abs(diff1):.2f} xFIP edge")
+
+        # Games 2..n — fetch from schedule
+        game_probs: dict[str, list[float]] = {away_code: [away_p_g1], home_code: [home_p_g1]}
+        for offset in range(1, n_games):
+            future = (_date.fromisoformat(game_date) + timedelta(days=offset)).isoformat()
+            try:
+                fr = _http_get(
+                    f"{STATSAPI}/schedule",
+                    params={"sportId": 1, "date": future, "hydrate": "game,team"},
+                    timeout=8,
+                )
+                for fgd in fr.json().get("dates", []):
+                    for fg in fgd.get("games", []):
+                        fa = MLB_TEAM_MAP.get(
+                            fg.get("teams", {}).get("away", {}).get("team", {}).get("name", ""), "")
+                        fh = MLB_TEAM_MAP.get(
+                            fg.get("teams", {}).get("home", {}).get("team", {}).get("name", ""), "")
+                        if {fa, fh} != {away_code, home_code}:
+                            continue
+                        fpk = fg.get("gamePk")
+                        if fpk:
+                            fsps = get_game_sps(fpk, fa, fh, "")
+                            fax = (fsps.get("away") or {}).get("xfip", 4.35)
+                            fhx = (fsps.get("home") or {}).get("xfip", 4.35)
+                            fdiff = fhx - fax
+                            if abs(fdiff) >= 0.8:
+                                fw = fa if fdiff > 0 else fh
+                                xfip_edges[fw] += 1
+                                xfip_details.append(
+                                    f"G{offset+1} {fw} {abs(fdiff):.2f} xFIP edge"
+                                )
+                        # Use 0.5 as proxy for future game probs
+                        game_probs.setdefault(away_code, []).append(0.5)
+                        game_probs.setdefault(home_code, []).append(0.5)
+            except Exception:
+                pass
+
+        # Check for 2+ game advantage
+        series_team = max(xfip_edges, key=xfip_edges.get)
+        if xfip_edges[series_team] < 2:
+            continue
+
+        # Series win probability — 3-game series formula
+        team_is_away = (series_team == away_code)
+        ps = game_probs.get(series_team, [0.5, 0.5, 0.5])
+        p1 = ps[0] if len(ps) > 0 else 0.5
+        p2 = ps[1] if len(ps) > 1 else 0.5
+        p3 = ps[2] if len(ps) > 2 else 0.5
+
+        if n_games == 2:
+            series_prob = round(p1 * p2 + p1 * (1 - p2) * 0.5 + (1 - p1) * p2 * 0.5, 3)
+        else:
+            series_prob = round(
+                p1 * p2
+                + p1 * (1 - p2) * p3
+                + (1 - p1) * p2 * p3,
+                3,
+            )
+
+        team_name = away_name if team_is_away else home_name
+        opp_name  = home_name if team_is_away else away_name
+
+        # Try Polymarket
+        poly_prob = _fetch_polymarket_series(series_team, team_name)
+
+        if poly_prob is not None:
+            edge_vs_poly = round(series_prob * 100 - poly_prob * 100, 1)
+            if edge_vs_poly < 5.0:
+                continue  # not enough edge
+            poly_display = f"{round(poly_prob * 100, 1)}¢"
+            edge_str     = f"+{edge_vs_poly}%"
+        else:
+            poly_display = "N/A"
+            edge_str     = "N/A (Polymarket not available)"
+
+        br_now      = current_bankroll()
+        series_stake = round(br_now * 0.02, 2)
+        model_pct   = round(series_prob * 100, 1)
+        sp_adv_str  = " | ".join(xfip_details[:3])
+
+        msg = "\n".join([
+            "🏆 SERIES EDGE",
+            f"{team_name} vs {opp_name} — {n_games}-game series starting {game_date}",
+            f"SP advantage: {series_team} — {sp_adv_str}",
+            f"Model series win prob: {model_pct}%",
+            f"Polymarket series price: {poly_display}",
+            f"Edge: {edge_str}",
+            f"STAKE: ${series_stake:.2f} — series winner market on Polymarket",
+        ])
+        _send_telegram(msg)
+
+
+# ── DAILY BET SLIP ────────────────────────────────────────────────────────────
+
+def _daily_bet_slip(
+    all_locks: list,
+    all_flips: list,
+    all_props: list,
+    all_fades: list,
+    br: float,
+) -> None:
+    """Format and send the complete daily bet slip to Telegram."""
+    today = date.today().strftime("%b %d, %Y")
+
+    locks = all_locks[:MAX_LOCKS_PER_DAY]
+    flips = all_flips[:MAX_FLIPS_PER_DAY]
+
+    n_locks  = len(locks)
+    day_cls  = day_classification(n_locks)
+    s_mult   = day_cls["stake_mult"]
+
+    # Calculate today's total risk and to-win
+    total_risk = 0.0
+    total_win  = 0.0
+    for analysis, side in locks + flips:
+        stake = round((analysis.get(f"{side}_stake") or 0) * s_mult, 2)
+        odds  = analysis.get(f"best_{side}_odds")
+        if odds and stake > 0:
+            dec = american_to_decimal(str(odds))
+            if dec:
+                total_risk += stake
+                total_win  += round((dec - 1) * stake, 2)
+
+    # ── Header ────────────────────────────────────────────────────────────────
+    lines = [
+        f"PARLAY OS — {today} — {day_cls['color']} {day_cls['emoji']}",
+        f"Bankroll: ${br:.2f} | Risk today: ${total_risk:.2f} | To win: ${total_win:.2f}",
+        "",
+    ]
+
+    # ── Locks ─────────────────────────────────────────────────────────────────
+    lines.append(f"🔒 LOCKS ({n_locks} found — HIGH conviction 7%+ edge):")
+    if locks:
+        for analysis, side in locks:
+            stake  = round((analysis.get(f"{side}_stake") or 0) * s_mult, 2)
+            odds   = analysis.get(f"best_{side}_odds", "")
+            edge   = analysis.get(f"{side}_edge", 0)
+            team   = analysis.get(f"{side}_name", "")
+            game   = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
+            odds_s = (f"+{odds}" if isinstance(odds, int) and odds > 0 else str(odds or ""))
+            lines.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}%")
+    else:
+        lines.append("  None today")
+    lines.append("")
+
+    # ── Coin flips ────────────────────────────────────────────────────────────
+    lines.append(f"🪙 COIN FLIPS ({len(flips)} found — MEDIUM conviction 4-7% edge):")
+    if flips and day_cls["ml_allowed"]:
+        for analysis, side in flips:
+            stake  = round((analysis.get(f"{side}_stake") or 0) * s_mult, 2)
+            odds   = analysis.get(f"best_{side}_odds", "")
+            edge   = analysis.get(f"{side}_edge", 0)
+            team   = analysis.get(f"{side}_name", "")
+            game   = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
+            odds_s = (f"+{odds}" if isinstance(odds, int) and odds > 0 else str(odds or ""))
+            lines.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}%")
+    elif not day_cls["ml_allowed"]:
+        lines.append("  🔴 RED day — no ML bets")
+    else:
+        lines.append("  None today")
+    lines.append("")
+
+    # ── Parlay (locks only, 2-3 legs) ─────────────────────────────────────────
+    parlay_candidates = [
+        (a, s) for a, s in locks
+        if a.get(f"best_{s}_odds") is not None
+    ][:3]
+
+    if len(parlay_candidates) >= 2 and day_cls["ml_allowed"]:
+        odds_strs = [str(a.get(f"best_{s}_odds", "")) for a, s in parlay_candidates]
+        prl = parlay_odds(odds_strs)
+        if prl.get("valid"):
+            prl_stake = round(min(br * 0.02, 10.0) * s_mult, 2)
+            prl_win   = round((prl["decimal"] - 1) * prl_stake, 2)
+            leg_parts = []
+            for a, s in parlay_candidates:
+                t     = a.get(f"{s}_name", "")
+                o     = a.get(f"best_{s}_odds", "")
+                o_str = (f"+{o}" if isinstance(o, int) and o > 0 else str(o or ""))
+                leg_parts.append(f"{t} ML {o_str}")
+            lines.append("PARLAY (locks only):")
+            lines.append(f"  {' + '.join(leg_parts)}")
+            lines.append(f"  ({prl['american']}) — ${prl_stake:.2f} — to win ${prl_win:.2f}")
+            lines.append("")
+            total_risk += prl_stake
+            total_win  += prl_win
+
+    # ── Props slate ───────────────────────────────────────────────────────────
+    if all_props:
+        lines.append("PROPS SLATE:")
+        for prop in all_props[:2]:
+            legs_str = " + ".join(str(l) for l in prop.get("legs", [])[:2])
+            stake    = prop.get("kelly_stake", 0) or 0
+            ev       = prop.get("ev", 0) or 0
+            ptype    = prop.get("type", "SGP")
+            lines.append(f"  [{ptype}] {legs_str} — ${stake:.2f} — EV: {ev:+.4f}")
+        lines.append("")
+
+    # ── Fades ─────────────────────────────────────────────────────────────────
+    if all_fades:
+        lines.append("❌ FADES:")
+        seen_fades: set = set()
+        count = 0
+        for analysis, side, reason in all_fades:
+            team = analysis.get(f"{side}_name", "")
+            if team in seen_fades or count >= 4:
+                continue
+            seen_fades.add(team)
+            lines.append(f"  {team} — {reason}")
+            count += 1
+        lines.append("")
+
+    # ── Day classification note ───────────────────────────────────────────────
+    if day_cls["color"] == "YELLOW":
+        lines.append("⚠ YELLOW day — fewer than 2 locks, stakes reduced 20%")
+    elif day_cls["color"] == "RED":
+        lines.append("🔴 RED day — no locks found, props only, no ML bets")
+
+    risk_cap_pct = round(total_risk / br * 100, 1) if br > 0 else 0
+    lines.append(
+        f"Daily risk: {risk_cap_pct:.1f}% of bankroll "
+        f"(cap: {DAILY_RISK_CAP_PCT * 100:.0f}%)"
+    )
+
+    _send_telegram("\n".join(lines))
 
 
 # ── BET RECOMMENDATION FILTER ─────────────────────────────────────────────────
@@ -675,6 +1015,13 @@ def run_daily_scout():
 
     all_bets  = []
     all_pass  = []
+    # Daily slip collections
+    all_locks:    list = []   # (analysis, side) — HIGH conviction, edge ≥ 7%
+    all_flips:    list = []   # (analysis, side) — MEDIUM conviction, edge 4-7%
+    all_fades:    list = []   # (analysis, side, reason)
+    all_sgp:      list = []   # correlated SGP suggestions across all games
+    game_key_map: dict = {}   # (away_code, home_code) → analysis
+
     scout_out = {
         "timestamp": datetime.now(pytz.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "date":      today,
@@ -710,6 +1057,35 @@ def run_daily_scout():
             "home_xr":    analysis["home_xr"],
         })
 
+        # Store for series analysis
+        game_key_map[(analysis["away"], analysis["home"])] = analysis
+
+        # ── SGP suggestions for this game ─────────────────────────────────────
+        try:
+            sgp_market = {
+                "totals": {"line": analysis.get("totals_line", 8.5)},
+                "polymarket": analysis.get("polymarket"),
+            }
+            sgp_suggestions = build_sgp_suggestions(
+                analysis.get("away_sp") or {},
+                analysis.get("home_sp") or {},
+                analysis.get("away_xr", 4.35),
+                analysis.get("home_xr", 4.35),
+                analysis.get("nrfi") or {},
+                analysis.get("total") or {},
+                sgp_market,
+                analysis.get("away_model_p", 0.5),
+                analysis.get("home_model_p", 0.5),
+                bankroll=br,
+            )
+            if sgp_suggestions:
+                game_label = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
+                for sgp in sgp_suggestions:
+                    _send_telegram(_format_sgp(sgp, game_label))
+                all_sgp.extend(sgp_suggestions)
+        except Exception as sgp_err:
+            print(f"  SGP error: {sgp_err}")
+
         bet_found = False
         for side in ("away", "home"):
             if _should_recommend(analysis, side):
@@ -717,6 +1093,20 @@ def run_daily_scout():
                 _send_telegram(msg)
                 all_bets.append(analysis)
                 bet_found = True
+
+                edge = analysis.get(f"{side}_edge", 0)
+                conv = analysis.get(f"{side}_conv", "PASS")
+                if conv == "HIGH" and edge >= 7:
+                    all_locks.append((analysis, side))
+                elif conv == "MEDIUM" and 4 <= edge < 7:
+                    all_flips.append((analysis, side))
+
+                # Validate bet type before logging
+                if not DRY_RUN:
+                    try:
+                        validate_bet("STRAIGHT", conviction_levels=[conv])
+                    except BetValidationError as ve:
+                        print(f"  [VALIDATOR] {ve}")
 
                 # DB log
                 if not DRY_RUN:
@@ -750,6 +1140,12 @@ def run_daily_scout():
                     "stake":      analysis.get(f"{side}_stake"),
                     "conviction": analysis.get(f"{side}_conv"),
                 })
+            else:
+                # Collect fades: PASS games with specific warning flags
+                flags = (analysis.get("narrative") or []) + (analysis.get("reg_flags") or [])
+                if flags:
+                    reason = flags[0].get("message", "no edge found")
+                    all_fades.append((analysis, side, reason))
 
         if not bet_found:
             all_pass.append(analysis)
@@ -764,6 +1160,20 @@ def run_daily_scout():
     )
     print(f"\nScout done — {len(events)} games | {n_bets} bets | ${total_risk:.2f} at risk")
 
+    # ── Series analysis (game 1 of series today) ──────────────────────────────
+    print("Running series analysis...")
+    try:
+        _series_analysis(events, today, game_key_map)
+    except Exception as series_err:
+        print(f"Series analysis error: {series_err}")
+
+    # ── Daily bet slip ────────────────────────────────────────────────────────
+    print("Building daily bet slip...")
+    try:
+        _daily_bet_slip(all_locks, all_flips, all_sgp, all_fades, br)
+    except Exception as slip_err:
+        print(f"Daily slip error: {slip_err}")
+
     # Save scout output
     if not DRY_RUN:
         with open("last_scout.json", "w") as f:
@@ -777,21 +1187,25 @@ def run_daily_scout():
 
 if __name__ == "__main__":
     try:
-        from telegram_handler import start_listener, start_auto_settler, sync_scout_json
+        from telegram_handler import (
+            start_listener, start_auto_settler, sync_scout_json,
+            start_hedge_monitor,
+        )
     except Exception as _te:
         print(f"[WARN] telegram_handler import failed: {_te}")
-        # Define no-op stubs so the rest of __main__ still works
         def start_listener(): pass
         def start_auto_settler(): pass
         def sync_scout_json(): pass
+        def start_hedge_monitor(): pass
 
     args = set(sys.argv[1:])
 
     if "--bot" in args:
-        # Persistent bot mode: Telegram listener + auto-settler only — never run scout
+        # Persistent bot mode: Telegram listener + auto-settler + hedge monitor only — never run scout
         try:
             from telegram_handler import _poll_loop
             start_auto_settler()
+            start_hedge_monitor()
             print("Parlay OS bot running (Ctrl-C to stop)...")
             try:
                 _poll_loop()
@@ -806,6 +1220,7 @@ if __name__ == "__main__":
     elif "--live" in args:
         start_listener()
         start_auto_settler()
+        start_hedge_monitor()
         from live_engine import run_live_monitor
         run_live_monitor()
 
@@ -836,12 +1251,14 @@ if __name__ == "__main__":
         print(f"Bankroll: ${br:.2f}")
 
     else:
-        # Default: start Telegram listener + auto-settler in background, run scout once, exit
+        # Default: start Telegram listener + auto-settler + hedge monitor in background, run scout once, exit
         try:
             print("Starting Telegram listener...")
             start_listener()
             print("Starting auto-settler...")
             start_auto_settler()
+            print("Starting hedge monitor...")
+            start_hedge_monitor()
             print("Running daily scout (this is the main blocking call)...")
             run_daily_scout()
             print("Scout complete — exiting")

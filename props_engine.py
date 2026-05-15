@@ -205,6 +205,109 @@ def scan_k_prop(sp_stats: dict, market_line: float, market_odds: str,
     }
 
 
+# ── CORRELATED SGP BUILDER ───────────────────────────────────────────────────
+
+def build_sgp_suggestions(
+    away_sp: dict, home_sp: dict,
+    away_xr: float, home_xr: float,
+    nrfi_r: dict, total_r: dict,
+    market: dict,
+    away_model_p: float, home_model_p: float,
+    bankroll: float = 150.0,
+) -> list[dict]:
+    """
+    Correlated same-game parlay suggestions.
+
+    SP DOMINANCE:     SP over Ks + NRFI + game under  (all positively correlated)
+    OFFENSE EXPLOSION: team ML + game over + first to score (positively correlated)
+
+    NEVER pairing: SP over Ks + team over  (negative correlation)
+                   NRFI + team over         (negative correlation)
+    """
+    suggestions = []
+    totals      = market.get("totals") or {}
+    totals_line = float(totals.get("line") or 8.5)
+    total_xr    = max(away_xr + home_xr, 0.01)
+
+    def _joint_3(p1: float, p2: float, p3: float, rho: float = 0.18) -> float:
+        """Joint probability for 3 positively correlated legs via pairwise correction."""
+        joint = p1 * p2 * p3
+        for pa, pb in ((p1, p2), (p1, p3), (p2, p3)):
+            joint += rho * math.sqrt(pa * (1 - pa) * pb * (1 - pb))
+        return min(joint, 0.95)
+
+    def _sgp_stake(joint_prob: float) -> float:
+        if joint_prob <= 0.05:
+            return 0.0
+        book_dec = (1.0 / joint_prob) * 0.85  # 15% SGP juice
+        kelly    = (joint_prob * (book_dec - 1) - (1 - joint_prob)) / (book_dec - 1)
+        kelly    = max(kelly * 0.25, 0.0)
+        kelly    = min(kelly, 0.015)           # cap at 1.5% of bankroll
+        return round(bankroll * kelly, 2)
+
+    # ── SP DOMINANCE: SP over Ks + NRFI + game under ─────────────────────────
+    for sp_side, sp in (("away", away_sp), ("home", home_sp)):
+        if not sp or sp.get("k9", 0) < 8.0:
+            continue
+        p_nrfi  = nrfi_r.get("p_nrfi", 0.0)
+        p_under = total_r.get("p_under", 0.0)
+        if p_nrfi < 0.55 or p_under < 0.52:
+            continue
+
+        k_line = round(sp.get("k9", 8.5) * 5.0 / 9, 1)
+        k_r    = k_prop(sp, k_line)
+        p_k    = k_r.get("p_over", 0.0)
+        if p_k < 0.55:
+            continue
+
+        joint = _joint_3(p_k, p_nrfi, p_under)
+        ev    = round(joint * ((1.0 / joint) * 0.85 - 1) - (1 - joint), 4)
+
+        suggestions.append({
+            "type":       "SP_DOMINANCE",
+            "sp_side":    sp_side,
+            "sp_name":    sp.get("name", "TBD"),
+            "legs":       [
+                f"{sp.get('name','SP')} OVER {k_line} Ks ({p_k:.1%})",
+                f"NRFI ({p_nrfi:.1%})",
+                f"Game UNDER {totals_line} ({p_under:.1%})",
+            ],
+            "correlation": "POSITIVE — SP dominance drives Ks, NRFI, and under",
+            "joint_prob":  round(joint, 4),
+            "kelly_stake": _sgp_stake(joint),
+            "ev":          ev,
+        })
+
+    # ── OFFENSE EXPLOSION: team ML + game over + first to score ───────────────
+    p_over = total_r.get("p_over", 0.0)
+    for side, model_p, xr in (
+        ("away", away_model_p, away_xr),
+        ("home", home_model_p, home_xr),
+    ):
+        if model_p < 0.56 or p_over < 0.53:
+            continue
+
+        p_first = min(xr / total_xr, 0.70)
+        joint   = _joint_3(model_p, p_over, p_first, rho=0.12)
+        ev      = round(joint * ((1.0 / joint) * 0.85 - 1) - (1 - joint), 4)
+
+        suggestions.append({
+            "type":       "OFFENSE_EXPLOSION",
+            "side":       side,
+            "legs":       [
+                f"{side.upper()} ML ({model_p:.1%})",
+                f"Game OVER {totals_line} ({p_over:.1%})",
+                f"{side.upper()} first to score ({p_first:.1%})",
+            ],
+            "correlation": "POSITIVE — offense drives ML win, over, and first run",
+            "joint_prob":  round(joint, 4),
+            "kelly_stake": _sgp_stake(joint),
+            "ev":          ev,
+        })
+
+    return suggestions
+
+
 if __name__ == "__main__":
     # Quick test
     sp = {"xfip": 3.5, "k9": 10.2, "ip": 52, "gs": 10, "ttop": True}
