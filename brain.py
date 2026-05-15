@@ -360,8 +360,9 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
 
     # ── Props ─────────────────────────────────────────────────────────────────
     nrfi_r = nrfi_prob(away_sp, home_sp, park_rf, wx_rf)
-    total_r = game_total_prob(away_xr, home_xr,
-                               market.get("totals", {}).get("line", 8.5) if market.get("totals") else 8.5)
+    _tot_mkt  = market.get("totals")
+    _tot_line = _tot_mkt.get("line") if _tot_mkt else None
+    total_r   = game_total_prob(away_xr, home_xr, _tot_line) if _tot_line is not None else {}
     f5_away_xr = f5_run_expectancy(away_xr, away_sp)
     f5_home_xr = f5_run_expectancy(home_xr, home_sp)
 
@@ -767,15 +768,19 @@ def _daily_bet_slip(
     all_nrfi: list | None = None,
     all_totals: list | None = None,
     all_hitter_props: list | None = None,
+    all_k_props: list | None = None,
+    all_injuries: list | None = None,
 ) -> None:
-    """Format and send the complete daily bet slip to Telegram."""
+    """Send the daily bet slip as 3 labeled Telegram messages."""
     today = date.today().strftime("%b %d, %Y")
 
-    locks        = all_locks[:MAX_LOCKS_PER_DAY]
-    flips        = all_flips[:MAX_FLIPS_PER_DAY]
-    nrfi_bets    = list(all_nrfi or [])
-    totals_bets  = list(all_totals or [])
-    hitter_bets  = list(all_hitter_props or [])
+    locks       = all_locks[:MAX_LOCKS_PER_DAY]
+    flips       = all_flips[:MAX_FLIPS_PER_DAY]
+    nrfi_bets   = list(all_nrfi or [])
+    totals_bets = list(all_totals or [])
+    hitter_bets = list(all_hitter_props or [])
+    k_bets      = list(all_k_props or [])
+    injuries    = list(all_injuries or [])
 
     n_locks = len(locks)
     day_cls = day_classification(n_locks)
@@ -784,7 +789,7 @@ def _daily_bet_slip(
     def _ml_stake(analysis, side):
         return round((analysis.get(f"{side}_stake") or 0) * s_mult, 2)
 
-    # Pre-compute parlay so its stake is included in the header total
+    # Parlay: HIGH conviction ML picks only — no props or totals
     parlay_candidates = [
         (a, s) for a, s in locks
         if a.get(f"best_{s}_odds") is not None
@@ -802,42 +807,42 @@ def _daily_bet_slip(
             prl_valid = True
             prl_data  = prl
 
-    # Total risk = ML locks/flips + parlay + NRFI + totals + SGP props
-    total_risk = 0.0
-    total_win  = 0.0
+    # Risk totals
+    ml_risk = 0.0
+    ml_win  = 0.0
     for analysis, side in locks + flips:
         stake = _ml_stake(analysis, side)
         odds  = analysis.get(f"best_{side}_odds")
         if odds and stake > 0:
             dec = american_to_decimal(str(odds))
             if dec:
-                total_risk += stake
-                total_win  += round((dec - 1) * stake, 2)
+                ml_risk += stake
+                ml_win  += round((dec - 1) * stake, 2)
     if prl_valid:
-        total_risk += prl_stake
-        total_win  += prl_win
-    for bet in nrfi_bets:
-        total_risk += bet.get("stake", 0)
-    for bet in totals_bets:
-        total_risk += bet.get("stake", 0)
-    for prop in all_props[:2]:
-        total_risk += prop.get("kelly_stake", 0) or 0
-    for hp in hitter_bets[:8]:   # cap matches what's shown in the slip
-        total_risk += hp.get("stake", 0)
-    total_risk = round(total_risk, 2)
-    total_win  = round(total_win, 2)
+        ml_risk += prl_stake
+        ml_win  += prl_win
 
-    # ── Header ────────────────────────────────────────────────────────────────
-    lines = [
+    props_risk = (
+        sum(b.get("stake", 0) for b in nrfi_bets + totals_bets + k_bets)
+        + sum(p.get("kelly_stake", 0) or 0 for p in all_props[:2])
+        + sum(hp.get("stake", 0) for hp in hitter_bets[:8])
+    )
+    total_risk = round(ml_risk + props_risk, 2)
+    total_win  = round(ml_win, 2)
+
+    cap          = round(br * DAILY_RISK_CAP_PCT, 2)
+    cap_exceeded = total_risk > cap
+    override_cap = os.getenv("OVERRIDE_RISK_CAP", "").lower() in ("1", "true", "yes")
+
+    # ── PART 1: ML PICKS ──────────────────────────────────────────────────────
+    p1 = [
         f"PARLAY OS — {today} — {day_cls['color']} {day_cls['emoji']}",
-        f"Bankroll: ${br:.2f} | Risk today: ${total_risk:.2f} | To win: ${total_win:.2f}",
+        "PART 1/3 — ML PICKS",
+        f"Bankroll: ${br:.2f} | ML risk: ${ml_risk:.2f} | To win: ${ml_win:.2f}",
         "",
     ]
 
-    listed_total = 0.0  # running sum of stakes printed, for audit
-
-    # ── ML Locks ──────────────────────────────────────────────────────────────
-    lines.append(f"🔒 LOCKS ({n_locks} found — HIGH conviction 7%+ edge):")
+    p1.append(f"🔒 LOCKS ({n_locks} — HIGH conviction 7%+ edge):")
     if locks:
         for analysis, side in locks:
             stake  = _ml_stake(analysis, side)
@@ -846,14 +851,12 @@ def _daily_bet_slip(
             team   = analysis.get(f"{side}_name", "")
             game   = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
             odds_s = (f"+{odds}" if isinstance(odds, int) and odds > 0 else str(odds or ""))
-            lines.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}%")
-            listed_total += stake
+            p1.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}%")
     else:
-        lines.append("  None today")
-    lines.append("")
+        p1.append("  None today")
+    p1.append("")
 
-    # ── ML Coin Flips ─────────────────────────────────────────────────────────
-    lines.append(f"🪙 COIN FLIPS ({len(flips)} found — MEDIUM conviction 4-7% edge):")
+    p1.append(f"🪙 COIN FLIPS ({len(flips)} — MEDIUM conviction 4-7% edge):")
     if flips and day_cls["ml_allowed"]:
         for analysis, side in flips:
             stake  = _ml_stake(analysis, side)
@@ -862,15 +865,13 @@ def _daily_bet_slip(
             team   = analysis.get(f"{side}_name", "")
             game   = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
             odds_s = (f"+{odds}" if isinstance(odds, int) and odds > 0 else str(odds or ""))
-            lines.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}%")
-            listed_total += stake
+            p1.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}%")
     elif not day_cls["ml_allowed"]:
-        lines.append("  🔴 RED day — no ML bets")
+        p1.append("  🔴 RED day — no ML bets")
     else:
-        lines.append("  None today")
-    lines.append("")
+        p1.append("  None today")
+    p1.append("")
 
-    # ── Parlay (locks only, 2-3 legs) ─────────────────────────────────────────
     if prl_valid and prl_data:
         leg_parts = []
         for a, s in parlay_candidates:
@@ -878,59 +879,92 @@ def _daily_bet_slip(
             o     = a.get(f"best_{s}_odds", "")
             o_str = (f"+{o}" if isinstance(o, int) and o > 0 else str(o or ""))
             leg_parts.append(f"{t} ML {o_str}")
-        lines.append("PARLAY (locks only):")
-        lines.append(f"  {' + '.join(leg_parts)}")
-        lines.append(f"  ({prl_data['american']}) — ${prl_stake:.2f} — to win ${prl_win:.2f}")
-        lines.append("")
-        listed_total += prl_stake
+        p1.append("PARLAY (HIGH conviction ML only):")
+        p1.append(f"  {' + '.join(leg_parts)}")
+        p1.append(f"  ({prl_data['american']}) — ${prl_stake:.2f} — to win ${prl_win:.2f}")
+        p1.append("")
 
-    # ── NRFI / YRFI ───────────────────────────────────────────────────────────
+    if injuries:
+        p1.append("⚠️ INJURIES:")
+        for inj in injuries:
+            p1.append(inj)
+        p1.append("")
+
+    if day_cls["color"] == "YELLOW":
+        p1.append("⚠ YELLOW day — fewer than 2 locks, stakes reduced 20%")
+    elif day_cls["color"] == "RED":
+        p1.append("🔴 RED day — no locks found, props only, no ML bets")
+
+    _send_telegram("\n".join(p1))
+
+    # ── PART 2: PLAYER PROPS + NRFI/YRFI ─────────────────────────────────────
+    has_p2 = bool(nrfi_bets or k_bets or hitter_bets or all_props)
+    p2 = [
+        f"PARLAY OS — {today}",
+        "PART 2/3 — PLAYER PROPS + NRFI/YRFI",
+        "",
+    ]
+
     if nrfi_bets:
-        lines.append(f"🌅 NRFI/YRFI ({len(nrfi_bets)} bets):")
+        p2.append(f"🌅 NRFI/YRFI ({len(nrfi_bets)} bets):")
         for bet in nrfi_bets:
-            lines.append(
-                f"  {bet['game']} — {bet['direction']} ({bet['prob']:.1%}) — ${bet['stake']:.2f}"
-            )
-            listed_total += bet.get("stake", 0)
-        lines.append("")
+            p2.append(f"  {bet['game']} — {bet['direction']} ({bet['prob']:.1%}) — ${bet['stake']:.2f}")
+        p2.append("")
 
-    # ── Totals ────────────────────────────────────────────────────────────────
-    if totals_bets:
-        lines.append(f"📊 TOTALS ({len(totals_bets)} bets):")
-        for bet in totals_bets:
-            lines.append(
-                f"  {bet['game']} — {bet['direction']} {bet['line']} ({bet['prob']:.1%}) — ${bet['stake']:.2f}"
+    if k_bets:
+        p2.append(f"⚾ PITCHER Ks ({len(k_bets)} bets):")
+        for bet in k_bets:
+            p2.append(
+                f"  {bet['sp']} O{bet['line']}K ({bet['game']}) — "
+                f"${bet['stake']:.2f} — EDGE: +{bet['edge_pct']:.1f}%"
             )
-            listed_total += bet.get("stake", 0)
-        lines.append("")
+        p2.append("")
 
-    # ── Hitter props ──────────────────────────────────────────────────────────
     if hitter_bets:
-        shown = hitter_bets[:8]   # cap daily slip at 8 entries
-        lines.append(f"🏏 HITTERS ({len(hitter_bets)} props — showing top {len(shown)}):")
+        shown = hitter_bets[:8]
+        p2.append(f"🏏 HITTERS ({len(hitter_bets)} props — top {len(shown)}):")
         for hp in shown:
-            lines.append(
+            p2.append(
                 f"  {hp['player']} ({hp['team']}) — {hp['prop']} — "
                 f"${hp['stake']:.2f} — EDGE: +{hp['edge_pct']:.1f}%"
             )
-            listed_total += hp.get("stake", 0)
-        lines.append("")
+        p2.append("")
 
-    # ── Props slate ───────────────────────────────────────────────────────────
     if all_props:
-        lines.append("PROPS SLATE:")
+        p2.append(f"🔗 SAME-GAME PARLAY ({len(all_props[:2])}):")
         for prop in all_props[:2]:
             legs_str = " + ".join(str(l) for l in prop.get("legs", [])[:2])
             stake    = prop.get("kelly_stake", 0) or 0
             ev       = prop.get("ev", 0) or 0
             ptype    = prop.get("type", "SGP")
-            lines.append(f"  [{ptype}] {legs_str} — ${stake:.2f} — EV: {ev:+.4f}")
-            listed_total += stake
-        lines.append("")
+            p2.append(f"  [{ptype}] {legs_str} — ${stake:.2f} — EV: {ev:+.4f}")
+        p2.append("")
 
-    # ── Fades ─────────────────────────────────────────────────────────────────
+    if not has_p2:
+        p2.append("No props with edge today.")
+
+    _send_telegram("\n".join(p2))
+
+    # ── PART 3: TOTALS + FADES + RISK SUMMARY ────────────────────────────────
+    p3 = [
+        f"PARLAY OS — {today}",
+        "PART 3/3 — TOTALS + FADES + RISK",
+        "",
+    ]
+
+    if totals_bets:
+        p3.append(f"📊 TOTALS ({len(totals_bets)} bets):")
+        for bet in totals_bets:
+            p3.append(
+                f"  {bet['game']} — {bet['direction']} {bet['line']} ({bet['prob']:.1%}) — ${bet['stake']:.2f}"
+            )
+        p3.append("")
+    else:
+        p3.append("📊 TOTALS: None today")
+        p3.append("")
+
     if all_fades:
-        lines.append("❌ FADES:")
+        p3.append("❌ FADES:")
         seen_fades: set = set()
         count = 0
         for analysis, side, reason in all_fades:
@@ -938,38 +972,25 @@ def _daily_bet_slip(
             if team in seen_fades or count >= 4:
                 continue
             seen_fades.add(team)
-            lines.append(f"  {team} — {reason}")
+            p3.append(f"  {team} — {reason}")
             count += 1
-        lines.append("")
-
-    # ── Day classification note ───────────────────────────────────────────────
-    if day_cls["color"] == "YELLOW":
-        lines.append("⚠ YELLOW day — fewer than 2 locks, stakes reduced 20%")
-    elif day_cls["color"] == "RED":
-        lines.append("🔴 RED day — no locks found, props only, no ML bets")
+        p3.append("")
 
     risk_cap_pct = round(total_risk / br * 100, 1) if br > 0 else 0
-    lines.append(
-        f"Daily risk: {risk_cap_pct:.1f}% of bankroll "
-        f"(cap: {DAILY_RISK_CAP_PCT * 100:.0f}%)"
+    p3.append(
+        f"Daily risk: ${total_risk:.2f} ({risk_cap_pct:.1f}% of bankroll) | "
+        f"Cap: {DAILY_RISK_CAP_PCT * 100:.0f}% (${cap:.2f})"
     )
 
-    # ── Pre-send stake audit ──────────────────────────────────────────────────
-    listed_total = round(listed_total, 2)
-    discrepancy  = abs(total_risk - listed_total)
-    if discrepancy > 0.01:
-        audit_msg = (
-            f"[AUDIT] Risk Today ${total_risk:.2f} ≠ listed stakes ${listed_total:.2f} "
-            f"(Δ${discrepancy:.2f})"
-        )
-        print(audit_msg)
-        try:
-            with open("errors.log", "a") as _f:
-                _f.write(f"{datetime.now().isoformat()} {audit_msg}\n")
-        except Exception:
-            pass
+    if cap_exceeded:
+        if override_cap:
+            p3.append(f"⚠️ RISK CAP OVERRIDE ACTIVE — ${total_risk:.2f} exceeds ${cap:.2f} cap")
+        else:
+            p3.append(f"🚨 RISK CAP HIT — ${total_risk:.2f} > ${cap:.2f} — bets beyond cap were blocked")
+    else:
+        p3.append(f"✅ Within daily cap (${cap:.2f})")
 
-    _send_telegram("\n".join(lines))
+    _send_telegram("\n".join(p3))
 
 
 # ── BET RECOMMENDATION FILTER ─────────────────────────────────────────────────
@@ -987,7 +1008,10 @@ def _should_recommend(game: dict, side: str) -> bool:
         print(f"  PASS {team}: edge {edge:+.1f}% (need >{MIN_EDGE_PCT}%) model={model:.3f} nv={nv:.3f}")
         return False
     if stake <= 0:
-        print(f"  PASS {team}: stake=0 (daily cap hit or drawdown pause)")
+        if is_drawdown_pause():
+            print(f"  PASS {team}: stake=$0.00 — drawdown pause active (bankroll down ≥15% from peak)")
+        else:
+            print(f"  PASS {team}: stake=$0.00 — Kelly returned zero (edge={edge:+.1f}% model={model:.3f} nv={nv:.3f})")
         return False
     if model < MIN_PROB:
         print(f"  PASS {team}: model {model:.3f} < min {MIN_PROB}")
@@ -1385,8 +1409,28 @@ def run_daily_scout():
     all_nrfi:         list = []   # {game, direction, prob, stake}
     all_totals:       list = []   # {game, direction, line, prob, stake}
     all_hitter_props: list = []   # {player, team, prop, stake, edge_pct, ...}
+    all_k_props:      list = []   # {sp, game, line, p_over, edge_pct, stake}
+    all_injuries:     list = []   # injury warning strings — collected, sent in slip
     game_key_map:     dict = {}   # (away_code, home_code) → analysis
     props_games:      list = []   # per-game props data for props_output.json
+
+    # Seed accumulated_risk from today's already-pending bets (stale or earlier scout)
+    _prior_pending = [b for b in _db.get_bets()
+                      if not b.get("result") and b.get("date") == today]
+    accumulated_risk = round(sum(float(b.get("stake") or 0) for b in _prior_pending), 2)
+    if accumulated_risk > 0:
+        print(f"Prior risk today: ${accumulated_risk:.2f} ({len(_prior_pending)} pending bets from earlier scout)")
+
+    _cap = round(br * DAILY_RISK_CAP_PCT, 2)
+    _override_cap = os.getenv("OVERRIDE_RISK_CAP", "").lower() in ("1", "true", "yes")
+
+    if not _override_cap and accumulated_risk >= _cap:
+        _warn = (
+            f"⚠️ DAILY RISK CAP ALREADY HIT — ${accumulated_risk:.2f} >= ${_cap:.2f}\n"
+            f"No new bets will be logged. Set OVERRIDE_RISK_CAP=true to override."
+        )
+        print(_warn)
+        _send_telegram(_warn)
 
     scout_out = {
         "timestamp": datetime.now(pytz.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -1426,17 +1470,18 @@ def run_daily_scout():
         # Store for series analysis
         game_key_map[(analysis["away"], analysis["home"])] = analysis
 
-        # ── Injury flag alert ─────────────────────────────────────────────────
+        # ── Injury flag alert — collect for slip, do not send mid-loop ──────────
         if analysis.get("injury_flags"):
             game_label = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
             inj_msg = format_injury_section(analysis["injury_flags"], game_label)
             if inj_msg:
-                _send_telegram(inj_msg)
+                all_injuries.append(inj_msg)
 
         # ── SGP suggestions for this game ─────────────────────────────────────
         try:
+            _sgp_line = analysis.get("totals_line")
             sgp_market = {
-                "totals": {"line": analysis.get("totals_line", 8.5)},
+                "totals": {"line": _sgp_line} if _sgp_line is not None else None,
                 "polymarket": analysis.get("polymarket"),
             }
             sgp_suggestions = build_sgp_suggestions(
@@ -1472,28 +1517,48 @@ def run_daily_scout():
             print(f"  Hitter props error: {hp_err}")
             game_hitter_props = []
 
-        # ── Categorized props block ────────────────────────────────────────────
-        try:
-            props_msg = _format_props_message(
-                analysis, sgp_suggestions or [], br, game_hitter_props
-            )
-            if props_msg:
-                _send_telegram(props_msg)
-        except Exception as props_err:
-            print(f"  Props format error: {props_err}")
+        # ── Collect K-props for slip ──────────────────────────────────────────
+        _game_lbl_kp = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
+        for _sp in (analysis.get("away_sp") or {}, analysis.get("home_sp") or {}):
+            if not _sp or not _sp.get("name") or _sp.get("name") == "TBD" or _sp.get("sp_missing"):
+                continue
+            _k_line = round(_sp.get("k9", 8.5) * 5.0 / 9, 1)
+            _k_r    = k_prop(_sp, _k_line)
+            _p_k    = _k_r.get("p_over", 0)
+            if _p_k >= 0.55:
+                _k_stake = round(min(br * (0.02 if _p_k >= 0.60 else 0.01), 5.0), 2)
+                all_k_props.append({
+                    "sp":       _sp.get("name"),
+                    "game":     _game_lbl_kp,
+                    "line":     _k_line,
+                    "p_over":   _p_k,
+                    "edge_pct": round((_p_k - 0.50) * 100, 1),
+                    "stake":    _k_stake,
+                })
 
-        # ── Collect props data for props_output.json ───────────────────────────
+        # ── Collect props data for props_output.json (no per-game Telegram send) ─
         try:
             game_props_entry = _build_props_entry(analysis, sgp_suggestions or [])
-            props_games.append(game_props_entry)
+            if game_props_entry is not None:
+                props_games.append(game_props_entry)
         except Exception as pe:
             print(f"  Props entry error: {pe}")
 
         bet_found = False
         for side in ("away", "home"):
             if _should_recommend(analysis, side):
-                msg = _format_bet_message(analysis, side)
-                _send_telegram(msg)
+                proposed_stake = float(analysis.get(f"{side}_stake", 0))
+
+                # ── Hard daily cap block ───────────────────────────────────────
+                if not _override_cap and accumulated_risk + proposed_stake > _cap:
+                    _team = analysis.get(f"{side}_name", side)
+                    print(
+                        f"  BLOCK {_team}: daily cap ${_cap:.2f} would be exceeded "
+                        f"(accumulated ${accumulated_risk:.2f} + ${proposed_stake:.2f})"
+                    )
+                    continue
+
+                accumulated_risk = round(accumulated_risk + proposed_stake, 2)
                 all_bets.append(analysis)
                 bet_found = True
 
@@ -1573,9 +1638,12 @@ def run_daily_scout():
             if total_note and total_note != "neutral":
                 direction = total_note.upper()
                 prob  = total_r_g["p_over"] if direction == "OVER" else total_r_g["p_under"]
-                line  = analysis.get("totals_line") or 8.5
-                stake = round(min(br * 0.0075, 4.0), 2)
-                all_totals.append({"game": game_lbl, "direction": direction, "line": line, "prob": prob, "stake": stake})
+                line  = analysis.get("totals_line")
+                if line is None:
+                    print(f"  SKIP totals {game_lbl}: no real market line — never defaulting to 8.5")
+                else:
+                    stake = round(min(br * 0.0075, 4.0), 2)
+                    all_totals.append({"game": game_lbl, "direction": direction, "line": line, "prob": prob, "stake": stake})
 
         if not bet_found:
             all_pass.append(analysis)
@@ -1600,7 +1668,8 @@ def run_daily_scout():
     # ── Daily bet slip ────────────────────────────────────────────────────────
     print("Building daily bet slip...")
     try:
-        _daily_bet_slip(all_locks, all_flips, all_sgp, all_fades, br, all_nrfi, all_totals, all_hitter_props)
+        _daily_bet_slip(all_locks, all_flips, all_sgp, all_fades, br,
+                        all_nrfi, all_totals, all_hitter_props, all_k_props, all_injuries)
     except Exception as slip_err:
         print(f"Daily slip error: {slip_err}")
 
@@ -1633,7 +1702,7 @@ def _build_props_entry(analysis: dict, sgp_list: list) -> dict:
     home_sp     = analysis.get("home_sp") or {}
     nrfi_r      = analysis.get("nrfi") or {}
     total_r     = analysis.get("total") or {}
-    totals_line = analysis.get("totals_line") or 8.5
+    totals_line = analysis.get("totals_line")  # may be None — handled per-section below
 
     props = []
 
@@ -1667,7 +1736,9 @@ def _build_props_entry(analysis: dict, sgp_list: list) -> dict:
             "recommendation": "NRFI" if p_nrfi >= 0.58 else ("YRFI" if p_yrfi >= 0.58 else "PASS"),
         })
 
-    if sp_data_missing:
+    if totals_line is None:
+        props.append({"type": "TOTAL", "recommendation": "NO_LINE"})
+    elif sp_data_missing:
         props.append({"type": "TOTAL", "recommendation": "SP_MISSING"})
     else:
         p_over  = total_r.get("p_over", 0)
@@ -1722,7 +1793,9 @@ def _format_props_message(
     home_sp     = analysis.get("home_sp") or {}
     nrfi_r      = analysis.get("nrfi") or {}
     total_r     = analysis.get("total") or {}
-    totals_line = analysis.get("totals_line") or 8.5
+    totals_line = analysis.get("totals_line")
+    if totals_line is None:
+        return
     game_time   = analysis.get("game_time_et", "")
     away_name   = analysis.get("away_name", analysis.get("away", ""))
     home_name   = analysis.get("home_name", analysis.get("home", ""))

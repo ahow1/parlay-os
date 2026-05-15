@@ -16,6 +16,7 @@ ODDS_API_KEY        = os.getenv("ODDS_API_KEY", "")
 ODDS_API_KEY_BACKUP = os.getenv("ODDS_API_KEY_BACKUP", "")
 ODDS_BASE           = "https://api.the-odds-api.com/v4"
 _log = logging.getLogger(__name__)
+_DEBUG = os.getenv("DEBUG", "").lower() in ("1", "true", "yes")
 
 # Active key — switches to backup automatically on 429/401
 _active_key: list[str] = [ODDS_API_KEY]   # mutable container for in-place swap
@@ -214,7 +215,8 @@ def get_odds_for_event(event_id: str) -> dict:
     optional market failures tripping the circuit breaker.
     """
     ml = _find_event_from_slate(event_id, MARKETS_ML)
-    return {"ml": ml, "totals": None, "f5": None}
+    totals = _find_event_from_slate(event_id, MARKETS_TOT)
+    return {"ml": ml, "totals": totals, "f5": None}
 
 def _parse_ml_bookmakers(odds_data: dict | None, away_team: str, home_team: str) -> dict:
     """Extract ML odds by book for away and home teams."""
@@ -234,7 +236,8 @@ def _parse_ml_bookmakers(odds_data: dict | None, away_team: str, home_team: str)
                 prc = outcome.get("price")
                 ma  = _names_match(t, away_team)
                 mh  = _names_match(t, home_team)
-                print(f"[MKT]   {key}: outcome='{t}' away='{away_team}'({ma}) home='{home_team}'({mh}) price={prc}")
+                if _DEBUG:
+                    print(f"[MKT]   {key}: outcome='{t}' away='{away_team}'({ma}) home='{home_team}'({mh}) price={prc}")
                 if ma:
                     book_odds["away"] = prc
                 elif mh:
@@ -515,6 +518,13 @@ def full_market_snapshot(event_id: str, away_team: str, home_team: str,
 
     best_away_book, best_away_odds = best_odds(ml_books, "away")
     best_home_book, best_home_odds = best_odds(ml_books, "home")
+
+    _away_disp = (f"+{best_away_odds}" if isinstance(best_away_odds, int) and best_away_odds > 0
+                  else str(best_away_odds or "N/A"))
+    _home_disp = (f"+{best_home_odds}" if isinstance(best_home_odds, int) and best_home_odds > 0
+                  else str(best_home_odds or "N/A"))
+    print(f"[MKT]   best: away={_away_disp}@{best_away_book or '?'} home={_home_disp}@{best_home_book or '?'} "
+          f"books matched={len(ml_books)}")
 
     primetime   = detect_primetime(commence_utc)
     public_bias = detect_public_bias(event_id, ml_books)

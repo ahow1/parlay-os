@@ -34,6 +34,39 @@ CHAT_ID      = os.getenv("TELEGRAM_CHAT_ID", "")
 ODDS_API_KEY = os.getenv("ODDS_API_KEY", "")
 ET           = pytz.timezone("America/New_York")
 
+_LISTENER_LOCK = "/tmp/parlay_os_tg.lock"
+
+
+def _acquire_listener_lock() -> bool:
+    """Return True if we got the lock; False if another listener is already running."""
+    try:
+        if os.path.exists(_LISTENER_LOCK):
+            with open(_LISTENER_LOCK) as _f:
+                pid = int(_f.read().strip())
+            try:
+                os.kill(pid, 0)  # signal 0 = existence check only
+                print(f"[TG] Listener already running (PID {pid}) — aborting to avoid 409 conflict")
+                return False
+            except (ProcessLookupError, PermissionError):
+                pass  # stale lock — previous process is dead
+        with open(_LISTENER_LOCK, "w") as _f:
+            _f.write(str(os.getpid()))
+        return True
+    except Exception as e:
+        print(f"[TG] Lock file error: {e} — proceeding anyway")
+        return True
+
+
+def _release_listener_lock() -> None:
+    try:
+        if os.path.exists(_LISTENER_LOCK):
+            with open(_LISTENER_LOCK) as _f:
+                pid = int(_f.read().strip())
+            if pid == os.getpid():
+                os.remove(_LISTENER_LOCK)
+    except Exception:
+        pass
+
 # ── TEAM CODE LOOKUP ──────────────────────────────────────────────────────────
 
 MLB_CODES = {
@@ -493,6 +526,7 @@ HELP_TEXT = (
     "  e.g. /fade LAD public overreaction\n"
     "\nSYSTEM:\n"
     "/status               — system health check\n"
+    "/resetcap             — delete all pending bets for today (resets daily cap)\n"
     "/help                 — this message\n"
     "\nSlash prefix is optional — plain text works too.\n"
     "  e.g. 'bet SF ML +162 5.32' or 'win SF' both work."
@@ -574,11 +608,14 @@ def handle_preview() -> str:
     except Exception:
         return "No scout data yet — scout runs at 1pm ET."
 
+    today = date.today().isoformat()
+    scout_date = data.get("date", "")
+    if scout_date and scout_date != today:
+        return f"Scout data is from {scout_date} — today's scout hasn't run yet (runs at 1pm ET)."
+
     games = data.get("games", [])
     if not games:
         return "No games analyzed in today's scout."
-
-    scout_date = data.get("date", "today")
     lines      = [f"GAME PREVIEWS — {scout_date}"]
     for g in games[:8]:
         away = g.get("away", "?")
@@ -788,6 +825,18 @@ def handle_status() -> str:
 
 # ── DISPATCHER ────────────────────────────────────────────────────────────────
 
+def handle_resetcap() -> str:
+    """Delete all pending bets logged today and confirm."""
+    today   = date.today().isoformat()
+    deleted = _db.reset_daily_exposure(today)
+    if deleted == 0:
+        return f"✅ /resetcap — no pending bets found for {today}. Daily cap already clear."
+    return (
+        f"✅ /resetcap — {deleted} pending bet{'s' if deleted != 1 else ''} deleted for {today}.\n"
+        f"Daily exposure is now $0. Run the scout again to re-log today's picks."
+    )
+
+
 def dispatch(text: str) -> None:
     """Route incoming message to the right handler.
     Accepts both /command and plain-text command — slash is stripped first."""
@@ -878,6 +927,11 @@ def dispatch(text: str) -> None:
     # /status — system health check
     if lower == "status":
         _send(handle_status())
+        return
+
+    # /resetcap — clear all pending bets for today
+    if lower == "resetcap":
+        _send(handle_resetcap())
         return
 
     # /bets  /bankroll  /results  /help
@@ -1434,30 +1488,36 @@ def _poll_loop() -> None:
         print("[TG] BOT_TOKEN not set — listener inactive")
         return
 
+    if not _acquire_listener_lock():
+        return
+
     offset = 0
     print("[TG] Listener started")
 
-    while True:
-        try:
-            r = _http_get(
-                f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates",
-                params={"timeout": 30, "offset": offset},
-                timeout=35,
-            )
-            for update in r.json().get("result", []):
-                offset = update["update_id"] + 1
-                msg = update.get("message") or update.get("edited_message")
-                if not msg:
-                    continue
-                # Only accept from authorised chat
-                if CHAT_ID and str(msg.get("chat", {}).get("id", "")) != str(CHAT_ID):
-                    continue
-                text = msg.get("text", "")
-                if text:
-                    dispatch(text)
-        except Exception as e:
-            print(f"[TG] poll error: {e}")
-            time.sleep(5)
+    try:
+        while True:
+            try:
+                r = _http_get(
+                    f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates",
+                    params={"timeout": 30, "offset": offset},
+                    timeout=35,
+                )
+                for update in r.json().get("result", []):
+                    offset = update["update_id"] + 1
+                    msg = update.get("message") or update.get("edited_message")
+                    if not msg:
+                        continue
+                    # Only accept from authorised chat
+                    if CHAT_ID and str(msg.get("chat", {}).get("id", "")) != str(CHAT_ID):
+                        continue
+                    text = msg.get("text", "")
+                    if text:
+                        dispatch(text)
+            except Exception as e:
+                print(f"[TG] poll error: {e}")
+                time.sleep(5)
+    finally:
+        _release_listener_lock()
 
 
 def start_listener() -> threading.Thread:
