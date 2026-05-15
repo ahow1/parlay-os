@@ -473,23 +473,29 @@ HELP_TEXT = (
     "/bet [team] [type] [odds] [stake]\n"
     "  e.g. /bet SF ML +162 5.32\n"
     "  e.g. /bet TB TOR over 6.5 -115 3.55\n"
-    "/update [id] [stake]  — edit a pending bet stake\n"
-    "/win [id or team]     — settle as win\n"
-    "/loss [id or team]    — settle as loss\n"
-    "/push [id or team]    — settle as push\n"
-    "/bets                 — list pending bets\n"
-    "/bankroll             — balance + today P&L\n"
-    "/results              — today settled bets\n"
-    "\nINFO:\n"
-    "/preview              — today's game previews\n"
-    "/live                 — active live alerts\n"
-    "/props                — today's props slate\n"
-    "/edges                — current market edges\n"
-    "/record               — all-time track record\n"
-    "/status               — system health check\n"
-    "/share                — today's picks (Twitter + Discord)\n"
+    "  e.g. /bet NYY F5 -130 4.00\n"
+    "/update [id] [stake]  — edit pending bet stake\n"
+    "  e.g. /update 3 6.50\n"
+    "/win [id or team]     — settle as win  (e.g. /win SF or /win 3)\n"
+    "/loss [id or team]    — settle as loss (e.g. /loss 3)\n"
+    "/push [id or team]    — settle as push (e.g. /push TEX)\n"
+    "/bets                 — list all pending bets with IDs\n"
+    "/bankroll             — current balance + today P&L\n"
+    "/results              — today's settled bets\n"
+    "\nINFO & ANALYSIS:\n"
+    "/preview              — today's full game previews (pre-1pm)\n"
+    "/props                — today's props slate (K, NRFI, totals, SGP)\n"
+    "/edges                — current Polymarket vs sportsbook gaps\n"
+    "/live                 — active live game alerts (6pm–11pm ET)\n"
+    "/record               — all-time track record + ROI\n"
+    "/share                — today's picks formatted for Twitter + Discord\n"
     "/fade [team] [reason] — log a manual fade\n"
-    "\nSlash optional — plain text works too."
+    "  e.g. /fade LAD public overreaction\n"
+    "\nSYSTEM:\n"
+    "/status               — system health check\n"
+    "/help                 — this message\n"
+    "\nSlash prefix is optional — plain text works too.\n"
+    "  e.g. 'bet SF ML +162 5.32' or 'win SF' both work."
 )
 
 
@@ -616,24 +622,93 @@ def handle_live() -> str:
 
 
 def handle_props() -> str:
-    """Return today's props slate."""
+    """Return today's props slate from props_output.json."""
     try:
         with open("props_output.json") as f:
-            props = json.load(f)
+            data = json.load(f)
     except Exception:
-        props = []
+        return "No props data yet — generated during daily scout at 1pm ET."
 
-    if not props:
+    # Support dict format {"date":..., "games":[...]} and legacy list format
+    if isinstance(data, dict):
+        games     = data.get("games", [])
+        file_date = data.get("date", "")
+    elif isinstance(data, list):
+        games     = data
+        file_date = ""
+    else:
+        return "No props data yet — generated during daily scout at 1pm ET."
+
+    if not games:
         return "No props data yet — generated during daily scout at 1pm ET."
 
     today = date.today().isoformat()
+    if file_date and file_date != today:
+        return f"Props data is from {file_date} — today's scout hasn't run yet (runs at 1pm ET)."
+
     lines = [f"PROPS SLATE — {today}"]
-    for p in props[:8]:
-        ptype = p.get("type", "PROP")
-        desc  = p.get("description", p.get("legs", ""))
-        stake = p.get("stake", p.get("kelly_stake", 0)) or 0
-        edge  = p.get("edge_pct", p.get("ev", 0)) or 0
-        lines.append(f"  [{ptype}] {desc} — ${float(stake):.2f} — edge {float(edge):+.1f}%")
+    bets_found = 0
+
+    for game in games[:8]:
+        away  = game.get("away") or game.get("away_name", "?")
+        home  = game.get("home") or game.get("home_name", "?")
+        gtime = game.get("time", "")
+        header = f"\n{away} @ {home}"
+        if gtime:
+            header += f" — {gtime}"
+        lines.append(header)
+
+        for p in game.get("props", []):
+            ptype = p.get("type", "")
+            rec   = str(p.get("recommendation") or "")
+            edge  = p.get("edge_pct") or 0
+
+            if ptype == "K_PROP":
+                sp_name = p.get("sp", "SP")
+                line    = p.get("market_line") or p.get("model_line", 5.0)
+                p_over  = float(p.get("p_over") or 0)
+                if rec == "BET" or (float(edge) > 0 if edge else False):
+                    odds = p.get("market_over_ml") or p.get("model_over_ml")
+                    os   = f" {'+' if odds and odds > 0 else ''}{odds}" if odds else ""
+                    lines.append(f"✅ {sp_name} O{line}K{os} — EDGE: +{float(edge):.1f}%")
+                    bets_found += 1
+                else:
+                    lines.append(f"❌ {sp_name} O{line}K — no edge ({p_over:.1%})")
+
+            elif ptype == "NRFI":
+                p_nrfi = float(p.get("p_nrfi") or 0)
+                p_yrfi = float(p.get("p_yrfi") or 0)
+                if rec in ("NRFI", "YRFI"):
+                    e_val = float(edge) if edge else round((max(p_nrfi, p_yrfi) - 0.50) * 100, 1)
+                    lines.append(f"✅ {rec} — EDGE: +{e_val:.1f}%")
+                    bets_found += 1
+                else:
+                    lines.append(f"❌ NRFI ({p_nrfi:.1%}) / YRFI ({p_yrfi:.1%}) — no edge")
+
+            elif ptype == "TOTAL":
+                ml  = p.get("market_line")
+                has_edge = (ml and rec and rec != "PASS"
+                            and ("OVER" in rec or "UNDER" in rec))
+                if has_edge:
+                    e_val     = float(edge) if edge else 0
+                    direction = "OVER" if "OVER" in rec else "UNDER"
+                    mk_odds   = p.get("market_over_ml") if direction == "OVER" else p.get("market_under_ml")
+                    os        = f" {'+' if mk_odds and mk_odds > 0 else ''}{mk_odds}" if mk_odds else ""
+                    lines.append(f"✅ {rec}{os} — EDGE: +{e_val:.1f}%")
+                    bets_found += 1
+                else:
+                    lines.append("❌ Game total — market efficient")
+
+        for sgp in game.get("sgp", []):
+            legs  = " + ".join(sgp.get("legs", [])[:3])
+            stake = sgp.get("kelly_stake", 0) or 0
+            jp    = sgp.get("joint_prob", 0)
+            if jp > 0 and stake > 0:
+                lines.append(f"✅ SGP: {legs} — ${float(stake):.2f}")
+                bets_found += 1
+
+    if bets_found == 0:
+        lines.append("\nNo value props found today — market efficient.")
 
     return "\n".join(lines)
 

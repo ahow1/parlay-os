@@ -6,8 +6,10 @@ on:
     - cron: '30 22 * * *'   # line_movement  — 5:30pm ET (22:30 UTC)
     - cron: '0 23 * * *'    # live_engine    — 6pm ET, runs until 11pm internally
     - cron: '30 4 * * *'    # daily_debrief  — 11:30pm ET (04:30 UTC next day)
-    - cron: '0 14 * * 1'    # weekly_roi     — Mon 9am ET (14:00 UTC)
-    - cron: '0 14 * * *'    # morning_planner — 9am ET (14:00 UTC)
+    - cron: '0 14 * * 1'          # weekly_roi     — Mon 9am ET (14:00 UTC)
+    - cron: '0 14 * * 0,2,3,4,5,6'  # morning_planner — 9am ET, every day EXCEPT Monday
+    # NOTE: both weekly_roi and morning_planner fire at 14:00 UTC.
+    # Using different cron expressions prevents GitHub from firing duplicate runs on Monday.
   workflow_dispatch:
     inputs:
       job:
@@ -57,7 +59,7 @@ jobs:
         run: |
           git config user.name "Parlay OS Bot"
           git config user.email "bot@parlay-os.com"
-          git add last_scout.json parlay_os.db || true
+          git add last_scout.json props_output.json parlay_os.db || true
           git diff --staged --quiet || git commit -m "Scout: $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push || true
 
@@ -183,7 +185,7 @@ jobs:
   morning_planner:
     if: >
       (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'morning_planner') ||
-      (github.event_name == 'schedule' && github.event.schedule == '0 14 * * *')
+      (github.event_name == 'schedule' && github.event.schedule == '0 14 * * 0,2,3,4,5,6')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

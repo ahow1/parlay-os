@@ -1125,6 +1125,7 @@ def run_daily_scout():
     all_fades:    list = []   # (analysis, side, reason)
     all_sgp:      list = []   # correlated SGP suggestions across all games
     game_key_map: dict = {}   # (away_code, home_code) → analysis
+    props_games:  list = []   # per-game props data for props_output.json
 
     scout_out = {
         "timestamp": datetime.now(pytz.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -1203,6 +1204,13 @@ def run_daily_scout():
                 _send_telegram(props_msg)
         except Exception as props_err:
             print(f"  Props format error: {props_err}")
+
+        # ── Collect props data for props_output.json ───────────────────────────
+        try:
+            game_props_entry = _build_props_entry(analysis, sgp_suggestions or [])
+            props_games.append(game_props_entry)
+        except Exception as pe:
+            print(f"  Props entry error: {pe}")
 
         bet_found = False
         for side in ("away", "home"):
@@ -1298,10 +1306,95 @@ def run_daily_scout():
             json.dump(scout_out, f, indent=2)
         _db.log_scout_run(today, n_bets, json.dumps(scout_out))
 
+        # Write props_output.json so /props command and API have current data
+        props_out = {
+            "date":      today,
+            "timestamp": datetime.now(ET).isoformat(),
+            "games":     props_games,
+        }
+        try:
+            with open("props_output.json", "w") as f:
+                json.dump(props_out, f, indent=2)
+        except Exception as pe:
+            print(f"props_output.json write error: {pe}")
+
     return scout_out
 
 
 # ── PROPS MESSAGE FORMAT ──────────────────────────────────────────────────────
+
+def _build_props_entry(analysis: dict, sgp_list: list) -> dict:
+    """Build per-game props dict for props_output.json."""
+    away_sp     = analysis.get("away_sp") or {}
+    home_sp     = analysis.get("home_sp") or {}
+    nrfi_r      = analysis.get("nrfi") or {}
+    total_r     = analysis.get("total") or {}
+    totals_line = analysis.get("totals_line") or 8.5
+
+    props = []
+
+    for sp_side, sp in (("away", away_sp), ("home", home_sp)):
+        if not sp or not sp.get("name") or sp.get("name") == "TBD":
+            continue
+        name   = sp["name"]
+        k_line = round(sp.get("k9", 8.5) * 5.0 / 9, 1)
+        k_r    = k_prop(sp, k_line)
+        p_k    = k_r.get("p_over", 0)
+        props.append({
+            "type":          "K_PROP",
+            "sp":            name,
+            "sp_side":       sp_side,
+            "model_line":    k_line,
+            "p_over":        round(p_k, 4),
+            "recommendation": "BET" if p_k >= 0.55 else "PASS",
+        })
+
+    p_nrfi = nrfi_r.get("p_nrfi", 0)
+    p_yrfi = nrfi_r.get("p_yrfi", 0)
+    props.append({
+        "type":          "NRFI",
+        "p_nrfi":        round(p_nrfi, 4),
+        "p_yrfi":        round(p_yrfi, 4),
+        "recommendation": "NRFI" if p_nrfi >= 0.58 else ("YRFI" if p_yrfi >= 0.58 else "PASS"),
+    })
+
+    p_over  = total_r.get("p_over", 0)
+    p_under = total_r.get("p_under", 0)
+    model_total = round((analysis.get("away_xr", 0) + analysis.get("home_xr", 0)), 2)
+    props.append({
+        "type":          "TOTAL",
+        "model_total":   model_total,
+        "market_line":   totals_line,
+        "p_over":        round(p_over, 4),
+        "p_under":       round(p_under, 4),
+        "recommendation": (
+            f"OVER {totals_line}" if p_over >= 0.55
+            else (f"UNDER {totals_line}" if p_under >= 0.55 else "PASS")
+        ),
+    })
+
+    sgp_out = []
+    for sgp in sgp_list:
+        sgp_out.append({
+            "type":       sgp.get("type", "SGP"),
+            "legs":       sgp.get("legs", []),
+            "joint_prob": round(sgp.get("joint_prob", 0), 4),
+            "kelly_stake": round(sgp.get("kelly_stake", 0), 2),
+            "ev":          round(sgp.get("ev", 0), 4),
+        })
+
+    return {
+        "away":      analysis.get("away"),
+        "home":      analysis.get("home"),
+        "away_name": analysis.get("away_name"),
+        "home_name": analysis.get("home_name"),
+        "time":      analysis.get("game_time_et", ""),
+        "asp":       away_sp.get("name", "TBD"),
+        "hsp":       home_sp.get("name", "TBD"),
+        "props":     props,
+        "sgp":       sgp_out,
+    }
+
 
 def _format_props_message(analysis: dict, sgp_list: list, br: float) -> str | None:
     """
@@ -1316,24 +1409,35 @@ def _format_props_message(analysis: dict, sgp_list: list, br: float) -> str | No
     game_time   = analysis.get("game_time_et", "")
     away_name   = analysis.get("away_name", analysis.get("away", ""))
     home_name   = analysis.get("home_name", analysis.get("home", ""))
+    away_code   = analysis.get("away", "")
+    home_code   = analysis.get("home", "")
     game_label  = f"{away_name} @ {home_name}"
     time_label  = f" — {game_time}" if game_time else ""
-    any_bet = False
+    any_bet     = False
+
+    def _est_odds(prob: float) -> str:
+        """Estimate American odds string from model prob with 5% juice."""
+        if not prob or prob <= 0 or prob >= 1:
+            return ""
+        dec = (1.0 / prob) * 1.05
+        return decimal_to_american(dec)
 
     # ── PITCHER ────────────────────────────────────────────────────────────────
     pitcher_lines = []
     for sp in (away_sp, home_sp):
         if not sp or not sp.get("name") or sp.get("name") == "TBD":
             continue
-        name  = sp["name"]
+        name   = sp["name"]
         k_line = round(sp.get("k9", 8.5) * 5.0 / 9, 1)
         k_r    = k_prop(sp, k_line)
         p_k    = k_r.get("p_over", 0)
+        odds   = _est_odds(p_k)
+        odds_s = f" {odds}" if odds else ""
         if p_k >= 0.55:
-            stake = round(br * (0.02 if p_k >= 0.60 else 0.01), 2)
+            stake    = round(br * (0.02 if p_k >= 0.60 else 0.01), 2)
             edge_est = round((p_k - 0.50) * 100, 1)
             pitcher_lines.append(
-                f"✅ BET: {name} O{k_line}K — ${stake:.2f} — EDGE: est +{edge_est:.1f}% — MODEL: {p_k:.1%}"
+                f"✅ BET: {name} O{k_line}K{odds_s} — ${stake:.2f} — EDGE: +{edge_est:.1f}% — MODEL: {p_k:.1%}"
             )
             any_bet = True
         else:
@@ -1344,53 +1448,68 @@ def _format_props_message(analysis: dict, sgp_list: list, br: float) -> str | No
     p_nrfi = nrfi_r.get("p_nrfi", 0)
     p_yrfi = nrfi_r.get("p_yrfi", 0)
     if p_nrfi >= 0.58:
-        stake = round(br * 0.015, 2)
-        pitcher_lines.append(f"✅ BET: NRFI — ${stake:.2f} — EDGE: est +{round((p_nrfi-0.50)*100,1):.1f}%")
+        stake     = round(br * 0.015, 2)
+        edge_est  = round((p_nrfi - 0.50) * 100, 1)
+        odds      = _est_odds(p_nrfi)
+        odds_s    = f" {odds}" if odds else ""
+        pitcher_lines.append(f"✅ BET: NRFI{odds_s} — ${stake:.2f} — EDGE: +{edge_est:.1f}%")
         any_bet = True
     elif p_yrfi >= 0.58:
-        stake = round(br * 0.015, 2)
-        pitcher_lines.append(f"✅ BET: YRFI — ${stake:.2f} — EDGE: est +{round((p_yrfi-0.50)*100,1):.1f}%")
+        stake     = round(br * 0.015, 2)
+        edge_est  = round((p_yrfi - 0.50) * 100, 1)
+        odds      = _est_odds(p_yrfi)
+        odds_s    = f" {odds}" if odds else ""
+        pitcher_lines.append(f"✅ BET: YRFI{odds_s} — ${stake:.2f} — EDGE: +{edge_est:.1f}%")
         any_bet = True
     else:
         pitcher_lines.append(
             f"❌ PASS: NRFI ({p_nrfi:.1%}) / YRFI ({p_yrfi:.1%}) — no edge"
         )
 
+    # ── HITTERS (individual player props require separate props market API) ────
+    hitter_lines: list[str] = []
+
     # ── TEAM TOTALS ────────────────────────────────────────────────────────────
     team_lines = []
     p_over  = total_r.get("p_over", 0)
     p_under = total_r.get("p_under", 0)
     if p_over >= 0.55:
-        stake = round(br * 0.015, 2)
+        stake    = round(br * 0.015, 2)
+        edge_est = round((p_over - 0.50) * 100, 1)
+        odds     = _est_odds(p_over)
+        odds_s   = f" {odds}" if odds else ""
         team_lines.append(
-            f"✅ BET: {away_name} total O{totals_line} — ${stake:.2f} — EDGE: est +{round((p_over-0.50)*100,1):.1f}%"
+            f"✅ BET: {away_code} total O{totals_line}{odds_s} — ${stake:.2f} — EDGE: +{edge_est:.1f}%"
         )
         any_bet = True
     elif p_under >= 0.55:
-        stake = round(br * 0.015, 2)
+        stake    = round(br * 0.015, 2)
+        edge_est = round((p_under - 0.50) * 100, 1)
+        odds     = _est_odds(p_under)
+        odds_s   = f" {odds}" if odds else ""
         team_lines.append(
-            f"✅ BET: {home_name} total U{totals_line} — ${stake:.2f} — EDGE: est +{round((p_under-0.50)*100,1):.1f}%"
+            f"✅ BET: {home_code} total U{totals_line}{odds_s} — ${stake:.2f} — EDGE: +{edge_est:.1f}%"
         )
         any_bet = True
     else:
-        team_lines.append(f"❌ PASS: game total {totals_line} — market efficient (O={p_over:.1%} U={p_under:.1%})")
+        team_lines.append(
+            f"❌ PASS: game total {totals_line} — market efficient (O={p_over:.1%} U={p_under:.1%})"
+        )
 
     # ── SAME-GAME PARLAY ───────────────────────────────────────────────────────
     sgp_lines = []
     for sgp in sgp_list:
-        legs    = " + ".join(sgp.get("legs", [])[:3])
-        stake   = sgp.get("kelly_stake", 0) or 0
-        joint   = sgp.get("joint_prob", 0)
-        corr    = sgp.get("correlation", "")
-        sgp_type = sgp.get("type", "SGP")
-        # Estimate combined odds from joint prob
+        legs  = " + ".join(sgp.get("legs", [])[:3])
+        stake = sgp.get("kelly_stake", 0) or 0
+        joint = sgp.get("joint_prob", 0)
+        corr  = sgp.get("correlation", "")
         if joint > 0:
-            combined_dec = 1.0 / joint
-            combined_am  = decimal_to_american(combined_dec * 0.85)  # 15% book juice
+            combined_am = decimal_to_american((1.0 / joint) * 0.85)
         else:
-            combined_am  = "N/A"
+            combined_am = "N/A"
+        corr_label = corr.split("—")[0].strip() if "—" in corr else corr
         sgp_lines.append(
-            f"✅ {legs} ({combined_am}) — ${stake:.2f} — {corr.split('—')[0].strip()}"
+            f"✅ {legs} ({combined_am}) — ${stake:.2f} — {corr_label}"
         )
         any_bet = True
 
@@ -1399,13 +1518,15 @@ def _format_props_message(analysis: dict, sgp_list: list, br: float) -> str | No
 
     sections = [f"PROPS — {game_label}{time_label}"]
     if pitcher_lines:
-        sections.append("PITCHER:\n" + "\n".join(f"  {l}" for l in pitcher_lines))
+        sections.append("PITCHER:\n" + "\n".join(pitcher_lines))
+    if hitter_lines:
+        sections.append("HITTERS:\n" + "\n".join(hitter_lines))
     if team_lines:
-        sections.append("TEAM:\n" + "\n".join(f"  {l}" for l in team_lines))
+        sections.append("TEAM:\n" + "\n".join(team_lines))
     if sgp_lines:
-        sections.append("SAME-GAME PARLAY:\n" + "\n".join(f"  {l}" for l in sgp_lines))
+        sections.append("SAME-GAME PARLAY:\n" + "\n".join(sgp_lines))
 
-    return "\n".join(sections)
+    return "\n\n".join(sections)
 
 
 # ── NIGHTLY DEBRIEF ───────────────────────────────────────────────────────────
@@ -1487,14 +1608,41 @@ def _run_debrief():
     if avg_clv is not None:
         lines.append(f"Avg CLV: {avg_clv:+.2f}% ({len(clv_vals)} bets with CLV data)")
     if best_call:
+        conv   = best_call.get("conviction", "") or ""
+        edge   = best_call.get("edge_pct")
+        odds_i = best_call.get("bet_odds", "")
+        # "why it worked" — edge confidence + dog/chalk context
+        why = []
+        if conv and conv not in ("MANUAL", ""):
+            why.append(f"{conv} conviction")
+        if edge:
+            why.append(f"+{edge:.1f}% edge")
+        try:
+            if int(str(odds_i).replace("+", "")) > 0:
+                why.append("underdog cashed")
+        except Exception:
+            pass
+        why_str = " / ".join(why) if why else "model correct"
         lines.append(
             f"✅ Best call: {best_call.get('bet','')} {best_call.get('type','ML')} "
-            f"{best_call.get('bet_odds','')} — +${best_pnl:.2f}"
+            f"{odds_i} — +${best_pnl:.2f} — {why_str}"
         )
     if worst_call:
+        conv   = worst_call.get("conviction", "") or ""
+        edge   = worst_call.get("edge_pct")
+        mp     = worst_call.get("model_prob")
+        # "what we missed"
+        miss = []
+        if edge and float(edge) > 0:
+            miss.append(f"had +{float(edge):.1f}% model edge but lost")
+        elif mp and float(mp) > 0.5:
+            miss.append(f"model said {float(mp):.0%} but result went other way")
+        else:
+            miss.append("no edge — variance")
+        miss_str = " / ".join(miss)
         lines.append(
             f"❌ Worst call: {worst_call.get('bet','')} {worst_call.get('type','ML')} "
-            f"{worst_call.get('bet_odds','')} — -${abs(worst_pnl):.2f}"
+            f"{worst_call.get('bet_odds','')} — -${abs(worst_pnl):.2f} — {miss_str}"
         )
     if model_acc is not None:
         lines.append(f"Model accuracy today: {model_acc:.1f}%")
@@ -1710,6 +1858,7 @@ def _run_morning_planner():
     """
     Morning brief: only sends if games exist today AND at least 1 game
     shows potential edge >4% based on memory priors vs current market.
+    Silence if no edge games found.
     """
     print("Running morning planner (9am ET)...")
     events = get_mlb_events()
@@ -1725,8 +1874,9 @@ def _run_morning_planner():
 
     watch_games: list[str] = []
     edge_found = False
+    curr_odds_map: dict = {}   # team_code → current best odds (int)
 
-    for event in events[:10]:
+    for event in events[:12]:
         away_name = event.get("away", "")
         home_name = event.get("home", "")
         away_code = MLB_TEAM_MAP.get(away_name, away_name[:3].upper())
@@ -1745,9 +1895,15 @@ def _run_morning_planner():
         away_nv = nv.get("away") or 0.5
         home_nv = nv.get("home") or 0.5
         if away_nv == 0.5 and home_nv == 0.5:
-            continue  # no market data
+            continue
 
-        # Use memory prior (7-day) as quick model proxy; both are 0-1 floats
+        # Store current best odds for line-movement comparison
+        if market.get("best_away_odds"):
+            curr_odds_map[away_code] = market["best_away_odds"]
+        if market.get("best_home_odds"):
+            curr_odds_map[home_code] = market["best_home_odds"]
+
+        # Use memory prior (7-day) as quick model proxy
         away_prior = _team_prior(away_code, "away", 7) or 0.5
         home_prior = _team_prior(home_code, "home", 7) or 0.5
 
@@ -1756,7 +1912,6 @@ def _run_morning_planner():
 
         game_time = _parse_game_time_et(event.get("commence_utc", ""))
         time_tag  = f" {game_time}" if game_time else ""
-
         best_edge = max(abs(away_edge), abs(home_edge))
 
         if best_edge > 4.0:
@@ -1772,27 +1927,44 @@ def _run_morning_planner():
         print("No edge games (>4%) found via memory priors — morning planner silent")
         return
 
-    lines = [
-        f"🌅 PARLAY OS — MORNING BRIEF — {today_label}",
-        f"{len(events)} games today | Scout runs at 1pm ET",
-        "",
-        "Watch:",
-    ]
-    for g in watch_games[:3]:
-        lines.append(f"  • {g}")
-
-    # Line movement note if yesterday's scout exists
+    # ── Line movement since yesterday ─────────────────────────────────────────
+    line_moves: list[str] = []
     try:
         with open("last_scout.json") as f:
             prev = json.load(f)
         prev_date = prev.get("date", "")
         if prev_date and prev_date != today_str:
-            prev_bets = prev.get("bets", [])
-            if prev_bets:
-                lines.append("")
-                lines.append(f"Yesterday's model: {len(prev_bets)} bet(s) — line movement check at 5:30pm ET")
+            for saved_bet in prev.get("bets", []):
+                team      = saved_bet.get("team", "")
+                saved_ml  = saved_bet.get("odds")
+                team_code = MLB_TEAM_MAP.get(team, team[:3].upper() if len(team) >= 3 else team)
+                curr_ml   = curr_odds_map.get(team_code)
+                if saved_ml is None or curr_ml is None:
+                    continue
+                try:
+                    moved = int(str(curr_ml).replace("+", "")) - int(str(saved_ml).replace("+", ""))
+                except ValueError:
+                    continue
+                if abs(moved) >= 5:
+                    saved_disp = f"+{saved_ml}" if isinstance(saved_ml, int) and saved_ml > 0 else str(saved_ml)
+                    curr_disp  = f"+{curr_ml}" if isinstance(curr_ml, int) and curr_ml > 0 else str(curr_ml)
+                    direction  = "improved" if moved < 0 else "moved against us"
+                    line_moves.append(f"{team_code} {saved_disp}→{curr_disp} ({direction})")
     except Exception:
         pass
+
+    lines = [
+        f"🌅 PARLAY OS — MORNING BRIEF — {today_label}",
+        f"{len(events)} games today | Scout runs at 1pm ET",
+        "Watch:",
+    ]
+    for g in watch_games[:3]:
+        lines.append(f"• {g}")
+
+    if line_moves:
+        lines.append(f"Line movement since yesterday: {' | '.join(line_moves)}")
+    else:
+        lines.append("Line movement since yesterday: none significant yet")
 
     msg = "\n".join(lines)
     print(msg)
