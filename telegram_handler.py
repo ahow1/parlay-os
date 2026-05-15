@@ -469,16 +469,24 @@ def handle_update(identifier: str, new_stake_str: str) -> str:
 HELP_TEXT = (
     "PARLAY OS Commands\n"
     "━━━━━━━━━━━━━━━━━━\n"
+    "BET MANAGEMENT:\n"
     "/bet [team] [type] [odds] [stake]\n"
     "  e.g. /bet SF ML +162 5.32\n"
     "  e.g. /bet TB TOR over 6.5 -115 3.55\n"
-    "/update [id] [stake]  — edit stake\n"
-    "/win [id or team]     — settle win\n"
-    "/loss [id or team]    — settle loss\n"
-    "/push [id or team]    — settle push\n"
-    "/bets                 — pending bets\n"
-    "/bankroll             — balance + P&L\n"
-    "/results              — today's bets\n"
+    "/update [id] [stake]  — edit a pending bet stake\n"
+    "/win [id or team]     — settle as win\n"
+    "/loss [id or team]    — settle as loss\n"
+    "/push [id or team]    — settle as push\n"
+    "/bets                 — list pending bets\n"
+    "/bankroll             — balance + today P&L\n"
+    "/results              — today settled bets\n"
+    "\nINFO:\n"
+    "/preview              — today's game previews\n"
+    "/live                 — active live alerts\n"
+    "/props                — today's props slate\n"
+    "/edges                — current market edges\n"
+    "/record               — all-time track record\n"
+    "/status               — system health check\n"
     "/share                — today's picks (Twitter + Discord)\n"
     "/fade [team] [reason] — log a manual fade\n"
     "\nSlash optional — plain text works too."
@@ -552,6 +560,157 @@ def handle_fade(team_arg: str, reason: str) -> str:
     return f"✅ Fade logged — {team_code}: {reason}"
 
 
+def handle_preview() -> str:
+    """Return today's game previews from last scout."""
+    try:
+        with open("last_scout.json") as f:
+            data = json.load(f)
+    except Exception:
+        return "No scout data yet — scout runs at 1pm ET."
+
+    games = data.get("games", [])
+    if not games:
+        return "No games analyzed in today's scout."
+
+    scout_date = data.get("date", "today")
+    lines      = [f"GAME PREVIEWS — {scout_date}"]
+    for g in games[:8]:
+        away = g.get("away", "?")
+        home = g.get("home", "?")
+        ae   = g.get("away_edge", 0)
+        he   = g.get("home_edge", 0)
+        axr  = g.get("away_xr", 0)
+        hxr  = g.get("home_xr", 0)
+        lines.append(f"\n{away} @ {home}")
+        lines.append(f"  Edge: {away} {ae:+.1f}% / {home} {he:+.1f}%")
+        lines.append(f"  xR:   {away} {axr:.2f} / {home} {hxr:.2f}")
+
+    bets = data.get("bets", [])
+    if bets:
+        lines.append(f"\n📌 {len(bets)} active pick(s) — use /bets to see pending")
+
+    return "\n".join(lines)
+
+
+def handle_live() -> str:
+    """Return active live alerts from live_alerts.json."""
+    try:
+        with open("live_alerts.json") as f:
+            alerts = json.load(f)
+    except Exception:
+        alerts = []
+
+    if not alerts:
+        return "No live alerts active. Live engine runs 6pm–11pm ET."
+
+    lines = [f"🔴 LIVE ALERTS ({len(alerts)}):"]
+    for a in alerts[-6:]:
+        team  = a.get("team", a.get("away", "?"))
+        inning = a.get("inning", "?")
+        note  = a.get("note", a.get("reason", ""))
+        stake = a.get("stake", 0)
+        odds  = a.get("odds", "")
+        lines.append(f"  {team} (inn {inning}) {odds} ${stake:.2f} — {note}")
+
+    return "\n".join(lines)
+
+
+def handle_props() -> str:
+    """Return today's props slate."""
+    try:
+        with open("props_output.json") as f:
+            props = json.load(f)
+    except Exception:
+        props = []
+
+    if not props:
+        return "No props data yet — generated during daily scout at 1pm ET."
+
+    today = date.today().isoformat()
+    lines = [f"PROPS SLATE — {today}"]
+    for p in props[:8]:
+        ptype = p.get("type", "PROP")
+        desc  = p.get("description", p.get("legs", ""))
+        stake = p.get("stake", p.get("kelly_stake", 0)) or 0
+        edge  = p.get("edge_pct", p.get("ev", 0)) or 0
+        lines.append(f"  [{ptype}] {desc} — ${float(stake):.2f} — edge {float(edge):+.1f}%")
+
+    return "\n".join(lines)
+
+
+def handle_edges() -> str:
+    """Return current market edges / arbitrage log."""
+    try:
+        with open("arbitrage_log.json") as f:
+            edges = json.load(f)
+    except Exception:
+        edges = []
+
+    if not edges:
+        return "No market edges found. Try after 1pm ET when scout runs."
+
+    lines = [f"📊 MARKET EDGES ({len(edges)} found):"]
+    for e in edges[:6]:
+        game  = e.get("game", e.get("event", "?"))
+        desc  = e.get("description", e.get("note", ""))
+        epct  = float(e.get("edge_pct", e.get("edge", 0)) or 0)
+        lines.append(f"  {game} — {desc} — {epct:+.1f}%")
+
+    return "\n".join(lines)
+
+
+def handle_record() -> str:
+    """Return all-time track record from DB."""
+    bets     = _db.get_bets()
+    resolved = [b for b in bets if b.get("result") in ("W", "L", "P")]
+    if not resolved:
+        return "No resolved bets yet — start betting!"
+
+    wins   = sum(1 for b in resolved if b["result"] == "W")
+    losses = sum(1 for b in resolved if b["result"] == "L")
+    total  = wins + losses
+
+    staked = sum(float(b.get("stake") or 0) for b in resolved if b["result"] != "P")
+    pnl    = 0.0
+    for b in resolved:
+        stake = float(b.get("stake") or 0)
+        if b["result"] == "W":
+            dec = american_to_decimal(str(b.get("bet_odds", "")))
+            if dec:
+                pnl += (dec - 1) * stake
+        elif b["result"] == "L":
+            pnl -= stake
+    roi  = round(pnl / staked * 100, 1) if staked > 0 else 0.0
+    wr   = round(wins / total * 100, 1) if total else 0.0
+    sign = "+" if pnl >= 0 else ""
+
+    br   = _current_bankroll()
+
+    return (
+        f"📊 ALL-TIME TRACK RECORD\n"
+        f"Record: {wins}W-{losses}L ({wr:.1f}%)\n"
+        f"P&L: {sign}${pnl:.2f} | ROI: {sign}{roi:.1f}%\n"
+        f"Bankroll: ${br:.2f} | Total bets: {len(bets)}"
+    )
+
+
+def handle_status() -> str:
+    """Run health check and return system status."""
+    try:
+        from health_check import run_health_check
+        r        = run_health_check(auto_restart=False)
+        all_ok   = r.get("all_ok", False)
+        failures = r.get("failures", [])
+        if all_ok:
+            return "✅ All systems operational"
+        lines = ["⚠️ Issues detected:"]
+        for f in failures:
+            lines.append(f"  • {f}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"❌ Health check error: {e}"
+
+
 # ── DISPATCHER ────────────────────────────────────────────────────────────────
 
 def dispatch(text: str) -> None:
@@ -614,6 +773,36 @@ def dispatch(text: str) -> None:
             _send(handle_fade(team_arg, reason))
         else:
             _send("❓ Try: /fade [TEAM] [REASON] — e.g. /fade SF public overreaction")
+        return
+
+    # /preview — today's game previews
+    if lower == "preview":
+        _send(handle_preview())
+        return
+
+    # /live — active live alerts
+    if lower == "live":
+        _send(handle_live())
+        return
+
+    # /props — today's props slate
+    if lower == "props":
+        _send(handle_props())
+        return
+
+    # /edges — market edges
+    if lower == "edges":
+        _send(handle_edges())
+        return
+
+    # /record — all-time track record
+    if lower == "record":
+        _send(handle_record())
+        return
+
+    # /status — system health check
+    if lower == "status":
+        _send(handle_status())
         return
 
     # /bets  /bankroll  /results  /help

@@ -1190,12 +1190,19 @@ def run_daily_scout():
                 bankroll=br,
             )
             if sgp_suggestions:
-                game_label = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
-                for sgp in sgp_suggestions:
-                    _send_telegram(_format_sgp(sgp, game_label))
                 all_sgp.extend(sgp_suggestions)
+
         except Exception as sgp_err:
             print(f"  SGP error: {sgp_err}")
+            sgp_suggestions = []
+
+        # ── Categorized props block ────────────────────────────────────────────
+        try:
+            props_msg = _format_props_message(analysis, sgp_suggestions or [], br)
+            if props_msg:
+                _send_telegram(props_msg)
+        except Exception as props_err:
+            print(f"  Props format error: {props_err}")
 
         bet_found = False
         for side in ("away", "home"):
@@ -1294,6 +1301,504 @@ def run_daily_scout():
     return scout_out
 
 
+# ── PROPS MESSAGE FORMAT ──────────────────────────────────────────────────────
+
+def _format_props_message(analysis: dict, sgp_list: list, br: float) -> str | None:
+    """
+    Format categorized props block for a game.
+    Returns None if there's nothing worth showing.
+    """
+    away_sp     = analysis.get("away_sp") or {}
+    home_sp     = analysis.get("home_sp") or {}
+    nrfi_r      = analysis.get("nrfi") or {}
+    total_r     = analysis.get("total") or {}
+    totals_line = analysis.get("totals_line") or 8.5
+    game_time   = analysis.get("game_time_et", "")
+    away_name   = analysis.get("away_name", analysis.get("away", ""))
+    home_name   = analysis.get("home_name", analysis.get("home", ""))
+    game_label  = f"{away_name} @ {home_name}"
+    time_label  = f" — {game_time}" if game_time else ""
+    any_bet = False
+
+    # ── PITCHER ────────────────────────────────────────────────────────────────
+    pitcher_lines = []
+    for sp in (away_sp, home_sp):
+        if not sp or not sp.get("name") or sp.get("name") == "TBD":
+            continue
+        name  = sp["name"]
+        k_line = round(sp.get("k9", 8.5) * 5.0 / 9, 1)
+        k_r    = k_prop(sp, k_line)
+        p_k    = k_r.get("p_over", 0)
+        if p_k >= 0.55:
+            stake = round(br * (0.02 if p_k >= 0.60 else 0.01), 2)
+            edge_est = round((p_k - 0.50) * 100, 1)
+            pitcher_lines.append(
+                f"✅ BET: {name} O{k_line}K — ${stake:.2f} — EDGE: est +{edge_est:.1f}% — MODEL: {p_k:.1%}"
+            )
+            any_bet = True
+        else:
+            pitcher_lines.append(
+                f"❌ PASS: {name} O{k_line}K — insufficient edge ({p_k:.1%})"
+            )
+
+    p_nrfi = nrfi_r.get("p_nrfi", 0)
+    p_yrfi = nrfi_r.get("p_yrfi", 0)
+    if p_nrfi >= 0.58:
+        stake = round(br * 0.015, 2)
+        pitcher_lines.append(f"✅ BET: NRFI — ${stake:.2f} — EDGE: est +{round((p_nrfi-0.50)*100,1):.1f}%")
+        any_bet = True
+    elif p_yrfi >= 0.58:
+        stake = round(br * 0.015, 2)
+        pitcher_lines.append(f"✅ BET: YRFI — ${stake:.2f} — EDGE: est +{round((p_yrfi-0.50)*100,1):.1f}%")
+        any_bet = True
+    else:
+        pitcher_lines.append(
+            f"❌ PASS: NRFI ({p_nrfi:.1%}) / YRFI ({p_yrfi:.1%}) — no edge"
+        )
+
+    # ── TEAM TOTALS ────────────────────────────────────────────────────────────
+    team_lines = []
+    p_over  = total_r.get("p_over", 0)
+    p_under = total_r.get("p_under", 0)
+    if p_over >= 0.55:
+        stake = round(br * 0.015, 2)
+        team_lines.append(
+            f"✅ BET: {away_name} total O{totals_line} — ${stake:.2f} — EDGE: est +{round((p_over-0.50)*100,1):.1f}%"
+        )
+        any_bet = True
+    elif p_under >= 0.55:
+        stake = round(br * 0.015, 2)
+        team_lines.append(
+            f"✅ BET: {home_name} total U{totals_line} — ${stake:.2f} — EDGE: est +{round((p_under-0.50)*100,1):.1f}%"
+        )
+        any_bet = True
+    else:
+        team_lines.append(f"❌ PASS: game total {totals_line} — market efficient (O={p_over:.1%} U={p_under:.1%})")
+
+    # ── SAME-GAME PARLAY ───────────────────────────────────────────────────────
+    sgp_lines = []
+    for sgp in sgp_list:
+        legs    = " + ".join(sgp.get("legs", [])[:3])
+        stake   = sgp.get("kelly_stake", 0) or 0
+        joint   = sgp.get("joint_prob", 0)
+        corr    = sgp.get("correlation", "")
+        sgp_type = sgp.get("type", "SGP")
+        # Estimate combined odds from joint prob
+        if joint > 0:
+            combined_dec = 1.0 / joint
+            combined_am  = decimal_to_american(combined_dec * 0.85)  # 15% book juice
+        else:
+            combined_am  = "N/A"
+        sgp_lines.append(
+            f"✅ {legs} ({combined_am}) — ${stake:.2f} — {corr.split('—')[0].strip()}"
+        )
+        any_bet = True
+
+    if not any_bet:
+        return None
+
+    sections = [f"PROPS — {game_label}{time_label}"]
+    if pitcher_lines:
+        sections.append("PITCHER:\n" + "\n".join(f"  {l}" for l in pitcher_lines))
+    if team_lines:
+        sections.append("TEAM:\n" + "\n".join(f"  {l}" for l in team_lines))
+    if sgp_lines:
+        sections.append("SAME-GAME PARLAY:\n" + "\n".join(f"  {l}" for l in sgp_lines))
+
+    return "\n".join(sections)
+
+
+# ── NIGHTLY DEBRIEF ───────────────────────────────────────────────────────────
+
+def _run_debrief():
+    """Pull today's settled bets, compute day results, send formatted Telegram."""
+    today  = date.today().isoformat()
+    bets   = _db.get_bets(date=today)
+    all_bets = _db.get_bets()
+
+    resolved = [b for b in bets if b.get("result") in ("W", "L", "P")]
+    pending  = [b for b in bets if not b.get("result")]
+
+    if not resolved and not pending:
+        print(f"Debrief: no bets found for {today} — skipping Telegram")
+        _run_db_backup()
+        return
+
+    wins   = sum(1 for b in resolved if b["result"] == "W")
+    losses = sum(1 for b in resolved if b["result"] == "L")
+
+    day_pnl = 0.0
+    for b in resolved:
+        stake = float(b.get("stake") or 0)
+        if b["result"] == "W":
+            dec = american_to_decimal(str(b.get("bet_odds", "")))
+            if dec:
+                day_pnl += (dec - 1) * stake
+        elif b["result"] == "L":
+            day_pnl -= stake
+    day_pnl = round(day_pnl, 2)
+
+    total_staked = sum(float(b.get("stake") or 0) for b in resolved if b["result"] != "P")
+    roi          = round(day_pnl / total_staked * 100, 1) if total_staked > 0 else 0.0
+
+    # CLV
+    from math_engine import calc_clv as _calc_clv
+    clv_vals = []
+    for b in resolved:
+        if b.get("closing_odds") and b.get("bet_odds"):
+            c = _calc_clv(str(b["bet_odds"]), str(b["closing_odds"]))
+            if c.get("clv_pct") is not None:
+                clv_vals.append(c["clv_pct"])
+    avg_clv = round(sum(clv_vals) / len(clv_vals), 2) if clv_vals else None
+
+    # Best call (biggest win P&L), worst call (biggest loss stake)
+    best_call = worst_call = None
+    best_pnl  = -999.0
+    worst_pnl = 999.0
+    for b in resolved:
+        stake = float(b.get("stake") or 0)
+        if b["result"] == "W":
+            dec = american_to_decimal(str(b.get("bet_odds", "")))
+            b_pnl = round((dec - 1) * stake, 2) if dec else 0.0
+            if b_pnl > best_pnl:
+                best_pnl, best_call = b_pnl, b
+        elif b["result"] == "L":
+            if -stake < worst_pnl:
+                worst_pnl, worst_call = -stake, b
+
+    # Model accuracy
+    non_push = [b for b in resolved if b["result"] != "P"]
+    correct  = sum(
+        1 for b in non_push
+        if (b["result"] == "W" and (b.get("model_prob") or 0.5) >= 0.5)
+        or (b["result"] == "L" and (b.get("model_prob") or 0.5) < 0.5)
+    )
+    model_acc = round(correct / len(non_push) * 100, 1) if non_push else None
+
+    br   = current_bankroll()
+    from bankroll_engine import peak_bankroll as _peak_br
+    peak = _peak_br()
+    sign = "+" if day_pnl >= 0 else ""
+
+    lines = [
+        f"📊 DAILY DEBRIEF — {date.today().strftime('%b %d, %Y')}",
+        f"Record: {wins}W-{losses}L | P&L: {sign}${day_pnl:.2f} | ROI: {sign}{roi:.1f}%",
+    ]
+    if avg_clv is not None:
+        lines.append(f"Avg CLV: {avg_clv:+.2f}% ({len(clv_vals)} bets with CLV data)")
+    if best_call:
+        lines.append(
+            f"✅ Best call: {best_call.get('bet','')} {best_call.get('type','ML')} "
+            f"{best_call.get('bet_odds','')} — +${best_pnl:.2f}"
+        )
+    if worst_call:
+        lines.append(
+            f"❌ Worst call: {worst_call.get('bet','')} {worst_call.get('type','ML')} "
+            f"{worst_call.get('bet_odds','')} — -${abs(worst_pnl):.2f}"
+        )
+    if model_acc is not None:
+        lines.append(f"Model accuracy today: {model_acc:.1f}%")
+    lines.append(f"Bankroll: ${br:.2f} (all-time peak: ${peak:.2f})")
+    if pending:
+        lines.append(f"⏳ {len(pending)} bet(s) still pending settlement")
+
+    msg = "\n".join(lines)
+    print(msg)
+    _send_telegram(msg)
+    _run_db_backup()
+
+
+def _run_db_backup():
+    try:
+        backup_path = _db.backup_database()
+        if backup_path:
+            print(f"DB backup: {backup_path}")
+    except Exception as e:
+        print(f"DB backup warning: {e}")
+
+
+# ── WEEKLY ROI REPORT ─────────────────────────────────────────────────────────
+
+def _run_weekly_roi():
+    """Compute all-time ROI and send weekly Telegram report."""
+    from math_engine import clv_stats_summary
+    from bankroll_engine import peak_bankroll as _peak_br
+
+    bets     = _db.get_bets()
+    resolved = [b for b in bets if b.get("result") in ("W", "L", "P")]
+    wins     = sum(1 for b in resolved if b["result"] == "W")
+    losses   = sum(1 for b in resolved if b["result"] == "L")
+    total    = wins + losses
+
+    staked = sum(float(b.get("stake") or 0) for b in resolved if b["result"] != "P")
+    pnl    = 0.0
+    for b in resolved:
+        stake = float(b.get("stake") or 0)
+        if b["result"] == "W":
+            dec = american_to_decimal(str(b.get("bet_odds", "")))
+            if dec:
+                pnl += (dec - 1) * stake
+        elif b["result"] == "L":
+            pnl -= stake
+    roi     = round(pnl / staked * 100, 1) if staked > 0 else 0.0
+    wr      = round(wins / total * 100, 1) if total else 0.0
+    br      = current_bankroll()
+    peak    = _peak_br()
+    sign    = "+" if pnl >= 0 else ""
+
+    clv_data = []
+    try:
+        with open("clv_log.json") as f:
+            clv_data = json.load(f)
+    except Exception:
+        pass
+    clv_stats = clv_stats_summary(clv_data) if clv_data else {}
+
+    lines = [
+        f"📊 WEEKLY ROI REPORT — {date.today().strftime('%b %d, %Y')}",
+        f"All-time: {wins}W-{losses}L ({wr:.1f}%)",
+        f"P&L: {sign}${pnl:.2f} | ROI: {sign}{roi:.1f}%",
+        f"Bankroll: ${br:.2f} (peak: ${peak:.2f})",
+    ]
+    if clv_stats.get("total", 0) > 0:
+        lines.append(
+            f"Avg CLV: {clv_stats.get('avg_clv', 0):+.2f}% "
+            f"({clv_stats.get('total', 0)} bets tracked)"
+        )
+    lines.append("")
+    by_type = clv_stats.get("by_type") or {}
+    if by_type:
+        lines.append("BY TYPE:")
+        for btype, ts in sorted(by_type.items(), key=lambda x: -x[1].get("avg_clv", 0)):
+            if ts.get("count", 0) < 2:
+                continue
+            lines.append(
+                f"  {btype:<12} {ts['wins']}W-{ts['losses']}L  "
+                f"CLV:{ts['avg_clv']:+.1f}%  WR:{ts['win_rate']:.0f}%"
+            )
+    verdict = clv_stats.get("verdict", "")
+    if verdict:
+        lines += ["", verdict]
+    sample  = clv_stats.get("sample_size", "")
+    if sample:
+        lines.append(sample)
+
+    msg = "\n".join(lines)
+    print(msg)
+    _send_telegram(msg)
+
+
+# ── LINE MOVEMENT RE-SCOUT ────────────────────────────────────────────────────
+
+def _run_linecheck():
+    """Compare 5:30pm lines to 1pm scout lines. Alert on 3+ point moves."""
+    print("Running line movement check (5:30pm ET)...")
+
+    try:
+        with open("last_scout.json") as f:
+            prev_scout = json.load(f)
+    except Exception:
+        print("No last_scout.json — cannot check line movement")
+        return
+
+    saved_bets = prev_scout.get("bets", [])
+    if not saved_bets:
+        print("No bets in last_scout.json — nothing to compare")
+        return
+
+    events = get_mlb_events()
+    if not events:
+        print("No events from Odds API — skipping linecheck")
+        return
+
+    now_et  = datetime.now(ET).strftime("%I:%M %p ET")
+    today   = date.today().isoformat()
+    alerts  = []
+
+    # Build current odds map: team_code → {odds, game_label}
+    curr_map: dict = {}
+    for event in events:
+        away_name = event.get("away", "")
+        home_name = event.get("home", "")
+        away_code = MLB_TEAM_MAP.get(away_name, away_name[:3].upper())
+        home_code = MLB_TEAM_MAP.get(home_name, home_name[:3].upper())
+        try:
+            market = full_market_snapshot(
+                event["id"], away_name, home_name,
+                away_code, home_code, today,
+                commence_utc=event.get("commence_utc", ""),
+            )
+        except Exception:
+            continue
+        label = f"{away_name} @ {home_name}"
+        if market.get("best_away_odds"):
+            curr_map[away_code] = {
+                "odds": market["best_away_odds"],
+                "game": label,
+                "side": "away",
+                "reverse_line": market.get("reverse_line") or {},
+                "public_bias":  market.get("public_bias") or {},
+            }
+        if market.get("best_home_odds"):
+            curr_map[home_code] = {
+                "odds": market["best_home_odds"],
+                "game": label,
+                "side": "home",
+                "reverse_line": market.get("reverse_line") or {},
+                "public_bias":  market.get("public_bias") or {},
+            }
+
+    # Compare each saved bet to current odds
+    for saved in saved_bets:
+        team       = saved.get("team", "")
+        saved_odds = saved.get("odds")
+        if not team or saved_odds is None:
+            continue
+        curr = curr_map.get(team)
+        if not curr:
+            continue
+        curr_odds = curr.get("odds")
+        if curr_odds is None:
+            continue
+
+        try:
+            saved_int = int(str(saved_odds).replace("+", ""))
+            curr_int  = int(str(curr_odds).replace("+", ""))
+            moved     = curr_int - saved_int
+        except ValueError:
+            continue
+
+        if abs(moved) < 3:
+            continue
+
+        # Direction: negative moved = team got more favored (good if we bet them)
+        direction  = "toward" if moved < 0 else "away from"
+        sharp_rlm  = curr.get("reverse_line", {}).get("sharp_side") is not None
+        sharp_flag = "YES" if sharp_rlm else "NO"
+
+        saved_disp = f"+{saved_odds}" if isinstance(saved_odds, int) and saved_odds > 0 else str(saved_odds)
+        curr_disp  = f"+{curr_odds}" if isinstance(curr_odds, int) and curr_odds > 0 else str(curr_odds)
+
+        if direction == "toward" and abs(moved) >= 5:
+            action = "INCREASE — line moved our way, value improved"
+        elif direction == "away from" and abs(moved) >= 5:
+            action = "PASS — line moved against us, edge may be gone"
+        else:
+            action = "HOLD — minor move, stick with original"
+
+        alerts.append(
+            f"{curr['game']}: {team} moved {saved_disp} → {curr_disp} ({moved:+d} pts)\n"
+            f"Direction: {direction} our pick\n"
+            f"Sharp money indicator: {sharp_flag}\n"
+            f"Action: {action}"
+        )
+
+    if not alerts:
+        print(f"Line movement check complete — no significant moves (≥3 pts) found")
+        return
+
+    header = f"📈 LINE MOVEMENT ALERT — {now_et}"
+    body   = "\n\n".join(alerts)
+    msg    = f"{header}\n\n{body}"
+    print(msg)
+    _send_telegram(msg)
+
+
+# ── MORNING PLANNER ───────────────────────────────────────────────────────────
+
+def _run_morning_planner():
+    """
+    Morning brief: only sends if games exist today AND at least 1 game
+    shows potential edge >4% based on memory priors vs current market.
+    """
+    print("Running morning planner (9am ET)...")
+    events = get_mlb_events()
+    if not events:
+        print("No games today — morning planner silent")
+        return
+
+    today       = date.today()
+    today_str   = today.isoformat()
+    today_label = today.strftime("%b %d, %Y")
+
+    from memory_engine import team_prior as _team_prior
+
+    watch_games: list[str] = []
+    edge_found = False
+
+    for event in events[:10]:
+        away_name = event.get("away", "")
+        home_name = event.get("home", "")
+        away_code = MLB_TEAM_MAP.get(away_name, away_name[:3].upper())
+        home_code = MLB_TEAM_MAP.get(home_name, home_name[:3].upper())
+
+        try:
+            market = full_market_snapshot(
+                event["id"], away_name, home_name,
+                away_code, home_code, today_str,
+                commence_utc=event.get("commence_utc", ""),
+            )
+        except Exception:
+            continue
+
+        nv      = market.get("no_vig") or {}
+        away_nv = nv.get("away") or 0.5
+        home_nv = nv.get("home") or 0.5
+        if away_nv == 0.5 and home_nv == 0.5:
+            continue  # no market data
+
+        # Use memory prior (7-day) as quick model proxy; both are 0-1 floats
+        away_prior = _team_prior(away_code, "away", 7) or 0.5
+        home_prior = _team_prior(home_code, "home", 7) or 0.5
+
+        away_edge = round((away_prior - away_nv) * 100, 1)
+        home_edge = round((home_prior - home_nv) * 100, 1)
+
+        game_time = _parse_game_time_et(event.get("commence_utc", ""))
+        time_tag  = f" {game_time}" if game_time else ""
+
+        best_edge = max(abs(away_edge), abs(home_edge))
+
+        if best_edge > 4.0:
+            edge_found = True
+            if abs(away_edge) >= abs(home_edge):
+                watch_games.insert(0, f"{away_name} @ {home_name}{time_tag} — {away_code} prior edge {away_edge:+.1f}%")
+            else:
+                watch_games.insert(0, f"{away_name} @ {home_name}{time_tag} — {home_code} prior edge {home_edge:+.1f}%")
+        else:
+            watch_games.append(f"{away_name} @ {home_name}{time_tag}")
+
+    if not edge_found:
+        print("No edge games (>4%) found via memory priors — morning planner silent")
+        return
+
+    lines = [
+        f"🌅 PARLAY OS — MORNING BRIEF — {today_label}",
+        f"{len(events)} games today | Scout runs at 1pm ET",
+        "",
+        "Watch:",
+    ]
+    for g in watch_games[:3]:
+        lines.append(f"  • {g}")
+
+    # Line movement note if yesterday's scout exists
+    try:
+        with open("last_scout.json") as f:
+            prev = json.load(f)
+        prev_date = prev.get("date", "")
+        if prev_date and prev_date != today_str:
+            prev_bets = prev.get("bets", [])
+            if prev_bets:
+                lines.append("")
+                lines.append(f"Yesterday's model: {len(prev_bets)} bet(s) — line movement check at 5:30pm ET")
+    except Exception:
+        pass
+
+    msg = "\n".join(lines)
+    print(msg)
+    _send_telegram(msg)
+
+
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -1336,30 +1841,16 @@ if __name__ == "__main__":
         run_live_monitor()
 
     elif "--debrief" in args:
-        bets     = _db.get_bets()
-        resolved = [b for b in bets if b.get("result") in ("W", "L")]
-        pending  = [b for b in bets if not b.get("result")]
-        br       = current_bankroll()
-        print(f"Debrief: {len(resolved)} resolved, {len(pending)} pending | Bankroll: ${br:.2f}")
-        sync_scout_json()
-        # Daily DB backup (runs as part of nightly debrief job)
-        try:
-            from db import backup_database
-            backup_path = backup_database()
-            if backup_path:
-                print(f"DB backup: {backup_path}")
-        except Exception as e:
-            print(f"DB backup warning: {e}")
+        _run_debrief()
 
     elif "--weekly" in args:
-        from math_engine import clv_stats_summary
-        bets   = _db.get_bets()
-        wins   = sum(1 for b in bets if b.get("result") == "W")
-        losses = sum(1 for b in bets if b.get("result") == "L")
-        total  = wins + losses
-        br     = current_bankroll()
-        print(f"Weekly ROI: {wins}-{losses} ({wins/total*100:.1f}%)" if total else "No resolved bets")
-        print(f"Bankroll: ${br:.2f}")
+        _run_weekly_roi()
+
+    elif "--linecheck" in args:
+        _run_linecheck()
+
+    elif "--planner" in args:
+        _run_morning_planner()
 
     else:
         # Default: start Telegram listener + auto-settler + hedge monitor in background, run scout once, exit

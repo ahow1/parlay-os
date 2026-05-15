@@ -2,42 +2,40 @@ name: Parlay OS — All Systems
 
 on:
   schedule:
-    - cron: '0 17 * * *'     # Scout 1PM ET (17 UTC)
-    - cron: '0 22 * * *'     # Scout 6PM ET (reload)
-    - cron: '30 21 * * *'    # Line movement check 5:30PM ET
-    - cron: '0 23 * * *'     # Live monitor 7PM ET
-    - cron: '30 0 * * *'     # Live monitor 8:30PM ET
-    - cron: '0 2 * * *'      # Live monitor 10PM ET
-    - cron: '0 3 * * *'      # CLV tracker 11PM ET
-    - cron: '30 3 * * *'     # Nightly debrief 11:30PM ET
-    - cron: '0 13 * * 1'     # Weekly ROI report Monday 9AM ET
+    - cron: '0 18 * * *'    # daily_brain    — 1pm ET (18:00 UTC)
+    - cron: '30 22 * * *'   # line_movement  — 5:30pm ET (22:30 UTC)
+    - cron: '0 23 * * *'    # live_engine    — 6pm ET, runs until 11pm internally
+    - cron: '30 4 * * *'    # daily_debrief  — 11:30pm ET (04:30 UTC next day)
+    - cron: '0 14 * * 1'    # weekly_roi     — Mon 9am ET (14:00 UTC)
+    - cron: '0 14 * * *'    # morning_planner — 9am ET (14:00 UTC)
   workflow_dispatch:
     inputs:
       job:
         description: 'Which job to run'
         required: true
-        default: 'scout'
+        default: 'daily_brain'
         type: choice
         options:
-          - scout
-          - live
-          - clv_tracker
-          - debrief
+          - daily_brain
+          - line_movement
+          - live_engine
+          - daily_debrief
           - weekly_roi
+          - morning_planner
+
+# ─── SHARED SETUP ─────────────────────────────────────────────────────────────
+# Each job installs deps, runs ONE brain.py flag, commits if outputs changed,
+# then exits. No job triggers another job. No job runs twice per schedule period.
 
 jobs:
 
-  # ─── BRAIN SCOUT ─────────────────────────────────────────────────────────
-  scout:
+  # ─── 1. DAILY BRAIN SCOUT — 1pm ET ───────────────────────────────────────
+  daily_brain:
     if: >
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'scout') ||
-      (github.event_name == 'schedule' && (
-        github.event.schedule == '0 17 * * *' ||
-        github.event.schedule == '0 22 * * *' ||
-        github.event.schedule == '30 21 * * *'
-      ))
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'daily_brain') ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 18 * * *')
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,16 +44,16 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
 
-      - run: pip install requests pytz flask flask-cors
+      - run: pip install -q requests pytz flask flask-cors
 
-      - name: Run Brain Scout
+      - name: Run daily brain scout
         env:
           ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python brain.py
 
-      - name: Commit outputs
+      - name: Commit scout outputs
         run: |
           git config user.name "Parlay OS Bot"
           git config user.email "bot@parlay-os.com"
@@ -63,17 +61,13 @@ jobs:
           git diff --staged --quiet || git commit -m "Scout: $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push || true
 
-  # ─── LIVE MONITOR ────────────────────────────────────────────────────────
-  live_monitor:
+  # ─── 2. LINE MOVEMENT CHECK — 5:30pm ET ──────────────────────────────────
+  line_movement:
     if: >
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'live') ||
-      (github.event_name == 'schedule' && (
-        github.event.schedule == '0 23 * * *' ||
-        github.event.schedule == '30 0 * * *' ||
-        github.event.schedule == '0 2 * * *'
-      ))
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'line_movement') ||
+      (github.event_name == 'schedule' && github.event.schedule == '30 22 * * *')
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -82,30 +76,30 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
 
-      - run: pip install requests pytz flask flask-cors
+      - run: pip install -q requests pytz flask flask-cors
 
-      - name: Run Live Monitor
+      - name: Run line movement check
         env:
           ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: timeout 70m python brain.py --live || true
+        run: python brain.py --linecheck
 
-      - name: Commit outputs
+      - name: Commit if scout updated
         run: |
           git config user.name "Parlay OS Bot"
           git config user.email "bot@parlay-os.com"
-          git add parlay_os.db || true
-          git diff --staged --quiet || git commit -m "Live: monitor run $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git add last_scout.json || true
+          git diff --staged --quiet || git commit -m "Linecheck: $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push || true
 
-  # ─── CLV TRACKER ─────────────────────────────────────────────────────────
-  clv_tracker:
+  # ─── 3. LIVE ENGINE — 6pm–11pm ET (internal 60s cycle) ───────────────────
+  live_engine:
     if: >
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'clv_tracker') ||
-      (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *')
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'live_engine') ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 23 * * *')
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 310
     steps:
       - uses: actions/checkout@v4
         with:
@@ -114,28 +108,28 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
 
-      - run: pip install anthropic requests pytz
+      - run: pip install -q requests pytz flask flask-cors
 
-      - name: Run CLV Tracker
+      - name: Run live engine (6pm–11pm ET internal loop)
         env:
-          ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
+          ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python clv_tracker.py
+        run: timeout 300m python brain.py --live || true
 
-      - name: Commit outputs
+      - name: Commit live outputs
         run: |
           git config user.name "Parlay OS Bot"
           git config user.email "bot@parlay-os.com"
-          git add clv_log.json parlay_os.db || true
-          git diff --staged --quiet || git commit -m "CLV: nightly resolve $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git add parlay_os.db live_alerts.json || true
+          git diff --staged --quiet || git commit -m "Live: $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push || true
 
-  # ─── NIGHTLY DEBRIEF ─────────────────────────────────────────────────────
-  debrief:
+  # ─── 4. DAILY DEBRIEF — 11:30pm ET ───────────────────────────────────────
+  daily_debrief:
     if: >
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'debrief') ||
-      (github.event_name == 'schedule' && github.event.schedule == '30 3 * * *')
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'daily_debrief') ||
+      (github.event_name == 'schedule' && github.event.schedule == '30 4 * * *')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -146,27 +140,27 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
 
-      - run: pip install requests pytz flask flask-cors
+      - run: pip install -q requests pytz flask flask-cors
 
-      - name: Run Debrief via Brain
+      - name: Run daily debrief
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python brain.py --debrief || true
+        run: python brain.py --debrief
 
-      - name: Commit resolved bets
+      - name: Commit debrief outputs
         run: |
           git config user.name "Parlay OS Bot"
           git config user.email "bot@parlay-os.com"
           git add parlay_os.db clv_log.json || true
-          git diff --staged --quiet || git commit -m "Debrief: bets resolved $(date -u '+%Y-%m-%d')"
+          git diff --staged --quiet || git commit -m "Debrief: $(date -u '+%Y-%m-%d')"
           git push || true
 
-  # ─── WEEKLY ROI REPORT ───────────────────────────────────────────────────
+  # ─── 5. WEEKLY ROI REPORT — Monday 9am ET ────────────────────────────────
   weekly_roi:
     if: >
       (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'weekly_roi') ||
-      (github.event_name == 'schedule' && github.event.schedule == '0 13 * * 1')
+      (github.event_name == 'schedule' && github.event.schedule == '0 14 * * 1')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -177,10 +171,34 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
 
-      - run: pip install requests pytz flask flask-cors
+      - run: pip install -q requests pytz flask flask-cors
 
-      - name: Run Weekly ROI Report
+      - name: Run weekly ROI report
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python brain.py --weekly || true
+        run: python brain.py --weekly
+
+  # ─── 6. MORNING PLANNER — 9am ET (only if picks exist) ───────────────────
+  morning_planner:
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'morning_planner') ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 14 * * *')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+
+      - run: pip install -q requests pytz flask flask-cors
+
+      - name: Run morning planner
+        env:
+          ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python brain.py --planner
