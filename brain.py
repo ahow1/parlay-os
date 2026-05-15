@@ -773,6 +773,13 @@ def _daily_bet_slip(
     all_injuries: list | None = None,
 ) -> None:
     """Send the daily bet slip as 3 labeled Telegram messages."""
+    print(
+        f"[SLIP] _daily_bet_slip called — "
+        f"locks={len(all_locks)} flips={len(all_flips)} props={len(all_props)} "
+        f"fades={len(all_fades)} nrfi={len(all_nrfi or [])} totals={len(all_totals or [])} "
+        f"k_props={len(all_k_props or [])} hitter_props={len(all_hitter_props or [])} "
+        f"injuries={len(all_injuries or [])} br=${br:.2f}"
+    )
     today = date.today().strftime("%b %d, %Y")
 
     locks       = all_locks[:MAX_LOCKS_PER_DAY]
@@ -896,6 +903,7 @@ def _daily_bet_slip(
     elif day_cls["color"] == "RED":
         p1.append("🔴 RED day — no locks found, props only, no ML bets")
 
+    print(f"[SLIP] Sending PART 1/3 ({len(p1)} lines)...")
     _send_telegram("\n".join(p1))
 
     # ── PART 2: PLAYER PROPS + NRFI/YRFI ─────────────────────────────────────
@@ -944,6 +952,7 @@ def _daily_bet_slip(
     if not has_p2:
         p2.append("No props with edge today.")
 
+    print(f"[SLIP] Sending PART 2/3 ({len(p2)} lines)...")
     _send_telegram("\n".join(p2))
 
     # ── PART 3: TOTALS + FADES + RISK SUMMARY ────────────────────────────────
@@ -991,7 +1000,9 @@ def _daily_bet_slip(
     else:
         p3.append(f"✅ Within daily cap (${cap:.2f})")
 
+    print(f"[SLIP] Sending PART 3/3 ({len(p3)} lines)...")
     _send_telegram("\n".join(p3))
+    print("[SLIP] All 3 parts sent.")
 
 
 # ── BET RECOMMENDATION FILTER ─────────────────────────────────────────────────
@@ -1132,20 +1143,26 @@ def _format_pass_message(game: dict) -> str:
 
 def _send_telegram(msg: str):
     if DRY_RUN:
+        print("[TG] DRY_RUN — printing instead of sending:")
         print(msg)
         print("---")
         return
     if not BOT_TOKEN or not CHAT_ID:
+        print(f"[TG] WARN: BOT_TOKEN={'set' if BOT_TOKEN else 'MISSING'} CHAT_ID={'set' if CHAT_ID else 'MISSING'} — printing instead:")
         print(msg)
         return
+    print(f"[TG] Sending message to chat {CHAT_ID} (len={len(msg)})...")
     try:
-        requests.post(
+        resp = requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
             data={"chat_id": CHAT_ID, "text": msg, "parse_mode": "HTML"},
             timeout=8,
         )
+        print(f"[TG] Sent — status={resp.status_code} ok={resp.ok}")
+        if not resp.ok:
+            print(f"[TG] Response body: {resp.text[:300]}")
     except Exception as e:
-        print(f"Telegram error: {e}")
+        print(f"[TG] ERROR sending: {e}")
 
 
 def _generate_pick_narrative(analysis: dict, side: str) -> str:
@@ -1731,12 +1748,18 @@ def run_daily_scout():
         print(f"Series analysis error: {series_err}")
 
     # ── Daily bet slip ────────────────────────────────────────────────────────
-    print("Building daily bet slip...")
+    print(
+        f"Building daily bet slip — "
+        f"locks={len(all_locks)} flips={len(all_flips)} nrfi={len(all_nrfi)} "
+        f"totals={len(all_totals)} k_props={len(all_k_props)} "
+        f"hitter_props={len(all_hitter_props)} injuries={len(all_injuries)}"
+    )
     try:
         _daily_bet_slip(all_locks, all_flips, all_sgp, all_fades, br,
                         all_nrfi, all_totals, all_hitter_props, all_k_props, all_injuries)
     except Exception as slip_err:
-        print(f"Daily slip error: {slip_err}")
+        print(f"Daily slip EXCEPTION: {slip_err}")
+        traceback.print_exc()
 
     # ── Public channel post ───────────────────────────────────────────────────
     if PUBLIC_CHANNEL_ID:
