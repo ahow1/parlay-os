@@ -40,7 +40,7 @@ from bankroll_engine import kelly_stake, sizing_summary, current_bankroll, is_dr
 from props_engine   import (
     k_prop, nrfi_prob, team_run_expectancy, game_total_prob,
     f5_run_expectancy, correlated_parlay, scan_k_prop,
-    build_sgp_suggestions,
+    build_sgp_suggestions, prob_over,
 )
 from bet_type_validator import (
     validate_bet, BetValidationError, day_classification,
@@ -766,14 +766,16 @@ def _daily_bet_slip(
     br: float,
     all_nrfi: list | None = None,
     all_totals: list | None = None,
+    all_hitter_props: list | None = None,
 ) -> None:
     """Format and send the complete daily bet slip to Telegram."""
     today = date.today().strftime("%b %d, %Y")
 
-    locks       = all_locks[:MAX_LOCKS_PER_DAY]
-    flips       = all_flips[:MAX_FLIPS_PER_DAY]
-    nrfi_bets   = list(all_nrfi or [])
-    totals_bets = list(all_totals or [])
+    locks        = all_locks[:MAX_LOCKS_PER_DAY]
+    flips        = all_flips[:MAX_FLIPS_PER_DAY]
+    nrfi_bets    = list(all_nrfi or [])
+    totals_bets  = list(all_totals or [])
+    hitter_bets  = list(all_hitter_props or [])
 
     n_locks = len(locks)
     day_cls = day_classification(n_locks)
@@ -820,6 +822,8 @@ def _daily_bet_slip(
         total_risk += bet.get("stake", 0)
     for prop in all_props[:2]:
         total_risk += prop.get("kelly_stake", 0) or 0
+    for hp in hitter_bets[:8]:   # cap matches what's shown in the slip
+        total_risk += hp.get("stake", 0)
     total_risk = round(total_risk, 2)
     total_win  = round(total_win, 2)
 
@@ -898,6 +902,18 @@ def _daily_bet_slip(
                 f"  {bet['game']} — {bet['direction']} {bet['line']} ({bet['prob']:.1%}) — ${bet['stake']:.2f}"
             )
             listed_total += bet.get("stake", 0)
+        lines.append("")
+
+    # ── Hitter props ──────────────────────────────────────────────────────────
+    if hitter_bets:
+        shown = hitter_bets[:8]   # cap daily slip at 8 entries
+        lines.append(f"🏏 HITTERS ({len(hitter_bets)} props — showing top {len(shown)}):")
+        for hp in shown:
+            lines.append(
+                f"  {hp['player']} ({hp['team']}) — {hp['prop']} — "
+                f"${hp['stake']:.2f} — EDGE: +{hp['edge_pct']:.1f}%"
+            )
+            listed_total += hp.get("stake", 0)
         lines.append("")
 
     # ── Props slate ───────────────────────────────────────────────────────────
@@ -1161,6 +1177,185 @@ def _get_umpire(game_pk: int | None) -> str:
     return ""
 
 
+# ── PLAYER PROP ENGINE ────────────────────────────────────────────────────────
+
+# (stat_key, display_label, over_line, market_baseline_prob)
+# Market baselines represent the implied probability at a representative no-vig line.
+_HITTER_PROP_LINES = [
+    ("hits",       "Hits O1.5",  1.5, 0.47),
+    ("homeRuns",   "HR O0.5",    0.5, 0.17),
+    ("totalBases", "TB O1.5",    1.5, 0.48),
+    ("rbi",        "RBI O0.5",   0.5, 0.32),
+    ("strikeOuts", "SO O0.5",    0.5, 0.55),
+]
+_HITTER_PROP_MIN_EDGE  = 0.05   # min 5 pp above market baseline
+_HITTER_PROP_MIN_GAMES = 3      # min games in 14-day window
+_HITTER_PROP_TOP_N     = 6      # evaluate top N batters in batting order
+_LG_K9_VS_BATTERS      = 8.7   # league-avg SP K/9 used for batter SO adjustment
+_LG_ERA_HITTER_BASE    = 4.35  # league-avg ERA used for hit/TB adjustment
+
+
+def _fetch_lineup(game_pk: int) -> dict:
+    """Pull confirmed batting lineup via schedule?hydrate=lineups."""
+    try:
+        r = _http_get(
+            f"{STATSAPI}/schedule",
+            params={"gamePk": game_pk, "hydrate": "lineups", "sportId": 1},
+            timeout=8,
+        )
+        for day in r.json().get("dates", []):
+            for g in day.get("games", []):
+                if g.get("gamePk") != game_pk:
+                    continue
+                lineups = g.get("lineups") or {}
+                away = lineups.get("awayTeam") or []
+                home = lineups.get("homeTeam") or []
+                return {
+                    "away":      away,
+                    "home":      home,
+                    "confirmed": bool(away and home),
+                }
+    except Exception:
+        pass
+    return {"away": [], "home": [], "confirmed": False}
+
+
+def _player_14d_stats(player_id: int) -> dict | None:
+    """
+    Aggregate a batter's last-14-day game log from the MLB Stats API.
+    Returns aggregated stat dict or None if fewer than _HITTER_PROP_MIN_GAMES games.
+    """
+    from datetime import date as _date, timedelta as _td
+    end   = _date.today().isoformat()
+    start = (_date.today() - _td(days=14)).isoformat()
+    try:
+        r = _http_get(
+            f"{STATSAPI}/people/{player_id}/stats",
+            params={
+                "stats":     "gameLog",
+                "group":     "hitting",
+                "season":    "2026",
+                "gameType":  "R",
+                "startDate": start,
+                "endDate":   end,
+            },
+            timeout=10,
+        )
+        splits = r.json().get("stats", [{}])[0].get("splits", [])
+        agg = {k: 0 for k in ("hits", "homeRuns", "totalBases", "rbi", "strikeOuts", "atBats")}
+        n   = 0
+        for s in splits:
+            stat = s.get("stat", {})
+            if int(stat.get("atBats", 0) or 0) == 0:
+                continue   # skip 0-PA appearances (pinch runner etc.)
+            for k in agg:
+                agg[k] += int(stat.get(k, 0) or 0)
+            n += 1
+        if n < _HITTER_PROP_MIN_GAMES:
+            return None
+        agg["games"] = n
+        return agg
+    except Exception:
+        return None
+
+
+def _scan_hitter_props(
+    player_name: str,
+    team: str,
+    stats: dict,
+    opp_sp: dict,
+    br: float,
+) -> list:
+    """
+    Evaluate prop markets for one batter using Poisson model vs. market baseline.
+    Adjusts λ by opponent SP quality when real SP data is available.
+    Returns list of recommendation dicts, only for props with >= _HITTER_PROP_MIN_EDGE.
+    """
+    n     = stats["games"]
+    recs  = []
+
+    for stat_key, label, line, market_p in _HITTER_PROP_LINES:
+        raw = stats.get(stat_key, 0)
+        lam  = raw / n
+        if lam <= 0:
+            continue
+
+        # SP quality adjustment (skip if SP data is a league-average fallback)
+        if not opp_sp.get("sp_missing"):
+            if stat_key == "strikeOuts":
+                sp_k9 = opp_sp.get("k9", _LG_K9_VS_BATTERS)
+                lam   = lam * (sp_k9 / _LG_K9_VS_BATTERS)
+            elif stat_key in ("hits", "totalBases"):
+                sp_era = opp_sp.get("effective_era", _LG_ERA_HITTER_BASE)
+                lam    = lam * (sp_era / _LG_ERA_HITTER_BASE)
+
+        lam      = max(lam, 0.001)
+        model_p  = prob_over(lam, line)
+        edge     = round(model_p - market_p, 4)
+
+        if edge < _HITTER_PROP_MIN_EDGE:
+            continue
+
+        stake = round(min(br * (0.015 if edge >= 0.08 else 0.01), 5.0), 2)
+        recs.append({
+            "player":     player_name,
+            "team":       team,
+            "prop":       label,
+            "line":       line,
+            "lam":        round(lam, 3),
+            "model_prob": model_p,
+            "market_p":   market_p,
+            "edge_pct":   round(edge * 100, 1),
+            "stake":      stake,
+            "n_games":    n,
+        })
+
+    return recs
+
+
+def _fetch_game_hitter_props(
+    game_pk: int | None,
+    away_code: str,
+    home_code: str,
+    away_sp: dict,
+    home_sp: dict,
+    br: float,
+) -> list:
+    """
+    Fetch confirmed lineup + 14-day stats for each starter.
+    Returns [] when game_pk is None or lineup is not yet confirmed.
+    """
+    if not game_pk:
+        return []
+
+    lineup = _fetch_lineup(game_pk)
+    if not lineup["confirmed"]:
+        print(f"  [PROPS] {away_code}@{home_code}: lineup not confirmed — skipping hitter props")
+        return []
+
+    all_props: list = []
+    for side, players, opp_sp in (
+        ("away", lineup["away"], home_sp),
+        ("home", lineup["home"], away_sp),
+    ):
+        team = away_code if side == "away" else home_code
+        for player in players[:_HITTER_PROP_TOP_N]:
+            pid  = player.get("id")
+            name = player.get("fullName", f"Player#{pid}")
+            if not pid:
+                continue
+            try:
+                stats = _player_14d_stats(pid)
+            except Exception:
+                continue
+            if not stats:
+                continue
+            recs = _scan_hitter_props(name, team, stats, opp_sp, br)
+            all_props.extend(recs)
+
+    return all_props
+
+
 # ── DAILY SCOUT ───────────────────────────────────────────────────────────────
 
 def run_daily_scout():
@@ -1187,10 +1382,11 @@ def run_daily_scout():
     all_flips:    list = []   # (analysis, side) — MEDIUM conviction, edge 4-7%
     all_fades:    list = []   # (analysis, side, reason)
     all_sgp:      list = []   # correlated SGP suggestions across all games
-    all_nrfi:     list = []   # {game, direction, prob, stake}
-    all_totals:   list = []   # {game, direction, line, prob, stake}
-    game_key_map: dict = {}   # (away_code, home_code) → analysis
-    props_games:  list = []   # per-game props data for props_output.json
+    all_nrfi:         list = []   # {game, direction, prob, stake}
+    all_totals:       list = []   # {game, direction, line, prob, stake}
+    all_hitter_props: list = []   # {player, team, prop, stake, edge_pct, ...}
+    game_key_map:     dict = {}   # (away_code, home_code) → analysis
+    props_games:      list = []   # per-game props data for props_output.json
 
     scout_out = {
         "timestamp": datetime.now(pytz.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -1262,9 +1458,25 @@ def run_daily_scout():
             print(f"  SGP error: {sgp_err}")
             sgp_suggestions = []
 
+        # ── Hitter props for this game ────────────────────────────────────────
+        try:
+            game_hitter_props = _fetch_game_hitter_props(
+                analysis.get("game_pk"),
+                analysis["away"], analysis["home"],
+                analysis.get("away_sp") or {},
+                analysis.get("home_sp") or {},
+                br,
+            )
+            all_hitter_props.extend(game_hitter_props)
+        except Exception as hp_err:
+            print(f"  Hitter props error: {hp_err}")
+            game_hitter_props = []
+
         # ── Categorized props block ────────────────────────────────────────────
         try:
-            props_msg = _format_props_message(analysis, sgp_suggestions or [], br)
+            props_msg = _format_props_message(
+                analysis, sgp_suggestions or [], br, game_hitter_props
+            )
             if props_msg:
                 _send_telegram(props_msg)
         except Exception as props_err:
@@ -1388,7 +1600,7 @@ def run_daily_scout():
     # ── Daily bet slip ────────────────────────────────────────────────────────
     print("Building daily bet slip...")
     try:
-        _daily_bet_slip(all_locks, all_flips, all_sgp, all_fades, br, all_nrfi, all_totals)
+        _daily_bet_slip(all_locks, all_flips, all_sgp, all_fades, br, all_nrfi, all_totals, all_hitter_props)
     except Exception as slip_err:
         print(f"Daily slip error: {slip_err}")
 
@@ -1496,7 +1708,12 @@ def _build_props_entry(analysis: dict, sgp_list: list) -> dict:
     }
 
 
-def _format_props_message(analysis: dict, sgp_list: list, br: float) -> str | None:
+def _format_props_message(
+    analysis: dict,
+    sgp_list: list,
+    br: float,
+    hitter_props: list | None = None,
+) -> str | None:
     """
     Format categorized props block for a game.
     Returns None if there's nothing worth showing.
@@ -1571,8 +1788,17 @@ def _format_props_message(analysis: dict, sgp_list: list, br: float) -> str | No
                 f"❌ PASS: NRFI ({p_nrfi:.1%}) / YRFI ({p_yrfi:.1%}) — no edge"
             )
 
-    # ── HITTERS (individual player props require separate props market API) ────
+    # ── HITTERS ────────────────────────────────────────────────────────────────
     hitter_lines: list[str] = []
+    for hp in (hitter_props or []):
+        odds_s = _est_odds(hp["model_prob"])
+        odds_d = f" ({odds_s})" if odds_s else ""
+        hitter_lines.append(
+            f"✅ BET: {hp['player']} — {hp['prop']}{odds_d} — "
+            f"${hp['stake']:.2f} — EDGE: +{hp['edge_pct']:.1f}% — "
+            f"MODEL: {hp['model_prob']:.1%} [{hp['n_games']}g]"
+        )
+        any_bet = True
 
     # ── TEAM TOTALS ────────────────────────────────────────────────────────────
     team_lines = []
