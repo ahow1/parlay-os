@@ -424,12 +424,28 @@ def handle_settle(result: str, identifier: str) -> str:
 
 
 def handle_bankroll() -> str:
-    bd = _bankroll_display()
+    bd   = _bankroll_display()
     sign = "+" if bd["today_pnl"] >= 0 else ""
+
+    bets     = _db.get_bets()
+    resolved = [b for b in bets if b.get("result") in ("W", "L", "P")]
+    clv_vals = [b["clv_pct"] for b in resolved if b.get("clv_pct") is not None]
+    clv_line = ""
+    if clv_vals:
+        avg_clv   = round(sum(clv_vals) / len(clv_vals), 2)
+        pos_pct   = round(sum(1 for v in clv_vals if v > 0) / len(clv_vals) * 100, 0)
+        clv_sign  = "+" if avg_clv >= 0 else ""
+        verdict   = "SHARP" if avg_clv > 4 else "+EV" if avg_clv > 1 else "NEUTRAL" if avg_clv > -1 else "-EV"
+        clv_line  = (
+            f"\nCLV: {clv_sign}{avg_clv:.2f}% avg | {pos_pct:.0f}% positive | {verdict}"
+            f" ({len(clv_vals)} of {len(resolved)} settled)"
+        )
+
     return (
         f"\U0001f4b0 Bankroll: ${bd['bankroll']:.2f}\n"
         f"Today: {sign}${bd['today_pnl']:.2f} | Record: {bd['today_record']}\n"
         f"At risk: ${bd['pending_risk']:.2f} across {bd['pending_count']} pending bets"
+        + clv_line
     )
 
 
@@ -867,13 +883,17 @@ def dispatch(text: str) -> None:
         return
 
     # /win, /loss, /push — explicit slash settle commands
+    # Accept: /win PIT, /win 3, /win PIT $6.30, /loss PHI $5.40
+    # Dollar amount after identifier is optional confirmation info — strip it.
     for cmd, result_code in (("win ", "W"), ("loss ", "L"), ("push ", "P")):
         if lower.startswith(cmd):
-            identifier = t[len(cmd):].strip()
-            if identifier:
+            rest = t[len(cmd):].strip()
+            if rest:
+                # First whitespace-separated token is the team code or numeric ID
+                identifier = rest.split()[0].lstrip("#")
                 _send(handle_settle(result_code, identifier))
             else:
-                _send(f"❓ Try: /{cmd.strip()} [id or team] — e.g. /{cmd.strip()} SF")
+                _send(f"❓ Try: /{cmd.strip()} [id or team] — e.g. /{cmd.strip()} SF or /{cmd.strip()} SF $6.30")
             return
 
     # Natural-language settle ("won SF", "SF lost", etc.)
@@ -1204,27 +1224,35 @@ def run_settlement_check() -> list[dict]:
 
 
 def _in_settlement_window() -> bool:
-    """True between 9 pm and 1 am ET (covers all game endings)."""
+    """True between 4 pm and 1 am ET — covers afternoon double-headers through late games."""
     hour = datetime.now(ET).hour
-    return hour >= 21 or hour < 1
+    return hour >= 16 or hour < 1
 
 
 def _next_window_sleep() -> int:
-    """Seconds until 9 pm ET if we're outside the window."""
+    """Seconds until 4 pm ET if we're outside the window."""
     now    = datetime.now(ET)
     hour   = now.hour
     minute = now.minute
-    if hour >= 21 or hour < 1:
+    if hour >= 16 or hour < 1:
         return 30 * 60  # already in window — standard 30-min interval
-    # Calculate seconds until 9 pm ET
-    target_hour   = 21
+    # Calculate seconds until 4 pm ET
+    target_hour   = 16
     minutes_left  = (target_hour - hour) * 60 - minute
     return max(minutes_left * 60, 60)
 
 
 def _settler_loop() -> None:
-    """Background daemon: run settlement check every 30 min, 9 pm–1 am ET."""
+    """Background daemon: run settlement check every 30 min, 4 pm–1 am ET."""
     print("[AUTO] Settlement loop started")
+    # Immediate check on startup so bets from earlier in the day are settled right away
+    if _in_settlement_window():
+        try:
+            settled = run_settlement_check()
+            if settled:
+                print(f"[AUTO] Startup check: settled {len(settled)} bet(s)")
+        except Exception as e:
+            print(f"[AUTO] startup check error: {e}")
     while True:
         sleep_secs = _next_window_sleep()
         time.sleep(sleep_secs)

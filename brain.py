@@ -325,8 +325,11 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     # SP rolling ERA
     away_r3_str = f"{away_r3_era:.2f}" if away_r3_era is not None else "N/A"
     home_r3_str = f"{home_r3_era:.2f}" if home_r3_era is not None else "N/A"
-    print(f"  SP last-3 ERA: {away_sp_name}={away_r3_str}{' ['+','.join(away_sp_flags)+']' if away_sp_flags else ''}  "
-          f"{home_sp_name}={home_r3_str}{' ['+','.join(home_sp_flags)+']' if home_sp_flags else ''}")
+    away_xfip_str = f"/xFIP {away_sp.get('xfip'):.2f}" if away_sp.get("xfip") is not None else ""
+    home_xfip_str = f"/xFIP {home_sp.get('xfip'):.2f}" if home_sp.get("xfip") is not None else ""
+    print(f"  SP ERA{'/xFIP' if away_xfip_str else ''}: "
+          f"{away_sp_name}={away_r3_str}{away_xfip_str}{' ['+','.join(away_sp_flags)+']' if away_sp_flags else ''}  "
+          f"{home_sp_name}={home_r3_str}{home_xfip_str}{' ['+','.join(home_sp_flags)+']' if home_sp_flags else ''}")
     if away_sc_str or home_sc_str:
         print(f"  Statcast: {away_sp_name}: {away_sc_str or 'N/A'}  |  {home_sp_name}: {home_sc_str or 'N/A'}")
     # Bullpen fatigue
@@ -1062,8 +1065,15 @@ def _format_bet_message(game: dict, side: str) -> str:
     opp_sp  = game.get(f"{opp_s}_sp", {})
     wx      = game.get("weather", {})
 
-    sp_str  = f"{sp.get('name','TBD')} ({sp.get('era','?')} ERA)"
-    osp_str = f"{opp_sp.get('name','TBD')} ({opp_sp.get('era','?')} ERA)"
+    def _sp_line(s: dict) -> str:
+        name = s.get("name", "TBD")
+        era  = s.get("era", "?")
+        xfip = s.get("xfip")
+        xfip_str = f" / xFIP {xfip:.2f}" if xfip is not None else ""
+        return f"{name} ({era} ERA{xfip_str})"
+
+    sp_str  = _sp_line(sp)
+    osp_str = _sp_line(opp_sp)
     sides_str = f"{game.get('away_name','')} @ {game.get('home_name','')}"
 
     lines = [
@@ -1968,22 +1978,25 @@ def _format_props_message(
     for sp in (away_sp, home_sp):
         if not sp or not sp.get("name") or sp.get("name") == "TBD":
             continue
-        name   = sp["name"]
-        k_line = round(sp.get("k9", 8.5) * 5.0 / 9, 1)
-        k_r    = k_prop(sp, k_line)
-        p_k    = k_r.get("p_over", 0)
-        odds   = _est_odds(p_k)
-        odds_s = f" {odds}" if odds else ""
+        name      = sp["name"]
+        k_line    = round(sp.get("k9", 8.5) * 5.0 / 9, 1)
+        k_r       = k_prop(sp, k_line)
+        p_k       = k_r.get("p_over", 0)
+        odds      = _est_odds(p_k)
+        odds_s    = f" {odds}" if odds else ""
+        era_tag   = f" ERA:{sp.get('era','?')}"
+        xfip_tag  = f" xFIP:{sp.get('xfip'):.2f}" if sp.get("xfip") is not None else ""
+        sp_stats  = era_tag + xfip_tag
         if p_k >= 0.55:
             stake    = round(br * (0.02 if p_k >= 0.60 else 0.01), 2)
             edge_est = round((p_k - 0.50) * 100, 1)
             pitcher_lines.append(
-                f"✅ BET: {name} O{k_line}K{odds_s} — ${stake:.2f} — EDGE: +{edge_est:.1f}% — MODEL: {p_k:.1%}"
+                f"✅ BET: {name} O{k_line}K{odds_s} — ${stake:.2f} — EDGE: +{edge_est:.1f}% — MODEL: {p_k:.1%}{sp_stats}"
             )
             any_bet = True
         else:
             pitcher_lines.append(
-                f"❌ PASS: {name} O{k_line}K — insufficient edge ({p_k:.1%})"
+                f"❌ PASS: {name} O{k_line}K — insufficient edge ({p_k:.1%}){sp_stats}"
             )
 
     sp_data_missing = away_sp.get("sp_missing") or home_sp.get("sp_missing")
