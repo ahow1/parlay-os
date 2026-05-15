@@ -1339,24 +1339,31 @@ def run_daily_scout():
                     all_fades.append((analysis, side, reason))
 
         # ── Collect NRFI and totals for daily slip ─────────────────────────────
+        # Only recommend these props when both SPs have real data — league-average
+        # fallbacks produce meaningless probability estimates.
+        _a_sp = analysis.get("away_sp") or {}
+        _h_sp = analysis.get("home_sp") or {}
+        _sp_ok = not _a_sp.get("sp_missing") and not _h_sp.get("sp_missing")
+
         nrfi_r_g  = analysis.get("nrfi") or {}
         total_r_g = analysis.get("total") or {}
         game_lbl  = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
 
-        nrfi_note = nrfi_r_g.get("note")
-        if nrfi_note in ("nrfi", "yrfi"):
-            direction = "NRFI" if nrfi_note == "nrfi" else "YRFI"
-            prob  = nrfi_r_g["p_nrfi"] if direction == "NRFI" else nrfi_r_g["p_yrfi"]
-            stake = round(min(br * 0.010, 5.0), 2)
-            all_nrfi.append({"game": game_lbl, "direction": direction, "prob": prob, "stake": stake})
+        if _sp_ok:
+            nrfi_note = nrfi_r_g.get("note")
+            if nrfi_note in ("nrfi", "yrfi"):
+                direction = "NRFI" if nrfi_note == "nrfi" else "YRFI"
+                prob  = nrfi_r_g["p_nrfi"] if direction == "NRFI" else nrfi_r_g["p_yrfi"]
+                stake = round(min(br * 0.010, 5.0), 2)
+                all_nrfi.append({"game": game_lbl, "direction": direction, "prob": prob, "stake": stake})
 
-        total_note = total_r_g.get("note")
-        if total_note and total_note != "neutral":
-            direction = total_note.upper()
-            prob  = total_r_g["p_over"] if direction == "OVER" else total_r_g["p_under"]
-            line  = analysis.get("totals_line") or 8.5
-            stake = round(min(br * 0.0075, 4.0), 2)
-            all_totals.append({"game": game_lbl, "direction": direction, "line": line, "prob": prob, "stake": stake})
+            total_note = total_r_g.get("note")
+            if total_note and total_note != "neutral":
+                direction = total_note.upper()
+                prob  = total_r_g["p_over"] if direction == "OVER" else total_r_g["p_under"]
+                line  = analysis.get("totals_line") or 8.5
+                stake = round(min(br * 0.0075, 4.0), 2)
+                all_totals.append({"game": game_lbl, "direction": direction, "line": line, "prob": prob, "stake": stake})
 
         if not bet_found:
             all_pass.append(analysis)
@@ -1434,29 +1441,37 @@ def _build_props_entry(analysis: dict, sgp_list: list) -> dict:
             "recommendation": "BET" if p_k >= 0.55 else "PASS",
         })
 
-    p_nrfi = nrfi_r.get("p_nrfi", 0)
-    p_yrfi = nrfi_r.get("p_yrfi", 0)
-    props.append({
-        "type":          "NRFI",
-        "p_nrfi":        round(p_nrfi, 4),
-        "p_yrfi":        round(p_yrfi, 4),
-        "recommendation": "NRFI" if p_nrfi >= 0.58 else ("YRFI" if p_yrfi >= 0.58 else "PASS"),
-    })
+    sp_data_missing = away_sp.get("sp_missing") or home_sp.get("sp_missing")
 
-    p_over  = total_r.get("p_over", 0)
-    p_under = total_r.get("p_under", 0)
-    model_total = round((analysis.get("away_xr", 0) + analysis.get("home_xr", 0)), 2)
-    props.append({
-        "type":          "TOTAL",
-        "model_total":   model_total,
-        "market_line":   totals_line,
-        "p_over":        round(p_over, 4),
-        "p_under":       round(p_under, 4),
-        "recommendation": (
-            f"OVER {totals_line}" if p_over >= 0.55
-            else (f"UNDER {totals_line}" if p_under >= 0.55 else "PASS")
-        ),
-    })
+    if sp_data_missing:
+        props.append({"type": "NRFI", "recommendation": "SP_MISSING"})
+    else:
+        p_nrfi = nrfi_r.get("p_nrfi", 0)
+        p_yrfi = nrfi_r.get("p_yrfi", 0)
+        props.append({
+            "type":          "NRFI",
+            "p_nrfi":        round(p_nrfi, 4),
+            "p_yrfi":        round(p_yrfi, 4),
+            "recommendation": "NRFI" if p_nrfi >= 0.58 else ("YRFI" if p_yrfi >= 0.58 else "PASS"),
+        })
+
+    if sp_data_missing:
+        props.append({"type": "TOTAL", "recommendation": "SP_MISSING"})
+    else:
+        p_over  = total_r.get("p_over", 0)
+        p_under = total_r.get("p_under", 0)
+        model_total = round((analysis.get("away_xr", 0) + analysis.get("home_xr", 0)), 2)
+        props.append({
+            "type":          "TOTAL",
+            "model_total":   model_total,
+            "market_line":   totals_line,
+            "p_over":        round(p_over, 4),
+            "p_under":       round(p_under, 4),
+            "recommendation": (
+                f"OVER {totals_line}" if p_over >= 0.55
+                else (f"UNDER {totals_line}" if p_under >= 0.55 else "PASS")
+            ),
+        })
 
     sgp_out = []
     for sgp in sgp_list:
@@ -1530,56 +1545,64 @@ def _format_props_message(analysis: dict, sgp_list: list, br: float) -> str | No
                 f"❌ PASS: {name} O{k_line}K — insufficient edge ({p_k:.1%})"
             )
 
-    p_nrfi = nrfi_r.get("p_nrfi", 0)
-    p_yrfi = nrfi_r.get("p_yrfi", 0)
-    if p_nrfi >= 0.58:
-        stake     = round(br * 0.015, 2)
-        edge_est  = round((p_nrfi - 0.50) * 100, 1)
-        odds      = _est_odds(p_nrfi)
-        odds_s    = f" {odds}" if odds else ""
-        pitcher_lines.append(f"✅ BET: NRFI{odds_s} — ${stake:.2f} — EDGE: +{edge_est:.1f}%")
-        any_bet = True
-    elif p_yrfi >= 0.58:
-        stake     = round(br * 0.015, 2)
-        edge_est  = round((p_yrfi - 0.50) * 100, 1)
-        odds      = _est_odds(p_yrfi)
-        odds_s    = f" {odds}" if odds else ""
-        pitcher_lines.append(f"✅ BET: YRFI{odds_s} — ${stake:.2f} — EDGE: +{edge_est:.1f}%")
-        any_bet = True
+    sp_data_missing = away_sp.get("sp_missing") or home_sp.get("sp_missing")
+
+    if sp_data_missing:
+        pitcher_lines.append("⚠ NRFI/YRFI skipped — SP data unavailable")
     else:
-        pitcher_lines.append(
-            f"❌ PASS: NRFI ({p_nrfi:.1%}) / YRFI ({p_yrfi:.1%}) — no edge"
-        )
+        p_nrfi = nrfi_r.get("p_nrfi", 0)
+        p_yrfi = nrfi_r.get("p_yrfi", 0)
+        if p_nrfi >= 0.58:
+            stake     = round(br * 0.015, 2)
+            edge_est  = round((p_nrfi - 0.50) * 100, 1)
+            odds      = _est_odds(p_nrfi)
+            odds_s    = f" {odds}" if odds else ""
+            pitcher_lines.append(f"✅ BET: NRFI{odds_s} — ${stake:.2f} — EDGE: +{edge_est:.1f}%")
+            any_bet = True
+        elif p_yrfi >= 0.58:
+            stake     = round(br * 0.015, 2)
+            edge_est  = round((p_yrfi - 0.50) * 100, 1)
+            odds      = _est_odds(p_yrfi)
+            odds_s    = f" {odds}" if odds else ""
+            pitcher_lines.append(f"✅ BET: YRFI{odds_s} — ${stake:.2f} — EDGE: +{edge_est:.1f}%")
+            any_bet = True
+        else:
+            pitcher_lines.append(
+                f"❌ PASS: NRFI ({p_nrfi:.1%}) / YRFI ({p_yrfi:.1%}) — no edge"
+            )
 
     # ── HITTERS (individual player props require separate props market API) ────
     hitter_lines: list[str] = []
 
     # ── TEAM TOTALS ────────────────────────────────────────────────────────────
     team_lines = []
-    p_over  = total_r.get("p_over", 0)
-    p_under = total_r.get("p_under", 0)
-    if p_over >= 0.55:
-        stake    = round(br * 0.015, 2)
-        edge_est = round((p_over - 0.50) * 100, 1)
-        odds     = _est_odds(p_over)
-        odds_s   = f" {odds}" if odds else ""
-        team_lines.append(
-            f"✅ BET: {away_code} total O{totals_line}{odds_s} — ${stake:.2f} — EDGE: +{edge_est:.1f}%"
-        )
-        any_bet = True
-    elif p_under >= 0.55:
-        stake    = round(br * 0.015, 2)
-        edge_est = round((p_under - 0.50) * 100, 1)
-        odds     = _est_odds(p_under)
-        odds_s   = f" {odds}" if odds else ""
-        team_lines.append(
-            f"✅ BET: {home_code} total U{totals_line}{odds_s} — ${stake:.2f} — EDGE: +{edge_est:.1f}%"
-        )
-        any_bet = True
+    if sp_data_missing:
+        team_lines.append("⚠ Totals skipped — SP data unavailable")
     else:
-        team_lines.append(
-            f"❌ PASS: game total {totals_line} — market efficient (O={p_over:.1%} U={p_under:.1%})"
-        )
+        p_over  = total_r.get("p_over", 0)
+        p_under = total_r.get("p_under", 0)
+        if p_over >= 0.55:
+            stake    = round(br * 0.015, 2)
+            edge_est = round((p_over - 0.50) * 100, 1)
+            odds     = _est_odds(p_over)
+            odds_s   = f" {odds}" if odds else ""
+            team_lines.append(
+                f"✅ BET: {away_code} total O{totals_line}{odds_s} — ${stake:.2f} — EDGE: +{edge_est:.1f}%"
+            )
+            any_bet = True
+        elif p_under >= 0.55:
+            stake    = round(br * 0.015, 2)
+            edge_est = round((p_under - 0.50) * 100, 1)
+            odds     = _est_odds(p_under)
+            odds_s   = f" {odds}" if odds else ""
+            team_lines.append(
+                f"✅ BET: {home_code} total U{totals_line}{odds_s} — ${stake:.2f} — EDGE: +{edge_est:.1f}%"
+            )
+            any_bet = True
+        else:
+            team_lines.append(
+                f"❌ PASS: game total {totals_line} — market efficient (O={p_over:.1%} U={p_under:.1%})"
+            )
 
     # ── SAME-GAME PARLAY ───────────────────────────────────────────────────────
     sgp_lines = []
