@@ -430,7 +430,9 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         "f5_home_xr":    f5_home_xr,
         "polymarket":    market.get("polymarket"),
         "line_movement": market.get("line_movement"),
-        "totals_line":   market.get("totals", {}).get("line") if market.get("totals") else None,
+        "totals_line":       market.get("totals", {}).get("line") if market.get("totals") else None,
+        "totals_best_over":  market.get("totals", {}).get("best_over")  if market.get("totals") else None,
+        "totals_best_under": market.get("totals", {}).get("best_under") if market.get("totals") else None,
         # Intelligence layer
         "ml_model":      ml_conf,
         "shap_home":     shap_home,
@@ -789,6 +791,14 @@ def _daily_bet_slip(
     hitter_bets = list(all_hitter_props or [])
     k_bets      = list(all_k_props or [])
     injuries    = list(all_injuries or [])
+
+    # Hard filter: never send $0-stake or negative-EV props
+    nrfi_bets   = [b for b in nrfi_bets   if (b.get("stake") or 0) > 0]
+    totals_bets = [b for b in totals_bets if (b.get("stake") or 0) > 0]
+    k_bets      = [b for b in k_bets      if (b.get("stake") or 0) > 0]
+    hitter_bets = [h for h in hitter_bets if (h.get("stake") or 0) > 0]
+    all_props   = [p for p in (all_props or [])
+                   if (p.get("kelly_stake") or 0) > 0 and (p.get("ev") or 0) >= 0]
 
     n_locks = len(locks)
     day_cls = day_classification(n_locks)
@@ -1302,7 +1312,7 @@ _LG_ERA_HITTER_BASE    = 4.35  # league-avg ERA used for hit/TB adjustment
 
 
 def _fetch_lineup(game_pk: int) -> dict:
-    """Pull confirmed batting lineup via schedule?hydrate=lineups."""
+    """Pull confirmed batting lineup via schedule?hydrate=lineups, with boxscore fallback."""
     try:
         r = _http_get(
             f"{STATSAPI}/schedule",
@@ -1314,13 +1324,34 @@ def _fetch_lineup(game_pk: int) -> dict:
                 if g.get("gamePk") != game_pk:
                     continue
                 lineups = g.get("lineups") or {}
-                away = lineups.get("awayTeam") or []
-                home = lineups.get("homeTeam") or []
-                return {
-                    "away":      away,
-                    "home":      home,
-                    "confirmed": bool(away and home),
-                }
+                # MLB Stats API uses awayPlayers/homePlayers pre-game, awayTeam/homeTeam in-game
+                away = lineups.get("awayPlayers") or lineups.get("awayTeam") or []
+                home = lineups.get("homePlayers") or lineups.get("homeTeam") or []
+                if away or home:
+                    return {"away": away, "home": home, "confirmed": bool(away and home)}
+    except Exception:
+        pass
+    # Fallback: boxscore batting order (~45 min before first pitch)
+    try:
+        r2 = _http_get(f"{STATSAPI}/game/{game_pk}/boxscore", timeout=8)
+        box   = r2.json()
+        teams = box.get("teams", {})
+        away_order = [
+            {
+                "id":       pid,
+                "fullName": teams.get("away", {}).get("players", {}).get(f"ID{pid}", {}).get("person", {}).get("fullName", ""),
+            }
+            for pid in teams.get("away", {}).get("battingOrder", [])
+        ]
+        home_order = [
+            {
+                "id":       pid,
+                "fullName": teams.get("home", {}).get("players", {}).get(f"ID{pid}", {}).get("person", {}).get("fullName", ""),
+            }
+            for pid in teams.get("home", {}).get("battingOrder", [])
+        ]
+        if away_order or home_order:
+            return {"away": away_order, "home": home_order, "confirmed": bool(away_order and home_order)}
     except Exception:
         pass
     return {"away": [], "home": [], "confirmed": False}
@@ -1435,8 +1466,8 @@ def _fetch_game_hitter_props(
         return []
 
     lineup = _fetch_lineup(game_pk)
-    if not lineup["confirmed"]:
-        print(f"  [PROPS] {away_code}@{home_code}: lineup not confirmed — skipping hitter props")
+    if not lineup["away"] and not lineup["home"]:
+        print(f"  [PROPS] {away_code}@{home_code}: no lineup data available — skipping hitter props")
         return []
 
     all_props: list = []
@@ -1716,16 +1747,41 @@ def run_daily_scout():
                 stake = round(min(br * 0.010, 5.0), 2)
                 all_nrfi.append({"game": game_lbl, "direction": direction, "prob": prob, "stake": stake})
 
-            total_note = total_r_g.get("note")
-            if total_note and total_note != "neutral":
-                direction = total_note.upper()
-                prob  = total_r_g["p_over"] if direction == "OVER" else total_r_g["p_under"]
-                line  = analysis.get("totals_line")
-                if line is None:
-                    print(f"  SKIP totals {game_lbl}: no real market line — never defaulting to 8.5")
+            line       = analysis.get("totals_line")
+            best_over  = analysis.get("totals_best_over")
+            best_under = analysis.get("totals_best_under")
+            p_over     = total_r_g.get("p_over", 0)
+            p_under    = total_r_g.get("p_under", 0)
+            if line is None:
+                print(f"  SKIP totals {game_lbl}: no real market line — never defaulting to 8.5")
+            elif p_over > 0 or p_under > 0:
+                best_total_edge = 0.0
+                best_total_bet  = None
+                for direction, model_p, mkt_odds in (
+                    ("OVER",  p_over,  best_over),
+                    ("UNDER", p_under, best_under),
+                ):
+                    if mkt_odds is None:
+                        continue
+                    mkt_p = (implied_prob(str(mkt_odds)) or 0) / 100
+                    if mkt_p <= 0:
+                        continue
+                    edge = model_p - mkt_p
+                    if edge >= 0.05 and edge > best_total_edge:
+                        best_total_edge = edge
+                        best_total_bet = {
+                            "game":      game_lbl,
+                            "direction": direction,
+                            "line":      line,
+                            "prob":      round(model_p, 4),
+                            "market_p":  round(mkt_p, 4),
+                            "edge_pct":  round(edge * 100, 1),
+                            "stake":     round(min(br * 0.0075, 4.0), 2),
+                        }
+                if best_total_bet and best_total_bet["stake"] > 0:
+                    all_totals.append(best_total_bet)
                 else:
-                    stake = round(min(br * 0.0075, 4.0), 2)
-                    all_totals.append({"game": game_lbl, "direction": direction, "line": line, "prob": prob, "stake": stake})
+                    print(f"  SKIP totals {game_lbl}: no side with ≥5% edge over market")
 
         if not bet_found:
             all_pass.append(analysis)

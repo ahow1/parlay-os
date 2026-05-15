@@ -17,10 +17,13 @@ TIMEOUT     = 15
 # ── Pitcher Statcast (exit velocity allowed, barrel%, hard-hit%) ──────────────
 
 def _savant_pitcher_url(pitcher_id: int, season: int = 2026) -> str:
+    # pitchers_lookup%5B%5D is the correct filter param (pitcher= is ignored by Savant).
+    # Omit group_by=name so the response contains raw pitch rows with launch_speed /
+    # release_speed columns rather than a pre-aggregated league-wide summary row.
     return (
         f"{SAVANT_BASE}/statcast_search/csv"
         f"?all=true&hfGT=R%7C&hfSea={season}%7C&player_type=pitcher"
-        f"&pitcher={pitcher_id}&group_by=name&min_pitches=0"
+        f"&pitchers_lookup%5B%5D={pitcher_id}&min_pitches=0"
         f"&min_results=0&sort_col=pitches&sort_order=desc&type=details&min_pas=0"
     )
 

@@ -9,6 +9,7 @@ from constants import (
     MLB_TEAM_IDS, UMPIRE_TENDENCIES,
     ABS_COMMAND_BONUS, ABS_FB_HEAVY_MALUS,
     TEAM_LHB_PCT, PLATOON_WRCPLUS_DELTA,
+    LG_ERA,
 )
 
 STATSAPI = "https://statsapi.mlb.com/api/v1"
@@ -267,7 +268,9 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "") -> dict:
     ttop     = _ttop_flag(stats)
 
     # Run factor: higher = more runs scored against this SP
-    run_factor = round(ump_run * plat_rf * (1.0 + abs_adj), 4)
+    # xFIP quality: <1 suppresses runs (good SP), >1 allows more (bad SP)
+    sp_quality = round(xfip / max(LG_ERA, 0.01), 4)
+    run_factor = round(ump_run * plat_rf * sp_quality * (1.0 + abs_adj), 4)
 
     return {
         "pitcher_id":       pitcher_id,

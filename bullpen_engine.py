@@ -36,23 +36,29 @@ def _team_roster(team_id: int, game_date: str) -> list:
 def _pitcher_game_log(pitcher_id: int, days: int = 5) -> list:
     """Return pitching game log entries for past N days, with pitch counts."""
     try:
-        end   = date.today()
-        start = end - timedelta(days=days)
-        url   = (
-            f"{STATSAPI}/people/{pitcher_id}/stats"
-            f"?stats=gameLog&group=pitching&season=2026"
-            f"&startDate={start.isoformat()}&endDate={end.isoformat()}"
+        cutoff = (date.today() - timedelta(days=days)).isoformat()
+        r = _http_get(
+            f"{STATSAPI}/people/{pitcher_id}/stats",
+            params={
+                "stats":    "gameLog",
+                "group":    "pitching",
+                "season":   "2026",
+                "gameType": "R",
+            },
+            timeout=8,
         )
-        r = _http_get(url, timeout=8)
         splits = r.json().get("stats", [{}])[0].get("splits", [])
         games  = []
         for s in splits:
+            game_date = s.get("date", "")
+            if not game_date or game_date < cutoff:
+                continue
             st     = s.get("stat", {})
             ip_str = st.get("inningsPitched", "0.0")
             ip_parts = str(ip_str).split(".")
             ip = int(ip_parts[0]) + int(ip_parts[1] if len(ip_parts) > 1 else 0) / 3
             games.append({
-                "date": s.get("date", ""),
+                "date": game_date,
                 "ip":   round(ip, 1),
                 "np":   int(st.get("pitchesThrown", 0) or 0),
                 "er":   int(st.get("earnedRuns", 0) or 0),
