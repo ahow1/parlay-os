@@ -813,9 +813,9 @@ def _daily_bet_slip(
     all_props   = [p for p in (all_props or [])
                    if (p.get("kelly_stake") or 0) > 0 and (p.get("ev") or 0) >= 0]
 
-    # Cap each prop category at top 5 by edge; never more than 15 props total
-    k_bets      = sorted(k_bets,      key=lambda b: b.get("edge_pct", 0), reverse=True)[:5]
-    hitter_bets = sorted(hitter_bets, key=lambda h: h.get("edge_pct", 0), reverse=True)[:5]
+    # Totals: top 5 by edge. Player props: all above 5% edge, sorted (no cap).
+    k_bets      = sorted(k_bets,      key=lambda b: b.get("edge_pct", 0), reverse=True)
+    hitter_bets = sorted(hitter_bets, key=lambda h: h.get("edge_pct", 0), reverse=True)
     totals_bets = sorted(totals_bets, key=lambda b: b.get("edge_pct", 0), reverse=True)[:5]
 
     n_locks = len(locks)
@@ -859,9 +859,8 @@ def _daily_bet_slip(
         ml_win  += prl_win
 
     props_risk = (
-        sum(b.get("stake", 0) for b in nrfi_bets + totals_bets + k_bets)
+        sum(b.get("stake", 0) for b in nrfi_bets + totals_bets + k_bets + hitter_bets)
         + sum(p.get("kelly_stake", 0) or 0 for p in all_props[:2])
-        + sum(hp.get("stake", 0) for hp in hitter_bets[:8])
     )
     total_risk = round(ml_risk + props_risk, 2)
     total_win  = round(ml_win, 2)
@@ -935,7 +934,62 @@ def _daily_bet_slip(
     _send_telegram("\n".join(p1))
 
     # ── PART 2: PLAYER PROPS + NRFI/YRFI ─────────────────────────────────────
-    has_p2 = bool(nrfi_bets or k_bets or hitter_bets or all_props)
+    # Normalise k_bets and hitter_bets into a unified list, sorted by edge desc.
+    def _market_odds_str(market_p: float) -> str:
+        mp = max(min(market_p, 0.99), 0.01)
+        if mp >= 0.5:
+            return f"-{round(mp / (1.0 - mp) * 100)}"
+        return f"+{round((1.0 - mp) / mp * 100)}"
+
+    def _norm_k(b: dict) -> dict:
+        last = b["sp"].split()[-1]
+        leg  = f"{last} O{b['line']}K"
+        return {
+            "player":    b["sp"],
+            "team":      b.get("team", ""),
+            "stat":      f"Ks O{b['line']}",
+            "odds_str":  "-110",
+            "model_pct": round(b["p_over"] * 100, 1),
+            "model_p":   b["p_over"],
+            "edge_pct":  b["edge_pct"],
+            "stake":     b["stake"],
+            "leg_label": leg,
+        }
+
+    def _norm_h(h: dict) -> dict:
+        prop  = h["prop"]   # e.g. "Hits O1.5"
+        parts = prop.split(" O", 1)
+        if len(parts) == 2:
+            stat_name, line_s = parts[0], parts[1]
+            last = h["player"].split()[-1]
+            leg  = f"{last} O{line_s} {stat_name}"
+        else:
+            stat_name = prop
+            leg = f"{h['player'].split()[-1]} {prop}"
+        mp = h.get("market_p", 0.5)
+        return {
+            "player":    h["player"],
+            "team":      h.get("team", ""),
+            "stat":      prop,
+            "odds_str":  _market_odds_str(mp),
+            "model_pct": round(h["model_prob"] * 100, 1),
+            "model_p":   h.get("model_prob", 0),
+            "edge_pct":  h["edge_pct"],
+            "stake":     h["stake"],
+            "leg_label": leg,
+        }
+
+    all_player_props = (
+        [_norm_k(b) for b in k_bets] +
+        [_norm_h(h) for h in hitter_bets]
+    )
+    all_player_props = sorted(all_player_props, key=lambda x: x["edge_pct"], reverse=True)
+    all_player_props = [p for p in all_player_props if p["edge_pct"] >= 5.0]
+
+    prop_locks = [p for p in all_player_props if p["edge_pct"] >= 10.0]
+    prop_flips = [p for p in all_player_props if 5.0 <= p["edge_pct"] < 10.0]
+
+    has_p2 = bool(nrfi_bets or all_player_props or all_props)
     p2 = [
         f"PARLAY OS — {today}",
         "PART 2/3 — PLAYER PROPS + NRFI/YRFI",
@@ -948,22 +1002,46 @@ def _daily_bet_slip(
             p2.append(f"  {bet['game']} — {bet['direction']} ({bet['prob']:.1%}) — ${bet['stake']:.2f}")
         p2.append("")
 
-    if k_bets:
-        p2.append(f"⚾ PITCHER Ks ({len(k_bets)} bets):")
-        for bet in k_bets:
-            p2.append(
-                f"  {bet['sp']} O{bet['line']}K ({bet['game']}) — "
-                f"${bet['stake']:.2f} — EDGE: +{bet['edge_pct']:.1f}%"
-            )
+    # ── Props parlay: top 3 locks only ──────────────────────────────────────
+    parlay_legs = prop_locks[:3]
+    if len(parlay_legs) >= 2:
+        prl = parlay_odds([leg["odds_str"] for leg in parlay_legs])
+        if prl.get("valid"):
+            combined_dec = prl["decimal"]
+            joint_p      = 1.0
+            for _leg in parlay_legs:
+                joint_p *= _leg["model_p"]
+            k_num = joint_p * (combined_dec - 1) - (1.0 - joint_p)
+            k_den = combined_dec - 1
+            prl_kelly_pct = max(0.0, (k_num / k_den) * 0.25) if k_den > 0 else 0.0
+            prl_kelly_pct = min(prl_kelly_pct, 0.015)
+            prl_stake = round(min(br * prl_kelly_pct, 5.0), 2)
+            prl_win   = round((combined_dec - 1) * prl_stake, 2)
+            legs_str  = " + ".join(leg["leg_label"] for leg in parlay_legs)
+            p2.append(f"PROPS PARLAY (top {len(parlay_legs)} by edge, locks only):")
+            p2.append(f"  {legs_str}")
+            p2.append(f"  Combined odds: {prl['american']} — Stake: ${prl_stake:.2f} — To win: ${prl_win:.2f}")
+            p2.append("")
+
+    def _prop_line(p: dict) -> str:
+        odds_s = p["odds_str"]
+        if odds_s and odds_s[0] not in ("+", "-"):
+            odds_s = f"+{odds_s}"
+        return (
+            f"  {p['player']} ({p['team']}) — {p['stat']} {odds_s} — "
+            f"${p['stake']:.2f} — EDGE: +{p['edge_pct']:.1f}% — MODEL: {p['model_pct']:.1f}%"
+        )
+
+    if prop_locks:
+        p2.append(f"🔒 LOCKS ({len(prop_locks)} — edge 10%+):")
+        for prop in prop_locks:
+            p2.append(_prop_line(prop))
         p2.append("")
 
-    if hitter_bets:
-        p2.append(f"🏏 HITTERS ({len(hitter_bets)} props):")
-        for hp in hitter_bets:
-            p2.append(
-                f"  {hp['player']} ({hp['team']}) — {hp['prop']} — "
-                f"${hp['stake']:.2f} — EDGE: +{hp['edge_pct']:.1f}%"
-            )
+    if prop_flips:
+        p2.append(f"🪙 COIN FLIPS ({len(prop_flips)} — edge 5-10%):")
+        for prop in prop_flips:
+            p2.append(_prop_line(prop))
         p2.append("")
 
     if all_props:
@@ -1679,7 +1757,7 @@ def run_daily_scout():
 
         # ── Collect K-props for slip ──────────────────────────────────────────
         _game_lbl_kp = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
-        for _sp in (analysis.get("away_sp") or {}, analysis.get("home_sp") or {}):
+        for _kside, _sp in (("away", analysis.get("away_sp") or {}), ("home", analysis.get("home_sp") or {})):
             if not _sp or not _sp.get("name") or _sp.get("name") == "TBD" or _sp.get("sp_missing"):
                 continue
             _k_line = round(_sp.get("k9", 8.5) * 5.0 / 9, 1)
@@ -1689,6 +1767,7 @@ def run_daily_scout():
                 _k_stake = round(min(br * (0.02 if _p_k >= 0.60 else 0.01), 5.0), 2)
                 all_k_props.append({
                     "sp":       _sp.get("name"),
+                    "team":     analysis.get(_kside, ""),
                     "game":     _game_lbl_kp,
                     "line":     _k_line,
                     "p_over":   _p_k,
