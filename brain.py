@@ -166,15 +166,25 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
                                 opp_sp_hand=away_sp.get("hand", "R"))
 
     # ── Run Expectancy ────────────────────────────────────────────────────────
+    # SP factor is weighted by expected innings; use the OPPOSING bullpen for remaining innings.
+    def _sp_ips(sp: dict) -> float:
+        ip = sp.get("ip", 0) or 0
+        gs = sp.get("gs", 1) or 1
+        return min(ip / gs if gs > 0 else 5.5, 7.0)
+
     away_xr = team_run_expectancy(
         away_off["run_factor"],
         home_sp.get("run_factor", 1.0),
-        park_rf, wx_rf, away_bp_rf
+        park_rf, wx_rf,
+        home_bp_rf,          # home bullpen opposes away team's scoring
+        _sp_ips(home_sp),
     )
     home_xr = team_run_expectancy(
         home_off["run_factor"],
         away_sp.get("run_factor", 1.0),
-        park_rf, wx_rf, home_bp_rf
+        park_rf, wx_rf,
+        away_bp_rf,          # away bullpen opposes home team's scoring
+        _sp_ips(away_sp),
     )
 
     # ── Pythagorean base probability ─────────────────────────────────────────
@@ -803,6 +813,11 @@ def _daily_bet_slip(
     all_props   = [p for p in (all_props or [])
                    if (p.get("kelly_stake") or 0) > 0 and (p.get("ev") or 0) >= 0]
 
+    # Cap each prop category at top 5 by edge; never more than 15 props total
+    k_bets      = sorted(k_bets,      key=lambda b: b.get("edge_pct", 0), reverse=True)[:5]
+    hitter_bets = sorted(hitter_bets, key=lambda h: h.get("edge_pct", 0), reverse=True)[:5]
+    totals_bets = sorted(totals_bets, key=lambda b: b.get("edge_pct", 0), reverse=True)[:5]
+
     n_locks = len(locks)
     day_cls = day_classification(n_locks)
     s_mult  = day_cls["stake_mult"]
@@ -943,9 +958,8 @@ def _daily_bet_slip(
         p2.append("")
 
     if hitter_bets:
-        shown = hitter_bets[:8]
-        p2.append(f"🏏 HITTERS ({len(hitter_bets)} props — top {len(shown)}):")
-        for hp in shown:
+        p2.append(f"🏏 HITTERS ({len(hitter_bets)} props):")
+        for hp in hitter_bets:
             p2.append(
                 f"  {hp['player']} ({hp['team']}) — {hp['prop']} — "
                 f"${hp['stake']:.2f} — EDGE: +{hp['edge_pct']:.1f}%"
@@ -979,7 +993,8 @@ def _daily_bet_slip(
         p3.append(f"📊 TOTALS ({len(totals_bets)} bets):")
         for bet in totals_bets:
             p3.append(
-                f"  {bet['game']} — {bet['direction']} {bet['line']} ({bet['prob']:.1%}) — ${bet['stake']:.2f}"
+                f"  {bet['game']} — {bet['direction']} {bet['line']} ({bet['prob']:.1%}) — "
+                f"${bet['stake']:.2f} — EDGE: +{bet['edge_pct']:.1f}%"
             )
         p3.append("")
     else:
