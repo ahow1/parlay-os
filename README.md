@@ -46,6 +46,18 @@ Railway automatically runs all three Procfile processes after each push to `main
 
 The `/health` endpoint is checked every 30 seconds by Railway. If it returns non-200 the service restarts automatically (up to 10 times).
 
+### 5. View the dashboard
+
+Once deployed, the dashboard is available at your Railway **web service URL**:
+
+```
+https://<your-app>.up.railway.app/
+```
+
+Find this URL in Railway → your project → **web** service → **Settings → Domains**.
+The dashboard shows live picks, bankroll, CLV, and bet history.
+The `/health` endpoint (`/health`) shows system status.
+
 ---
 
 ## Local development

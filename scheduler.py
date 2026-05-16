@@ -117,6 +117,13 @@ def schedule_loop(stop_event=None):
 
         # Daily midnight task (run once per calendar day)
         if today != last_daily and now_et.hour == 0 and now_et.minute < 5:
+            # Reset daily exposure cap so yesterday's pending bets don't count today
+            try:
+                import db as _db
+                n = _db.reset_daily_exposure(last_daily)
+                log.info(f"[scheduler] Midnight ET cap reset: cleared {n} stale pending bets from {last_daily}")
+            except Exception as e:
+                log.error(f"[scheduler] Daily cap reset failed: {e}", exc_info=True)
             run_daily_accuracy_task()
             run_nightly_profiles_task()
             run_improvement_check_task()

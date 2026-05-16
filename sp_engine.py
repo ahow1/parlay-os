@@ -1,8 +1,12 @@
 """PARLAY OS — sp_engine.py
 Fetches SP stats from MLB Stats API and applies ABS / TTOP / platoon adjustments.
-Includes last-3-start rolling ERA/K/BB and K-rate velocity-trend proxy.
+Includes last-3-start rolling ERA/K/BB and real xFIP from FanGraphs leaderboard.
 """
 
+import csv
+import io
+import re
+import threading
 import requests
 from api_client import get as _http_get
 from constants import (
@@ -13,6 +17,57 @@ from constants import (
 )
 
 STATSAPI = "https://statsapi.mlb.com/api/v1"
+FG_PITCHING_URL = (
+    "https://www.fangraphs.com/api/leaders/major-league/data"
+    "?age=&pos=all&stats=pit&lg=all&qual=0"
+    "&season=2026&season1=2026&ind=0&team=0&rost=0&players=&type=8"
+)
+
+# Thread-safe in-process cache for FanGraphs leaderboard
+_fg_lock    = threading.Lock()
+_fg_cache: dict | None = None   # {normalized_name: xfip_float}
+
+
+def _normalize_name(name: str) -> str:
+    """Lowercase, strip accents, keep only letters and spaces."""
+    import unicodedata
+    name = unicodedata.normalize("NFD", name)
+    name = "".join(c for c in name if unicodedata.category(c) != "Mn")
+    return re.sub(r"[^a-z ]", "", name.lower()).strip()
+
+
+def _load_fg_xfip() -> dict:
+    """Fetch FanGraphs 2026 pitching leaderboard and return {normalized_name: xFIP}."""
+    global _fg_cache
+    with _fg_lock:
+        if _fg_cache is not None:
+            return _fg_cache
+        try:
+            r = _http_get(FG_PITCHING_URL, timeout=12, skip_cache=False)
+            data = r.json()
+            rows = data.get("data", []) if isinstance(data, dict) else data
+            result = {}
+            for row in rows:
+                name = row.get("PlayerName") or row.get("Name") or ""
+                xfip = row.get("xFIP") or row.get("xfip")
+                if name and xfip is not None:
+                    try:
+                        result[_normalize_name(name)] = round(float(xfip), 2)
+                    except (ValueError, TypeError):
+                        pass
+            _fg_cache = result
+        except Exception:
+            _fg_cache = {}
+        return _fg_cache
+
+
+def get_real_xfip(pitcher_name: str) -> float | None:
+    """Look up real xFIP for a pitcher by name from FanGraphs. Returns None on miss."""
+    if not pitcher_name or pitcher_name == "TBD":
+        return None
+    fg = _load_fg_xfip()
+    key = _normalize_name(pitcher_name)
+    return fg.get(key)
 
 
 def _get_probable_pitchers(game_pk: int) -> dict:
@@ -239,7 +294,8 @@ def _platoon_run_factor(sp_hand: str, opp_team: str) -> float:
     return round(1.0 + avg_delta / 100, 4)
 
 
-def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "") -> dict:
+def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "",
+               pitcher_name: str = "") -> dict:
     """Full SP analysis: season stats + last-3-start rolling + adjustments."""
     stats  = _pitcher_season_stats(pitcher_id)
     meta   = _pitcher_meta(pitcher_id)
@@ -253,7 +309,10 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "") -> dict:
     k9   = stats.get("k9", 8.5)
     bb9  = stats.get("bb9", 3.0)
     hr9  = stats.get("hr9", 1.2)
-    xfip = _xfip_estimate(era, bb9, k9, hr9)
+
+    # Prefer real xFIP from FanGraphs; fall back to formula estimate
+    real_xfip = get_real_xfip(pitcher_name) if pitcher_name else None
+    xfip      = real_xfip if real_xfip is not None else _xfip_estimate(era, bb9, k9, hr9)
 
     # Use last-3-start ERA if available and significantly different from season ERA
     effective_era = era
@@ -278,6 +337,7 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "") -> dict:
         "era":              era,
         "effective_era":    effective_era,
         "xfip":             xfip,
+        "xfip_source":      "fangraphs" if real_xfip is not None else "estimated",
         "k9":               k9,
         "bb9":              bb9,
         "hr9":              hr9,
@@ -343,8 +403,10 @@ def get_game_sps(game_pk: int, away_team: str, home_team: str, umpire: str = "")
     away_name = pp.get("away_name", "TBD")
     home_name = pp.get("home_name", "TBD")
 
-    away_sp = analyze_sp(away_id, home_team, umpire) if away_id else _default_sp(None, home_team, umpire)
-    home_sp = analyze_sp(home_id, away_team, umpire) if home_id else _default_sp(None, away_team, umpire)
+    away_sp = (analyze_sp(away_id, home_team, umpire, pitcher_name=away_name)
+               if away_id else _default_sp(None, home_team, umpire))
+    home_sp = (analyze_sp(home_id, away_team, umpire, pitcher_name=home_name)
+               if home_id else _default_sp(None, away_team, umpire))
 
     away_sp["name"] = away_name
     home_sp["name"] = home_name

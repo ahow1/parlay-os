@@ -130,6 +130,23 @@ def post_result_embed(pick: dict) -> bool:
     return _post({"embeds": [embed]})
 
 
+def send_test_message() -> bool:
+    """Send a simple test message to verify the webhook is working."""
+    if not WEBHOOK_URL:
+        print("[Discord] DISCORD_WEBHOOK_URL is not set — skipping test")
+        return False
+    payload = {
+        "content": "✅ PARLAY OS — Discord webhook test successful. System is live.",
+        "username": "Parlay OS",
+    }
+    ok = _post(payload)
+    if ok:
+        print("[Discord] Test message sent successfully")
+    else:
+        print("[Discord] Test message FAILED — check DISCORD_WEBHOOK_URL")
+    return ok
+
+
 def post_daily_summary(wins: int, losses: int, roi: float, date: str | None = None) -> bool:
     """Post end-of-day summary embed."""
     date  = date or datetime.now(ET).strftime("%Y-%m-%d")
@@ -145,3 +162,21 @@ def post_daily_summary(wins: int, losses: int, roi: float, date: str | None = No
         "timestamp":   datetime.now(ET).isoformat(),
     }
     return _post({"embeds": [embed]})
+
+
+if __name__ == "__main__":
+    # Load .env if present so DISCORD_WEBHOOK_URL is available when running locally
+    try:
+        from pathlib import Path
+        env_file = Path(".env")
+        if env_file.exists():
+            for line in env_file.read_text().splitlines():
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, _, v = line.partition("=")
+                    if not os.environ.get(k.strip()):
+                        os.environ[k.strip()] = v.strip().strip('"').strip("'")
+        WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
+    except Exception:
+        pass
+    send_test_message()

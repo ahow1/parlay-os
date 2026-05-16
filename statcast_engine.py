@@ -1,30 +1,30 @@
 """PARLAY OS — statcast_engine.py
-Lightweight Statcast data via Baseball Savant aggregated leaderboards.
-Provides exit velocity, barrel%, hard-hit%, sprint speed for SPs and hitters.
+Per-pitcher and per-batter Statcast metrics via Baseball Savant aggregated leaderboard.
 
-Note: Baseball Savant's CSV endpoint is undocumented; falls back gracefully if unavailable.
+Uses group_by=name so each response returns one pre-aggregated row per player
+with columns: exit_velocity_avg, barrel_batted_rate, hard_hit_percent, release_speed.
+Falls back gracefully if Savant is unavailable.
 """
 
 import csv
 import io
-import requests
 from api_client import get as _http_get
 from functools import lru_cache
 
 SAVANT_BASE = "https://baseballsavant.mlb.com"
 TIMEOUT     = 15
 
-# ── Pitcher Statcast (exit velocity allowed, barrel%, hard-hit%) ──────────────
+
+# ── URL builders ──────────────────────────────────────────────────────────────
 
 def _savant_pitcher_url(pitcher_id: int, season: int = 2026) -> str:
-    # pitchers_lookup%5B%5D is the correct filter param (pitcher= is ignored by Savant).
-    # Omit group_by=name so the response contains raw pitch rows with launch_speed /
-    # release_speed columns rather than a pre-aggregated league-wide summary row.
+    # group_by=name returns one aggregated row per pitcher with pre-computed averages.
     return (
         f"{SAVANT_BASE}/statcast_search/csv"
         f"?all=true&hfGT=R%7C&hfSea={season}%7C&player_type=pitcher"
-        f"&pitchers_lookup%5B%5D={pitcher_id}&min_pitches=0"
-        f"&min_results=0&sort_col=pitches&sort_order=desc&type=details&min_pas=0"
+        f"&pitchers_lookup%5B%5D={pitcher_id}"
+        f"&group_by=name&min_pitches=0&min_results=0"
+        f"&sort_col=pitches&sort_order=desc&type=details&min_pas=0"
     )
 
 
@@ -32,16 +32,19 @@ def _savant_batter_url(batter_id: int, season: int = 2026) -> str:
     return (
         f"{SAVANT_BASE}/statcast_search/csv"
         f"?all=true&hfGT=R%7C&hfSea={season}%7C&player_type=batter"
-        f"&batter={batter_id}&group_by=name&min_pitches=0"
-        f"&min_results=0&sort_col=pitches&sort_order=desc&type=details&min_pas=0"
+        f"&batter={batter_id}"
+        f"&group_by=name&min_pitches=0&min_results=0"
+        f"&sort_col=pitches&sort_order=desc&type=details&min_pas=0"
     )
 
 
-def _parse_statcast_csv(text: str, role: str = "pitcher") -> dict:
+# ── Aggregated CSV parser ─────────────────────────────────────────────────────
+
+def _parse_aggregated_csv(text: str, role: str = "pitcher") -> dict:
     """
-    Parse raw Statcast CSV rows into aggregate metrics.
-    role='pitcher' → exit velocity / barrel allowed
-    role='batter'  → exit velocity / barrel / sprint_speed
+    Parse Savant aggregated CSV (group_by=name) — one row per player.
+    Columns used: exit_velocity_avg, barrel_batted_rate, hard_hit_percent,
+                  release_speed (pitcher only), n_ (sample size).
     """
     try:
         reader = csv.DictReader(io.StringIO(text))
@@ -49,54 +52,47 @@ def _parse_statcast_csv(text: str, role: str = "pitcher") -> dict:
         if not rows:
             return {}
 
-        launch_speeds = []
-        barrels       = 0
-        hard_hits     = 0
-        total_batted  = 0
-        velocities    = []
+        # Take first row (we requested a single player via pitchers_lookup/batter param)
+        row = rows[0]
 
-        for row in rows:
-            ls = row.get("launch_speed", "")
-            if ls and ls not in ("", "null", "NA"):
-                try:
-                    val = float(ls)
-                    launch_speeds.append(val)
-                    total_batted += 1
-                    if val >= 95:
-                        hard_hits += 1
-                    # barrel proxy: ≥98 mph + launch angle 26-30°
-                    la = row.get("launch_angle", "")
-                    if la and la not in ("", "null", "NA"):
-                        try:
-                            la_val = float(la)
-                            if val >= 98 and 26 <= la_val <= 30:
-                                barrels += 1
-                        except ValueError:
-                            pass
-                except ValueError:
-                    pass
-            if role == "pitcher":
-                rv = row.get("release_speed", "")
-                if rv and rv not in ("", "null", "NA"):
-                    try:
-                        velocities.append(float(rv))
-                    except ValueError:
-                        pass
+        def _flt(col: str) -> float | None:
+            val = row.get(col, "")
+            if not val or val in ("", "null", "NA", "nan", "."):
+                return None
+            try:
+                return float(val)
+            except ValueError:
+                return None
 
         result: dict = {}
-        if total_batted > 0:
-            result["exit_velocity_avg"]  = round(sum(launch_speeds) / total_batted, 1)
-            result["hard_hit_pct"]       = round(hard_hits / total_batted * 100, 1)
-            result["barrel_pct"]         = round(barrels / total_batted * 100, 1)
-        if velocities:
-            result["avg_fastball_velo"]  = round(sum(velocities) / len(velocities), 1)
 
-        # Sprint speed only available in player bio, not pitch-level CSV
-        result["sample_batted_balls"] = total_batted
+        ev = _flt("exit_velocity_avg")
+        if ev is not None:
+            result["exit_velocity_avg"] = round(ev, 1)
+
+        # barrel_batted_rate is expressed as a percentage (0–100) in Savant CSV
+        barrel = _flt("barrel_batted_rate")
+        if barrel is not None:
+            result["barrel_pct"] = round(barrel, 1)
+
+        hh = _flt("hard_hit_percent")
+        if hh is not None:
+            result["hard_hit_pct"] = round(hh, 1)
+
+        if role == "pitcher":
+            velo = _flt("release_speed") or _flt("avg_release_speed")
+            if velo is not None:
+                result["avg_fastball_velo"] = round(velo, 1)
+
+        n = _flt("n_") or _flt("pitches") or 0
+        result["sample_batted_balls"] = int(n)
         return result
+
     except Exception:
         return {}
 
+
+# ── Pitcher Statcast ──────────────────────────────────────────────────────────
 
 @lru_cache(maxsize=64)
 def get_pitcher_statcast(pitcher_id: int, season: int = 2026) -> dict:
@@ -104,18 +100,26 @@ def get_pitcher_statcast(pitcher_id: int, season: int = 2026) -> dict:
     Fetch pitcher Statcast metrics: EV allowed, barrel%, hard-hit%, avg velo.
     Cached per pitcher_id/season for the run. Returns {} on failure.
     """
+    if not pitcher_id:
+        return {}
     try:
         url = _savant_pitcher_url(pitcher_id, season)
-        r   = _http_get(url, timeout=TIMEOUT,
-                           headers={"User-Agent": "Mozilla/5.0 (compatible; ParlayOS/1.0)"})
+        r   = _http_get(
+            url, timeout=TIMEOUT,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; ParlayOS/1.0)"},
+            skip_cache=False,
+        )
         if r.status_code != 200 or not r.text.strip():
             return {}
-        data = _parse_statcast_csv(r.text, "pitcher")
-        data["pitcher_id"] = pitcher_id
+        data = _parse_aggregated_csv(r.text, "pitcher")
+        if data:
+            data["pitcher_id"] = pitcher_id
         return data
     except Exception:
         return {}
 
+
+# ── Batter Statcast ───────────────────────────────────────────────────────────
 
 @lru_cache(maxsize=128)
 def get_batter_statcast(batter_id: int, season: int = 2026) -> dict:
@@ -123,14 +127,20 @@ def get_batter_statcast(batter_id: int, season: int = 2026) -> dict:
     Fetch batter Statcast metrics: EV, barrel%, hard-hit%.
     Cached per batter_id/season. Returns {} on failure.
     """
+    if not batter_id:
+        return {}
     try:
         url = _savant_batter_url(batter_id, season)
-        r   = _http_get(url, timeout=TIMEOUT,
-                           headers={"User-Agent": "Mozilla/5.0 (compatible; ParlayOS/1.0)"})
+        r   = _http_get(
+            url, timeout=TIMEOUT,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; ParlayOS/1.0)"},
+            skip_cache=False,
+        )
         if r.status_code != 200 or not r.text.strip():
             return {}
-        data = _parse_statcast_csv(r.text, "batter")
-        data["batter_id"] = batter_id
+        data = _parse_aggregated_csv(r.text, "batter")
+        if data:
+            data["batter_id"] = batter_id
         return data
     except Exception:
         return {}

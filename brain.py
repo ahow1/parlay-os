@@ -1321,6 +1321,26 @@ _LG_K9_VS_BATTERS      = 8.7   # league-avg SP K/9 used for batter SO adjustment
 _LG_ERA_HITTER_BASE    = 4.35  # league-avg ERA used for hit/TB adjustment
 
 
+def _normalize_lineup_players(players: list) -> list:
+    """
+    Normalize a player list from the MLB lineup API.
+    Handles two structures:
+      • Pre-game hydration: {"person": {"id": ..., "fullName": ...}, ...}
+      • Boxscore battingOrder: already flattened to {"id": ..., "fullName": ...}
+    """
+    result = []
+    for p in players:
+        if "person" in p:
+            pid  = p["person"].get("id")
+            name = p["person"].get("fullName", "")
+        else:
+            pid  = p.get("id")
+            name = p.get("fullName", "")
+        if pid:
+            result.append({"id": pid, "fullName": name})
+    return result
+
+
 def _fetch_lineup(game_pk: int) -> dict:
     """Pull confirmed batting lineup via schedule?hydrate=lineups, with boxscore fallback."""
     try:
@@ -1335,10 +1355,12 @@ def _fetch_lineup(game_pk: int) -> dict:
                     continue
                 lineups = g.get("lineups") or {}
                 # MLB Stats API uses awayPlayers/homePlayers pre-game, awayTeam/homeTeam in-game
-                away = lineups.get("awayPlayers") or lineups.get("awayTeam") or []
-                home = lineups.get("homePlayers") or lineups.get("homeTeam") or []
-                if away or home:
-                    return {"away": away, "home": home, "confirmed": bool(away and home)}
+                away_raw = lineups.get("awayPlayers") or lineups.get("awayTeam") or []
+                home_raw = lineups.get("homePlayers") or lineups.get("homeTeam") or []
+                away = _normalize_lineup_players(away_raw)
+                home = _normalize_lineup_players(home_raw)
+                if len(away) >= 5 or len(home) >= 5:
+                    return {"away": away, "home": home, "confirmed": True}
     except Exception:
         pass
     # Fallback: boxscore batting order (~45 min before first pitch)
@@ -1360,8 +1382,8 @@ def _fetch_lineup(game_pk: int) -> dict:
             }
             for pid in teams.get("home", {}).get("battingOrder", [])
         ]
-        if away_order or home_order:
-            return {"away": away_order, "home": home_order, "confirmed": bool(away_order and home_order)}
+        if len(away_order) >= 5 or len(home_order) >= 5:
+            return {"away": away_order, "home": home_order, "confirmed": True}
     except Exception:
         pass
     return {"away": [], "home": [], "confirmed": False}
@@ -1476,8 +1498,8 @@ def _fetch_game_hitter_props(
         return []
 
     lineup = _fetch_lineup(game_pk)
-    if not lineup["away"] and not lineup["home"]:
-        print(f"  [PROPS] {away_code}@{home_code}: no lineup data available — skipping hitter props")
+    if len(lineup["away"]) < 5 and len(lineup["home"]) < 5:
+        print(f"  [PROPS] {away_code}@{home_code}: <5 batters confirmed in either lineup — skipping hitter props")
         return []
 
     all_props: list = []

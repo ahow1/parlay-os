@@ -2,14 +2,13 @@ name: Parlay OS — All Systems
 
 on:
   schedule:
-    - cron: '0 18 * * *'    # daily_brain    — 1pm ET (18:00 UTC)
-    - cron: '30 22 * * *'   # line_movement  — 5:30pm ET (22:30 UTC)
-    - cron: '0 23 * * *'    # live_engine    — 6pm ET, runs until 11pm internally
-    - cron: '30 4 * * *'    # daily_debrief  — 11:30pm ET (04:30 UTC next day)
-    - cron: '0 14 * * 1'          # weekly_roi     — Mon 9am ET (14:00 UTC)
-    - cron: '0 14 * * 0,2,3,4,5,6'  # morning_planner — 9am ET, every day EXCEPT Monday
-    # NOTE: both weekly_roi and morning_planner fire at 14:00 UTC.
-    # Using different cron expressions prevents GitHub from firing duplicate runs on Monday.
+    - cron: '0 18 * * *'     # daily_brain    — 1pm ET (18:00 UTC)
+    - cron: '30 22 * * *'    # line_movement  — 5:30pm ET (22:30 UTC)
+    - cron: '*/5 23 * * *'   # live_engine    — 6–7pm ET (23:00–23:55 UTC), every 5 min
+    - cron: '*/5 0-3 * * *'  # live_engine    — 7pm–11pm ET (00:00–03:55 UTC), every 5 min
+    - cron: '30 4 * * *'     # daily_debrief  — 11:30pm ET (04:30 UTC)
+    - cron: '0 14 * * 1'     # weekly_roi     — Mon 9am ET (14:00 UTC)
+    - cron: '0 14 * * 0,2,3,4,5,6'  # morning_planner — 9am ET, every day except Monday
   workflow_dispatch:
     inputs:
       job:
@@ -95,13 +94,19 @@ jobs:
           git diff --staged --quiet || git commit -m "Linecheck: $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push || true
 
-  # ─── 3. LIVE ENGINE — 6pm–11pm ET (internal 60s cycle) ───────────────────
+  # ─── 3. LIVE ENGINE — every 5 min, 6pm–11pm ET ───────────────────────────
   live_engine:
     if: >
       (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'live_engine') ||
-      (github.event_name == 'schedule' && github.event.schedule == '0 23 * * *')
+      (github.event_name == 'schedule' && (
+        github.event.schedule == '*/5 23 * * *' ||
+        github.event.schedule == '*/5 0-3 * * *'
+      ))
     runs-on: ubuntu-latest
-    timeout-minutes: 310
+    timeout-minutes: 6
+    concurrency:
+      group: live_engine
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
         with:
@@ -112,12 +117,12 @@ jobs:
 
       - run: pip install -q requests pytz flask flask-cors
 
-      - name: Run live engine (6pm–11pm ET internal loop)
+      - name: Run live engine (single pass)
         env:
           ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: timeout 300m python brain.py --live || true
+        run: timeout 5m python brain.py --live || true
 
       - name: Commit live outputs
         run: |
@@ -181,7 +186,7 @@ jobs:
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python brain.py --weekly
 
-  # ─── 6. MORNING PLANNER — 9am ET (only if picks exist) ───────────────────
+  # ─── 6. MORNING PLANNER — 9am ET (only if games + edge > 4%) ─────────────
   morning_planner:
     if: >
       (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'morning_planner') ||

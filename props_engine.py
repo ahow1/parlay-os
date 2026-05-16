@@ -226,7 +226,9 @@ def build_sgp_suggestions(
     """
     suggestions = []
     totals      = market.get("totals") or {}
-    totals_line = float(totals.get("line") or 8.5)
+    if not totals or totals.get("line") is None:
+        return []
+    totals_line = float(totals.get("line"))
     total_xr    = max(away_xr + home_xr, 0.01)
 
     def _joint_3(p1: float, p2: float, p3: float, rho: float = 0.18) -> float:

@@ -19,21 +19,25 @@ import logging
 from urllib.parse import urlparse
 
 import requests
-import requests_cache
+
+try:
+    import requests_cache
+    _session = requests_cache.CachedSession(
+        cache_name="parlay_http_cache",
+        backend="memory",
+        expire_after=300,
+        allowable_codes=[200],
+        allowable_methods=["GET"],
+        stale_if_error=True,
+    )
+    _session.headers.update({"User-Agent": "ParlayOS/2.0"})
+    _CACHE_AVAILABLE = True
+except ImportError:
+    _session = requests.Session()
+    _session.headers.update({"User-Agent": "ParlayOS/2.0"})
+    _CACHE_AVAILABLE = False
 
 log = logging.getLogger(__name__)
-
-# ── Cache setup ───────────────────────────────────────────────────────────────
-
-_session = requests_cache.CachedSession(
-    cache_name="parlay_http_cache",
-    backend="memory",
-    expire_after=300,          # 5-minute TTL
-    allowable_codes=[200],
-    allowable_methods=["GET"],
-    stale_if_error=True,       # serve stale on error
-)
-_session.headers.update({"User-Agent": "ParlayOS/2.0"})
 
 
 # ── Rate limiter ──────────────────────────────────────────────────────────────

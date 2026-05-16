@@ -33,7 +33,7 @@ def _team_roster(team_id: int, game_date: str) -> list:
         return []
 
 
-def _pitcher_game_log(pitcher_id: int, days: int = 5) -> list:
+def _pitcher_game_log(pitcher_id: int, days: int = 3) -> list:
     """Return pitching game log entries for past N days, with pitch counts."""
     try:
         cutoff = (date.today() - timedelta(days=days)).isoformat()
@@ -57,10 +57,13 @@ def _pitcher_game_log(pitcher_id: int, days: int = 5) -> list:
             ip_str = st.get("inningsPitched", "0.0")
             ip_parts = str(ip_str).split(".")
             ip = int(ip_parts[0]) + int(ip_parts[1] if len(ip_parts) > 1 else 0) / 3
+            # MLB Stats API uses numberOfPitches for relievers; pitchesThrown is a fallback
+            np = (int(st.get("numberOfPitches", 0) or 0)
+                  or int(st.get("pitchesThrown", 0) or 0))
             games.append({
                 "date": game_date,
                 "ip":   round(ip, 1),
-                "np":   int(st.get("pitchesThrown", 0) or 0),
+                "np":   np,
                 "er":   int(st.get("earnedRuns", 0) or 0),
             })
         return games
