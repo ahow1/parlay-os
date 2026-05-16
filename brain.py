@@ -1094,13 +1094,15 @@ def _daily_bet_slip(
 
     if all_fades:
         p3.append("❌ FADES:")
-        seen_fades: set = set()
+        seen_fade_teams:   set = set()
+        seen_fade_reasons: set = set()
         count = 0
         for analysis, side, reason in all_fades:
             team = analysis.get(f"{side}_name", "")
-            if team in seen_fades or count >= 4:
+            if team in seen_fade_teams or reason in seen_fade_reasons or count >= 4:
                 continue
-            seen_fades.add(team)
+            seen_fade_teams.add(team)
+            seen_fade_reasons.add(reason)
             p3.append(f"  {team} — {reason}")
             count += 1
         p3.append("")
@@ -1756,6 +1758,7 @@ def run_daily_scout():
     all_injuries:     list = []   # injury warning strings — collected, sent in slip
     game_key_map:     dict = {}   # (away_code, home_code) → analysis
     props_games:      list = []   # per-game props data for props_output.json
+    _faded_games:     set  = set()  # game keys already represented in fades
 
     # Seed accumulated_risk from today's already-pending bets (stale or earlier scout)
     _prior_pending = [b for b in _db.get_bets()
@@ -1953,10 +1956,20 @@ def run_daily_scout():
                     "conviction": analysis.get(f"{side}_conv"),
                 })
             else:
-                # Collect fades: PASS games with specific warning flags
-                flags = (analysis.get("narrative") or []) + (analysis.get("reg_flags") or [])
-                if flags:
-                    reason = flags[0].get("message", "no edge found")
+                # Collect fades: only when SP ERA is significantly above xFIP
+                # (ERA-xFIP gap ≥ 1.0 means real regression signal, not noise).
+                # Limit to one team per game so we never show both sides as fades.
+                sp     = analysis.get(f"{side}_sp") or {}
+                sp_era  = sp.get("era")
+                sp_xfip = sp.get("xfip")
+                game_key = f"{analysis.get('away','')}@{analysis.get('home','')}"
+                if (sp_era is not None and sp_xfip is not None
+                        and (sp_era - sp_xfip) >= 1.0
+                        and game_key not in _faded_games):
+                    _faded_games.add(game_key)
+                    sp_name = sp.get("name", "SP")
+                    reason  = (f"{sp_name} ERA {sp_era:.2f} vs xFIP {sp_xfip:.2f} "
+                               f"— ERA due to regress ({sp_era - sp_xfip:+.2f} gap)")
                     all_fades.append((analysis, side, reason))
 
         # ── Collect NRFI and totals for daily slip ─────────────────────────────

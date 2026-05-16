@@ -91,12 +91,33 @@ def is_drawdown_pause() -> bool:
     return drawdown >= DRAWDOWN_PAUSE
 
 
+def sizing_bankroll() -> float:
+    """Bankroll for Kelly sizing: cumulative settled P&L only — does NOT subtract pending.
+    Pending bets are capital at risk, not lost capital. Kelly must size against total
+    bankroll or it shrinks every scout run and collapses to near-zero stakes."""
+    override = os.getenv("BANKROLL_OVERRIDE")
+    if override:
+        return round(float(override), 2)
+    bets = _db.get_bets()
+    current = float(STARTING_BANKROLL)
+    for b in bets:
+        result = b.get("result")
+        stake  = float(b.get("stake") or 0)
+        if result == "W":
+            dec = american_to_decimal(str(b.get("bet_odds", "")))
+            if dec:
+                current += (dec - 1) * stake
+        elif result == "L":
+            current -= stake
+    return round(current, 2)
+
+
 def kelly_stake(model_prob: float, odds_american: str, conviction: str = "MEDIUM",
                 fraction: float = 0.25) -> float:
     """
     Quarter-Kelly stake with drawdown-adjusted sizing and detailed diagnostics.
-    Drawdown reduces stake proportionally instead of hard-blocking.
-    Daily cap floors at $1.00 rather than zeroing out.
+    Sizes against sizing_bankroll() (settled P&L only) so pending bets don't
+    collapse stake to zero. Drawdown reduces stake proportionally.
     """
     dec = american_to_decimal(odds_american)
     if not dec or dec <= 1:
@@ -108,27 +129,29 @@ def kelly_stake(model_prob: float, odds_american: str, conviction: str = "MEDIUM
 
     b = dec - 1
     q = 1.0 - model_prob
-    kelly_pct = (model_prob * b - q) / b
+    full_kelly = (model_prob * b - q) / b
 
-    if kelly_pct <= 0:
-        print(f"[KELLY $0] negative Kelly: prob={model_prob} dec={dec:.4f} b={b:.4f} kelly={kelly_pct:.4f}")
+    if full_kelly <= 0:
+        print(f"[KELLY $0] negative Kelly: prob={model_prob} dec={dec:.4f} b={b:.4f} kelly={full_kelly:.4f}")
         return 0.0
 
-    kelly_pct *= fraction
+    quarter_kelly = full_kelly * fraction
 
     lo, hi = CONVICTION_KELLY.get(conviction, (0.01, 0.03))
-    kelly_pct = max(lo, min(kelly_pct, hi))
+    kelly_pct = max(lo, min(quarter_kelly, hi))
 
-    br = current_bankroll()
+    # Size against total bankroll (pending bets are capital at risk, not losses)
+    br = sizing_bankroll()
+    available = current_bankroll()  # for drawdown comparison only
     if br <= 0:
-        print(f"[KELLY $0] bankroll=${br:.2f} (check DB / BANKROLL_OVERRIDE)")
+        print(f"[KELLY $0] sizing_bankroll=${br:.2f} (check DB / BANKROLL_OVERRIDE)")
         return 0.0
 
-    # Drawdown: reduce sizing proportionally instead of hard-blocking
+    # Drawdown: compare available vs peak; reduce sizing proportionally
     pk = peak_bankroll()
-    drawdown = max(0.0, (pk - br) / pk) if pk > 0 else 0.0
+    drawdown = max(0.0, (pk - available) / pk) if pk > 0 else 0.0
+    dd_scale  = 1.0
     if drawdown >= DRAWDOWN_PAUSE:
-        # Scale down to 25–100% of normal based on severity (floor at 25%)
         dd_scale  = max(0.25, 1.0 - drawdown)
         kelly_pct = round(kelly_pct * dd_scale, 6)
         print(f"[KELLY DD] drawdown={drawdown:.1%} → sizing ×{dd_scale:.2f} "
@@ -140,6 +163,14 @@ def kelly_stake(model_prob: float, odds_american: str, conviction: str = "MEDIUM
     # Daily-cap enforcement is the scout loop's job (accumulated_risk).
     # kelly_stake returns the pure Kelly amount; don't re-check DB exposure here.
     stake = round(round(stake / 0.10) * 0.10, 2)
+
+    print(
+        f"[KELLY] prob={model_prob:.4f} odds={odds_american} dec={dec:.4f} "
+        f"full_kelly={full_kelly:.4f} ×{fraction}={quarter_kelly:.4f} "
+        f"conv={conviction}[{lo},{hi}]→{kelly_pct:.4f} "
+        f"br=${br:.2f}(sizing) dd_scale={dd_scale:.2f} "
+        f"raw=${round(br*kelly_pct,2):.2f} → stake=${stake:.2f}"
+    )
     if stake <= 0:
         print(f"[KELLY $0] rounded to zero — prob={model_prob} odds={odds_american} "
               f"br=${br:.2f} kelly_pct={kelly_pct:.4f}")

@@ -229,6 +229,10 @@ def _last_3_starts_summary(pitcher_id: int) -> dict:
     }
 
     # Velocity trend from last 10 starts K rate trend
+    # K/9 alone is NOT sufficient for INJURY_RISK — could be a command change.
+    # Thresholds: velocity_decline at -1.0 K/9 (command/velo issue, flag separately);
+    # velocity_injury_risk only at -3.0 K/9 (severe enough to suggest arm injury).
+    # True velocity confirmation requires Statcast data (checked in intelligence_engine).
     if len(starts) >= 5:
         first_half  = starts[:len(starts)//2]
         second_half = starts[len(starts)//2:]
@@ -236,8 +240,8 @@ def _last_3_starts_summary(pitcher_id: int) -> dict:
         k9_late  = sum(g["k9"] for g in second_half) / len(second_half)
         k9_trend = round(k9_late - k9_early, 2)      # negative = declining K rate
         result["k9_trend_10s"]        = k9_trend
-        result["velocity_decline"]    = k9_trend < -0.5   # flag: proxy for ~0.5 mph drop
-        result["velocity_injury_risk"]= k9_trend < -1.0   # flag: proxy for ~1.0 mph drop
+        result["velocity_decline"]    = k9_trend < -1.0   # command or velo change
+        result["velocity_injury_risk"]= k9_trend < -3.0   # severe: possible arm injury
     else:
         result["k9_trend_10s"]         = 0.0
         result["velocity_decline"]     = False

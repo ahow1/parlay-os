@@ -51,25 +51,28 @@ def sp_regression_flags(sp: dict, label: str = "") -> list[dict]:
                 "direction": "back",
             })
 
-    if sp.get("velocity_decline"):
+    if sp.get("velocity_decline") and not sp.get("velocity_injury_risk"):
+        # Moderate K/9 decline — flag as command or velocity change, NOT injury
         trend = sp.get("k9_trend_10s", 0.0)
         flags.append({
             "type":      "VELOCITY_DECLINE",
             "emoji":     "⚠️",
             "message":   (
                 f"{name} K/9 trend {trend:+.1f} last 10 starts — "
-                f"possible velocity/command decline"
+                f"command/velocity change (not necessarily injury)"
             ),
             "direction": "fade",
         })
 
     if sp.get("velocity_injury_risk"):
+        # Severe K/9 drop (≥3.0 over 10 starts) — flag INJURY_RISK only at this level
         trend = sp.get("k9_trend_10s", 0.0)
         flags.append({
             "type":      "INJURY_RISK_SP",
             "emoji":     "🚑",
             "message":   (
-                f"{name} K/9 trend {trend:+.1f} — severe decline, injury risk"
+                f"{name} K/9 trend {trend:+.1f} — severe 10-start decline, "
+                f"injury risk (velocity confirmation recommended)"
             ),
             "direction": "fade",
         })
@@ -242,19 +245,31 @@ def get_injury_flags(away_code: str, home_code: str,
         _log.debug(f"Transactions error: {e}")
 
     # SP-level velocity/injury flags from sp_engine
+    # velocity_decline: K/9 -1.0+ over 10 starts — flag as command/velocity change
+    # velocity_injury_risk: K/9 -3.0+ over 10 starts — severe, flag as injury risk
     for sp, code in ((away_sp, away_code), (home_sp, home_code)):
         if not sp:
             continue
-        name = sp.get("name", "SP")
+        name  = sp.get("name", "SP")
+        trend = sp.get("k9_trend_10s", 0.0)
         if sp.get("velocity_injury_risk"):
-            trend = sp.get("k9_trend_10s", 0.0)
             flags.append({
                 "type":    "INJURY_RISK_SP",
+                "emoji":   "🚑",
+                "team":    code,
+                "message": (
+                    f"{code}: {name} K/9 trend {trend:+.1f} over 10 starts — "
+                    f"severe decline, injury risk (confirm with velocity data)"
+                ),
+            })
+        elif sp.get("velocity_decline"):
+            flags.append({
+                "type":    "VELOCITY_DECLINE",
                 "emoji":   "⚠️",
                 "team":    code,
                 "message": (
-                    f"{code}: {name} K/9 trend {trend:+.1f} — "
-                    f"severe K rate decline, possible injury"
+                    f"{code}: {name} K/9 trend {trend:+.1f} over 10 starts — "
+                    f"command/velocity change (not classified as injury)"
                 ),
             })
 

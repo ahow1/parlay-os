@@ -14,6 +14,11 @@ from functools import lru_cache
 SAVANT_BASE = "https://baseballsavant.mlb.com"
 TIMEOUT     = 15
 
+# Savant returns these exact values when there is no real data for the player
+# (placeholder / zero-sample row). Treat them as missing, not real.
+_SAVANT_DEFAULT_EV     = 82.4
+_SAVANT_DEFAULT_BARREL = 1.3
+
 
 # ── URL builders ──────────────────────────────────────────────────────────────
 
@@ -104,18 +109,36 @@ def get_pitcher_statcast(pitcher_id: int, season: int = 2026) -> dict:
         return {}
     try:
         url = _savant_pitcher_url(pitcher_id, season)
+        print(f"  [STATCAST] Fetching pitcher {pitcher_id} season={season}")
         r   = _http_get(
             url, timeout=TIMEOUT,
             headers={"User-Agent": "Mozilla/5.0 (compatible; ParlayOS/1.0)"},
             skip_cache=False,
         )
         if r.status_code != 200 or not r.text.strip():
+            print(f"  [STATCAST] Pitcher {pitcher_id}: HTTP {r.status_code} or empty response")
             return {}
         data = _parse_aggregated_csv(r.text, "pitcher")
-        if data:
-            data["pitcher_id"] = pitcher_id
+        if not data:
+            print(f"  [STATCAST] Pitcher {pitcher_id}: CSV parsed but no usable columns")
+            return {}
+        # Validate: discard if sample is zero or values match Savant placeholder defaults
+        n      = data.get("sample_batted_balls", 0)
+        ev     = data.get("exit_velocity_avg")
+        barrel = data.get("barrel_pct")
+        if n == 0:
+            print(f"  [STATCAST] Pitcher {pitcher_id}: sample=0 — no real data, discarding")
+            return {}
+        if ev == _SAVANT_DEFAULT_EV and barrel == _SAVANT_DEFAULT_BARREL:
+            print(f"  [STATCAST] Pitcher {pitcher_id}: EV={ev} barrel={barrel} matches "
+                  f"known placeholder defaults — discarding (lookup likely failed silently)")
+            return {}
+        data["pitcher_id"] = pitcher_id
+        print(f"  [STATCAST] Pitcher {pitcher_id}: OK — "
+              f"EV={ev} barrel={barrel} n={n}")
         return data
-    except Exception:
+    except Exception as e:
+        print(f"  [STATCAST] Pitcher {pitcher_id}: exception — {e}")
         return {}
 
 
@@ -137,12 +160,25 @@ def get_batter_statcast(batter_id: int, season: int = 2026) -> dict:
             skip_cache=False,
         )
         if r.status_code != 200 or not r.text.strip():
+            print(f"  [STATCAST] Batter {batter_id}: HTTP {r.status_code} or empty response")
             return {}
         data = _parse_aggregated_csv(r.text, "batter")
-        if data:
-            data["batter_id"] = batter_id
+        if not data:
+            return {}
+        n      = data.get("sample_batted_balls", 0)
+        ev     = data.get("exit_velocity_avg")
+        barrel = data.get("barrel_pct")
+        if n == 0:
+            print(f"  [STATCAST] Batter {batter_id}: sample=0 — no real data, discarding")
+            return {}
+        if ev == _SAVANT_DEFAULT_EV and barrel == _SAVANT_DEFAULT_BARREL:
+            print(f"  [STATCAST] Batter {batter_id}: EV={ev} barrel={barrel} matches "
+                  f"placeholder defaults — discarding")
+            return {}
+        data["batter_id"] = batter_id
         return data
-    except Exception:
+    except Exception as e:
+        print(f"  [STATCAST] Batter {batter_id}: exception — {e}")
         return {}
 
 

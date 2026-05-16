@@ -1,7 +1,133 @@
 {
   "date": "2026-05-16",
-  "timestamp": "2026-05-16T16:39:04.034429-04:00",
+  "timestamp": "2026-05-16T15:10:18.883054-04:00",
   "games": [
+    {
+      "away": "BAL",
+      "home": "WAS",
+      "away_name": "Baltimore Orioles",
+      "home_name": "Washington Nationals",
+      "time": "4:06 PM ET",
+      "asp": "Chris Bassitt",
+      "hsp": "Cade Cavalli",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Chris Bassitt",
+          "sp_side": "away",
+          "model_line": 3.4,
+          "p_over": 0.5092,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Cade Cavalli",
+          "sp_side": "home",
+          "model_line": 5.5,
+          "p_over": 0.364,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4595,
+          "p_yrfi": 0.5405,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.29,
+          "market_line": 10.0,
+          "p_over": 0.1203,
+          "p_under": 0.8797,
+          "recommendation": "UNDER 10.0"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "PHI",
+      "home": "PIT",
+      "away_name": "Philadelphia Phillies",
+      "home_name": "Pittsburgh Pirates",
+      "time": "4:06 PM ET",
+      "asp": "Cristopher S\u00e1nchez",
+      "hsp": "Bubba Chandler",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Cristopher S\u00e1nchez",
+          "sp_side": "away",
+          "model_line": 6.1,
+          "p_over": 0.6139,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Bubba Chandler",
+          "sp_side": "home",
+          "model_line": 4.4,
+          "p_over": 0.4203,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4301,
+          "p_yrfi": 0.5699,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.65,
+          "market_line": 8.5,
+          "p_over": 0.3593,
+          "p_under": 0.6407,
+          "recommendation": "UNDER 8.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "MIA",
+      "home": "TB",
+      "away_name": "Miami Marlins",
+      "home_name": "Tampa Bay Rays",
+      "time": "4:11 PM ET",
+      "asp": "Sandy Alcantara",
+      "hsp": "Nick Martinez",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Sandy Alcantara",
+          "sp_side": "away",
+          "model_line": 3.4,
+          "p_over": 0.6296,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Nick Martinez",
+          "sp_side": "home",
+          "model_line": 3.2,
+          "p_over": 0.5419,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4709,
+          "p_yrfi": 0.5291,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.06,
+          "market_line": 7.5,
+          "p_over": 0.4099,
+          "p_under": 0.5901,
+          "recommendation": "UNDER 7.5"
+        }
+      ],
+      "sgp": []
+    },
     {
       "away": "CIN",
       "home": "CLE",
@@ -29,16 +155,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.386,
-          "p_yrfi": 0.614,
+          "p_nrfi": 0.3943,
+          "p_yrfi": 0.6057,
           "recommendation": "YRFI"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.85,
+          "model_total": 7.68,
           "market_line": 8.5,
-          "p_over": 0.3868,
-          "p_under": 0.6132,
+          "p_over": 0.3626,
+          "p_under": 0.6374,
           "recommendation": "UNDER 8.5"
         }
       ],
@@ -323,16 +449,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4759,
-          "p_yrfi": 0.5241,
+          "p_nrfi": 0.4917,
+          "p_yrfi": 0.5083,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 6.58,
+          "model_total": 6.29,
           "market_line": 8.5,
-          "p_over": 0.2179,
-          "p_under": 0.7821,
+          "p_over": 0.1841,
+          "p_under": 0.8159,
           "recommendation": "UNDER 8.5"
         }
       ],

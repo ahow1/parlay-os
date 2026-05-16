@@ -37,8 +37,10 @@ def _pitcher_game_log(pitcher_id: int, days: int = 3) -> list:
     """Return pitching game log entries for past N days, with pitch counts."""
     try:
         cutoff = (date.today() - timedelta(days=days)).isoformat()
+        url    = f"{STATSAPI}/people/{pitcher_id}/stats"
+        print(f"  [BULLPEN] pitcher {pitcher_id}: fetching game log (cutoff={cutoff})")
         r = _http_get(
-            f"{STATSAPI}/people/{pitcher_id}/stats",
+            url,
             params={
                 "stats":    "gameLog",
                 "group":    "pitching",
@@ -47,9 +49,11 @@ def _pitcher_game_log(pitcher_id: int, days: int = 3) -> list:
             },
             timeout=8,
         )
-        splits = r.json().get("stats", [{}])[0].get("splits", [])
+        raw_splits = r.json().get("stats", [{}])[0].get("splits", [])
+        print(f"  [BULLPEN] pitcher {pitcher_id}: {len(raw_splits)} total splits from API "
+              f"(status={r.status_code})")
         games  = []
-        for s in splits:
+        for s in raw_splits:
             game_date = s.get("date", "")
             if not game_date or game_date < cutoff:
                 continue
@@ -57,17 +61,24 @@ def _pitcher_game_log(pitcher_id: int, days: int = 3) -> list:
             ip_str = st.get("inningsPitched", "0.0")
             ip_parts = str(ip_str).split(".")
             ip = int(ip_parts[0]) + int(ip_parts[1] if len(ip_parts) > 1 else 0) / 3
-            # MLB Stats API uses numberOfPitches for relievers; pitchesThrown is a fallback
-            np = (int(st.get("numberOfPitches", 0) or 0)
-                  or int(st.get("pitchesThrown", 0) or 0))
+            # MLB Stats API: numberOfPitches is the primary field; pitchesThrown is fallback
+            np_val = (int(st.get("numberOfPitches", 0) or 0)
+                      or int(st.get("pitchesThrown", 0) or 0))
             games.append({
                 "date": game_date,
                 "ip":   round(ip, 1),
-                "np":   np,
+                "np":   np_val,
                 "er":   int(st.get("earnedRuns", 0) or 0),
             })
+        if games:
+            print(f"  [BULLPEN] pitcher {pitcher_id}: {len(games)} game(s) in last {days}d — "
+                  f"pitches={[g['np'] for g in games]} ip={[g['ip'] for g in games]}")
+        else:
+            print(f"  [BULLPEN] pitcher {pitcher_id}: 0 games in last {days}d "
+                  f"(all {len(raw_splits)} splits predate cutoff={cutoff})")
         return games
-    except Exception:
+    except Exception as e:
+        print(f"  [BULLPEN] pitcher {pitcher_id}: ERROR fetching game log — {e}")
         return []
 
 
@@ -108,6 +119,8 @@ def analyze_bullpen(team_id: int, game_date: str, label: str = "") -> dict:
     """
     roster  = _team_roster(team_id, game_date)
     rp_list = [p for p in roster if p["position"] in ("RP", "CL")]
+    print(f"[BULLPEN] {label or team_id}: roster={len(roster)} total, "
+          f"{len(rp_list)} relievers — IDs: {[p['id'] for p in rp_list]}")
 
     total_fatigue    = 0.0
     fatigued_arms    = 0     # arms ≥5 (moderate+)
