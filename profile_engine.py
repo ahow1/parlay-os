@@ -293,9 +293,11 @@ def update_sp_profile(pitcher_name: str, pitcher_id: int) -> dict:
         # K9 as velocity proxy: -0.5 K9 ≈ -0.5 mph
         velocity_trend = round(k9_trend * 0.5, 2)
 
-    # Velocity decline flags
-    velocity_decline     = k9_trend < -0.5
-    velocity_injury_risk = k9_trend < -1.0
+    # Velocity decline flags — thresholds match sp_engine.py
+    # velocity_decline: command/velocity change (not necessarily injury)
+    # velocity_injury_risk: severe drop (3.0+ K/9) — possible arm injury
+    velocity_decline     = k9_trend < -1.0
+    velocity_injury_risk = k9_trend < -3.0
 
     # Walk worsening
     worsening_walk = False
