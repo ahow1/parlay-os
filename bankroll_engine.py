@@ -94,49 +94,64 @@ def is_drawdown_pause() -> bool:
 def kelly_stake(model_prob: float, odds_american: str, conviction: str = "MEDIUM",
                 fraction: float = 0.25) -> float:
     """
-    Quarter-Kelly stake.
-    Returns dollar amount, capped by daily exposure, per-bet max, and drawdown check.
+    Quarter-Kelly stake with drawdown-adjusted sizing and detailed diagnostics.
+    Drawdown reduces stake proportionally instead of hard-blocking.
+    Daily cap floors at $1.00 rather than zeroing out.
     """
-    if is_drawdown_pause():
-        return 0.0
-
-    dec  = american_to_decimal(odds_american)
+    dec = american_to_decimal(odds_american)
     if not dec or dec <= 1:
+        print(f"[KELLY $0] invalid odds '{odds_american}' → dec={dec}")
         return 0.0
     if model_prob <= 0 or model_prob >= 1:
+        print(f"[KELLY $0] invalid model_prob={model_prob} odds={odds_american}")
         return 0.0
 
-    b = dec - 1  # decimal profit per unit
+    b = dec - 1
     q = 1.0 - model_prob
     kelly_pct = (model_prob * b - q) / b
 
     if kelly_pct <= 0:
+        print(f"[KELLY $0] negative Kelly: prob={model_prob} dec={dec:.4f} b={b:.4f} kelly={kelly_pct:.4f}")
         return 0.0
 
-    # Scale by quarter-Kelly
     kelly_pct *= fraction
 
-    # Clamp to conviction tier range
     lo, hi = CONVICTION_KELLY.get(conviction, (0.01, 0.03))
     kelly_pct = max(lo, min(kelly_pct, hi))
 
-    br    = current_bankroll()
+    br = current_bankroll()
     if br <= 0:
+        print(f"[KELLY $0] bankroll=${br:.2f} (check DB / BANKROLL_OVERRIDE)")
         return 0.0
+
+    # Drawdown: reduce sizing proportionally instead of hard-blocking
+    pk = peak_bankroll()
+    drawdown = max(0.0, (pk - br) / pk) if pk > 0 else 0.0
+    if drawdown >= DRAWDOWN_PAUSE:
+        # Scale down to 25–100% of normal based on severity (floor at 25%)
+        dd_scale  = max(0.25, 1.0 - drawdown)
+        kelly_pct = round(kelly_pct * dd_scale, 6)
+        print(f"[KELLY DD] drawdown={drawdown:.1%} → sizing ×{dd_scale:.2f} "
+              f"prob={model_prob} odds={odds_american} br=${br:.2f} peak=${pk:.2f}")
 
     stake = round(br * kelly_pct, 2)
-
-    # Cap per bet
     stake = min(stake, MAX_BET_ABS)
 
-    # Daily cap check
-    remaining_cap = br * DAILY_CAP_PCT - daily_exposure()
-    if remaining_cap <= 0:
-        return 0.0
-    stake = min(stake, round(remaining_cap, 2))
+    # Daily cap: floor at $1.00 so high-edge bets still get minimum exposure
+    daily_exp     = daily_exposure()
+    remaining_cap = br * DAILY_CAP_PCT - daily_exp
+    if remaining_cap < 1.0:
+        print(f"[KELLY CAP] daily_exp=${daily_exp:.2f} cap=${br * DAILY_CAP_PCT:.2f} "
+              f"remaining=${remaining_cap:.2f} → clamping to $1.00 floor "
+              f"prob={model_prob} odds={odds_american}")
+        stake = min(stake, 1.0)
+    else:
+        stake = min(stake, round(remaining_cap, 2))
 
-    # Round to nearest $0.10
     stake = round(round(stake / 0.10) * 0.10, 2)
+    if stake <= 0:
+        print(f"[KELLY $0] rounded to zero — prob={model_prob} odds={odds_american} "
+              f"br=${br:.2f} kelly_pct={kelly_pct:.4f}")
     return max(stake, 0.0)
 
 

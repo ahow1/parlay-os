@@ -1126,10 +1126,17 @@ def _should_recommend(game: dict, side: str) -> bool:
         print(f"  PASS {team}: edge {edge:+.1f}% (need >{MIN_EDGE_PCT}%) model={model:.3f} nv={nv:.3f}")
         return False
     if stake <= 0:
-        if is_drawdown_pause():
-            print(f"  PASS {team}: stake=$0.00 — drawdown pause active (bankroll down ≥15% from peak)")
-        else:
-            print(f"  PASS {team}: stake=$0.00 — Kelly returned zero (edge={edge:+.1f}% model={model:.3f} nv={nv:.3f})")
+        from bankroll_engine import current_bankroll as _cur_br, daily_exposure as _daily_exp, peak_bankroll as _peak_br
+        _br   = _cur_br()
+        _peak = _peak_br()
+        _exp  = _daily_exp()
+        _dd   = round((_peak - _br) / _peak * 100, 1) if _peak > 0 else 0.0
+        print(
+            f"  PASS {team}: stake=$0.00 — Kelly zero "
+            f"[edge={edge:+.1f}% model={model:.3f} nv={nv:.3f} "
+            f"br=${_br:.2f} peak=${_peak:.2f} dd={_dd:.1f}% "
+            f"daily_exp=${_exp:.2f} cap=${_br * 0.25:.2f}]"
+        )
         return False
     if model < MIN_PROB:
         print(f"  PASS {team}: model {model:.3f} < min {MIN_PROB}")
