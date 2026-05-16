@@ -63,17 +63,15 @@ def peak_bankroll() -> float:
 
 
 def daily_exposure() -> float:
-    """Sum of stakes on today's unsettled bets (ET date), deduplicated by (game, bet, type)."""
+    """Sum of stakes on today's pending bets (result IS NULL), deduplicated by (game, bet, type)."""
     import pytz
     from datetime import datetime
     ET_tz = pytz.timezone("America/New_York")
     today = datetime.now(ET_tz).strftime("%Y-%m-%d")
-    bets  = _db.get_bets()
+    bets  = _db.get_bets(date=today, unresolved_only=True)
     seen: set = set()
     total = 0.0
     for b in bets:
-        if b.get("result") or b.get("date") != today:
-            continue
         key = (b.get("game", ""), b.get("bet", ""), b.get("type", ""))
         if key in seen:
             continue
