@@ -2959,15 +2959,9 @@ if __name__ == "__main__":
         _run_morning_planner()
 
     else:
-        # Default: start Telegram listener + auto-settler + hedge monitor in background, run scout once, exit
+        # Scout-only mode: no listener, no polling — just run the scout and send via direct HTTP
         try:
-            print("Starting Telegram listener...")
-            start_listener()
-            print("Starting auto-settler...")
-            start_auto_settler()
-            print("Starting hedge monitor...")
-            start_hedge_monitor()
-            print("Running daily scout (this is the main blocking call)...")
+            print("Running daily scout (scout-only, no Telegram listener)...")
             run_daily_scout()
             print("Scout complete — exiting")
         except KeyboardInterrupt:
