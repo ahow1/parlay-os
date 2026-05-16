@@ -858,16 +858,19 @@ def _daily_bet_slip(
         ml_risk += prl_stake
         ml_win  += prl_win
 
-    props_risk = (
-        sum(b.get("stake", 0) for b in nrfi_bets + totals_bets + k_bets + hitter_bets)
-        + sum(p.get("kelly_stake", 0) or 0 for p in all_props[:2])
-    )
-    total_risk = round(ml_risk + props_risk, 2)
+    # Compute props_risk only from bets that appear in the slip.
+    # k_bets and hitter_bets are merged into all_player_props (built below),
+    # so use a single pass there. Compute after player-props are built.
+    nrfi_risk   = sum(b.get("stake", 0) for b in nrfi_bets)
+    totals_risk = sum(b.get("stake", 0) for b in totals_bets)
+    sgp_risk    = sum(p.get("kelly_stake", 0) or 0 for p in all_props[:2])
+    # player_props_risk filled after all_player_props is assembled (below)
+    total_risk = round(ml_risk, 2)   # updated after player props built
     total_win  = round(ml_win, 2)
 
     cap          = round(br * DAILY_RISK_CAP_PCT, 2)
-    cap_exceeded = total_risk > cap
     override_cap = os.getenv("OVERRIDE_RISK_CAP", "").lower() in ("1", "true", "yes")
+    # cap_exceeded recomputed after all_player_props is built (total_risk updated then)
 
     # ── PART 1: ML PICKS ──────────────────────────────────────────────────────
     p1 = [
@@ -989,6 +992,16 @@ def _daily_bet_slip(
     prop_locks = [p for p in all_player_props if p["edge_pct"] >= 10.0]
     prop_flips = [p for p in all_player_props if 5.0 <= p["edge_pct"] < 10.0]
 
+    # ── Final risk total — only from bets actually shown in the slip ──────────
+    player_props_risk = sum(p["stake"] for p in all_player_props)
+    props_risk  = nrfi_risk + totals_risk + sgp_risk + player_props_risk
+    total_risk  = round(ml_risk + props_risk, 2)
+    # Hard cap guard: if total_risk > 25% of br, warn (cap enforced at scout time)
+    _cap_limit = round(br * DAILY_RISK_CAP_PCT, 2)
+    if total_risk > _cap_limit and not override_cap:
+        print(f"[SLIP] WARNING: displayed risk ${total_risk:.2f} > cap ${_cap_limit:.2f} "
+              f"— scout accumulated_risk should have blocked extras")
+
     has_p2 = bool(nrfi_bets or all_player_props or all_props)
     p2 = [
         f"PARLAY OS — {today}",
@@ -1092,7 +1105,8 @@ def _daily_bet_slip(
             count += 1
         p3.append("")
 
-    risk_cap_pct = round(total_risk / br * 100, 1) if br > 0 else 0
+    risk_cap_pct  = round(total_risk / br * 100, 1) if br > 0 else 0
+    cap_exceeded  = total_risk > cap
     p3.append(
         f"Daily risk: ${total_risk:.2f} ({risk_cap_pct:.1f}% of bankroll) | "
         f"Cap: {DAILY_RISK_CAP_PCT * 100:.0f}% (${cap:.2f})"
@@ -1109,6 +1123,90 @@ def _daily_bet_slip(
     print(f"[SLIP] Sending PART 3/3 ({len(p3)} lines)...")
     _send_telegram("\n".join(p3))
     print("[SLIP] All 3 parts sent.")
+
+
+def _send_slip_update(
+    new_pick_ids: set,
+    all_locks: list,
+    all_flips: list,
+    all_totals: list,
+    all_nrfi: list,
+    all_k_props: list,
+    all_hitter_props: list,
+    today: str,
+    br: float,
+) -> None:
+    """Send a brief Telegram update containing only newly-added picks."""
+
+    def _id_ml(a: dict, s: str) -> str:
+        return f"ML:{a.get(f'{s}_name','')}:{a.get(f'best_{s}_odds','')}"
+
+    def _id_total(b: dict) -> str:
+        return f"TOT:{b['game']}:{b['direction']}:{b['line']}"
+
+    def _id_nrfi(b: dict) -> str:
+        return f"NRFI:{b['game']}:{b['direction']}"
+
+    def _id_kprop(b: dict) -> str:
+        return f"KPROP:{b['sp']}:{b['line']}"
+
+    def _id_hitter(h: dict) -> str:
+        return f"HITTER:{h['player']}:{h.get('team','')}:{h['prop']}"
+
+    lines = [
+        f"PARLAY OS — {today}",
+        f"UPDATE — {len(new_pick_ids)} NEW PICK(S) ADDED",
+        "",
+    ]
+
+    for a, s in all_locks + all_flips:
+        if _id_ml(a, s) not in new_pick_ids:
+            continue
+        team   = a.get(f"{s}_name", "")
+        odds   = a.get(f"best_{s}_odds", "")
+        edge   = a.get(f"{s}_edge", 0)
+        stake  = a.get(f"{s}_stake", 0)
+        game   = f"{a.get('away_name','')} @ {a.get('home_name','')}"
+        odds_s = (f"+{odds}" if isinstance(odds, int) and odds > 0 else str(odds or ""))
+        label  = "🔒 LOCK" if (a, s) in all_locks else "🪙 FLIP"
+        lines.append(f"{label}: {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}%")
+
+    for b in all_totals:
+        if _id_total(b) not in new_pick_ids:
+            continue
+        lines.append(
+            f"📊 TOTAL: {b['game']} — {b['direction']} {b['line']} "
+            f"({b['prob']:.1%}) — ${b['stake']:.2f} — EDGE: +{b['edge_pct']:.1f}%"
+        )
+
+    for b in all_nrfi:
+        if _id_nrfi(b) not in new_pick_ids:
+            continue
+        lines.append(f"🌅 NRFI: {b['game']} — {b['direction']} ({b['prob']:.1%}) — ${b['stake']:.2f}")
+
+    for b in all_k_props:
+        if b.get("edge_pct", 0) < 5.0 or _id_kprop(b) not in new_pick_ids:
+            continue
+        last = b["sp"].split()[-1]
+        lines.append(
+            f"⚾ PROP: {b['sp']} ({b.get('team','')}) — "
+            f"{last} O{b['line']}K — ${b['stake']:.2f} — EDGE: +{b['edge_pct']:.1f}%"
+        )
+
+    for h in all_hitter_props:
+        if h.get("edge_pct", 0) < 5.0 or _id_hitter(h) not in new_pick_ids:
+            continue
+        lines.append(
+            f"🏏 PROP: {h['player']} ({h.get('team','')}) — "
+            f"{h['prop']} — ${h['stake']:.2f} — EDGE: +{h['edge_pct']:.1f}%"
+        )
+
+    if len(lines) == 3:
+        lines.append("(no new pick details matched — check scout logs)")
+
+    print(f"[SLIP UPDATE] Sending {len(new_pick_ids)} new picks...")
+    _send_telegram("\n".join(lines))
+    print("[SLIP UPDATE] Sent.")
 
 
 # ── BET RECOMMENDATION FILTER ─────────────────────────────────────────────────
@@ -1899,6 +1997,14 @@ def run_daily_scout():
                     mkt_p = (implied_prob(str(mkt_odds)) or 0) / 100
                     if mkt_p <= 0:
                         continue
+                    # Hard filters: skip extreme market prices (no value)
+                    # and unrealistic model estimates (miscalibrated λ).
+                    if mkt_p > 0.75:
+                        print(f"  SKIP totals {game_lbl} {direction}: mkt_p={mkt_p:.1%} >75% — no edge")
+                        continue
+                    if model_p > 0.80:
+                        print(f"  SKIP totals {game_lbl} {direction}: model_p={model_p:.1%} >80% — λ likely off")
+                        continue
                     edge = model_p - mkt_p
                     if edge >= 0.05 and edge > best_total_edge:
                         best_total_edge = edge
@@ -1923,11 +2029,12 @@ def run_daily_scout():
                 "edges": {"away": analysis["away_edge"], "home": analysis["home_edge"]},
             })
 
-    n_bets = len(all_bets)
-    total_risk = sum(
-        a.get("away_stake", 0) + a.get("home_stake", 0) for a in all_bets
+    # Fix: count only the actually-recommended side's stake, not both
+    n_bets = len(all_locks) + len(all_flips)
+    ml_risk_scout = sum(
+        a.get(f"{s}_stake", 0) for a, s in all_locks + all_flips
     )
-    print(f"\nScout done — {len(events)} games | {n_bets} bets | ${total_risk:.2f} at risk")
+    print(f"\nScout done — {len(events)} games | {n_bets} ML bets | ${ml_risk_scout:.2f} ML at risk")
 
     # ── Series analysis (game 1 of series today) ──────────────────────────────
     print("Running series analysis...")
@@ -1936,19 +2043,74 @@ def run_daily_scout():
     except Exception as series_err:
         print(f"Series analysis error: {series_err}")
 
-    # ── Daily bet slip ────────────────────────────────────────────────────────
-    print(
-        f"Building daily bet slip — "
-        f"locks={len(all_locks)} flips={len(all_flips)} nrfi={len(all_nrfi)} "
-        f"totals={len(all_totals)} k_props={len(all_k_props)} "
-        f"hitter_props={len(all_hitter_props)} injuries={len(all_injuries)}"
-    )
+    # ── Build canonical pick IDs for deduplication ────────────────────────────
+    def _pick_id_ml(analysis: dict, side: str) -> str:
+        return f"ML:{analysis.get(f'{side}_name','')}:{analysis.get(f'best_{side}_odds','')}"
+
+    def _pick_id_total(b: dict) -> str:
+        return f"TOT:{b['game']}:{b['direction']}:{b['line']}"
+
+    def _pick_id_nrfi(b: dict) -> str:
+        return f"NRFI:{b['game']}:{b['direction']}"
+
+    def _pick_id_kprop(b: dict) -> str:
+        return f"KPROP:{b['sp']}:{b['line']}"
+
+    def _pick_id_hitter(h: dict) -> str:
+        return f"HITTER:{h['player']}:{h.get('team','')}:{h['prop']}"
+
+    current_pick_ids: set = set()
+    for a, s in all_locks + all_flips:
+        current_pick_ids.add(_pick_id_ml(a, s))
+    for b in all_totals:
+        current_pick_ids.add(_pick_id_total(b))
+    for b in all_nrfi:
+        current_pick_ids.add(_pick_id_nrfi(b))
+    for b in all_k_props:
+        if b.get("edge_pct", 0) >= 5.0:
+            current_pick_ids.add(_pick_id_kprop(b))
+    for h in all_hitter_props:
+        if h.get("edge_pct", 0) >= 5.0:
+            current_pick_ids.add(_pick_id_hitter(h))
+
+    # ── Check if a slip was already sent today ─────────────────────────────────
+    prev_pick_ids: set = set()
+    slip_already_sent = False
     try:
-        _daily_bet_slip(all_locks, all_flips, all_sgp, all_fades, br,
-                        all_nrfi, all_totals, all_hitter_props, all_k_props, all_injuries)
-    except Exception as slip_err:
-        print(f"Daily slip EXCEPTION: {slip_err}")
-        traceback.print_exc()
+        with open("last_scout.json") as _lf:
+            _prev = json.load(_lf)
+        if _prev.get("date") == today and _prev.get("slip_sent"):
+            slip_already_sent = True
+            prev_pick_ids = set(_prev.get("sent_pick_ids", []))
+    except Exception:
+        pass
+
+    new_pick_ids = current_pick_ids - prev_pick_ids
+
+    scout_out["slip_sent"]     = True
+    scout_out["sent_pick_ids"] = sorted(current_pick_ids)
+
+    # ── Daily bet slip ────────────────────────────────────────────────────────
+    if slip_already_sent and not new_pick_ids:
+        print("[SLIP] Slip already sent today — no new picks. Skipping re-send.")
+    elif slip_already_sent:
+        # Build brief update: only new picks
+        print(f"[SLIP] Slip already sent today — {len(new_pick_ids)} new picks. Sending update.")
+        _send_slip_update(new_pick_ids, all_locks, all_flips, all_totals,
+                          all_nrfi, all_k_props, all_hitter_props, today, br)
+    else:
+        print(
+            f"Building daily bet slip — "
+            f"locks={len(all_locks)} flips={len(all_flips)} nrfi={len(all_nrfi)} "
+            f"totals={len(all_totals)} k_props={len(all_k_props)} "
+            f"hitter_props={len(all_hitter_props)} injuries={len(all_injuries)}"
+        )
+        try:
+            _daily_bet_slip(all_locks, all_flips, all_sgp, all_fades, br,
+                            all_nrfi, all_totals, all_hitter_props, all_k_props, all_injuries)
+        except Exception as slip_err:
+            print(f"Daily slip EXCEPTION: {slip_err}")
+            traceback.print_exc()
 
     # ── Public channel post ───────────────────────────────────────────────────
     if PUBLIC_CHANNEL_ID:

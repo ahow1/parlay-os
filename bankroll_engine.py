@@ -137,17 +137,8 @@ def kelly_stake(model_prob: float, odds_american: str, conviction: str = "MEDIUM
     stake = round(br * kelly_pct, 2)
     stake = min(stake, MAX_BET_ABS)
 
-    # Daily cap: floor at $1.00 so high-edge bets still get minimum exposure
-    daily_exp     = daily_exposure()
-    remaining_cap = br * DAILY_CAP_PCT - daily_exp
-    if remaining_cap < 1.0:
-        print(f"[KELLY CAP] daily_exp=${daily_exp:.2f} cap=${br * DAILY_CAP_PCT:.2f} "
-              f"remaining=${remaining_cap:.2f} → clamping to $1.00 floor "
-              f"prob={model_prob} odds={odds_american}")
-        stake = min(stake, 1.0)
-    else:
-        stake = min(stake, round(remaining_cap, 2))
-
+    # Daily-cap enforcement is the scout loop's job (accumulated_risk).
+    # kelly_stake returns the pure Kelly amount; don't re-check DB exposure here.
     stake = round(round(stake / 0.10) * 0.10, 2)
     if stake <= 0:
         print(f"[KELLY $0] rounded to zero — prob={model_prob} odds={odds_american} "
