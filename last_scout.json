@@ -1,42 +1,10 @@
 {
-  "timestamp": "2026-05-17T20:35:07Z",
+  "timestamp": "2026-05-17T20:24:04Z",
   "date": "2026-05-17",
-  "bankroll": 109.01,
-  "games": [
-    {
-      "away": "SD",
-      "home": "SEA",
-      "away_model": 0.3936,
-      "home_model": 0.6064,
-      "away_edge": -1.47,
-      "home_edge": 1.47,
-      "away_xr": 3.3,
-      "home_xr": 4.258
-    }
-  ],
+  "bankroll": 235.0,
+  "games": [],
   "bets": [],
-  "passes": [
-    {
-      "game": "San Diego Padres @ Seattle Mariners",
-      "edges": {
-        "away": -1.47,
-        "home": 1.47
-      }
-    }
-  ],
+  "passes": [],
   "slip_sent": true,
-  "sent_pick_ids": [
-    "HITTER:Cole Young:SEA:RBI O0.5",
-    "HITTER:Cole Young:SEA:SO O0.5",
-    "HITTER:J.P. Crawford:SEA:HR O0.5",
-    "HITTER:J.P. Crawford:SEA:RBI O0.5",
-    "HITTER:J.P. Crawford:SEA:TB O1.5",
-    "HITTER:Josh Naylor:SEA:TB O1.5",
-    "HITTER:Julio Rodr\u00edguez:SEA:SO O0.5",
-    "HITTER:Luke Raley:SEA:HR O0.5",
-    "HITTER:Luke Raley:SEA:RBI O0.5",
-    "HITTER:Luke Raley:SEA:TB O1.5",
-    "HITTER:Randy Arozarena:SEA:SO O0.5",
-    "KPROP:George Kirby:4.0"
-  ]
+  "sent_pick_ids": []
 }

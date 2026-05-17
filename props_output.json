@@ -1,42 +1,5 @@
 {
   "date": "2026-05-17",
-  "timestamp": "2026-05-17T16:36:20.695342-04:00",
-  "games": [
-    {
-      "away": "SD",
-      "home": "SEA",
-      "away_name": "San Diego Padres",
-      "home_name": "Seattle Mariners",
-      "time": "7:21 PM ET",
-      "asp": "Lucas Giolito",
-      "hsp": "George Kirby",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Lucas Giolito",
-          "sp_side": "away",
-          "model_line": 4.7,
-          "p_over": 0.0,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "George Kirby",
-          "sp_side": "home",
-          "model_line": 4.0,
-          "p_over": 0.5784,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "recommendation": "SP_MISSING"
-        },
-        {
-          "type": "TOTAL",
-          "recommendation": "SP_MISSING"
-        }
-      ],
-      "sgp": []
-    }
-  ]
+  "timestamp": "2026-05-17T16:24:45.149339-04:00",
+  "games": []
 }

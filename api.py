@@ -77,7 +77,11 @@ def health():
 
 @app.route("/")
 def index():
-    return send_from_directory(".", "parlay_dashboard.html")
+    resp = send_from_directory(".", "parlay_dashboard.html")
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
 
 
 # ── READ ENDPOINTS ─────────────────────────────────────────────────────────────
@@ -95,6 +99,26 @@ def api_scout():
             g.setdefault("home_name", ABR_TO_TEAM_NAME.get(g.get("home", ""), g.get("home", "")))
     except Exception:
         pass
+    # If a later scout run cleared the bets list (e.g. all games within 2h window),
+    # supplement with today's open DB bets so the dashboard always shows full picks.
+    today = datetime.now(ET).strftime("%Y-%m-%d")
+    if not data.get("bets") and data.get("date") == today:
+        db_bets = _db.get_bets(date=today)
+        data["bets"] = [
+            {
+                "team":        b.get("bet"),
+                "game":        b.get("game"),
+                "odds":        b.get("bet_odds"),
+                "model_prob":  b.get("model_prob"),
+                "market_prob": b.get("market_prob"),
+                "edge_pct":    b.get("edge_pct"),
+                "stake":       b.get("stake"),
+                "conviction":  b.get("conviction"),
+                "sp":          b.get("sp"),
+            }
+            for b in db_bets
+        ]
+        data["_source"] = "db_supplement"
     return jsonify(data)
 
 
@@ -107,18 +131,28 @@ def api_bets():
 @app.route("/api/bankroll")
 def api_bankroll():
     bets = _db.get_bets()
-    current, peak = _calc_bankroll(bets)
+    override = os.environ.get("BANKROLL_OVERRIDE")
+    if override:
+        try:
+            current = round(float(override), 2)
+            peak    = current
+            drawdown_pct = 0.0
+        except (ValueError, TypeError):
+            override = None
+    if not override:
+        current, peak = _calc_bankroll(bets)
+        drawdown_pct  = round((peak - current) / peak * 100, 1) if peak > 0 else 0.0
     today = datetime.now(ET).strftime("%Y-%m-%d")
-    today_bets = [b for b in bets if b.get("date") == today]
-    resolved = [b for b in bets if b.get("result") in ("W", "L")]
-    wins   = sum(1 for b in resolved if b["result"] == "W")
-    losses = sum(1 for b in resolved if b["result"] == "L")
+    today_bets    = [b for b in bets if b.get("date") == today]
+    resolved      = [b for b in bets if b.get("result") in ("W", "L")]
+    wins          = sum(1 for b in resolved if b["result"] == "W")
+    losses        = sum(1 for b in resolved if b["result"] == "L")
     pending_today = [b for b in today_bets if not b.get("result")]
     return jsonify({
         "starting":      STARTING_BANKROLL,
         "current":       current,
         "peak":          peak,
-        "drawdown_pct":  round((peak - current) / peak * 100, 1) if peak > 0 else 0.0,
+        "drawdown_pct":  drawdown_pct,
         "today_pnl":     _today_pnl(bets),
         "wins":          wins,
         "losses":        losses,
@@ -126,6 +160,7 @@ def api_bankroll():
         "total_bets":    len(bets),
         "pending_count": len(pending_today),
         "bets":          bets,
+        "bankroll_source": "override" if override else "calculated",
     })
 
 

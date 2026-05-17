@@ -2248,16 +2248,27 @@ def run_daily_scout():
                     except Exception as e:
                         print(f"DB log error: {e}")
 
+                _sp_data = analysis.get(f"{side}_sp") or {}
                 scout_out["bets"].append({
-                    "team":       analysis.get(f"{side}_name"),
-                    "side":       side,
-                    "odds":       analysis.get(f"best_{side}_odds"),
-                    "book":       analysis.get(f"best_{side}_book"),
-                    "model_prob": analysis.get(f"{side}_model_p"),
-                    "market_prob":analysis.get(f"{side}_nv"),
-                    "edge_pct":   analysis.get(f"{side}_edge"),
-                    "stake":      analysis.get(f"{side}_stake"),
-                    "conviction": analysis.get(f"{side}_conv"),
+                    "team":             analysis.get(f"{side}_name"),
+                    "side":             side,
+                    "game":             f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}",
+                    "odds":             analysis.get(f"best_{side}_odds"),
+                    "book":             analysis.get(f"best_{side}_book"),
+                    "model_prob":       analysis.get(f"{side}_model_p"),
+                    "market_prob":      analysis.get(f"{side}_nv"),
+                    "edge_pct":         analysis.get(f"{side}_edge"),
+                    "stake":            analysis.get(f"{side}_stake"),
+                    "conviction":       analysis.get(f"{side}_conv"),
+                    "confidence_score": analysis.get(f"{side}_confidence_score"),
+                    "sp":               _sp_data.get("name"),
+                    "sp_era":           _sp_data.get("era"),
+                    "sp_xfip":          _sp_data.get("xfip"),
+                    "sp_yrfi_lean":     analysis.get(f"{side}_sp_yrfi_lean", False),
+                    "bullpen_tier":     analysis.get(f"{side}_bullpen_tier"),
+                    "weather_adj":      analysis.get("weather_run_adj"),
+                    "platoon_edge":     analysis.get(f"{side}_platoon_edge"),
+                    "h2h":              analysis.get("h2h"),
                 })
             else:
                 # Collect fades: only when SP ERA is significantly above xFIP
