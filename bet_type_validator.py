@@ -53,6 +53,19 @@ def validate_bet(
                     f"Leg {i+1} is {c} conviction — parlays require HIGH conviction only"
                 )
 
+        # No leg worse than -180 (too much juice, kills parlay EV)
+        for i, leg in enumerate(legs):
+            leg_odds = leg.get("odds") or leg.get("bet_odds")
+            if leg_odds is not None:
+                try:
+                    o = int(str(leg_odds).replace("+", ""))
+                    if o < -180:
+                        errors.append(
+                            f"Leg {i+1} odds {leg_odds} worse than -180 — avoid heavy juice in parlays"
+                        )
+                except (ValueError, TypeError):
+                    pass
+
         for i, leg in enumerate(legs):
             leg_type = str(leg.get("type") or "").upper()
             if leg_type in ("PROP", "PLAYER_PROP") and not leg.get("same_game", False):
@@ -120,9 +133,10 @@ def live_stake(bankroll: float) -> float:
 MAX_LOCKS_PER_DAY  = 3    # HIGH conviction ML bets
 MAX_FLIPS_PER_DAY  = 2    # MEDIUM conviction ML bets
 MAX_PARLAY_LEGS    = 3    # absolute maximum
+MAX_PROPS_PER_DAY  = 5    # top 5 props by edge
 MIN_LOCKS_GREEN    = 2    # need ≥2 locks for GREEN day
 YELLOW_STAKE_CUT   = 0.20 # reduce stakes by 20% on YELLOW day
-DAILY_RISK_CAP_PCT = 0.15 # never risk more than 15% of bankroll in a day
+DAILY_RISK_CAP_PCT = 0.15 # legacy fallback — active budget uses bankroll_engine.daily_budget()
 
 
 def day_classification(n_locks: int) -> dict:

@@ -36,7 +36,11 @@ from sp_engine      import get_game_sps
 from bullpen_engine import analyze_bullpen, bullpen_run_factor
 from offense_engine import analyze_offense
 from market_engine  import get_mlb_events, full_market_snapshot
-from bankroll_engine import kelly_stake, sizing_summary, current_bankroll, is_drawdown_pause
+from bankroll_engine import (
+    kelly_stake, sizing_summary, current_bankroll, is_drawdown_pause,
+    daily_budget, daily_budget_pct, pool_budget, pool_remaining, drawdown_tier,
+    growth_tracker, MIN_STAKE,
+)
 from profile_engine import update_sp_profile, update_hitter_profile, update_bullpen_profile
 from props_engine   import (
     k_prop, nrfi_prob, team_run_expectancy, game_total_prob,
@@ -45,7 +49,7 @@ from props_engine   import (
 )
 from bet_type_validator import (
     validate_bet, BetValidationError, day_classification,
-    MAX_LOCKS_PER_DAY, MAX_FLIPS_PER_DAY, DAILY_RISK_CAP_PCT,
+    MAX_LOCKS_PER_DAY, MAX_FLIPS_PER_DAY, MAX_PROPS_PER_DAY,
 )
 from intelligence_engine import (
     sp_regression_flags, offense_regression_flags, bullpen_regression_flags,
@@ -584,11 +588,11 @@ def _narrative_flags(market: dict, away_nv: float, home_nv: float) -> dict:
 def _conviction(edge_pct: float, model_p: float, bp: dict, market: dict) -> str:
     if edge_pct < MIN_EDGE_PCT:
         return "PASS"
-    if edge_pct >= 7:
+    if edge_pct >= 10:
         return "HIGH"
-    if edge_pct >= 4:
+    if edge_pct >= 5:
         return "MEDIUM"
-    return "LOW"
+    return "PASS"   # 3-5% edge → PASS tier (Kelly × 0.10, size as fill-in only)
 
 
 # ── SGP FORMAT ───────────────────────────────────────────────────────────────
@@ -833,9 +837,16 @@ def _daily_bet_slip(
     all_props   = [p for p in (all_props or [])
                    if (p.get("kelly_stake") or 0) > 0 and (p.get("ev") or 0) >= 0]
 
-    # Totals: top 5 by edge. Hitter props: top 8 by edge (hard cap). K-props: all with edge.
+    # Props: max 5 per day (MAX_PROPS_PER_DAY), sorted by edge, no model > market by 25%+
+    def _no_model_blowout(item: dict) -> bool:
+        mp = item.get("model_prob") or item.get("p_over", 0)
+        mkt = item.get("market_p", 0.5)
+        return (mp - mkt) < 0.25
+
     k_bets      = sorted(k_bets,      key=lambda b: b.get("edge_pct", 0), reverse=True)
-    hitter_bets = sorted(hitter_bets, key=lambda h: h.get("edge_pct", 0), reverse=True)[:8]
+    k_bets      = [b for b in k_bets if _no_model_blowout(b)]
+    hitter_bets = sorted(hitter_bets, key=lambda h: h.get("edge_pct", 0), reverse=True)
+    hitter_bets = [h for h in hitter_bets if _no_model_blowout(h)]
     totals_bets = sorted(totals_bets, key=lambda b: b.get("edge_pct", 0), reverse=True)[:5]
 
     n_locks = len(locks)
@@ -843,13 +854,31 @@ def _daily_bet_slip(
     s_mult  = day_cls["stake_mult"]
 
     def _ml_stake(analysis, side):
-        return round((analysis.get(f"{side}_stake") or 0) * s_mult, 2)
+        return round(max((analysis.get(f"{side}_stake") or 0) * s_mult, MIN_STAKE), 2)
 
-    # Parlay: HIGH conviction ML picks only — no props or totals
-    parlay_candidates = [
-        (a, s) for a, s in locks
-        if a.get(f"best_{s}_odds") is not None
-    ][:3]
+    # Pool budgets for this slip
+    ml_pool_rem      = pool_remaining("ML", br)
+    props_pool_rem   = pool_remaining("PROPS", br)
+    parlay_pool_rem  = pool_remaining("PARLAY", br)
+    budget           = daily_budget(br)
+
+    # Parlay: HIGH conviction ML picks only
+    # Rules: ≤3 legs, no leg worse than -180, combined no-vig prob ≥ 35%
+    # Stake: min(15% of daily budget, 1.5% of bankroll)
+    parlay_candidates = []
+    for a, s in locks:
+        if a.get(f"best_{s}_odds") is None:
+            continue
+        odds_val = a.get(f"best_{s}_odds")
+        try:
+            if int(str(odds_val).replace("+", "")) < -180:
+                continue   # skip heavy juice legs
+        except (ValueError, TypeError):
+            pass
+        parlay_candidates.append((a, s))
+        if len(parlay_candidates) == 3:
+            break
+
     prl_valid = False
     prl_stake = 0.0
     prl_win   = 0.0
@@ -858,10 +887,17 @@ def _daily_bet_slip(
         odds_strs = [str(a.get(f"best_{s}_odds", "")) for a, s in parlay_candidates]
         prl = parlay_odds(odds_strs)
         if prl.get("valid"):
-            prl_stake = round(min(br * 0.02, 10.0) * s_mult, 2)
-            prl_win   = round((prl["decimal"] - 1) * prl_stake, 2)
-            prl_valid = True
-            prl_data  = prl
+            # Combined no-vig probability check: product of model probs ≥ 35%
+            combined_model_p = 1.0
+            for a, s in parlay_candidates:
+                combined_model_p *= a.get(f"{s}_model_p", 0.5)
+            if combined_model_p >= 0.35:
+                prl_stake = round(min(budget * 0.15, br * 0.015) * s_mult, 2)
+                prl_win   = round((prl["decimal"] - 1) * prl_stake, 2)
+                prl_valid = True
+                prl_data  = prl
+            else:
+                print(f"  [PARLAY] Skip: combined model prob {combined_model_p:.1%} < 35%")
 
     # Risk totals
     ml_risk = 0.0
@@ -879,8 +915,6 @@ def _daily_bet_slip(
         ml_win  += prl_win
 
     # Compute props_risk only from bets that appear in the slip.
-    # k_bets and hitter_bets are merged into all_player_props (built below),
-    # so use a single pass there. Compute after player-props are built.
     nrfi_risk   = sum(b.get("stake", 0) for b in nrfi_bets)
     totals_risk = sum(b.get("stake", 0) for b in totals_bets)
     sgp_risk    = sum(p.get("kelly_stake", 0) or 0 for p in all_props[:2])
@@ -888,19 +922,49 @@ def _daily_bet_slip(
     total_risk = round(ml_risk, 2)   # updated after player props built
     total_win  = round(ml_win, 2)
 
-    cap          = round(br * DAILY_RISK_CAP_PCT, 2)
+    cap          = budget
     override_cap = os.getenv("OVERRIDE_RISK_CAP", "").lower() in ("1", "true", "yes")
     # cap_exceeded recomputed after all_player_props is built (total_risk updated then)
+
+    # Growth tracker for header
+    gt = growth_tracker()
+    dd_status = drawdown_tier()
 
     # ── PART 1: ML PICKS ──────────────────────────────────────────────────────
     p1 = [
         f"PARLAY OS — {today} — {day_cls['color']} {day_cls['emoji']}",
         "PART 1/3 — ML PICKS",
-        f"Bankroll: ${br:.2f} | ML risk: ${ml_risk:.2f} | To win: ${ml_win:.2f}",
         "",
+        # Bankroll status
+        f"💰 Bankroll: ${br:.2f} | Peak: ${gt['current_bankroll']:.2f}",
     ]
+    if dd_status["pct"] > 0:
+        dd_icon = "🚨" if dd_status["pause"] else ("⚠️" if dd_status["tier"] >= 2 else "📉")
+        p1.append(f"{dd_icon} Drawdown: {dd_status['pct']:.1f}% (tier {dd_status['tier']})"
+                  + (" — PAUSED" if dd_status["pause"] else ""))
+    p1.append(
+        f"📊 Growth: week {gt['week_pct']:+.1f}% | month {gt['month_pct']:+.1f}% "
+        f"| all-time {gt['all_time_pct']:+.1f}% | pace ${gt['monthly_pace']:+.2f}/mo"
+    )
+    p1.append(
+        f"🏦 Pools — ML: ${ml_pool_rem:.2f} | PROPS: ${props_pool_rem:.2f} | "
+        f"PARLAY: ${parlay_pool_rem:.2f} | Budget: ${budget:.2f}"
+    )
+    p1.append(f"ML risk: ${ml_risk:.2f} | To win: ${ml_win:.2f}")
+    p1.append("")
 
-    p1.append(f"🔒 LOCKS ({n_locks} — HIGH conviction 7%+ edge):")
+    # Best bet of the day (highest edge among all picks)
+    _all_picks = [(a, s) for a, s in locks + flips]
+    if _all_picks:
+        _best_a, _best_s = max(_all_picks, key=lambda x: x[0].get(f"{x[1]}_edge", 0))
+        _best_team  = _best_a.get(f"{_best_s}_name", "")
+        _best_edge  = _best_a.get(f"{_best_s}_edge", 0)
+        _best_odds  = _best_a.get(f"best_{_best_s}_odds", "")
+        _best_odds_s = (f"+{_best_odds}" if isinstance(_best_odds, int) and _best_odds > 0 else str(_best_odds or ""))
+        p1.append(f"⭐ BEST BET: {_best_team} ML {_best_odds_s} — EDGE: +{_best_edge:.1f}%")
+        p1.append("")
+
+    p1.append(f"🔒 LOCKS ({n_locks} — HIGH conviction 10%+ edge):")
     if locks:
         for analysis, side in locks:
             stake  = _ml_stake(analysis, side)
@@ -914,7 +978,7 @@ def _daily_bet_slip(
         p1.append("  None today")
     p1.append("")
 
-    p1.append(f"🪙 COIN FLIPS ({len(flips)} — MEDIUM conviction 4-7% edge):")
+    p1.append(f"🪙 COIN FLIPS ({len(flips)} — MEDIUM conviction 5-10% edge):")
     if flips and day_cls["ml_allowed"]:
         for analysis, side in flips:
             stake  = _ml_stake(analysis, side)
@@ -966,14 +1030,17 @@ def _daily_bet_slip(
 
     def _norm_k(b: dict) -> dict:
         last = b["sp"].split()[-1]
-        leg  = f"{last} O{b['line']}K"
+        # Flag K props backed by 2025 Statcast data (less reliable for current year)
+        sc_flag = " [2025 data]" if b.get("statcast_2025") else ""
+        leg  = f"{last} O{b['line']}K{sc_flag}"
         return {
             "player":    b["sp"],
             "team":      b.get("team", ""),
-            "stat":      f"Ks O{b['line']}",
+            "stat":      f"Ks O{b['line']}{sc_flag}",
             "odds_str":  "-110",
             "model_pct": round(b["p_over"] * 100, 1),
             "model_p":   b["p_over"],
+            "market_p":  0.5,   # K props use -110 baseline → 0.5 market_p
             "edge_pct":  b["edge_pct"],
             "stake":     b["stake"],
             "leg_label": leg,
@@ -1002,12 +1069,15 @@ def _daily_bet_slip(
             "leg_label": leg,
         }
 
+    # k_bets carry statcast_2025 flag from the scout; pass it through for the label
     all_player_props = (
         [_norm_k(b) for b in k_bets] +
         [_norm_h(h) for h in hitter_bets]
     )
     all_player_props = sorted(all_player_props, key=lambda x: x["edge_pct"], reverse=True)
     all_player_props = [p for p in all_player_props if p["edge_pct"] >= 5.0]
+    # Enforce max 5 props per day (top 5 by edge, blowout-filtered above)
+    all_player_props = all_player_props[:MAX_PROPS_PER_DAY]
 
     prop_locks = [p for p in all_player_props if p["edge_pct"] >= 10.0]
     prop_flips = [p for p in all_player_props if 5.0 <= p["edge_pct"] < 10.0]
@@ -1016,11 +1086,9 @@ def _daily_bet_slip(
     player_props_risk = sum(p["stake"] for p in all_player_props)
     props_risk  = nrfi_risk + totals_risk + sgp_risk + player_props_risk
     total_risk  = round(ml_risk + props_risk, 2)
-    # Hard cap guard: if total_risk > 25% of br, warn (cap enforced at scout time)
-    _cap_limit = round(br * DAILY_RISK_CAP_PCT, 2)
-    if total_risk > _cap_limit and not override_cap:
-        print(f"[SLIP] WARNING: displayed risk ${total_risk:.2f} > cap ${_cap_limit:.2f} "
-              f"— scout accumulated_risk should have blocked extras")
+    if total_risk > cap and not override_cap:
+        print(f"[SLIP] WARNING: displayed risk ${total_risk:.2f} > budget ${cap:.2f} "
+              f"— scout cap should have blocked extras")
 
     has_p2 = bool(nrfi_bets or all_player_props or all_props)
     p2 = [
@@ -1127,20 +1195,26 @@ def _daily_bet_slip(
             count += 1
         p3.append("")
 
-    risk_cap_pct  = round(total_risk / br * 100, 1) if br > 0 else 0
-    cap_exceeded  = total_risk > cap
+    risk_cap_pct = round(total_risk / br * 100, 1) if br > 0 else 0
+    cap_exceeded = total_risk > cap
+    budget_tier  = round(daily_budget_pct(br) * 100) if br > 0 else 15
     p3.append(
         f"Daily risk: ${total_risk:.2f} ({risk_cap_pct:.1f}% of bankroll) | "
-        f"Cap: {DAILY_RISK_CAP_PCT * 100:.0f}% (${cap:.2f})"
+        f"Budget: ${cap:.2f} ({budget_tier:.0f}% tier)"
+    )
+    _parlay_shown = round(prl_stake, 2) if prl_valid else 0.0
+    p3.append(
+        f"  ML: ${ml_risk:.2f} | Props: ${round(nrfi_risk + totals_risk + player_props_risk, 2):.2f} "
+        f"| Parlay: ${_parlay_shown:.2f}"
     )
 
     if cap_exceeded:
         if override_cap:
-            p3.append(f"⚠️ RISK CAP OVERRIDE ACTIVE — ${total_risk:.2f} exceeds ${cap:.2f} cap")
+            p3.append(f"⚠️ BUDGET OVERRIDE ACTIVE — ${total_risk:.2f} exceeds ${cap:.2f}")
         else:
-            p3.append(f"🚨 RISK CAP HIT — ${total_risk:.2f} > ${cap:.2f} — bets beyond cap were blocked")
+            p3.append(f"🚨 BUDGET HIT — ${total_risk:.2f} > ${cap:.2f} — extras were blocked")
     else:
-        p3.append(f"✅ Within daily cap (${cap:.2f})")
+        p3.append(f"✅ Within daily budget (${cap:.2f})")
 
     print(f"[SLIP] Sending PART 3/3 ({len(p3)} lines)...")
     _send_telegram("\n".join(p3))
@@ -1233,7 +1307,7 @@ def _send_slip_update(
 
 # ── BET RECOMMENDATION FILTER ─────────────────────────────────────────────────
 
-def _should_recommend(game: dict, side: str) -> bool:
+def _should_recommend(game: dict, side: str, bet_type: str = "ML") -> bool:
     """Brain's final sign-off: is this bet worth sending?"""
     edge  = game.get(f"{side}_edge", 0)
     conv  = game.get(f"{side}_conv", "PASS")
@@ -1241,10 +1315,28 @@ def _should_recommend(game: dict, side: str) -> bool:
     model = game.get(f"{side}_model_p", 0)
     nv    = game.get(f"{side}_nv", 0)
     team  = game.get(f"{side}_name", side)
+    odds  = game.get(f"best_{side}_odds")
 
     if conv == "PASS" or edge < MIN_EDGE_PCT:
         print(f"  PASS {team}: edge {edge:+.1f}% (need >{MIN_EDGE_PCT}%) model={model:.3f} nv={nv:.3f}")
         return False
+
+    # No -200 or worse favorites — too much juice, destroys EV at scale
+    if odds is not None:
+        try:
+            odds_int = int(str(odds).replace("+", ""))
+            if odds_int < -200:
+                print(f"  PASS {team}: odds {odds} worse than -200 — too juiced")
+                return False
+        except (ValueError, TypeError):
+            pass
+
+    # No 10+ point line moves (magnitude > 0.10 in probability = ~10pp swing)
+    lm = game.get("line_movement") or {}
+    if lm.get("magnitude", 0) > 0.10 and lm.get("direction", "") not in ("unknown", "stable", ""):
+        print(f"  PASS {team}: large line move {lm.get('direction')} ({lm.get('magnitude', 0):.3f}) — steam fade risk")
+        return False
+
     if stake <= 0:
         from bankroll_engine import current_bankroll as _cur_br, daily_exposure as _daily_exp, peak_bankroll as _peak_br
         _br   = _cur_br()
@@ -1254,15 +1346,20 @@ def _should_recommend(game: dict, side: str) -> bool:
         print(
             f"  PASS {team}: stake=$0.00 — Kelly zero "
             f"[edge={edge:+.1f}% model={model:.3f} nv={nv:.3f} "
-            f"br=${_br:.2f} peak=${_peak:.2f} dd={_dd:.1f}% "
-            f"daily_exp=${_exp:.2f} cap=${_br * 0.25:.2f}]"
+            f"br=${_br:.2f} peak=${_peak:.2f} dd={_dd:.1f}%]"
         )
         return False
     if model < MIN_PROB:
         print(f"  PASS {team}: model {model:.3f} < min {MIN_PROB}")
         return False
-    if is_drawdown_pause():
-        print(f"  PASS {team}: drawdown pause active")
+
+    dd = drawdown_tier()
+    if dd["pause"]:
+        print(f"  PASS {team}: drawdown pause active ({dd['pct']:.1f}% drawdown)")
+        return False
+    # At -15% drawdown, only props are allowed — block ML bets
+    if dd["props_only"] and bet_type.upper() == "ML":
+        print(f"  PASS {team}: drawdown {dd['pct']:.1f}% — props only mode (ML blocked)")
         return False
 
     print(f"  BET  {team}: edge {edge:+.1f}% model={model:.3f} nv={nv:.3f} stake=${stake:.2f} [{conv}]")
@@ -1793,12 +1890,28 @@ def run_daily_scout():
     if accumulated_risk > 0:
         print(f"Prior risk today: ${accumulated_risk:.2f} ({len(_prior_pending)} pending bets from earlier scout)")
 
-    _cap = round(br * DAILY_RISK_CAP_PCT, 2)
+    _cap = daily_budget(br)
+    _cap_pct = round(_cap / br * 100, 0) if br > 0 else 15
     _override_cap = os.getenv("OVERRIDE_RISK_CAP", "").lower() in ("1", "true", "yes")
+
+    # Drawdown alert: send Telegram once if pause threshold hit
+    _dd_status = drawdown_tier()
+    if _dd_status["pause"]:
+        _dd_alert = (
+            f"🚨 DRAWDOWN ALERT — {_dd_status['pct']:.1f}% peak-to-trough\n"
+            f"Bankroll: ${br:.2f} | Peak: ${peak_bankroll():.2f}\n"
+            f"All betting paused. Resume tomorrow at reduced stakes."
+        )
+        print(_dd_alert)
+        _send_telegram(_dd_alert)
+    elif _dd_status["props_only"]:
+        print(f"[DRAWDOWN] {_dd_status['pct']:.1f}% — props only mode, ML bets blocked, stakes at 50%")
+    elif _dd_status["tier"] == 1:
+        print(f"[DRAWDOWN] {_dd_status['pct']:.1f}% — minor drawdown, stakes at 75%")
 
     if not _override_cap and accumulated_risk >= _cap:
         _warn = (
-            f"⚠️ DAILY RISK CAP ALREADY HIT — ${accumulated_risk:.2f} >= ${_cap:.2f}\n"
+            f"⚠️ DAILY BUDGET ALREADY HIT — ${accumulated_risk:.2f} >= ${_cap:.2f} ({_cap_pct:.0f}% tier)\n"
             f"No new bets will be logged. Set OVERRIDE_RISK_CAP=true to override."
         )
         print(_warn)
@@ -1899,14 +2012,23 @@ def run_daily_scout():
             _p_k    = _k_r.get("p_over", 0)
             if _p_k >= 0.55:
                 _k_stake = kelly_stake(_p_k, "-110", "MEDIUM")
+                # Check if SP Statcast data is from 2025 (flag for caution)
+                _sp_sc = {}
+                if _STATCAST_AVAILABLE and _sp.get("pitcher_id"):
+                    try:
+                        _sp_sc = get_pitcher_statcast(_sp["pitcher_id"])
+                    except Exception:
+                        _sp_sc = {}
                 all_k_props.append({
-                    "sp":       _sp.get("name"),
-                    "team":     analysis.get(_kside, ""),
-                    "game":     _game_lbl_kp,
-                    "line":     _k_line,
-                    "p_over":   _p_k,
-                    "edge_pct": round((_p_k - 0.50) * 100, 1),
-                    "stake":    _k_stake,
+                    "sp":             _sp.get("name"),
+                    "team":           analysis.get(_kside, ""),
+                    "game":           _game_lbl_kp,
+                    "line":           _k_line,
+                    "p_over":         _p_k,
+                    "market_p":       0.5,
+                    "edge_pct":       round((_p_k - 0.50) * 100, 1),
+                    "stake":          _k_stake,
+                    "statcast_2025":  _sp_sc.get("STATCAST_2025", False),
                 })
 
         # ── Collect props data for props_output.json (no per-game Telegram send) ─
@@ -1919,8 +2041,9 @@ def run_daily_scout():
 
         bet_found = False
         for side in ("away", "home"):
-            if _should_recommend(analysis, side):
+            if _should_recommend(analysis, side, bet_type="ML"):
                 proposed_stake = float(analysis.get(f"{side}_stake", 0))
+                proposed_stake = max(proposed_stake, MIN_STAKE)   # enforce $1.00 floor
 
                 # ── Hard daily cap block ───────────────────────────────────────
                 if not _override_cap and accumulated_risk + proposed_stake > _cap:
