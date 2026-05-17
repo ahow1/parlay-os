@@ -1,147 +1,42 @@
 {
-  "timestamp": "2026-05-16T23:09:21Z",
-  "date": "2026-05-16",
-  "bankroll": 173.41,
+  "timestamp": "2026-05-17T20:35:07Z",
+  "date": "2026-05-17",
+  "bankroll": 109.01,
   "games": [
     {
-      "away": "LAD",
-      "home": "LAA",
-      "away_model": 0.5833,
-      "home_model": 0.4167,
-      "away_edge": 2.74,
-      "home_edge": -2.74,
-      "away_xr": 3.647,
-      "home_xr": 2.932
-    },
-    {
-      "away": "SF",
-      "home": "ATH",
-      "away_model": 0.3894,
-      "home_model": 0.6106,
-      "away_edge": -5.66,
-      "home_edge": 5.66,
-      "away_xr": 3.37,
-      "home_xr": 4.163
+      "away": "SD",
+      "home": "SEA",
+      "away_model": 0.3936,
+      "home_model": 0.6064,
+      "away_edge": -1.47,
+      "home_edge": 1.47,
+      "away_xr": 3.3,
+      "home_xr": 4.258
     }
   ],
-  "bets": [
-    {
-      "team": "Athletics",
-      "side": "home",
-      "odds": -131,
-      "book": "betonlineag",
-      "model_prob": 0.6106,
-      "market_prob": 0.554,
-      "edge_pct": 5.66,
-      "stake": 5.9,
-      "conviction": "MEDIUM"
-    }
-  ],
+  "bets": [],
   "passes": [
     {
-      "game": "Los Angeles Dodgers @ Los Angeles Angels",
+      "game": "San Diego Padres @ Seattle Mariners",
       "edges": {
-        "away": 2.74,
-        "home": -2.74
+        "away": -1.47,
+        "home": 1.47
       }
     }
   ],
   "slip_sent": true,
   "sent_pick_ids": [
-    "HITTER:Andy Pages:LAD:HR O0.5",
-    "HITTER:Andy Pages:LAD:RBI O0.5",
-    "HITTER:Brent Rooker:ATH:RBI O0.5",
-    "HITTER:Brent Rooker:ATH:SO O0.5",
-    "HITTER:Casey Schmitt:SF:SO O0.5",
-    "HITTER:Henry Bolte:ATH:RBI O0.5",
-    "HITTER:Jo Adell:LAA:RBI O0.5",
-    "HITTER:Matt Chapman:SF:SO O0.5",
-    "HITTER:Max Muncy:LAD:HR O0.5",
-    "HITTER:Max Muncy:LAD:RBI O0.5",
-    "HITTER:Max Muncy:LAD:SO O0.5",
-    "HITTER:Mookie Betts:LAD:HR O0.5",
-    "HITTER:Nick Kurtz:ATH:HR O0.5",
-    "HITTER:Nick Kurtz:ATH:RBI O0.5",
-    "HITTER:Nick Kurtz:ATH:SO O0.5",
-    "HITTER:Nick Kurtz:ATH:TB O1.5",
-    "HITTER:Rafael Devers:SF:RBI O0.5",
-    "HITTER:Rafael Devers:SF:SO O0.5",
-    "HITTER:Shea Langeliers:ATH:HR O0.5",
-    "HITTER:Shea Langeliers:ATH:RBI O0.5",
-    "HITTER:Shea Langeliers:ATH:TB O1.5",
-    "HITTER:Shohei Ohtani:LAD:SO O0.5",
-    "HITTER:Tyler Soderstrom:ATH:SO O0.5",
-    "HITTER:Vaughn Grissom:LAA:RBI O0.5",
-    "HITTER:Will Smith:LAD:SO O0.5",
-    "HITTER:Willy Adames:SF:SO O0.5",
-    "HITTER:Zack Gelof:ATH:HR O0.5",
-    "HITTER:Zack Gelof:ATH:RBI O0.5",
-    "KPROP:Jos\u00e9 Soriano:5.6",
-    "KPROP:Justin Wrobleski:2.5",
-    "KPROP:Luis Severino:4.8",
-    "KPROP:Trevor McDonald:4.9",
-    "ML:Athletics:-131",
-    "TOT:Los Angeles Dodgers @ Los Angeles Angels:UNDER:8.5",
-    "TOT:San Francisco Giants @ Athletics:UNDER:9.5"
-  ],
-  "today_pnl": -1.27,
-  "pending_bets": [
-    {
-      "id": 113,
-      "bet": "Athletics",
-      "type": "ML",
-      "odds": "-131",
-      "stake": 1.0,
-      "date": "2026-05-16"
-    },
-    {
-      "id": 104,
-      "bet": "Seattle Mariners",
-      "type": "ML",
-      "odds": "-166",
-      "stake": 3.8,
-      "date": "2026-05-16"
-    },
-    {
-      "id": 103,
-      "bet": "Atlanta Braves",
-      "type": "ML",
-      "odds": "-121",
-      "stake": 5.8,
-      "date": "2026-05-16"
-    },
-    {
-      "id": 102,
-      "bet": "Minnesota Twins",
-      "type": "ML",
-      "odds": "110",
-      "stake": 5.7,
-      "date": "2026-05-16"
-    },
-    {
-      "id": 101,
-      "bet": "Chicago White Sox",
-      "type": "ML",
-      "odds": "-110",
-      "stake": 11.8,
-      "date": "2026-05-16"
-    },
-    {
-      "id": 42,
-      "bet": "New York Yankees",
-      "type": "ML",
-      "odds": "-136",
-      "stake": 1.8,
-      "date": "2026-05-14"
-    },
-    {
-      "id": 41,
-      "bet": "Tampa Bay Rays",
-      "type": "ML",
-      "odds": "-112",
-      "stake": 3.4,
-      "date": "2026-05-14"
-    }
-  ],
-  "last_updated": "2026-05-16T19:29:17.735614-04:00"
+    "HITTER:Cole Young:SEA:RBI O0.5",
+    "HITTER:Cole Young:SEA:SO O0.5",
+    "HITTER:J.P. Crawford:SEA:HR O0.5",
+    "HITTER:J.P. Crawford:SEA:RBI O0.5",
+    "HITTER:J.P. Crawford:SEA:TB O1.5",
+    "HITTER:Josh Naylor:SEA:TB O1.5",
+    "HITTER:Julio Rodr\u00edguez:SEA:SO O0.5",
+    "HITTER:Luke Raley:SEA:HR O0.5",
+    "HITTER:Luke Raley:SEA:RBI O0.5",
+    "HITTER:Luke Raley:SEA:TB O1.5",
+    "HITTER:Randy Arozarena:SEA:SO O0.5",
+    "KPROP:George Kirby:4.0"
+  ]
 }

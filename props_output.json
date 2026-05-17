@@ -1,87 +1,39 @@
 {
-  "date": "2026-05-16",
-  "timestamp": "2026-05-16T19:11:03.408459-04:00",
+  "date": "2026-05-17",
+  "timestamp": "2026-05-17T16:36:20.695342-04:00",
   "games": [
     {
-      "away": "LAD",
-      "home": "LAA",
-      "away_name": "Los Angeles Dodgers",
-      "home_name": "Los Angeles Angels",
-      "time": "9:39 PM ET",
-      "asp": "Justin Wrobleski",
-      "hsp": "Jos\u00e9 Soriano",
+      "away": "SD",
+      "home": "SEA",
+      "away_name": "San Diego Padres",
+      "home_name": "Seattle Mariners",
+      "time": "7:21 PM ET",
+      "asp": "Lucas Giolito",
+      "hsp": "George Kirby",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Justin Wrobleski",
+          "sp": "Lucas Giolito",
           "sp_side": "away",
-          "model_line": 2.5,
-          "p_over": 0.669,
-          "recommendation": "BET"
+          "model_line": 4.7,
+          "p_over": 0.0,
+          "recommendation": "PASS"
         },
         {
           "type": "K_PROP",
-          "sp": "Jos\u00e9 Soriano",
+          "sp": "George Kirby",
           "sp_side": "home",
-          "model_line": 5.6,
-          "p_over": 0.6691,
+          "model_line": 4.0,
+          "p_over": 0.5784,
           "recommendation": "BET"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4759,
-          "p_yrfi": 0.5241,
-          "recommendation": "PASS"
+          "recommendation": "SP_MISSING"
         },
         {
           "type": "TOTAL",
-          "model_total": 6.58,
-          "market_line": 8.5,
-          "p_over": 0.2179,
-          "p_under": 0.7821,
-          "recommendation": "UNDER 8.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "SF",
-      "home": "ATH",
-      "away_name": "San Francisco Giants",
-      "home_name": "Athletics",
-      "time": "9:41 PM ET",
-      "asp": "Trevor McDonald",
-      "hsp": "Luis Severino",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Trevor McDonald",
-          "sp_side": "away",
-          "model_line": 4.9,
-          "p_over": 0.7131,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Luis Severino",
-          "sp_side": "home",
-          "model_line": 4.8,
-          "p_over": 0.5981,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4624,
-          "p_yrfi": 0.5376,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.53,
-          "market_line": 9.5,
-          "p_over": 0.2274,
-          "p_under": 0.7726,
-          "recommendation": "UNDER 9.5"
+          "recommendation": "SP_MISSING"
         }
       ],
       "sgp": []
