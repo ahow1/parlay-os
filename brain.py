@@ -2560,6 +2560,12 @@ def run_daily_scout():
         except Exception as pe:
             print(f"props_output.json write error: {pe}")
 
+        # Persist both blobs to DB so Railway dashboard reads fresh data
+        try:
+            _db.save_scout_output(today, json.dumps(scout_out), json.dumps(props_out))
+        except Exception as dbe:
+            print(f"scout_output DB write error: {dbe}")
+
     return scout_out
 
 

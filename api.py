@@ -86,12 +86,8 @@ def index():
 
 # ── READ ENDPOINTS ─────────────────────────────────────────────────────────────
 
-@app.route("/api/scout")
-def api_scout():
-    data = _load_json("last_scout.json")
-    if data is None:
-        return jsonify({"error": "last_scout.json not found"}), 404
-    # Enrich game objects with full team names for dashboard matching
+def _enrich_and_supplement_scout(data: dict) -> dict:
+    """Shared post-processing: add team names, fill empty bets from DB."""
     try:
         from market_engine import ABR_TO_TEAM_NAME
         for g in (data.get("games") or []):
@@ -99,8 +95,6 @@ def api_scout():
             g.setdefault("home_name", ABR_TO_TEAM_NAME.get(g.get("home", ""), g.get("home", "")))
     except Exception:
         pass
-    # If a later scout run cleared the bets list (e.g. all games within 2h window),
-    # supplement with today's open DB bets so the dashboard always shows full picks.
     today = datetime.now(ET).strftime("%Y-%m-%d")
     if not data.get("bets") and data.get("date") == today:
         db_bets = _db.get_bets(date=today)
@@ -119,7 +113,26 @@ def api_scout():
             for b in db_bets
         ]
         data["_source"] = "db_supplement"
-    return jsonify(data)
+    return data
+
+
+@app.route("/api/scout")
+def api_scout():
+    today = datetime.now(ET).strftime("%Y-%m-%d")
+    # DB-first: scout run on Railway writes here, so dashboard reads fresh data
+    row = _db.get_latest_scout_output(date=today)
+    if row and row.get("scout_json"):
+        try:
+            data = json.loads(row["scout_json"])
+            data["_db_source"] = True
+            return jsonify(_enrich_and_supplement_scout(data))
+        except Exception:
+            pass
+    # Fallback to local file (Codespaces / dev)
+    data = _load_json("last_scout.json")
+    if data is None:
+        return jsonify({"error": "last_scout.json not found"}), 404
+    return jsonify(_enrich_and_supplement_scout(data))
 
 
 @app.route("/api/bets")
@@ -172,6 +185,15 @@ def api_live():
 
 @app.route("/api/props")
 def api_props():
+    today = datetime.now(ET).strftime("%Y-%m-%d")
+    # DB-first: same scout run that writes scout_json also writes props_json
+    row = _db.get_latest_scout_output(date=today)
+    if row and row.get("props_json"):
+        try:
+            return jsonify(json.loads(row["props_json"]))
+        except Exception:
+            pass
+    # Fallback to local file
     data = _load_json("props_output.json")
     if data is None:
         return jsonify({"error": "props_output.json not found"}), 404

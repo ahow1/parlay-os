@@ -180,6 +180,14 @@ def init_db():
             model        TEXT,
             edge_pct     REAL
         );
+
+        CREATE TABLE IF NOT EXISTS scout_output (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            date        TEXT NOT NULL UNIQUE,
+            timestamp   TEXT NOT NULL,
+            scout_json  TEXT,
+            props_json  TEXT
+        );
         """)
     # Add verify_hash column to existing DBs that predate this schema
     with _conn() as conn:
@@ -389,6 +397,37 @@ def save_scout_run(date, games_analyzed, high_count, medium_count, pass_count,
 def log_scout_run(date, bets_found, data_json_str):
     """Simplified scout run logger called by brain.py."""
     save_scout_run(date, 0, 0, 0, 0, 0.0, data_json_str)
+
+
+# ─── SCOUT OUTPUT ──────────────────────────────────────────────────────────────
+
+def save_scout_output(date: str, scout_json_str: str, props_json_str: str) -> None:
+    """Upsert today's full scout + props JSON into the DB for cross-env access."""
+    now = datetime.now(ET).isoformat()
+    with _conn() as conn:
+        conn.execute("""
+            INSERT INTO scout_output (date, timestamp, scout_json, props_json)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(date) DO UPDATE SET
+                timestamp  = excluded.timestamp,
+                scout_json = excluded.scout_json,
+                props_json = excluded.props_json
+        """, (date, now, scout_json_str, props_json_str))
+
+
+def get_latest_scout_output(date: str | None = None) -> dict | None:
+    """Return the most recent scout_output row, optionally filtered to a date."""
+    with _conn() as conn:
+        if date:
+            row = conn.execute(
+                "SELECT * FROM scout_output WHERE date=? ORDER BY timestamp DESC LIMIT 1",
+                (date,),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT * FROM scout_output ORDER BY timestamp DESC LIMIT 1"
+            ).fetchone()
+    return dict(row) if row else None
 
 
 # ─── ROI REPORTS ──────────────────────────────────────────────────────────────
