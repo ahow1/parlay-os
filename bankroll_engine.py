@@ -127,10 +127,8 @@ def kelly_stake(model_prob: float, odds_american: str, conviction: str = "MEDIUM
     """
     dec = american_to_decimal(odds_american)
     if not dec or dec <= 1:
-        print(f"[KELLY $0] invalid odds '{odds_american}' → dec={dec}")
         return 0.0
     if model_prob <= 0 or model_prob >= 1:
-        print(f"[KELLY $0] invalid model_prob={model_prob} odds={odds_american}")
         return 0.0
 
     b = dec - 1
@@ -138,7 +136,6 @@ def kelly_stake(model_prob: float, odds_american: str, conviction: str = "MEDIUM
     full_kelly = (model_prob * b - q) / b
 
     if full_kelly <= 0:
-        print(f"[KELLY $0] negative Kelly: prob={model_prob} dec={dec:.4f} b={b:.4f} kelly={full_kelly:.4f}")
         return 0.0
 
     quarter_kelly = full_kelly * fraction
@@ -155,42 +152,20 @@ def kelly_stake(model_prob: float, odds_american: str, conviction: str = "MEDIUM
 
     kelly_pct = max(lo, min(quarter_kelly, hi))
 
-    # Size against settled P&L bankroll (pending bets are capital at risk, not losses)
     br = sizing_bankroll()
     if br <= 0:
-        print(f"[KELLY $0] sizing_bankroll=${br:.2f} (check DB / BANKROLL_OVERRIDE)")
         return 0.0
 
-    # Drawdown: compare sizing bankroll vs peak (both exclude pending bets for consistency).
-    # Using current_bankroll() here caused a phantom drawdown whenever pending bets
-    # were large — the pending stakes aren't real losses, so don't count them.
     pk = peak_bankroll()
     drawdown = max(0.0, (pk - br) / pk) if pk > 0 else 0.0
     dd_scale  = 1.0
     if drawdown >= DRAWDOWN_PAUSE:
         dd_scale  = max(0.25, 1.0 - drawdown)
         kelly_pct = round(kelly_pct * dd_scale, 6)
-        print(f"[KELLY DD] drawdown={drawdown:.1%} → sizing ×{dd_scale:.2f} "
-              f"prob={model_prob} odds={odds_american} br=${br:.2f} peak=${pk:.2f}")
 
     stake = round(br * kelly_pct, 2)
     stake = min(stake, MAX_BET_ABS)
-
-    # Daily-cap enforcement is the scout loop's job (accumulated_risk).
-    # kelly_stake returns the pure Kelly amount; don't re-check DB exposure here.
     stake = round(round(stake / 0.10) * 0.10, 2)
-
-    edge_tag = f" edge={edge_pct:.1f}%" if edge_pct > 0 else ""
-    print(
-        f"[KELLY] prob={model_prob:.4f} odds={odds_american} dec={dec:.4f} "
-        f"full_kelly={full_kelly:.4f} ×{fraction}={quarter_kelly:.4f} "
-        f"conv={conviction}[{lo:.4f},{hi:.4f}]→{kelly_pct:.4f}{edge_tag} "
-        f"br=${br:.2f}(sizing) dd_scale={dd_scale:.2f} "
-        f"raw=${round(br*kelly_pct,2):.2f} → stake=${stake:.2f}"
-    )
-    if stake <= 0:
-        print(f"[KELLY $0] rounded to zero — prob={model_prob} odds={odds_american} "
-              f"br=${br:.2f} kelly_pct={kelly_pct:.4f}")
     return max(stake, 0.0)
 
 

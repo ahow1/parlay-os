@@ -17,34 +17,27 @@ def _team_roster(team_id: int, game_date: str) -> list:
     """
     season = game_date[:4] if game_date else "2026"
     roster_url = f"{STATSAPI}/teams/{team_id}/roster"
-    print(f"  [BULLPEN] roster URL: {roster_url}?rosterType=active&season={season}")
     try:
         r = _http_get(roster_url, params={"rosterType": "active", "season": season}, timeout=8)
-        print(f"  [BULLPEN] roster HTTP {r.status_code}")
         roster = r.json().get("roster", [])
         pitcher_entries = [
             p for p in roster
             if p.get("position", {}).get("type", "") == "Pitcher"
         ]
-        print(f"  [BULLPEN] team_id={team_id}: {len(roster)} on roster, "
-              f"{len(pitcher_entries)} pitchers")
         if not pitcher_entries:
             return []
 
         # Bulk season stats to classify SP vs RP (one call for all pitchers)
         ids_str = ",".join(str(p["person"]["id"]) for p in pitcher_entries)
-        stats_url = f"{STATSAPI}/people"
         r2 = _http_get(
-            stats_url,
+            f"{STATSAPI}/people",
             params={
                 "personIds": ids_str,
                 "hydrate": f"stats(group=[pitching],type=season,season={season},gameType=R)",
             },
             timeout=12,
         )
-        print(f"  [BULLPEN] bulk stats HTTP {r2.status_code} for {len(pitcher_entries)} pitchers")
 
-        # Build lookup: person_id → season stats
         gs_map: dict[int, int] = {}
         g_map:  dict[int, int] = {}
         sv_map: dict[int, int] = {}
@@ -64,7 +57,6 @@ def _team_roster(team_id: int, game_date: str) -> list:
             gs   = gs_map.get(pid, 0)
             g    = g_map.get(pid, 0)
             sv   = sv_map.get(pid, 0)
-            # Classify: SP if majority of appearances are starts
             if g > 0 and gs / g >= 0.5:
                 position = "SP"
             elif sv >= 5:
@@ -72,12 +64,8 @@ def _team_roster(team_id: int, game_date: str) -> list:
             else:
                 position = "RP"
             result.append({"id": pid, "name": name, "position": position})
-        rp_count = sum(1 for p in result if p["position"] in ("RP", "CL"))
-        print(f"  [BULLPEN] team_id={team_id}: classified {len(result)} pitchers "
-              f"({rp_count} relievers/closers)")
         return result
     except Exception as e:
-        print(f"  [BULLPEN] team_id={team_id}: roster fetch ERROR — {e}")
         return []
 
 
@@ -86,7 +74,6 @@ def _pitcher_game_log(pitcher_id: int, days: int = 3) -> list:
     try:
         cutoff = (date.today() - timedelta(days=days)).isoformat()
         url    = f"{STATSAPI}/people/{pitcher_id}/stats"
-        print(f"  [BULLPEN] pitcher {pitcher_id}: fetching game log (cutoff={cutoff})")
         r = _http_get(
             url,
             params={
@@ -98,8 +85,6 @@ def _pitcher_game_log(pitcher_id: int, days: int = 3) -> list:
             timeout=8,
         )
         raw_splits = r.json().get("stats", [{}])[0].get("splits", [])
-        print(f"  [BULLPEN] pitcher {pitcher_id}: {len(raw_splits)} total splits from API "
-              f"(status={r.status_code})")
         games  = []
         for s in raw_splits:
             game_date = s.get("date", "")
@@ -109,7 +94,6 @@ def _pitcher_game_log(pitcher_id: int, days: int = 3) -> list:
             ip_str = st.get("inningsPitched", "0.0")
             ip_parts = str(ip_str).split(".")
             ip = int(ip_parts[0]) + int(ip_parts[1] if len(ip_parts) > 1 else 0) / 3
-            # MLB Stats API: numberOfPitches is the primary field; pitchesThrown is fallback
             np_val = (int(st.get("numberOfPitches", 0) or 0)
                       or int(st.get("pitchesThrown", 0) or 0))
             games.append({
@@ -118,15 +102,8 @@ def _pitcher_game_log(pitcher_id: int, days: int = 3) -> list:
                 "np":   np_val,
                 "er":   int(st.get("earnedRuns", 0) or 0),
             })
-        if games:
-            print(f"  [BULLPEN] pitcher {pitcher_id}: {len(games)} game(s) in last {days}d — "
-                  f"pitches={[g['np'] for g in games]} ip={[g['ip'] for g in games]}")
-        else:
-            print(f"  [BULLPEN] pitcher {pitcher_id}: 0 games in last {days}d "
-                  f"(all {len(raw_splits)} splits predate cutoff={cutoff})")
         return games
-    except Exception as e:
-        print(f"  [BULLPEN] pitcher {pitcher_id}: ERROR fetching game log — {e}")
+    except Exception:
         return []
 
 
@@ -167,12 +144,10 @@ def analyze_bullpen(team_id: int, game_date: str, label: str = "") -> dict:
     """
     roster  = _team_roster(team_id, game_date)
     rp_list = [p for p in roster if p["position"] in ("RP", "CL")]
-    print(f"[BULLPEN] {label or team_id}: roster={len(roster)} total, "
-          f"{len(rp_list)} relievers — IDs: {[p['id'] for p in rp_list]}")
 
     total_fatigue    = 0.0
-    fatigued_arms    = 0     # arms ≥5 (moderate+)
-    high_fatigue_arms = []   # arms ≥7 (flagged)
+    fatigued_arms    = 0
+    high_fatigue_arms = []
     closer_available = True
     closer_name      = ""
     details          = []
@@ -185,7 +160,7 @@ def analyze_bullpen(team_id: int, game_date: str, label: str = "") -> dict:
         details.append({
             "id":      p["id"],
             "name":    p["name"],
-            "fatigue": fscore,       # 0–10 scale
+            "fatigue": fscore,
             "np_3d":   np3,
             "flagged": fscore >= 7.0,
         })
@@ -209,17 +184,19 @@ def analyze_bullpen(team_id: int, game_date: str, label: str = "") -> dict:
     else:
         fatigue_tier = "TIRED"
 
+    print(f"[BULLPEN] {label or team_id}: {len(rp_list)} relievers — "
+          f"avg_fatigue={avg_fatigue}/10 tier={fatigue_tier}")
+
     return {
         "team":               label,
         "team_id":            team_id,
-        "avg_fatigue":        avg_fatigue,       # 0–10
+        "avg_fatigue":        avg_fatigue,
         "fatigue_tier":       fatigue_tier,
         "fatigued_arms":      fatigued_arms,
-        "high_fatigue_arms":  high_fatigue_arms, # arms flagged ≥7
+        "high_fatigue_arms":  high_fatigue_arms,
         "total_rp":           len(rp_list),
         "closer_available":   closer_available,
         "closer_name":        closer_name,
-        # legacy alias kept for backward compat
         "heavy_usage":        high_fatigue_arms,
         "arms":               sorted(details, key=lambda x: -x["fatigue"]),
     }
