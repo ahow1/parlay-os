@@ -351,6 +351,7 @@ def analyze_offense(team_code: str, game_pk: int = None, side: str = "away",
 
     # Blend rolling wRC+ with platoon adjustment
     # Use rolling wRC+ as base, then apply platoon differential on top
+    wrc_plus_14d = 100  # league-average fallback; overwritten below with full blend
     wrc_plus_adj = round(wrc_plus_14d + platoon_delta, 1)
 
     # ── Season stats (for ratio calculations) ────────────────────────────────
