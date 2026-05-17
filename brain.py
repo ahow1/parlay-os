@@ -55,7 +55,8 @@ from intelligence_engine import (
 )
 from memory_engine  import (
     init_memory_tables, recalibrate_model_prob, adjust_model_prob,
-    memory_report
+    memory_report,
+    pitcher_profile_updated_today, hitter_profile_updated_today,
 )
 # ML model — imported lazily so brain.py still starts if models not trained
 try:
@@ -2081,69 +2082,85 @@ def run_daily_scout():
     except Exception as series_err:
         print(f"Series analysis error: {series_err}")
 
-    # ── Player profile updates — persist after every scout ────────────────────
-    # SPs and bullpens: HTTP calls are cached from the scout run, so these are cheap.
-    # Hitters: limit to players already in all_hitter_props (stats already fetched).
-    print("Updating player profiles...")
-    _profiled_sps: set = set()
-    _profiled_bps: set = set()
-    _sp_count = _bp_count = _h_count = 0
+    # ── Player profile updates — run in background after picks are sent ──────
+    # Collect the data the thread needs before it starts (snapshots of local vars).
+    _profile_analyses   = list(game_key_map.values())
+    _profile_hitter_top = _HITTER_PROP_TOP_N
 
-    for _analysis in game_key_map.values():
-        _away_code = _analysis.get("away", "")
-        _home_code = _analysis.get("home", "")
-        _away_tid  = MLB_TEAM_IDS.get(_away_code)
-        _home_tid  = MLB_TEAM_IDS.get(_home_code)
+    def _run_profile_updates():
+        import threading
+        _tname = threading.current_thread().name
+        print(f"[PROFILE] background thread {_tname} starting...")
+        _profiled_sps: set = set()
+        _profiled_bps: set = set()
+        _sp_count = _bp_count = _h_count = _skip_count = 0
 
-        # ── SP profiles ───────────────────────────────────────────────────────
-        for _sp in (_analysis.get("away_sp") or {}, _analysis.get("home_sp") or {}):
-            _sp_id   = _sp.get("pitcher_id")
-            _sp_name = _sp.get("name", "")
-            if not _sp_id or not _sp_name or _sp_name == "TBD":
-                continue
-            if _sp.get("sp_missing") or _sp_id in _profiled_sps:
-                continue
-            try:
-                update_sp_profile(_sp_name, _sp_id)
-                _profiled_sps.add(_sp_id)
-                _sp_count += 1
-                print(f"  [PROFILE] SP: {_sp_name} (id={_sp_id})")
-            except Exception as _e:
-                print(f"  [PROFILE] SP error ({_sp_name}): {_e}")
+        for _analysis in _profile_analyses:
+            _away_code = _analysis.get("away", "")
+            _home_code = _analysis.get("home", "")
+            _away_tid  = MLB_TEAM_IDS.get(_away_code)
+            _home_tid  = MLB_TEAM_IDS.get(_home_code)
 
-        # ── Bullpen profiles ──────────────────────────────────────────────────
-        for _tc, _tid in ((_away_code, _away_tid), (_home_code, _home_tid)):
-            if not _tid or _tc in _profiled_bps:
-                continue
-            try:
-                update_bullpen_profile(_tid, _tc)
-                _profiled_bps.add(_tc)
-                _bp_count += 1
-                print(f"  [PROFILE] Bullpen: {_tc}")
-            except Exception as _e:
-                print(f"  [PROFILE] Bullpen error ({_tc}): {_e}")
-
-    # ── Hitter profiles — top-N batters from each lineup that appeared today
-    # Uses lineup data from analyze_offense() (already fetched during scout).
-    _seen_hitter_ids: set = set()
-    for _analysis in game_key_map.values():
-        for _side in ("away", "home"):
-            _tc  = _analysis.get(_side, "")
-            _off = _analysis.get(f"{_side}_off") or {}
-            for _player in (_off.get("lineup") or [])[:_HITTER_PROP_TOP_N]:
-                _hid   = _player.get("id")
-                _hname = _player.get("name") or _player.get("fullName", "")
-                if not _hid or not _hname or _hid in _seen_hitter_ids:
+            # ── SP profiles ───────────────────────────────────────────────────
+            for _sp in (_analysis.get("away_sp") or {}, _analysis.get("home_sp") or {}):
+                _sp_id   = _sp.get("pitcher_id")
+                _sp_name = _sp.get("name", "")
+                if not _sp_id or not _sp_name or _sp_name == "TBD":
+                    continue
+                if _sp.get("sp_missing") or _sp_id in _profiled_sps:
+                    continue
+                if pitcher_profile_updated_today(_sp_name):
+                    _skip_count += 1
+                    _profiled_sps.add(_sp_id)
                     continue
                 try:
-                    update_hitter_profile(_hname, _hid, _tc)
-                    _seen_hitter_ids.add(_hid)
-                    _h_count += 1
-                    print(f"  [PROFILE] Hitter: {_hname} ({_tc})")
+                    update_sp_profile(_sp_name, _sp_id)
+                    _profiled_sps.add(_sp_id)
+                    _sp_count += 1
                 except Exception as _e:
-                    print(f"  [PROFILE] Hitter error ({_hname}): {_e}")
+                    print(f"  [PROFILE] SP error ({_sp_name}): {_e}")
 
-    print(f"[PROFILE] Done — {_sp_count} SPs, {_bp_count} bullpens, {_h_count} hitters updated")
+            # ── Bullpen profiles ──────────────────────────────────────────────
+            for _tc, _tid in ((_away_code, _away_tid), (_home_code, _home_tid)):
+                if not _tid or _tc in _profiled_bps:
+                    continue
+                try:
+                    update_bullpen_profile(_tid, _tc)
+                    _profiled_bps.add(_tc)
+                    _bp_count += 1
+                except Exception as _e:
+                    print(f"  [PROFILE] Bullpen error ({_tc}): {_e}")
+
+        # ── Hitter profiles ───────────────────────────────────────────────────
+        _seen_hitter_ids: set = set()
+        for _analysis in _profile_analyses:
+            for _side in ("away", "home"):
+                _tc  = _analysis.get(_side, "")
+                _off = _analysis.get(f"{_side}_off") or {}
+                for _player in (_off.get("lineup") or [])[:_profile_hitter_top]:
+                    _hid   = _player.get("id")
+                    _hname = _player.get("name") or _player.get("fullName", "")
+                    if not _hid or not _hname or _hid in _seen_hitter_ids:
+                        continue
+                    if hitter_profile_updated_today(_hname):
+                        _skip_count += 1
+                        _seen_hitter_ids.add(_hid)
+                        continue
+                    try:
+                        update_hitter_profile(_hname, _hid, _tc)
+                        _seen_hitter_ids.add(_hid)
+                        _h_count += 1
+                    except Exception as _e:
+                        print(f"  [PROFILE] Hitter error ({_hname}): {_e}")
+
+        print(f"[PROFILE] Done — {_sp_count} SPs, {_bp_count} bullpens, "
+              f"{_h_count} hitters updated, {_skip_count} skipped (already done today)")
+
+    import threading as _threading
+    _profile_thread = _threading.Thread(target=_run_profile_updates,
+                                        name="profile-updater", daemon=True)
+    # Thread starts after the Telegram slip is sent (below). Stored here so the
+    # slip section can call _profile_thread.start() at the right moment.
 
     # ── Build canonical pick IDs for deduplication ────────────────────────────
     def _pick_id_ml(analysis: dict, side: str) -> str:
@@ -2229,6 +2246,12 @@ def run_daily_scout():
             _post_public_channel(all_locks, all_flips, today)
         except Exception as pub_err:
             print(f"Public channel error: {pub_err}")
+
+    # ── Launch profile updates in the background ──────────────────────────────
+    # Picks are already sent above; profiles run asynchronously so they don't
+    # block the scout return or delay the next scheduled run.
+    _profile_thread.start()
+    print("[PROFILE] Background profile updates started")
 
     # Save scout output
     if not DRY_RUN:

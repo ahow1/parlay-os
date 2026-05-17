@@ -641,6 +641,30 @@ def get_hitter_profile(name: str) -> dict | None:
     return d
 
 
+# ── PROFILE 24-HOUR CACHE CHECKS ─────────────────────────────────────────────
+
+def pitcher_profile_updated_today(pitcher_name: str) -> bool:
+    """Return True if a pitcher_profiles row for today already exists."""
+    today = date.today().isoformat()
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM pitcher_profiles WHERE pitcher_name=? AND stat_date=? LIMIT 1",
+            (pitcher_name, today),
+        ).fetchone()
+    return row is not None
+
+
+def hitter_profile_updated_today(player_name: str) -> bool:
+    """Return True if a hitter_profiles row for today already exists."""
+    today = date.today().isoformat()
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM hitter_profiles WHERE player_name=? AND stat_date=? LIMIT 1",
+            (player_name, today),
+        ).fetchone()
+    return row is not None
+
+
 # ── FACTOR RELIABILITY REPORT ─────────────────────────────────────────────────
 
 def factor_reliability_report() -> list[dict]:
