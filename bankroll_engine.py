@@ -15,9 +15,17 @@ MAX_BET_ABS    = 15.00
 DRAWDOWN_PAUSE = 0.15   # pause if bankroll drops 15% below peak
 
 CONVICTION_KELLY = {
-    "HIGH":   (0.03, 0.05),  # 3-5% of bankroll
-    "MEDIUM": (0.01, 0.03),  # 1-3%
-    "LOW":    (0.005, 0.01), # 0.5-1%
+    "HIGH":   (0.04, 0.06),  # 4-6% of bankroll  (~$9.40–$14.10 at $235)
+    "MEDIUM": (0.02, 0.04),  # 2-4%              (~$4.70–$9.40  at $235)
+    "LOW":    (0.01, 0.02),  # 1-2%              (~$2.35–$4.70  at $235)
+}
+
+# Edge bounds used to proportionally scale the ceiling within each tier.
+# At edge_lo the ceiling equals the floor; at edge_hi it reaches the full cap.
+_CONVICTION_EDGE_RANGES = {
+    "HIGH":   (7.0, 10.0),
+    "MEDIUM": (4.0,  7.0),
+    "LOW":    (3.0,  4.0),
 }
 
 
@@ -111,7 +119,7 @@ def sizing_bankroll() -> float:
 
 
 def kelly_stake(model_prob: float, odds_american: str, conviction: str = "MEDIUM",
-                fraction: float = 0.25) -> float:
+                fraction: float = 0.25, edge_pct: float = 0.0) -> float:
     """
     Quarter-Kelly stake with drawdown-adjusted sizing and detailed diagnostics.
     Sizes against sizing_bankroll() (settled P&L only) so pending bets don't
@@ -135,19 +143,29 @@ def kelly_stake(model_prob: float, odds_american: str, conviction: str = "MEDIUM
 
     quarter_kelly = full_kelly * fraction
 
-    lo, hi = CONVICTION_KELLY.get(conviction, (0.01, 0.03))
+    lo, hi = CONVICTION_KELLY.get(conviction, (0.02, 0.04))
+
+    # Proportionally scale the ceiling within each tier based on edge size.
+    # At the tier's minimum edge the ceiling equals the floor (minimum stake).
+    # At the tier's maximum edge the ceiling reaches the full cap.
+    if edge_pct > 0 and conviction in _CONVICTION_EDGE_RANGES:
+        e_lo, e_hi = _CONVICTION_EDGE_RANGES[conviction]
+        t  = min(max((edge_pct - e_lo) / max(e_hi - e_lo, 1e-6), 0.0), 1.0)
+        hi = round(lo + t * (hi - lo), 6)
+
     kelly_pct = max(lo, min(quarter_kelly, hi))
 
-    # Size against total bankroll (pending bets are capital at risk, not losses)
+    # Size against settled P&L bankroll (pending bets are capital at risk, not losses)
     br = sizing_bankroll()
-    available = current_bankroll()  # for drawdown comparison only
     if br <= 0:
         print(f"[KELLY $0] sizing_bankroll=${br:.2f} (check DB / BANKROLL_OVERRIDE)")
         return 0.0
 
-    # Drawdown: compare available vs peak; reduce sizing proportionally
+    # Drawdown: compare sizing bankroll vs peak (both exclude pending bets for consistency).
+    # Using current_bankroll() here caused a phantom drawdown whenever pending bets
+    # were large — the pending stakes aren't real losses, so don't count them.
     pk = peak_bankroll()
-    drawdown = max(0.0, (pk - available) / pk) if pk > 0 else 0.0
+    drawdown = max(0.0, (pk - br) / pk) if pk > 0 else 0.0
     dd_scale  = 1.0
     if drawdown >= DRAWDOWN_PAUSE:
         dd_scale  = max(0.25, 1.0 - drawdown)
@@ -162,10 +180,11 @@ def kelly_stake(model_prob: float, odds_american: str, conviction: str = "MEDIUM
     # kelly_stake returns the pure Kelly amount; don't re-check DB exposure here.
     stake = round(round(stake / 0.10) * 0.10, 2)
 
+    edge_tag = f" edge={edge_pct:.1f}%" if edge_pct > 0 else ""
     print(
         f"[KELLY] prob={model_prob:.4f} odds={odds_american} dec={dec:.4f} "
         f"full_kelly={full_kelly:.4f} ×{fraction}={quarter_kelly:.4f} "
-        f"conv={conviction}[{lo},{hi}]→{kelly_pct:.4f} "
+        f"conv={conviction}[{lo:.4f},{hi:.4f}]→{kelly_pct:.4f}{edge_tag} "
         f"br=${br:.2f}(sizing) dd_scale={dd_scale:.2f} "
         f"raw=${round(br*kelly_pct,2):.2f} → stake=${stake:.2f}"
     )
@@ -177,7 +196,7 @@ def kelly_stake(model_prob: float, odds_american: str, conviction: str = "MEDIUM
 
 def sizing_summary(model_prob: float, odds: str, conviction: str) -> dict:
     """Return full sizing breakdown for display."""
-    br    = current_bankroll()
+    br    = sizing_bankroll()
     peak  = peak_bankroll()
     stake = kelly_stake(model_prob, odds, conviction)
     dd    = (peak - br) / peak if peak > 0 else 0.0

@@ -11,25 +11,73 @@ STATSAPI = "https://statsapi.mlb.com/api/v1"
 
 
 def _team_roster(team_id: int, game_date: str) -> list:
-    """Return list of active pitchers (player_id, full_name, position)."""
+    """
+    Return list of active pitchers with position classified as SP, RP, or CL.
+    MLB Stats API returns 'P' for all pitchers; we separate by season GS ratio.
+    """
+    season = game_date[:4] if game_date else "2026"
+    roster_url = f"{STATSAPI}/teams/{team_id}/roster"
+    print(f"  [BULLPEN] roster URL: {roster_url}?rosterType=active&season={season}")
     try:
-        r = _http_get(
-            f"{STATSAPI}/teams/{team_id}/roster/Active?date={game_date}",
-            timeout=8
-        )
-        data   = r.json()
-        roster = data.get("roster", [])
-        pitchers = [
-            {
-                "id":       p["person"]["id"],
-                "name":     p["person"]["fullName"],
-                "position": p.get("position", {}).get("abbreviation", ""),
-            }
-            for p in roster
-            if p.get("position", {}).get("abbreviation", "") in ("SP", "RP", "CL")
+        r = _http_get(roster_url, params={"rosterType": "active", "season": season}, timeout=8)
+        print(f"  [BULLPEN] roster HTTP {r.status_code}")
+        roster = r.json().get("roster", [])
+        pitcher_entries = [
+            p for p in roster
+            if p.get("position", {}).get("type", "") == "Pitcher"
         ]
-        return pitchers
-    except Exception:
+        print(f"  [BULLPEN] team_id={team_id}: {len(roster)} on roster, "
+              f"{len(pitcher_entries)} pitchers")
+        if not pitcher_entries:
+            return []
+
+        # Bulk season stats to classify SP vs RP (one call for all pitchers)
+        ids_str = ",".join(str(p["person"]["id"]) for p in pitcher_entries)
+        stats_url = f"{STATSAPI}/people"
+        r2 = _http_get(
+            stats_url,
+            params={
+                "personIds": ids_str,
+                "hydrate": f"stats(group=[pitching],type=season,season={season},gameType=R)",
+            },
+            timeout=12,
+        )
+        print(f"  [BULLPEN] bulk stats HTTP {r2.status_code} for {len(pitcher_entries)} pitchers")
+
+        # Build lookup: person_id → season stats
+        gs_map: dict[int, int] = {}
+        g_map:  dict[int, int] = {}
+        sv_map: dict[int, int] = {}
+        for person in r2.json().get("people", []):
+            pid   = person.get("id")
+            stats = (person.get("stats") or [{}])[0].get("splits", [{}])
+            if stats:
+                st = stats[0].get("stat", {})
+                gs_map[pid] = int(st.get("gamesStarted", 0) or 0)
+                g_map[pid]  = int(st.get("gamesPlayed",  0) or 0)
+                sv_map[pid] = int(st.get("saves",        0) or 0)
+
+        result = []
+        for p in pitcher_entries:
+            pid  = p["person"]["id"]
+            name = p["person"]["fullName"]
+            gs   = gs_map.get(pid, 0)
+            g    = g_map.get(pid, 0)
+            sv   = sv_map.get(pid, 0)
+            # Classify: SP if majority of appearances are starts
+            if g > 0 and gs / g >= 0.5:
+                position = "SP"
+            elif sv >= 5:
+                position = "CL"
+            else:
+                position = "RP"
+            result.append({"id": pid, "name": name, "position": position})
+        rp_count = sum(1 for p in result if p["position"] in ("RP", "CL"))
+        print(f"  [BULLPEN] team_id={team_id}: classified {len(result)} pitchers "
+              f"({rp_count} relievers/closers)")
+        return result
+    except Exception as e:
+        print(f"  [BULLPEN] team_id={team_id}: roster fetch ERROR — {e}")
         return []
 
 

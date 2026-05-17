@@ -242,6 +242,22 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         away_model_p = round(away_model_p - _SP_TBD_REDUCTION * (away_model_p - 0.5), 4)
         home_model_p = round(home_model_p - _SP_TBD_REDUCTION * (home_model_p - 0.5), 4)
 
+    # ── Unconfirmed lineup → reduce confidence by 10% (pull toward 0.5) ──────
+    # Unconfirmed lineup = we don't know who's batting today. Still analyze
+    # the game — never skip — but shrink edge conservatively.
+    _LINEUP_REDUCTION = 0.10
+    away_lineup_unconfirmed = away_off.get("lineup_unconfirmed", False)
+    home_lineup_unconfirmed = home_off.get("lineup_unconfirmed", False)
+    if away_lineup_unconfirmed or home_lineup_unconfirmed:
+        away_model_p = round(away_model_p - _LINEUP_REDUCTION * (away_model_p - 0.5), 4)
+        home_model_p = round(home_model_p - _LINEUP_REDUCTION * (home_model_p - 0.5), 4)
+        sides = []
+        if away_lineup_unconfirmed:
+            sides.append(away_code)
+        if home_lineup_unconfirmed:
+            sides.append(home_code)
+        print(f"  [LINEUP] unconfirmed for {', '.join(sides)} — model confidence -10%")
+
     # ── Regression / intelligence flags ──────────────────────────────────────
     reg_flags = detect_regression_flags(away_sp, home_sp, away_off, home_off)
 
@@ -392,8 +408,10 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     home_conv = _conviction(home_edge, home_model_p, home_bp, market)
 
     # ── Sizing ────────────────────────────────────────────────────────────────
-    away_stake = kelly_stake(away_model_p, str(best_away_odds), away_conv) if best_away_odds else 0.0
-    home_stake = kelly_stake(home_model_p, str(best_home_odds), home_conv) if best_home_odds else 0.0
+    away_stake = kelly_stake(away_model_p, str(best_away_odds), away_conv,
+                             edge_pct=away_edge) if best_away_odds else 0.0
+    home_stake = kelly_stake(home_model_p, str(best_home_odds), home_conv,
+                             edge_pct=home_edge) if best_home_odds else 0.0
 
     return {
         "game_pk":    game_pk,
@@ -814,9 +832,9 @@ def _daily_bet_slip(
     all_props   = [p for p in (all_props or [])
                    if (p.get("kelly_stake") or 0) > 0 and (p.get("ev") or 0) >= 0]
 
-    # Totals: top 5 by edge. Player props: all above 5% edge, sorted (no cap).
+    # Totals: top 5 by edge. Hitter props: top 8 by edge (hard cap). K-props: all with edge.
     k_bets      = sorted(k_bets,      key=lambda b: b.get("edge_pct", 0), reverse=True)
-    hitter_bets = sorted(hitter_bets, key=lambda h: h.get("edge_pct", 0), reverse=True)
+    hitter_bets = sorted(hitter_bets, key=lambda h: h.get("edge_pct", 0), reverse=True)[:8]
     totals_bets = sorted(totals_bets, key=lambda b: b.get("edge_pct", 0), reverse=True)[:5]
 
     n_locks = len(locks)
@@ -1666,7 +1684,13 @@ def _scan_hitter_props(
         if edge < _HITTER_PROP_MIN_EDGE:
             continue
 
-        stake = round(min(br * (0.015 if edge >= 0.08 else 0.01), 5.0), 2)
+        # Kelly sizing — same formula as ML bets, derived from market implied odds
+        _mp = max(min(market_p, 0.99), 0.01)
+        if _mp >= 0.5:
+            _odds_str = f"-{round(_mp / (1.0 - _mp) * 100)}"
+        else:
+            _odds_str = f"+{round((1.0 - _mp) / _mp * 100)}"
+        stake = kelly_stake(model_p, _odds_str, "MEDIUM")
         recs.append({
             "player":     player_name,
             "team":       team,
@@ -1873,7 +1897,7 @@ def run_daily_scout():
             _k_r    = k_prop(_sp, _k_line)
             _p_k    = _k_r.get("p_over", 0)
             if _p_k >= 0.55:
-                _k_stake = round(min(br * (0.02 if _p_k >= 0.60 else 0.01), 5.0), 2)
+                _k_stake = kelly_stake(_p_k, "-110", "MEDIUM")
                 all_k_props.append({
                     "sp":       _sp.get("name"),
                     "team":     analysis.get(_kside, ""),
@@ -2013,11 +2037,11 @@ def run_daily_scout():
                         continue
                     # Hard filters: skip extreme market prices (no value)
                     # and unrealistic model estimates (miscalibrated λ).
-                    if mkt_p > 0.75:
-                        print(f"  SKIP totals {game_lbl} {direction}: mkt_p={mkt_p:.1%} >75% — no edge")
+                    if mkt_p >= 0.75:
+                        print(f"  SKIP totals {game_lbl} {direction}: mkt_p={mkt_p:.1%} ≥75% — no edge")
                         continue
-                    if model_p > 0.80:
-                        print(f"  SKIP totals {game_lbl} {direction}: model_p={model_p:.1%} >80% — λ likely off")
+                    if model_p >= 0.75:
+                        print(f"  SKIP totals {game_lbl} {direction}: model_p={model_p:.1%} ≥75% — λ likely off")
                         continue
                     edge = model_p - mkt_p
                     if edge >= 0.05 and edge > best_total_edge:
@@ -2165,16 +2189,25 @@ def run_daily_scout():
 
     new_pick_ids = current_pick_ids - prev_pick_ids
 
+    # ML-only new picks — props/totals changes never trigger the update message
+    current_ml_ids = {_pick_id_ml(a, s) for a, s in all_locks + all_flips}
+    prev_ml_ids    = {pid for pid in prev_pick_ids if pid.startswith("ML:")}
+    new_ml_pick_ids = current_ml_ids - prev_ml_ids
+
     scout_out["slip_sent"]     = True
     scout_out["sent_pick_ids"] = sorted(current_pick_ids)
 
     # ── Daily bet slip ────────────────────────────────────────────────────────
-    if slip_already_sent and not new_pick_ids:
-        print("[SLIP] Slip already sent today — no new picks. Skipping re-send.")
+    if slip_already_sent and not new_ml_pick_ids:
+        n_other = len(new_pick_ids - current_ml_ids)
+        print(
+            f"[SLIP] Slip already sent today — no new ML picks "
+            f"(props/totals changes: {n_other}). Skipping update."
+        )
     elif slip_already_sent:
-        # Build brief update: only new picks
-        print(f"[SLIP] Slip already sent today — {len(new_pick_ids)} new picks. Sending update.")
-        _send_slip_update(new_pick_ids, all_locks, all_flips, all_totals,
+        # Only ML picks appear in the update; props/totals are supplementary
+        print(f"[SLIP] Slip already sent today — {len(new_ml_pick_ids)} new ML pick(s). Sending update.")
+        _send_slip_update(new_ml_pick_ids, all_locks, all_flips, all_totals,
                           all_nrfi, all_k_props, all_hitter_props, today, br)
     else:
         print(
