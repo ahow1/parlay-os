@@ -222,6 +222,37 @@ def _risp_stats(team_id: int) -> dict:
         return {}
 
 
+def _team_recent_record(team_id: int, days: int = 7) -> dict:
+    """W-L record over the last N days."""
+    from datetime import date as _date, timedelta as _td
+    end   = _date.today().isoformat()
+    start = (_date.today() - _td(days=days)).isoformat()
+    try:
+        r = _http_get(
+            f"{STATSAPI}/schedule",
+            params={"teamId": team_id, "sportId": 1, "gameType": "R",
+                    "startDate": start, "endDate": end},
+            timeout=10,
+        )
+        wins = losses = 0
+        for d in r.json().get("dates", []):
+            for g in d.get("games", []):
+                if "Final" not in (g.get("status") or {}).get("detailedState", ""):
+                    continue
+                for side in ("away", "home"):
+                    t = g.get("teams", {}).get(side, {})
+                    if t.get("team", {}).get("id") == team_id:
+                        if t.get("isWinner"):
+                            wins += 1
+                        else:
+                            losses += 1
+        total = wins + losses
+        return {"wins": wins, "losses": losses, "games": total,
+                "win_pct": round(wins / total, 3) if total > 0 else 0.5}
+    except Exception:
+        return {"wins": 0, "losses": 0, "games": 0, "win_pct": 0.5}
+
+
 # ── Lineup confirmation ───────────────────────────────────────────────────────
 
 def _lineup_from_schedule(game_pk: int) -> dict:
@@ -298,12 +329,21 @@ def analyze_offense(team_code: str, game_pk: int = None, side: str = "away",
     if not team_id:
         return _default_offense(team_code)
 
-    # ── Rolling wRC+ (14-day primary, 30-day fallback if <50 PA) ─────────────
-    rolling = _wrc_plus_rolling(team_id, park_factor)
-    wrc_plus_14d   = rolling.get("wrc_plus", 100.0)
-    rolling_rpg    = rolling.get("rpg", LG_RPG)
-    window_days    = rolling.get("window_days", 14)
-    low_sample_flag = rolling.get("low_sample", False)
+    # ── Recency-weighted wRC+: 40% last 7d / 35% last 30d / 25% season ──────
+    w7  = _rolling_hitting_window(team_id,  7, park_factor)
+    w30 = _rolling_hitting_window(team_id, 30, park_factor)
+    # Season wRC+ pulled from season stats below; use w30 as placeholder for now
+    wrc7  = w7.get("wrc_plus", 100.0)
+    wrc30 = w30.get("wrc_plus", 100.0)
+    rpg7  = w7.get("rpg", LG_RPG)
+    rpg30 = w30.get("rpg", LG_RPG)
+    low_sample_7d   = w7.get("low_sample", True) or w7.get("games", 0) < 3
+    window_days     = 7 if not low_sample_7d else 30
+    low_sample_flag = low_sample_7d and w30.get("low_sample", False)
+
+    # Recent win/loss records for form weighting
+    record7  = _team_recent_record(team_id, 7)
+    record30 = _team_recent_record(team_id, 30)
 
     # ── Real platoon splits ───────────────────────────────────────────────────
     splits       = _platoon_splits_real(team_id)
@@ -317,6 +357,10 @@ def analyze_offense(team_code: str, game_pk: int = None, side: str = "away",
     hitting  = _team_hitting_stats(team_id)
     ops      = hitting.get("ops", 0.730)
     wrc_plus_season = _wrc_plus_proxy(ops, park_factor)
+
+    # Recency-weighted wRC+ blend
+    wrc_plus_14d = round(0.40 * wrc7 + 0.35 * wrc30 + 0.25 * wrc_plus_season, 1)
+    rolling_rpg  = round(0.40 * rpg7 + 0.35 * rpg30 + 0.25 * (hitting.get("runs", 0) / max(hitting.get("games", 1), 1)), 2)
 
     # ── RISP ─────────────────────────────────────────────────────────────────
     risp     = _risp_stats(team_id)
@@ -344,11 +388,18 @@ def analyze_offense(team_code: str, game_pk: int = None, side: str = "away",
     # ── Run expectancy factor ─────────────────────────────────────────────────
     run_factor = round(wrc_plus_adj / 100, 4)
 
-    # Recent form adjustment from rolling window RPG vs season RPG
+    # Form adjustment using recency-weighted RPG vs season RPG
     rpg_season = hitting.get("runs", 0) / max(hitting.get("games", 1), 1)
     if rolling_rpg > 0 and rpg_season > 0:
         form_adj   = min((rolling_rpg / rpg_season) ** 0.25, 1.10)
         run_factor = round(run_factor * form_adj, 4)
+
+    # Platoon matchup edge flag (15+ wRC+ points = real edge)
+    vs_today_wrc    = splits.get("vs_lhp" if opp_sp_hand == "L" else "vs_rhp", {}).get("wrc_plus", 100.0)
+    vs_opp_wrc      = splits.get("vs_rhp" if opp_sp_hand == "L" else "vs_lhp", {}).get("wrc_plus", 100.0)
+    platoon_edge    = round(vs_today_wrc - vs_opp_wrc, 1)
+    strong_platoon_advantage    = platoon_edge >= 15
+    strong_platoon_disadvantage = platoon_edge <= -15
 
     return {
         "team":                   team_code,
@@ -373,6 +424,18 @@ def analyze_offense(team_code: str, game_pk: int = None, side: str = "away",
         # Form
         "rpg_recent":             rolling_rpg,
         "rpg_season":             round(rpg_season, 2),
+        # Form detail
+        "wrc_7d":                 wrc7,
+        "wrc_30d":                wrc30,
+        "rpg_7d":                 rpg7,
+        "rpg_30d":                rpg30,
+        "record_7d":              record7,
+        "record_30d":             record30,
+        "recent_win_pct":         record7.get("win_pct", 0.5),
+        # Platoon matchup
+        "platoon_edge":           platoon_edge,
+        "strong_platoon_advantage":    strong_platoon_advantage,
+        "strong_platoon_disadvantage": strong_platoon_disadvantage,
         # Lineup
         "lineup_confirmed":       lineup_confirmed,
         "lineup_unconfirmed":     not lineup_confirmed,
@@ -405,6 +468,16 @@ def _default_offense(team_code: str) -> dict:
         "risp_ops":           None,
         "rpg_recent":         LG_RPG,
         "rpg_season":         LG_RPG,
+        "wrc_7d":               100.0,
+        "wrc_30d":              100.0,
+        "rpg_7d":               LG_RPG,
+        "rpg_30d":              LG_RPG,
+        "record_7d":            {"wins": 0, "losses": 0, "games": 0, "win_pct": 0.5},
+        "record_30d":           {"wins": 0, "losses": 0, "games": 0, "win_pct": 0.5},
+        "recent_win_pct":       0.5,
+        "platoon_edge":         0.0,
+        "strong_platoon_advantage":    False,
+        "strong_platoon_disadvantage": False,
         "run_factor":         1.0,
         "lineup_confirmed":   False,
         "lineup_unconfirmed": True,

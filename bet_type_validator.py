@@ -133,7 +133,7 @@ def live_stake(bankroll: float) -> float:
 MAX_LOCKS_PER_DAY  = 3    # HIGH conviction ML bets
 MAX_FLIPS_PER_DAY  = 2    # MEDIUM conviction ML bets
 MAX_PARLAY_LEGS    = 3    # absolute maximum
-MAX_PROPS_PER_DAY  = 5    # top 5 props by edge
+MAX_PROPS_PER_DAY  = 3    # top 3 props by edge
 MIN_LOCKS_GREEN    = 2    # need ≥2 locks for GREEN day
 YELLOW_STAKE_CUT   = 0.20 # reduce stakes by 20% on YELLOW day
 DAILY_RISK_CAP_PCT = 0.15 # legacy fallback — active budget uses bankroll_engine.daily_budget()

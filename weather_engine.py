@@ -7,6 +7,9 @@ import requests
 from api_client import get as _http_get
 from constants import BALLPARK_CITIES, LG_RPG
 
+# Parks with enhanced wind-out effect (Coors, Fenway, Wrigley)
+_HITTER_PARKS = {"COL", "BOS", "CHC"}
+
 # Historical monthly averages per park (temp_f, run_adj) for WEATHER_ESTIMATED fallback
 _PARK_MONTHLY_AVG: dict[str, tuple[float, float]] = {
     "COL": (65.0, 0.5), "ARI": (95.0, 0.1), "MIA": (85.0, 0.1),
@@ -19,7 +22,7 @@ WTTR_URL = "https://wttr.in/{city}?format=j1"
 
 
 def _run_adjustment(wind_mph: float, wind_dir: int, temp_f: float,
-                    humidity: int, precip_mm: float) -> float:
+                    humidity: int, precip_mm: float, team_code: str = "") -> float:
     """
     Compute total game run adjustment (both teams combined) in runs-per-game.
     Positive = more runs expected, negative = fewer runs.
@@ -33,17 +36,18 @@ def _run_adjustment(wind_mph: float, wind_dir: int, temp_f: float,
 
     if wind_mph >= 10:
         if angle_from_out <= 45:          # blowing out to CF
-            delta += 0.8 if wind_mph >= 15 else 0.4
+            if wind_mph >= 15:
+                delta += 1.2 if team_code in _HITTER_PARKS else 0.8
+            else:
+                delta += 0.4
         elif angle_from_out >= 135:       # blowing in from CF
-            delta -= 0.8 if wind_mph >= 15 else 0.4
+            delta -= 1.0 if wind_mph >= 15 else 0.4
         else:                             # crosswind
             delta += 0.1
 
     # Temperature
-    if temp_f < 40:
-        delta -= 0.6
-    elif temp_f < 50:
-        delta -= 0.3
+    if temp_f < 45:
+        delta -= 0.5
 
     # Humidity
     if humidity > 80:
@@ -101,7 +105,7 @@ def get_weather(team_code: str) -> dict:
         precip_mm = float(current.get("precipMM", 0))
         desc      = current.get("weatherDesc", [{}])[0].get("value", "")
 
-        run_adj    = _run_adjustment(wind_mph, wind_dir, temp_f, humidity, precip_mm)
+        run_adj    = _run_adjustment(wind_mph, wind_dir, temp_f, humidity, precip_mm, team_code)
         run_factor = _delta_to_factor(run_adj)
         note       = _weather_note(temp_f, wind_mph, wind_dir, humidity, precip_mm, run_adj)
 

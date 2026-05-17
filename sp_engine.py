@@ -5,6 +5,8 @@ Includes last-3-start rolling ERA/K/BB and real xFIP from FanGraphs leaderboard.
 
 import csv
 import io
+import json
+import os
 import re
 import threading
 import requests
@@ -17,6 +19,7 @@ from constants import (
 )
 
 STATSAPI = "https://statsapi.mlb.com/api/v1"
+_DATA_CACHE_DIR = "data_cache"
 FG_PITCHING_URL = (
     "https://www.fangraphs.com/api/leaders/major-league/data"
     "?age=&pos=all&stats=pit&lg=all&qual=0"
@@ -177,13 +180,15 @@ def _pitcher_game_log_starts(pitcher_id: int, n: int = 10) -> list:
             bb = int(stat.get("baseOnBalls", 0) or 0)
             np = int(stat.get("pitchesThrown", 0) or 0)
             starts.append({
-                "date": s.get("date", ""),
-                "ip":   round(ip, 2),
-                "era":  round(er / ip * 9, 2),
-                "k9":   round(k / ip * 9, 2),
-                "bb9":  round(bb / ip * 9, 2),
-                "np":   np,
-                "er":   er,
+                "date":    s.get("date", ""),
+                "ip":      round(ip, 2),
+                "era":     round(er / ip * 9, 2),
+                "k9":      round(k / ip * 9, 2),
+                "bb9":     round(bb / ip * 9, 2),
+                "np":      np,
+                "er":      er,
+                "game_pk": (s.get("game") or {}).get("gamePk"),
+                "team_id": (s.get("team") or {}).get("id"),
             })
         return starts[-n:]   # last n starts, oldest first
     except Exception:
@@ -250,6 +255,71 @@ def _last_3_starts_summary(pitcher_id: int) -> dict:
     return result
 
 
+def _linescore_cached(game_pk: int) -> dict | None:
+    """Fetch linescore with disk cache so past-game linescores aren't refetched."""
+    os.makedirs(_DATA_CACHE_DIR, exist_ok=True)
+    cache_path = os.path.join(_DATA_CACHE_DIR, f"ls_{game_pk}.json")
+    if os.path.exists(cache_path):
+        try:
+            with open(cache_path) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    try:
+        r = _http_get(f"{STATSAPI}/game/{game_pk}/linescore", timeout=8)
+        data = r.json()
+        if data.get("innings"):
+            with open(cache_path, "w") as f:
+                json.dump(data, f)
+        return data
+    except Exception:
+        return None
+
+
+def _sp_first_inning_era(pitcher_id: int, season_era: float, n_starts: int = 3) -> dict:
+    """
+    Calculate SP first-inning ERA from game logs + linescores.
+    Returns first_inning_era and yrfi_lean flag (fi_era > season_era + 2.0).
+    Uses disk cache so linescores are only fetched once.
+    """
+    starts = _pitcher_game_log_starts(pitcher_id, n=n_starts + 2)
+    if not starts or len(starts) < 3:
+        return {}
+
+    total_fi_runs = 0
+    counted       = 0
+    for s in starts[-n_starts:]:
+        game_pk = s.get("game_pk")
+        team_id = s.get("team_id")
+        if not game_pk or not team_id:
+            continue
+        ls = _linescore_cached(game_pk)
+        if not ls:
+            continue
+        innings = ls.get("innings", [])
+        if not innings:
+            continue
+        first = innings[0]
+        # Pitcher's team is home → away team scored against home SP in top of 1st
+        home_team_id = (ls.get("teams", {}).get("home", {}).get("team") or {}).get("id")
+        if team_id == home_team_id:
+            fi_runs = int(first.get("away", {}).get("runs", 0) or 0)
+        else:
+            fi_runs = int(first.get("home", {}).get("runs", 0) or 0)
+        total_fi_runs += fi_runs
+        counted       += 1
+
+    if counted < 2:
+        return {}
+
+    fi_era = round(total_fi_runs / counted * 9, 2)
+    return {
+        "first_inning_era": fi_era,
+        "fi_n_starts":      counted,
+        "yrfi_lean":        fi_era >= (season_era + 2.0),
+    }
+
+
 def _pitcher_meta(pitcher_id: int) -> dict:
     """Pull handedness from Stats API."""
     try:
@@ -308,6 +378,8 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "",
     if not stats:
         return _default_sp(pitcher_id, opp_team, umpire)
 
+    fi_data = _sp_first_inning_era(pitcher_id, stats.get("era", 4.35)) if pitcher_id else {}
+
     hand = meta.get("hand", "R")
     era  = stats.get("era", 4.35)
     k9   = stats.get("k9", 8.5)
@@ -364,6 +436,10 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "",
         "velocity_decline":     last3.get("velocity_decline", False),
         "velocity_injury_risk": last3.get("velocity_injury_risk", False),
         "k9_trend_10s":         last3.get("k9_trend_10s", 0.0),
+        # First inning performance
+        "first_inning_era":    fi_data.get("first_inning_era"),
+        "fi_n_starts":         fi_data.get("fi_n_starts"),
+        "yrfi_lean":           fi_data.get("yrfi_lean", False),
     }
 
 
@@ -396,6 +472,9 @@ def _default_sp(pitcher_id, opp_team, umpire) -> dict:
         "velocity_decline": False,
         "velocity_injury_risk": False,
         "k9_trend_10s":     0.0,
+        "first_inning_era":    None,
+        "fi_n_starts":         None,
+        "yrfi_lean":           False,
     }
 
 

@@ -51,6 +51,7 @@ from bet_type_validator import (
     validate_bet, BetValidationError, day_classification,
     MAX_LOCKS_PER_DAY, MAX_FLIPS_PER_DAY, MAX_PROPS_PER_DAY,
 )
+from h2h_engine import get_h2h_stats
 from intelligence_engine import (
     sp_regression_flags, offense_regression_flags, bullpen_regression_flags,
     get_injury_flags, format_injury_section,
@@ -93,7 +94,7 @@ PUBLIC_CHANNEL_ID = os.getenv("TELEGRAM_PUBLIC_CHANNEL_ID", "")
 DRY_RUN   = "--test" in sys.argv
 
 # Minimum edge to recommend
-MIN_EDGE_PCT = 3.0
+MIN_EDGE_PCT = 5.0
 # Minimum Pythagorean probability to include in output
 MIN_PROB     = 0.52
 
@@ -233,6 +234,17 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         ml_total = ml_nrfi_p = None
         ml_conf  = "pythagorean"
 
+    # ── H2H historical matchup (10% weight) ─────────────────────────────────
+    h2h = {}
+    try:
+        if away_tid and home_tid:
+            h2h = get_h2h_stats(away_tid, home_tid)
+            if h2h.get("h2h_available"):
+                away_model_p = round(0.90 * away_model_p + 0.10 * h2h["away_win_rate"], 4)
+                home_model_p = round(0.90 * home_model_p + 0.10 * h2h["home_win_rate"], 4)
+    except Exception:
+        pass
+
     # Memory calibration
     away_model_p = recalibrate_model_prob(away_model_p)
     home_model_p = recalibrate_model_prob(home_model_p)
@@ -364,6 +376,28 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
           f"{home_sp_name}={home_r3_str}{home_xfip_str}{' ['+','.join(home_sp_flags)+']' if home_sp_flags else ''}")
     if away_sc_str or home_sc_str:
         print(f"  Statcast: {away_sp_name}: {away_sc_str or 'N/A'}  |  {home_sp_name}: {home_sc_str or 'N/A'}")
+    # Platoon matchup vs today's SP
+    away_plat_edge = away_off.get("platoon_edge", 0)
+    home_plat_edge = home_off.get("platoon_edge", 0)
+    away_plat_flag = " ⚡PLATOON_ADV" if away_off.get("strong_platoon_advantage") else (
+                     " ⚠PLATOON_DIS" if away_off.get("strong_platoon_disadvantage") else "")
+    home_plat_flag = " ⚡PLATOON_ADV" if home_off.get("strong_platoon_advantage") else (
+                     " ⚠PLATOON_DIS" if home_off.get("strong_platoon_disadvantage") else "")
+    if away_plat_flag or home_plat_flag:
+        print(f"  Platoon vs SP: {away_code}={away_plat_edge:+.0f}wRC+{away_plat_flag}  "
+              f"{home_code}={home_plat_edge:+.0f}wRC+{home_plat_flag}")
+
+    # SP first inning ERA / YRFI lean
+    _fi_parts = []
+    if away_sp.get("yrfi_lean"):
+        fi = away_sp.get("first_inning_era", "?")
+        _fi_parts.append(f"{away_sp_name} YRFI_LEAN fi_ERA={fi}")
+    if home_sp.get("yrfi_lean"):
+        fi = home_sp.get("first_inning_era", "?")
+        _fi_parts.append(f"{home_sp_name} YRFI_LEAN fi_ERA={fi}")
+    if _fi_parts:
+        print(f"  1st-inning: {' | '.join(_fi_parts)}")
+
     # Bullpen fatigue
     away_bp_str = f"{away_bp['fatigue_tier']}({away_bp['avg_fatigue']:.1f})"
     home_bp_str = f"{home_bp['fatigue_tier']}({home_bp['avg_fatigue']:.1f})"
@@ -500,6 +534,19 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         "home_momentum":  home_momentum,
         # Game time ET (for picks format and primetime detection)
         "game_time_et":   _parse_game_time_et(event.get("commence_utc", "")),
+        "h2h":          h2h,
+        "away_recent_win_pct":  away_off.get("recent_win_pct", 0.5),
+        "home_recent_win_pct":  home_off.get("recent_win_pct", 0.5),
+        # Platoon matchup edge flags
+        "away_strong_platoon_adv":  away_off.get("strong_platoon_advantage", False),
+        "home_strong_platoon_adv":  home_off.get("strong_platoon_advantage", False),
+        "away_platoon_edge":        away_off.get("platoon_edge", 0.0),
+        "home_platoon_edge":        home_off.get("platoon_edge", 0.0),
+        # SP first inning ERA
+        "away_sp_yrfi_lean":   away_sp.get("yrfi_lean", False),
+        "home_sp_yrfi_lean":   home_sp.get("yrfi_lean", False),
+        "away_sp_fi_era":      away_sp.get("first_inning_era"),
+        "home_sp_fi_era":      home_sp.get("first_inning_era"),
     }
 
 
@@ -583,6 +630,48 @@ def _narrative_flags(market: dict, away_nv: float, home_nv: float) -> dict:
         })
 
     return {"flags": flags}
+
+
+def _confidence_score(analysis: dict, side: str) -> int:
+    """
+    0-100 confidence score combining: edge strength 30%, data completeness 25%,
+    model decisiveness 20%, recent form 15%, H2H 10%.
+    Only bets ≥60 are recommended.
+    """
+    edge    = analysis.get(f"{side}_edge", 0)
+    model_p = analysis.get(f"{side}_model_p", 0.5)
+
+    # 1. Edge strength (0-30): 0 at 5%, 30 at 15%+
+    edge_score = min(max((edge - 5.0) * 3.0, 0.0), 30.0)
+
+    # 2. Data completeness (0-25)
+    data_score = 0.0
+    if analysis.get(f"{side}_lineup_confirmed"):
+        data_score += 10
+    sp = analysis.get(f"{side}_sp") or {}
+    if not sp.get("sp_missing") and sp.get("name", "TBD") not in ("TBD", "", None):
+        data_score += 7
+    sc_str = analysis.get(f"{side}_sp_statcast", "")
+    if sc_str and "[2025]" not in sc_str:   # real 2026 Statcast
+        data_score += 8
+
+    # 3. Model decisiveness (0-20): further from 50/50 = more confident
+    model_score = min(abs(model_p - 0.5) * 40, 20.0)
+
+    # 4. Recent form (0-15): recent win rate (7d)
+    recent_win = analysis.get(f"{side}_recent_win_pct", 0.5)
+    form_score = recent_win * 15.0
+
+    # 5. H2H (0-10)
+    h2h = analysis.get("h2h") or {}
+    if h2h.get("h2h_available"):
+        h2h_win = h2h.get(f"{'away' if side == 'away' else 'home'}_win_rate", 0.5)
+        h2h_score = h2h_win * 10.0
+    else:
+        h2h_score = 5.0   # neutral when no H2H data
+
+    total = round(edge_score + data_score + model_score + form_score + h2h_score)
+    return min(max(total, 0), 100)
 
 
 def _conviction(edge_pct: float, model_p: float, bp: dict, market: dict) -> str:
@@ -956,12 +1045,34 @@ def _daily_bet_slip(
     # Best bet of the day (highest edge among all picks)
     _all_picks = [(a, s) for a, s in locks + flips]
     if _all_picks:
-        _best_a, _best_s = max(_all_picks, key=lambda x: x[0].get(f"{x[1]}_edge", 0))
-        _best_team  = _best_a.get(f"{_best_s}_name", "")
-        _best_edge  = _best_a.get(f"{_best_s}_edge", 0)
-        _best_odds  = _best_a.get(f"best_{_best_s}_odds", "")
+        _best_a, _best_s = max(_all_picks, key=lambda x: x[0].get(f"{x[1]}_confidence_score", 0))
+        _best_team   = _best_a.get(f"{_best_s}_name", "")
+        _best_edge   = _best_a.get(f"{_best_s}_edge", 0)
+        _best_conf   = _best_a.get(f"{_best_s}_confidence_score", 0)
+        _best_odds   = _best_a.get(f"best_{_best_s}_odds", "")
         _best_odds_s = (f"+{_best_odds}" if isinstance(_best_odds, int) and _best_odds > 0 else str(_best_odds or ""))
-        p1.append(f"⭐ BEST BET: {_best_team} ML {_best_odds_s} — EDGE: +{_best_edge:.1f}%")
+        _opp_s       = "home" if _best_s == "away" else "away"
+        _opp_sp      = (_best_a.get(f"{_opp_s}_sp") or {})
+        _best_off    = (_best_a.get(f"{_best_s}_off") or {})
+        # Two-sentence plain English explanation
+        _r1 = f"Model gives {_best_team} a +{_best_edge:.1f}% edge with {_best_conf}/100 confidence score"
+        _osp_name = _opp_sp.get("name", "")
+        _osp_xfip = _opp_sp.get("xfip")
+        _plat_adv = _best_a.get(f"{_best_s}_strong_platoon_adv", False)
+        _h2h      = (_best_a.get("h2h") or {})
+        _h2h_wr   = _h2h.get(f"{_best_s}_win_rate") if _h2h.get("h2h_available") else None
+        if _osp_xfip and _osp_name and not _opp_sp.get("sp_missing"):
+            if _osp_xfip < 4.0:
+                _r2 = f"Facing {_osp_name} (xFIP {_osp_xfip:.2f}) who allows hard contact — run support expected."
+            else:
+                _r2 = f"Opposing {_osp_name} carries ERA-to-xFIP regression risk and weakening peripherals."
+        elif _plat_adv:
+            _r2 = f"Strong platoon advantage ({_best_a.get(f'{_best_s}_platoon_edge', 0):+.0f} wRC+ pts) favors this lineup today."
+        elif _h2h_wr is not None:
+            _r2 = f"H2H history shows {_best_team} wins {_h2h_wr:.0%} of matchups in this series."
+        else:
+            _r2 = f"Recent form and market inefficiency both point toward this play."
+        p1.append(f"⭐ BEST BET TODAY: {_best_team} ML {_best_odds_s} — {_r1}. {_r2}")
         p1.append("")
 
     p1.append(f"🔒 LOCKS ({n_locks} — HIGH conviction 10%+ edge):")
@@ -973,7 +1084,8 @@ def _daily_bet_slip(
             team   = analysis.get(f"{side}_name", "")
             game   = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
             odds_s = (f"+{odds}" if isinstance(odds, int) and odds > 0 else str(odds or ""))
-            p1.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}%")
+            conf = analysis.get(f"{side}_confidence_score", 0)
+            p1.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}% — CONF: {conf}/100")
     else:
         p1.append("  None today")
     p1.append("")
@@ -987,7 +1099,8 @@ def _daily_bet_slip(
             team   = analysis.get(f"{side}_name", "")
             game   = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
             odds_s = (f"+{odds}" if isinstance(odds, int) and odds > 0 else str(odds or ""))
-            p1.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}%")
+            conf = analysis.get(f"{side}_confidence_score", 0)
+            p1.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}% — CONF: {conf}/100")
     elif not day_cls["ml_allowed"]:
         p1.append("  🔴 RED day — no ML bets")
     else:
@@ -1362,7 +1475,12 @@ def _should_recommend(game: dict, side: str, bet_type: str = "ML") -> bool:
         print(f"  PASS {team}: drawdown {dd['pct']:.1f}% — props only mode (ML blocked)")
         return False
 
-    print(f"  BET  {team}: edge {edge:+.1f}% model={model:.3f} nv={nv:.3f} stake=${stake:.2f} [{conv}]")
+    confidence = game.get(f"{side}_confidence_score", 0)
+    if confidence < 60:
+        print(f"  PASS {team}: confidence {confidence}/100 < 60 threshold")
+        return False
+
+    print(f"  BET  {team}: edge {edge:+.1f}% model={model:.3f} nv={nv:.3f} stake=${stake:.2f} [{conv}] conf={confidence}/100")
     return True
 
 
@@ -1433,6 +1551,28 @@ def _format_bet_message(game: dict, side: str) -> str:
             val  = s.get("shap_val", 0)
             parts.append(f"{feat} {'+' if val > 0 else ''}{val*100:.1f}%")
         lines.append(f"Why: {' | '.join(parts)}")
+
+    # Platoon edge flag
+    opp_s = "home" if side == "away" else "away"
+    plat_edge = game.get(f"{side}_platoon_edge", 0)
+    strong_adv = game.get(f"{side}_strong_platoon_adv", False)
+    strong_dis = abs(plat_edge) >= 15 and not strong_adv
+    if strong_adv:
+        lines.append(f"⚡ Platoon edge: +{plat_edge:.0f} wRC+ vs today's SP")
+    elif strong_dis:
+        lines.append(f"⚠ Platoon disadvantage: {plat_edge:.0f} wRC+ vs today's SP")
+
+    # YRFI lean from SP first inning ERA
+    sp_key = f"{side}_sp"
+    sp_data = game.get(sp_key) or {}
+    if sp_data.get("yrfi_lean"):
+        fi_era = sp_data.get("first_inning_era", "?")
+        sea_era = sp_data.get("era", "?")
+        lines.append(f"⚠ Opp SP 1st-inn ERA {fi_era} vs season {sea_era} — YRFI lean")
+
+    # Confidence score
+    conf = game.get(f"{side}_confidence_score", 0)
+    lines.append(f"Confidence: {conf}/100")
 
     # Regression / intelligence flags
     reg_flags = game.get("reg_flags", [])
@@ -1930,6 +2070,17 @@ def run_daily_scout():
         away_n = event.get("away", "?")
         home_n = event.get("home", "?")
         print(f"\n--- Analyzing: {away_n} @ {home_n} ---")
+        # 2-hour filter: never bet on games starting within 2 hours
+        _commence = event.get("commence_utc", "")
+        if _commence:
+            try:
+                _game_dt = datetime.fromisoformat(_commence.replace("Z", "+00:00"))
+                _hours_until = (_game_dt - datetime.now(pytz.utc)).total_seconds() / 3600
+                if _hours_until < 2.0:
+                    print(f"  SKIP: game starts in {_hours_until:.1f}h (< 2h) — lineup/SP still volatile")
+                    continue
+            except Exception:
+                pass
         try:
             analysis = analyze_game(event, today)
         except Exception as e:
@@ -1940,6 +2091,10 @@ def run_daily_scout():
         if analysis is None:
             print(f"  SKIP {away_n} @ {home_n}: no market data or unrecognised team code")
             continue
+
+        # Compute confidence scores for both sides
+        for _cs_side in ("away", "home"):
+            analysis[f"{_cs_side}_confidence_score"] = _confidence_score(analysis, _cs_side)
 
         scout_out["games"].append({
             "away":       analysis["away"],
