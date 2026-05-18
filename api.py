@@ -33,12 +33,12 @@ def _calc_bankroll(bets):
     for b in bets:
         result = b.get("result")
         stake  = float(b.get("stake") or 0)
-        if result == "W":
+        if result == "win":
             dec = american_to_decimal(str(b.get("bet_odds", "")))
             if dec:
                 current += (dec - 1) * stake
             peak = max(peak, current)
-        elif result == "L":
+        elif result == "loss":
             current -= stake
     pending_stakes = sum(float(b.get("stake") or 0) for b in bets if not b.get("result"))
     current = round(current - pending_stakes, 2)
@@ -53,11 +53,11 @@ def _today_pnl(bets):
             continue
         result = b.get("result")
         stake  = float(b.get("stake") or 0)
-        if result == "W":
+        if result == "win":
             dec = american_to_decimal(str(b.get("bet_odds", "")))
             if dec:
                 pnl += (dec - 1) * stake
-        elif result == "L":
+        elif result == "loss":
             pnl -= stake
     return round(pnl, 2)
 
@@ -157,9 +157,9 @@ def api_bankroll():
         drawdown_pct  = round((peak - current) / peak * 100, 1) if peak > 0 else 0.0
     today = datetime.now(ET).strftime("%Y-%m-%d")
     today_bets    = [b for b in bets if b.get("date") == today]
-    resolved      = [b for b in bets if b.get("result") in ("W", "L", "P")]
-    wins          = sum(1 for b in resolved if b["result"] == "W")
-    losses        = sum(1 for b in resolved if b["result"] == "L")
+    resolved      = [b for b in bets if b.get("result") in ("win", "loss", "push")]
+    wins          = sum(1 for b in resolved if b["result"] == "win")
+    losses        = sum(1 for b in resolved if b["result"] == "loss")
     pending_today = [b for b in today_bets if not b.get("result")]
     return jsonify({
         "starting":      STARTING_BANKROLL,
@@ -255,9 +255,9 @@ def api_summary():
     today_bets = [b for b in bets if b.get("date") == date]
 
     daily_pnl = _today_pnl(bets)
-    resolved  = [b for b in bets if b.get("result") in ("W", "L", "P")]
-    wins   = sum(1 for b in resolved if b["result"] == "W")
-    losses = sum(1 for b in resolved if b["result"] == "L")
+    resolved  = [b for b in bets if b.get("result") in ("win", "loss", "push")]
+    wins   = sum(1 for b in resolved if b["result"] == "win")
+    losses = sum(1 for b in resolved if b["result"] == "loss")
 
     current, _ = _calc_bankroll(bets)
     total_wagered = sum(float(b.get("stake") or 0) for b in bets)
@@ -290,20 +290,20 @@ def record_page():
 @app.route("/api/record")
 def api_record():
     bets     = _db.get_bets()
-    resolved = [b for b in bets if b.get("result") in ("W", "L", "P")]
-    wins     = sum(1 for b in resolved if b["result"] == "W")
-    losses   = sum(1 for b in resolved if b["result"] == "L")
-    pushes   = sum(1 for b in resolved if b["result"] == "P")
+    resolved = [b for b in bets if b.get("result") in ("win", "loss", "push")]
+    wins     = sum(1 for b in resolved if b["result"] == "win")
+    losses   = sum(1 for b in resolved if b["result"] == "loss")
+    pushes   = sum(1 for b in resolved if b["result"] == "push")
 
-    total_wagered = sum(float(b.get("stake") or 0) for b in resolved if b["result"] != "P")
+    total_wagered = sum(float(b.get("stake") or 0) for b in resolved if b["result"] != "push")
     total_pnl = 0.0
     for b in resolved:
         stake = float(b.get("stake") or 0)
-        if b["result"] == "W":
+        if b["result"] == "win":
             dec = american_to_decimal(str(b.get("bet_odds", "")))
             if dec:
                 total_pnl += (dec - 1) * stake
-        elif b["result"] == "L":
+        elif b["result"] == "loss":
             total_pnl -= stake
     roi = (total_pnl / total_wagered * 100) if total_wagered > 0 else 0.0
 
@@ -315,9 +315,9 @@ def api_record():
         conv = (b.get("conviction") or "MANUAL").strip().upper()
         rec = by_conviction.setdefault(conv, {"wins": 0, "losses": 0, "pushes": 0, "total": 0})
         rec["total"] += 1
-        if b["result"] == "W":
+        if b["result"] == "win":
             rec["wins"] += 1
-        elif b["result"] == "L":
+        elif b["result"] == "loss":
             rec["losses"] += 1
         else:
             rec["pushes"] += 1
@@ -331,9 +331,9 @@ def api_record():
         btype = "TOTAL" if raw and raw[0] in ("O", "U") else raw
         rec = by_type.setdefault(btype, {"wins": 0, "losses": 0, "total": 0})
         rec["total"] += 1
-        if b["result"] == "W":
+        if b["result"] == "win":
             rec["wins"] += 1
-        elif b["result"] == "L":
+        elif b["result"] == "loss":
             rec["losses"] += 1
     for btype, rec in by_type.items():
         t = rec["total"]
@@ -351,13 +351,13 @@ def api_record():
         })
         rec["total"] += 1
         stake = float(b.get("stake") or 0)
-        if b["result"] == "W":
+        if b["result"] == "win":
             rec["wins"] += 1
             dec = american_to_decimal(str(b.get("bet_odds", "")))
             if dec:
                 rec["pnl"] += (dec - 1) * stake
             rec["wagered"] += stake
-        elif b["result"] == "L":
+        elif b["result"] == "loss":
             rec["losses"] += 1
             rec["pnl"] -= stake
             rec["wagered"] += stake
@@ -373,7 +373,7 @@ def api_record():
     sorted_resolved = sorted(resolved, key=lambda x: x.get("timestamp") or "", reverse=True)
     win_streak = 0
     for b in sorted_resolved:
-        if b["result"] == "W":
+        if b["result"] == "win":
             win_streak += 1
         else:
             break
