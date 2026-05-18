@@ -309,16 +309,19 @@ def api_record():
     clv_stats = clv_stats_summary(clv_log)
 
     by_conviction: dict = {}
-    for conv in ("HIGH", "MEDIUM", "MANUAL"):
-        cb = [b for b in resolved if (b.get("conviction") or "MANUAL").upper() == conv]
-        if cb:
-            cw = sum(1 for b in cb if b["result"] == "W")
-            cl = sum(1 for b in cb if b["result"] == "L")
-            by_conviction[conv] = {
-                "wins":     cw,
-                "losses":   cl,
-                "win_rate": round(cw / len(cb) * 100, 1),
-            }
+    for b in resolved:
+        conv = (b.get("conviction") or "MANUAL").strip().upper()
+        rec = by_conviction.setdefault(conv, {"wins": 0, "losses": 0, "pushes": 0, "total": 0})
+        rec["total"] += 1
+        if b["result"] == "W":
+            rec["wins"] += 1
+        elif b["result"] == "L":
+            rec["losses"] += 1
+        else:
+            rec["pushes"] += 1
+    for rec in by_conviction.values():
+        wl = rec["wins"] + rec["losses"]
+        rec["win_rate"] = round(rec["wins"] / wl * 100, 1) if wl > 0 else None
 
     by_type: dict = {}
     for b in resolved:
