@@ -179,27 +179,29 @@ def api_bankroll():
 
 @app.route("/api/stats")
 def api_stats():
-    bets    = _db.get_bets()
-    settled = [b for b in bets if b.get("result") in ("W", "L", "P")]
-    wins    = sum(1 for b in settled if b["result"] == "W")
-    losses  = sum(1 for b in settled if b["result"] == "L")
-    pushes  = sum(1 for b in settled if b["result"] == "P")
+    with _db._conn() as conn:
+        wins   = conn.execute("SELECT COUNT(*) FROM bets WHERE result='win'").fetchone()[0]
+        losses = conn.execute("SELECT COUNT(*) FROM bets WHERE result='loss'").fetchone()[0]
+        pushes = conn.execute("SELECT COUNT(*) FROM bets WHERE result='push'").fetchone()[0]
+        rows   = conn.execute(
+            "SELECT bet_odds, stake, result FROM bets WHERE result IN ('win','loss')"
+        ).fetchall()
 
     total_profit  = 0.0
     total_wagered = 0.0
-    for b in settled:
-        stake = float(b.get("stake") or 0)
-        if b["result"] == "W":
-            dec = american_to_decimal(str(b.get("bet_odds", "")))
+    for bet_odds, stake, result in rows:
+        stake = float(stake or 0)
+        if result == "win":
+            dec = american_to_decimal(str(bet_odds or ""))
             if dec:
                 total_profit += (dec - 1) * stake
             total_wagered += stake
-        elif b["result"] == "L":
+        elif result == "loss":
             total_profit -= stake
             total_wagered += stake
 
     return jsonify({
-        "total_bets":   len(settled),
+        "total_bets":   wins + losses + pushes,
         "wins":         wins,
         "losses":       losses,
         "pushes":       pushes,
