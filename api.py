@@ -157,7 +157,7 @@ def api_bankroll():
         drawdown_pct  = round((peak - current) / peak * 100, 1) if peak > 0 else 0.0
     today = datetime.now(ET).strftime("%Y-%m-%d")
     today_bets    = [b for b in bets if b.get("date") == today]
-    resolved      = [b for b in bets if b.get("result") in ("W", "L")]
+    resolved      = [b for b in bets if b.get("result") in ("W", "L", "P")]
     wins          = sum(1 for b in resolved if b["result"] == "W")
     losses        = sum(1 for b in resolved if b["result"] == "L")
     pending_today = [b for b in today_bets if not b.get("result")]
@@ -169,11 +169,44 @@ def api_bankroll():
         "today_pnl":     _today_pnl(bets),
         "wins":          wins,
         "losses":        losses,
-        "win_rate":      round(wins / len(resolved) * 100, 1) if resolved else None,
-        "total_bets":    len(bets),
+        "win_rate":      round(wins / (wins + losses) * 100, 1) if (wins + losses) > 0 else None,
+        "total_bets":    len(resolved),
         "pending_count": len(pending_today),
         "bets":          bets,
         "bankroll_source": "override" if override else "calculated",
+    })
+
+
+@app.route("/api/stats")
+def api_stats():
+    bets    = _db.get_bets()
+    settled = [b for b in bets if b.get("result") in ("W", "L", "P")]
+    wins    = sum(1 for b in settled if b["result"] == "W")
+    losses  = sum(1 for b in settled if b["result"] == "L")
+    pushes  = sum(1 for b in settled if b["result"] == "P")
+
+    total_profit  = 0.0
+    total_wagered = 0.0
+    for b in settled:
+        stake = float(b.get("stake") or 0)
+        if b["result"] == "W":
+            dec = american_to_decimal(str(b.get("bet_odds", "")))
+            if dec:
+                total_profit += (dec - 1) * stake
+            total_wagered += stake
+        elif b["result"] == "L":
+            total_profit -= stake
+            total_wagered += stake
+
+    return jsonify({
+        "total_bets":   len(settled),
+        "wins":         wins,
+        "losses":       losses,
+        "pushes":       pushes,
+        "total_profit": round(total_profit, 2),
+        "win_rate":     round(wins / (wins + losses) * 100, 1) if (wins + losses) > 0 else None,
+        "roi":          round(total_profit / total_wagered * 100, 2) if total_wagered > 0 else None,
+        "starting":     STARTING_BANKROLL,
     })
 
 
