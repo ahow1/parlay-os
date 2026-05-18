@@ -200,6 +200,15 @@ def init_db():
                 conn.execute(ddl)
             except sqlite3.OperationalError:
                 pass  # column already exists
+        conn.execute("""
+            UPDATE bets
+            SET profit = CASE
+                WHEN result='win'  THEN stake
+                WHEN result='loss' THEN -stake
+                ELSE 0
+            END
+            WHERE profit IS NULL OR profit = 0
+        """)
     _ensure_bets_unique_index()
 
 
