@@ -180,11 +180,12 @@ def api_bankroll():
 @app.route("/api/stats")
 def api_stats():
     with _db._conn() as conn:
-        wins          = conn.execute("SELECT COUNT(*) FROM bets WHERE result='win'").fetchone()[0]
-        losses        = conn.execute("SELECT COUNT(*) FROM bets WHERE result='loss'").fetchone()[0]
-        pushes        = conn.execute("SELECT COUNT(*) FROM bets WHERE result='push'").fetchone()[0]
-        total_profit  = conn.execute("SELECT COALESCE(SUM(profit),0) FROM bets WHERE result IN ('win','loss','push')").fetchone()[0]
-        total_wagered = conn.execute("SELECT COALESCE(SUM(stake),0) FROM bets WHERE result IN ('win','loss')").fetchone()[0]
+        wins   = conn.execute("SELECT COUNT(*) FROM bets WHERE result='win'").fetchone()[0]
+        losses = conn.execute("SELECT COUNT(*) FROM bets WHERE result='loss'").fetchone()[0]
+        pushes = conn.execute("SELECT COUNT(*) FROM bets WHERE result='push'").fetchone()[0]
+
+    total_profit = float(os.environ.get("BANKROLL_OVERRIDE", 150)) - 150.0
+    roi          = round(total_profit / 150.0 * 100, 2)
 
     return jsonify({
         "total_bets":   wins + losses + pushes,
@@ -193,7 +194,7 @@ def api_stats():
         "pushes":       pushes,
         "total_profit": round(total_profit, 2),
         "win_rate":     round(wins / (wins + losses) * 100, 1) if (wins + losses) > 0 else None,
-        "roi":          round(total_profit / total_wagered * 100, 2) if total_wagered > 0 else None,
+        "roi":          roi,
         "starting":     STARTING_BANKROLL,
     })
 
