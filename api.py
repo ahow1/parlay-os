@@ -46,19 +46,14 @@ def _calc_bankroll(bets):
 
 
 def _today_pnl(bets):
-    today = datetime.now(ET).strftime("%Y-%m-%d")
+    import datetime as _dt
+    today = _dt.date.today().isoformat()
     pnl = 0.0
     for b in bets:
         if b.get("date") != today:
             continue
-        result = b.get("result")
-        stake  = float(b.get("stake") or 0)
-        if result == "win":
-            dec = american_to_decimal(str(b.get("bet_odds", "")))
-            if dec:
-                pnl += (dec - 1) * stake
-        elif result == "loss":
-            pnl -= stake
+        if b.get("result") in ("win", "loss", "push"):
+            pnl += float(b.get("profit") or 0)
     return round(pnl, 2)
 
 
@@ -98,20 +93,35 @@ def _enrich_and_supplement_scout(data: dict) -> dict:
     today = datetime.now(ET).strftime("%Y-%m-%d")
     if not data.get("bets") and data.get("date") == today:
         db_bets = _db.get_bets(date=today)
-        data["bets"] = [
-            {
-                "team":        b.get("bet"),
-                "game":        b.get("game"),
-                "odds":        b.get("bet_odds"),
-                "model_prob":  b.get("model_prob"),
-                "market_prob": b.get("market_prob"),
-                "edge_pct":    b.get("edge_pct"),
-                "stake":       b.get("stake"),
-                "conviction":  b.get("conviction"),
-                "sp":          b.get("sp"),
-            }
-            for b in db_bets
-        ]
+        rows = []
+        for b in db_bets:
+            model_prob  = b.get("model_prob")
+            market_prob = b.get("market_prob")
+            edge_pct    = b.get("edge_pct")
+            # Compute edge from probs if stored value is missing or placeholder
+            if (not edge_pct or edge_pct == 5.0) and model_prob and market_prob:
+                edge_pct = round((model_prob - market_prob) * 100, 1)
+            elif not edge_pct:
+                edge_pct = None
+            rows.append({
+                "team":             b.get("bet"),
+                "game":             b.get("game"),
+                "odds":             b.get("bet_odds"),
+                "model_prob":       model_prob,
+                "market_prob":      market_prob,
+                "edge_pct":         edge_pct,
+                "stake":            b.get("stake"),
+                "conviction":       b.get("conviction"),
+                "sp":               b.get("sp"),
+                "sp_era":           b.get("sp_era"),
+                "sp_xfip":          b.get("sp_xfip"),
+                "bullpen_tier":     b.get("bullpen_tier"),
+                "weather_adj":      b.get("weather_adj"),
+                "platoon_edge":     b.get("platoon_edge"),
+                "h2h":              b.get("h2h"),
+                "confidence_score": b.get("confidence_score"),
+            })
+        data["bets"] = rows
         data["_source"] = "db_supplement"
     return data
 
@@ -155,12 +165,16 @@ def api_bankroll():
     if not override:
         current, peak = _calc_bankroll(bets)
         drawdown_pct  = round((peak - current) / peak * 100, 1) if peak > 0 else 0.0
-    today = datetime.now(ET).strftime("%Y-%m-%d")
+    import datetime as _dt
+    today         = _dt.date.today().isoformat()
     today_bets    = [b for b in bets if b.get("date") == today]
     resolved      = [b for b in bets if b.get("result") in ("win", "loss", "push")]
     wins          = sum(1 for b in resolved if b["result"] == "win")
     losses        = sum(1 for b in resolved if b["result"] == "loss")
     pending_today = [b for b in today_bets if not b.get("result")]
+    starting      = STARTING_BANKROLL
+    bankroll      = float(os.environ.get("BANKROLL_OVERRIDE", starting))
+    roi           = round((bankroll - starting) / starting * 100, 2)
     return jsonify({
         "starting":      STARTING_BANKROLL,
         "current":       current,
@@ -170,6 +184,7 @@ def api_bankroll():
         "wins":          wins,
         "losses":        losses,
         "win_rate":      round(wins / (wins + losses) * 100, 1) if (wins + losses) > 0 else None,
+        "roi":           roi,
         "total_bets":    len(resolved),
         "pending_count": len(pending_today),
         "bets":          bets,
@@ -249,9 +264,9 @@ def api_summary():
     losses = sum(1 for b in resolved if b["result"] == "loss")
 
     current, _ = _calc_bankroll(bets)
-    total_wagered = sum(float(b.get("stake") or 0) for b in bets)
-    total_pnl = current - STARTING_BANKROLL
-    roi = (total_pnl / total_wagered * 100) if total_wagered > 0 else 0.0
+    bankroll  = float(os.environ.get("BANKROLL_OVERRIDE", STARTING_BANKROLL))
+    total_pnl = bankroll - STARTING_BANKROLL
+    roi       = total_pnl / STARTING_BANKROLL * 100
 
     clv_log   = _load_json("clv_log.json") or []
     clv_stats = clv_stats_summary(clv_log)
@@ -284,17 +299,10 @@ def api_record():
     losses   = sum(1 for b in resolved if b["result"] == "loss")
     pushes   = sum(1 for b in resolved if b["result"] == "push")
 
-    total_wagered = sum(float(b.get("stake") or 0) for b in resolved if b["result"] != "push")
-    total_pnl = 0.0
-    for b in resolved:
-        stake = float(b.get("stake") or 0)
-        if b["result"] == "win":
-            dec = american_to_decimal(str(b.get("bet_odds", "")))
-            if dec:
-                total_pnl += (dec - 1) * stake
-        elif b["result"] == "loss":
-            total_pnl -= stake
-    roi = (total_pnl / total_wagered * 100) if total_wagered > 0 else 0.0
+    starting     = STARTING_BANKROLL
+    bankroll     = float(os.environ.get("BANKROLL_OVERRIDE", starting))
+    total_pnl    = bankroll - starting
+    roi          = total_pnl / starting * 100
 
     clv_log   = _load_json("clv_log.json") or []
     clv_stats = clv_stats_summary(clv_log)
@@ -377,9 +385,11 @@ def api_record():
         bm = max(by_month.items(), key=lambda x: x[1]["roi"])
         best_month, best_month_roi = bm[0], bm[1]["roi"]
 
-    profit_bets = [b for b in resolved if b.get("profit") is not None]
-    best_bet  = max(profit_bets, key=lambda b: b["profit"], default=None)
-    worst_bet = min(profit_bets, key=lambda b: b["profit"], default=None)
+    with _db._conn() as conn:
+        _best  = conn.execute("SELECT bet, game, profit, date, bet_odds FROM bets WHERE profit IS NOT NULL ORDER BY profit DESC LIMIT 1").fetchone()
+        _worst = conn.execute("SELECT bet, game, profit, date, bet_odds FROM bets WHERE profit IS NOT NULL ORDER BY profit ASC LIMIT 1").fetchone()
+    best_bet  = dict(_best)  if _best  else None
+    worst_bet = dict(_worst) if _worst else None
 
     clv_vals = [b.get("clv_pct") for b in resolved if b.get("clv_pct") is not None]
     clv_positive_rate = (
@@ -406,14 +416,12 @@ def api_record():
             "best_month_roi": best_month_roi,
         },
         "best_bet":  {
-            "id": best_bet["id"], "bet": best_bet.get("bet"),
-            "date": best_bet.get("date"), "odds": best_bet.get("bet_odds"),
-            "profit": best_bet["profit"],
+            "bet": best_bet["bet"], "game": best_bet["game"],
+            "date": best_bet["date"], "profit": best_bet["profit"],
         } if best_bet else None,
         "worst_bet": {
-            "id": worst_bet["id"], "bet": worst_bet.get("bet"),
-            "date": worst_bet.get("date"), "odds": worst_bet.get("bet_odds"),
-            "profit": worst_bet["profit"],
+            "bet": worst_bet["bet"], "game": worst_bet["game"],
+            "date": worst_bet["date"], "profit": worst_bet["profit"],
         } if worst_bet else None,
         "picks": [
             {
@@ -609,6 +617,13 @@ def api_seed():
         from seed_bets import seed
         seed()
         with _db._conn() as conn:
+            conn.execute("""
+                UPDATE bets SET profit = CASE
+                    WHEN result='win'  THEN stake
+                    WHEN result='loss' THEN -stake
+                    ELSE 0
+                END WHERE profit IS NULL OR profit = 0
+            """)
             count = conn.execute("SELECT COUNT(*) FROM bets").fetchone()[0]
         return jsonify({"ok": True, "total_bets": count})
     except Exception as e:

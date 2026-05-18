@@ -477,11 +477,13 @@ function decOdds(odds){
   return n>0?(n/100+1):(100/Math.abs(n)+1);
 }
 function calcPnl(b){
+  if(b.profit!=null) return b.profit;
   const stake=parseFloat(b.stake||0);
   const odds=b.bet_odds||b.odds;
-  if(!b.result) return null;
-  if(b.result==='W') return Math.round((decOdds(odds)-1)*stake*100)/100;
-  if(b.result==='L') return -stake;
+  const r=(b.result||'').toLowerCase();
+  if(!r) return null;
+  if(r==='win'||r==='w') return Math.round((decOdds(odds)-1)*stake*100)/100;
+  if(r==='loss'||r==='l') return -stake;
   return 0;
 }
 function buildReason(b){
@@ -682,7 +684,7 @@ function renderPicks(){
   const ds=MO[now.getMonth()]+' '+now.getDate();
   if(!scout||(!scout.bets?.length&&!scout.games?.length)){
     gid('picks-title').textContent='0 Picks — '+ds;
-    grid.innerHTML='<div class="card" style="grid-column:1/-1"><div class="loading">No picks scouted yet. Run scout to generate picks.</div></div>';
+    grid.innerHTML='<div class="card" style="grid-column:1/-1"><div class="loading">Scout hasn\'t run today yet — check back after 1pm ET</div></div>';
     return;
   }
   const bets=[...( scout.bets||[])].sort((a,b)=>(b.edge_pct||0)-(a.edge_pct||0));
@@ -714,7 +716,7 @@ function renderPicks(){
         <span class="dl">Market</span><span class="dv">${b.market_prob!=null?(b.market_prob*100).toFixed(1)+'%':'—'}</span>
       </div>
       <div class="pc-er">
-        <div><span class="pc-edge">${b.edge_pct!=null?'+'+b.edge_pct.toFixed(1)+'%':'—'}</span><span class="muted" style="font-size:10px;margin-left:.2rem">EDGE</span></div>
+        <div><span class="pc-edge">${b.edge_pct!=null&&b.edge_pct!==5.0?'+'+b.edge_pct.toFixed(1)+'%':'N/A'}</span><span class="muted" style="font-size:10px;margin-left:.2rem">EDGE</span></div>
         <div class="pc-si"><div class="sv">$${b.stake!=null?parseFloat(b.stake).toFixed(2):'—'} stake</div><div class="muted">to win $${toWin}</div></div>
       </div>
       <div class="pc-reason">${buildReason(b)}</div>
@@ -960,24 +962,19 @@ function renderStats(){
     gid('j-cur-g').textContent=(cg>=0?'+':'')+cg.toFixed(1)+'%';
   }
 
-  // Best / Worst
-  const picks=rec.picks||[];
-  const allB=(S.br?.bets||[]);
-  const enriched=picks.map(p=>{
-    const db=allB.find(b=>b.id===p.id)||{};
-    return {...p,stake:p.stake||db.stake,_pnl:calcPnl({...p,...db,result:p.result})};
-  });
-  if(enriched.length){
-    const best=enriched.reduce((a,b)=>(a._pnl||0)>(b._pnl||0)?a:b,enriched[0]);
-    const worst=enriched.reduce((a,b)=>(a._pnl||0)<(b._pnl||0)?a:b,enriched[0]);
+  // Best / Worst — from API profit column
+  const best=rec.best_bet, worst=rec.worst_bet;
+  if(best){
     gid('st-best').innerHTML=`<div class="card-title">Best Bet Ever</div>
       <div class="mono" style="font-size:20px;font-weight:700">${best.bet||'—'}</div>
-      <div class="muted" style="font-size:11px;margin:.2rem 0">${fmtDate(best.date)} · ${fmtOdds(best.odds)}</div>
-      <div class="mono green" style="font-size:22px;font-weight:700;margin-top:.3rem">${pnlStr(best._pnl)}</div>`;
+      <div class="muted" style="font-size:11px;margin:.2rem 0">${fmtDate(best.date)} · ${best.game||'—'}</div>
+      <div class="mono green" style="font-size:22px;font-weight:700;margin-top:.3rem">+$${(best.profit||0).toFixed(2)}</div>`;
+  }
+  if(worst){
     gid('st-worst').innerHTML=`<div class="card-title">Worst Bet Ever</div>
       <div class="mono" style="font-size:20px;font-weight:700">${worst.bet||'—'}</div>
-      <div class="muted" style="font-size:11px;margin:.2rem 0">${fmtDate(worst.date)} · ${fmtOdds(worst.odds)}</div>
-      <div class="mono red" style="font-size:22px;font-weight:700;margin-top:.3rem">${pnlStr(worst._pnl)}</div>`;
+      <div class="muted" style="font-size:11px;margin:.2rem 0">${fmtDate(worst.date)} · ${worst.game||'—'}</div>
+      <div class="mono red" style="font-size:22px;font-weight:700;margin-top:.3rem">-$${Math.abs(worst.profit||0).toFixed(2)}</div>`;
   }
 
   // Monthly table
