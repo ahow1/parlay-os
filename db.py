@@ -125,7 +125,8 @@ def init_db():
             result       TEXT,
             game_score   TEXT,
             notes        TEXT,
-            verify_hash  TEXT
+            verify_hash  TEXT,
+            profit       REAL
         );
 
         CREATE TABLE IF NOT EXISTS bankroll_log (
@@ -189,12 +190,16 @@ def init_db():
             props_json  TEXT
         );
         """)
-    # Add verify_hash column to existing DBs that predate this schema
+    # Migrations for existing DBs that predate schema additions
     with _conn() as conn:
-        try:
-            conn.execute("ALTER TABLE bets ADD COLUMN verify_hash TEXT")
-        except sqlite3.OperationalError:
-            pass  # column already exists
+        for ddl in [
+            "ALTER TABLE bets ADD COLUMN verify_hash TEXT",
+            "ALTER TABLE bets ADD COLUMN profit REAL",
+        ]:
+            try:
+                conn.execute(ddl)
+            except sqlite3.OperationalError:
+                pass  # column already exists
     _ensure_bets_unique_index()
 
 

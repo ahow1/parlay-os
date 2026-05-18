@@ -180,25 +180,11 @@ def api_bankroll():
 @app.route("/api/stats")
 def api_stats():
     with _db._conn() as conn:
-        wins   = conn.execute("SELECT COUNT(*) FROM bets WHERE result='win'").fetchone()[0]
-        losses = conn.execute("SELECT COUNT(*) FROM bets WHERE result='loss'").fetchone()[0]
-        pushes = conn.execute("SELECT COUNT(*) FROM bets WHERE result='push'").fetchone()[0]
-        rows   = conn.execute(
-            "SELECT bet_odds, stake, result FROM bets WHERE result IN ('win','loss')"
-        ).fetchall()
-
-    total_profit  = 0.0
-    total_wagered = 0.0
-    for bet_odds, stake, result in rows:
-        stake = float(stake or 0)
-        if result == "win":
-            dec = american_to_decimal(str(bet_odds or ""))
-            if dec:
-                total_profit += (dec - 1) * stake
-            total_wagered += stake
-        elif result == "loss":
-            total_profit -= stake
-            total_wagered += stake
+        wins          = conn.execute("SELECT COUNT(*) FROM bets WHERE result='win'").fetchone()[0]
+        losses        = conn.execute("SELECT COUNT(*) FROM bets WHERE result='loss'").fetchone()[0]
+        pushes        = conn.execute("SELECT COUNT(*) FROM bets WHERE result='push'").fetchone()[0]
+        total_profit  = conn.execute("SELECT COALESCE(SUM(profit),0) FROM bets WHERE result IN ('win','loss','push')").fetchone()[0]
+        total_wagered = conn.execute("SELECT COALESCE(SUM(stake),0) FROM bets WHERE result IN ('win','loss')").fetchone()[0]
 
     return jsonify({
         "total_bets":   wins + losses + pushes,
