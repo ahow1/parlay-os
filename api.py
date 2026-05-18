@@ -184,8 +184,10 @@ def api_stats():
         losses = conn.execute("SELECT COUNT(*) FROM bets WHERE result='loss'").fetchone()[0]
         pushes = conn.execute("SELECT COUNT(*) FROM bets WHERE result='push'").fetchone()[0]
 
-    total_profit = float(os.environ.get("BANKROLL_OVERRIDE", 150)) - 150.0
-    roi          = round(total_profit / 150.0 * 100, 2)
+    starting     = STARTING_BANKROLL
+    bankroll     = float(os.environ.get("BANKROLL_OVERRIDE", starting))
+    total_profit = bankroll - starting
+    roi          = round(total_profit / starting * 100, 2)
 
     return jsonify({
         "total_bets":   wins + losses + pushes,
@@ -338,15 +340,14 @@ def api_record():
         })
         rec["total"] += 1
         stake = float(b.get("stake") or 0)
+        profit = float(b.get("profit") or 0)
         if b["result"] == "win":
             rec["wins"] += 1
-            dec = american_to_decimal(str(b.get("bet_odds", "")))
-            if dec:
-                rec["pnl"] += (dec - 1) * stake
+            rec["pnl"] += profit
             rec["wagered"] += stake
         elif b["result"] == "loss":
             rec["losses"] += 1
-            rec["pnl"] -= stake
+            rec["pnl"] += profit
             rec["wagered"] += stake
         else:
             rec["pushes"] += 1
@@ -376,6 +377,10 @@ def api_record():
         bm = max(by_month.items(), key=lambda x: x[1]["roi"])
         best_month, best_month_roi = bm[0], bm[1]["roi"]
 
+    profit_bets = [b for b in resolved if b.get("profit") is not None]
+    best_bet  = max(profit_bets, key=lambda b: b["profit"], default=None)
+    worst_bet = min(profit_bets, key=lambda b: b["profit"], default=None)
+
     clv_vals = [b.get("clv_pct") for b in resolved if b.get("clv_pct") is not None]
     clv_positive_rate = (
         round(sum(1 for v in clv_vals if v > 0) / len(clv_vals) * 100, 1)
@@ -400,6 +405,16 @@ def api_record():
             "best_month":     best_month,
             "best_month_roi": best_month_roi,
         },
+        "best_bet":  {
+            "id": best_bet["id"], "bet": best_bet.get("bet"),
+            "date": best_bet.get("date"), "odds": best_bet.get("bet_odds"),
+            "profit": best_bet["profit"],
+        } if best_bet else None,
+        "worst_bet": {
+            "id": worst_bet["id"], "bet": worst_bet.get("bet"),
+            "date": worst_bet.get("date"), "odds": worst_bet.get("bet_odds"),
+            "profit": worst_bet["profit"],
+        } if worst_bet else None,
         "picks": [
             {
                 "id":          b["id"],
@@ -410,6 +425,7 @@ def api_record():
                 "game":        b.get("game"),
                 "odds":        b.get("bet_odds"),
                 "result":      b.get("result"),
+                "profit":      b.get("profit"),
                 "conviction":  b.get("conviction"),
                 "edge_pct":    b.get("edge_pct"),
                 "clv_pct":     b.get("clv_pct"),
