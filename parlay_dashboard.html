@@ -614,7 +614,7 @@ function renderBestBet(){
   const scout=S.scout;
   const el=gid('bb-body');
   if(!scout||!scout.bets||!scout.bets.length){
-    el.innerHTML='<div class="loading">No picks scouted yet</div>'; return;
+    el.innerHTML='<div class="loading">'+(scout?.message||'No picks scouted yet')+'</div>'; return;
   }
   const bets=[...scout.bets].sort((a,b)=>(b.edge_pct||0)-(a.edge_pct||0));
   const b=bets[0];
@@ -626,7 +626,7 @@ function renderBestBet(){
     <div style="font-size:11px;color:var(--muted);margin:.2rem 0 .6rem">${b.game||'—'}</div>
     <div style="display:flex;gap:1.5rem;flex-wrap:wrap;font-size:12px">
       <span><div class="mono cyan" style="font-size:16px;font-weight:700">${fmtOdds(b.odds)}</div><div class="muted" style="font-size:9px">ODDS</div></span>
-      <span><div class="mono cyan" style="font-size:16px;font-weight:700">${b.edge_pct!=null?'+'+b.edge_pct.toFixed(1)+'%':'—'}</div><div class="muted" style="font-size:9px">EDGE</div></span>
+      <span><div class="mono cyan" style="font-size:16px;font-weight:700">${b.edge_pct!=null&&b.edge_pct!==5.0?'+'+b.edge_pct.toFixed(1)+'%':'N/A'}</div><div class="muted" style="font-size:9px">EDGE</div></span>
       <span><div class="mono" style="font-size:16px;font-weight:700">${b.confidence_score!=null?b.confidence_score:'—'}<span class="muted">/100</span></div><div class="muted" style="font-size:9px">CONF</div></span>
       <span><div class="mono" style="font-size:14px;font-weight:600">${b.sp||'—'}</div><div class="muted" style="font-size:9px">${era||'SP'}</div></span>
     </div>
@@ -684,7 +684,7 @@ function renderPicks(){
   const ds=MO[now.getMonth()]+' '+now.getDate();
   if(!scout||(!scout.bets?.length&&!scout.games?.length)){
     gid('picks-title').textContent='0 Picks — '+ds;
-    grid.innerHTML='<div class="card" style="grid-column:1/-1"><div class="loading">Scout hasn\'t run today yet — check back after 1pm ET</div></div>';
+    grid.innerHTML='<div class="card" style="grid-column:1/-1"><div class="loading">'+(scout?.message||'Scout hasn\'t run today yet — check back after 1pm ET')+'</div></div>';
     return;
   }
   const bets=[...( scout.bets||[])].sort((a,b)=>(b.edge_pct||0)-(a.edge_pct||0));

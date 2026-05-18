@@ -45,15 +45,16 @@ def _calc_bankroll(bets):
     return current, round(peak, 2)
 
 
-def _today_pnl(bets):
+def _utc_today() -> str:
     import datetime as _dt
-    today = _dt.date.today().isoformat()
-    pnl = 0.0
-    for b in bets:
-        if b.get("date") != today:
-            continue
-        if b.get("result") in ("win", "loss", "push"):
-            pnl += float(b.get("profit") or 0)
+    return _dt.datetime.utcnow().date().isoformat()
+
+
+def _today_pnl(bets):
+    today = _utc_today()
+    today_settled = [b for b in bets if b.get("date") == today and b.get("result") in ("win", "loss", "push")]
+    print(f"[today_pnl] utc_today={today} settled_count={len(today_settled)}")
+    pnl = sum(float(b.get("profit") or 0) for b in today_settled)
     return round(pnl, 2)
 
 
@@ -126,9 +127,11 @@ def _enrich_and_supplement_scout(data: dict) -> dict:
     return data
 
 
+NO_SCOUT_MSG = "Scout hasn't run today yet — check back after 1pm ET"
+
 @app.route("/api/scout")
 def api_scout():
-    today = datetime.now(ET).strftime("%Y-%m-%d")
+    today = _utc_today()
     # DB-first: scout run on Railway writes here, so dashboard reads fresh data
     row = _db.get_latest_scout_output(date=today)
     if row and row.get("scout_json"):
@@ -138,11 +141,12 @@ def api_scout():
             return jsonify(_enrich_and_supplement_scout(data))
         except Exception:
             pass
-    # Fallback to local file (Codespaces / dev)
+    # Fallback to local file — only use if it's from today
     data = _load_json("last_scout.json")
-    if data is None:
-        return jsonify({"error": "last_scout.json not found"}), 404
-    return jsonify(_enrich_and_supplement_scout(data))
+    if data and data.get("date") == today:
+        return jsonify(_enrich_and_supplement_scout(data))
+    # No today scout available
+    return jsonify({"bets": [], "games": [], "date": today, "message": NO_SCOUT_MSG})
 
 
 @app.route("/api/bets")
@@ -165,8 +169,7 @@ def api_bankroll():
     if not override:
         current, peak = _calc_bankroll(bets)
         drawdown_pct  = round((peak - current) / peak * 100, 1) if peak > 0 else 0.0
-    import datetime as _dt
-    today         = _dt.date.today().isoformat()
+    today         = _utc_today()
     today_bets    = [b for b in bets if b.get("date") == today]
     resolved      = [b for b in bets if b.get("result") in ("win", "loss", "push")]
     wins          = sum(1 for b in resolved if b["result"] == "win")
@@ -254,33 +257,30 @@ def api_clv():
 
 @app.route("/api/summary")
 def api_summary():
-    date = datetime.now(ET).strftime("%Y-%m-%d")
-    bets = _db.get_bets()
-    today_bets = [b for b in bets if b.get("date") == date]
+    today    = _utc_today()
+    bets     = _db.get_bets()
+    resolved = [b for b in bets if b.get("result") in ("win", "loss", "push")]
+    wins     = sum(1 for b in resolved if b["result"] == "win")
+    losses   = sum(1 for b in resolved if b["result"] == "loss")
 
-    daily_pnl = _today_pnl(bets)
-    resolved  = [b for b in bets if b.get("result") in ("win", "loss", "push")]
-    wins   = sum(1 for b in resolved if b["result"] == "win")
-    losses = sum(1 for b in resolved if b["result"] == "loss")
-
-    current, _ = _calc_bankroll(bets)
-    bankroll  = float(os.environ.get("BANKROLL_OVERRIDE", STARTING_BANKROLL))
-    total_pnl = bankroll - STARTING_BANKROLL
-    roi       = total_pnl / STARTING_BANKROLL * 100
+    bankroll      = float(os.environ.get("BANKROLL_OVERRIDE", STARTING_BANKROLL))
+    total_pnl     = bankroll - STARTING_BANKROLL
+    roi           = total_pnl / STARTING_BANKROLL * 100
+    total_wagered = sum(float(b.get("stake") or 0) for b in resolved if b["result"] != "push")
 
     clv_log   = _load_json("clv_log.json") or []
     clv_stats = clv_stats_summary(clv_log)
 
     return jsonify({
-        "date":             date,
-        "daily_pnl":        round(daily_pnl, 2),
-        "win_rate":         round(wins / len(resolved) * 100, 1) if resolved else None,
+        "date":             today,
+        "daily_pnl":        _today_pnl(bets),
+        "win_rate":         round(wins / (wins + losses) * 100, 1) if (wins + losses) > 0 else None,
         "wins":             wins,
         "losses":           losses,
         "avg_clv":          clv_stats.get("avg_clv"),
         "roi":              round(roi, 2),
-        "current_bankroll": current,
-        "total_bets":       len(bets),
+        "current_bankroll": bankroll,
+        "total_bets":       len(resolved),
         "total_resolved":   len(resolved),
         "total_wagered":    round(total_wagered, 2),
     })
@@ -336,34 +336,36 @@ def api_record():
         t = rec["total"]
         rec["win_rate"] = round(rec["wins"] / t * 100, 1) if t > 0 else None
 
-    # Monthly breakdown
+    # Monthly breakdown — SUM(profit) per month directly from DB
     by_month: dict = {}
-    for b in resolved:
-        month = (b.get("date") or "")[:7]
+    with _db._conn() as conn:
+        month_rows = conn.execute("""
+            SELECT strftime('%Y-%m', date) AS month,
+                   SUM(CASE WHEN result='win'  THEN 1 ELSE 0 END) AS wins,
+                   SUM(CASE WHEN result='loss' THEN 1 ELSE 0 END) AS losses,
+                   SUM(CASE WHEN result='push' THEN 1 ELSE 0 END) AS pushes,
+                   COUNT(*) AS total,
+                   COALESCE(SUM(profit), 0) AS pnl
+            FROM bets
+            WHERE result IN ('win','loss','push')
+            GROUP BY month
+            ORDER BY month
+        """).fetchall()
+    for row in month_rows:
+        month = row["month"]
         if not month:
             continue
-        rec = by_month.setdefault(month, {
-            "wins": 0, "losses": 0, "pushes": 0, "total": 0,
-            "pnl": 0.0, "wagered": 0.0,
-        })
-        rec["total"] += 1
-        stake = float(b.get("stake") or 0)
-        profit = float(b.get("profit") or 0)
-        if b["result"] == "win":
-            rec["wins"] += 1
-            rec["pnl"] += profit
-            rec["wagered"] += stake
-        elif b["result"] == "loss":
-            rec["losses"] += 1
-            rec["pnl"] += profit
-            rec["wagered"] += stake
-        else:
-            rec["pushes"] += 1
-    for rec in by_month.values():
-        rec["pnl"]      = round(rec["pnl"], 2)
-        rec["roi"]      = round(rec["pnl"] / rec["wagered"] * 100, 1) if rec["wagered"] > 0 else 0.0
-        wl = rec["wins"] + rec["losses"]
-        rec["win_rate"] = round(rec["wins"] / wl * 100, 1) if wl > 0 else None
+        pnl = round(float(row["pnl"]), 2)
+        wl  = (row["wins"] or 0) + (row["losses"] or 0)
+        by_month[month] = {
+            "wins":     row["wins"] or 0,
+            "losses":   row["losses"] or 0,
+            "pushes":   row["pushes"] or 0,
+            "total":    row["total"] or 0,
+            "pnl":      pnl,
+            "roi":      round(pnl / STARTING_BANKROLL * 100, 1),
+            "win_rate": round((row["wins"] or 0) / wl * 100, 1) if wl > 0 else None,
+        }
 
     # Social proof stats
     sorted_resolved = sorted(resolved, key=lambda x: x.get("timestamp") or "", reverse=True)
