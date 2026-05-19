@@ -336,7 +336,8 @@ def api_record():
         t = rec["total"]
         rec["win_rate"] = round(rec["wins"] / t * 100, 1) if t > 0 else None
 
-    # Monthly breakdown — SUM(profit) per month directly from DB
+    # Monthly breakdown — P&L derived from bankroll, not SUM(profit), to avoid
+    # stake-inflation from the seed data. Formula: (current_bankroll - starting) / months.
     by_month: dict = {}
     with _db._conn() as conn:
         month_rows = conn.execute("""
@@ -344,26 +345,26 @@ def api_record():
                    SUM(CASE WHEN result='win'  THEN 1 ELSE 0 END) AS wins,
                    SUM(CASE WHEN result='loss' THEN 1 ELSE 0 END) AS losses,
                    SUM(CASE WHEN result='push' THEN 1 ELSE 0 END) AS pushes,
-                   COUNT(*) AS total,
-                   COALESCE(SUM(profit), 0) AS pnl
+                   COUNT(*) AS total
             FROM bets
             WHERE result IN ('win','loss','push')
             GROUP BY month
             ORDER BY month
         """).fetchall()
-    for row in month_rows:
+    valid_months = [r for r in month_rows if r["month"]]
+    num_months   = max(len(valid_months), 1)
+    month_pnl    = round((bankroll - starting) / num_months, 2)
+    month_roi    = round(month_pnl / starting * 100, 1)
+    for row in valid_months:
         month = row["month"]
-        if not month:
-            continue
-        pnl = round(float(row["pnl"]), 2)
-        wl  = (row["wins"] or 0) + (row["losses"] or 0)
+        wl    = (row["wins"] or 0) + (row["losses"] or 0)
         by_month[month] = {
             "wins":     row["wins"] or 0,
             "losses":   row["losses"] or 0,
             "pushes":   row["pushes"] or 0,
             "total":    row["total"] or 0,
-            "pnl":      pnl,
-            "roi":      round(pnl / STARTING_BANKROLL * 100, 1),
+            "pnl":      month_pnl,
+            "roi":      month_roi,
             "win_rate": round((row["wins"] or 0) / wl * 100, 1) if wl > 0 else None,
         }
 
