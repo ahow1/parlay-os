@@ -94,9 +94,9 @@ PUBLIC_CHANNEL_ID = os.getenv("TELEGRAM_PUBLIC_CHANNEL_ID", "")
 DRY_RUN   = "--test" in sys.argv
 
 # Minimum edge to recommend
-MIN_EDGE_PCT = 5.0
+MIN_EDGE_PCT = 3.0
 # Minimum Pythagorean probability to include in output
-MIN_PROB     = 0.52
+MIN_PROB     = 0.48
 
 
 # ── PYTHAGOREAN WIN PROB ──────────────────────────────────────────────────────
@@ -677,11 +677,11 @@ def _confidence_score(analysis: dict, side: str) -> int:
 def _conviction(edge_pct: float, model_p: float, bp: dict, market: dict) -> str:
     if edge_pct < MIN_EDGE_PCT:
         return "PASS"
-    if edge_pct >= 10:
+    if edge_pct >= 7 and model_p >= 0.52:
         return "HIGH"
-    if edge_pct >= 5:
+    if edge_pct >= 4 and model_p >= 0.48:
         return "MEDIUM"
-    return "PASS"   # 3-5% edge → PASS tier (Kelly × 0.10, size as fill-in only)
+    return "PASS"
 
 
 # ── SGP FORMAT ───────────────────────────────────────────────────────────────
@@ -1075,7 +1075,7 @@ def _daily_bet_slip(
         p1.append(f"⭐ BEST BET TODAY: {_best_team} ML {_best_odds_s} — {_r1}. {_r2}")
         p1.append("")
 
-    p1.append(f"🔒 LOCKS ({n_locks} — HIGH conviction 10%+ edge):")
+    p1.append(f"🔒 LOCKS ({n_locks} — HIGH conviction 7%+ edge):")
     if locks:
         for analysis, side in locks:
             stake  = _ml_stake(analysis, side)
@@ -1090,7 +1090,7 @@ def _daily_bet_slip(
         p1.append("  None today")
     p1.append("")
 
-    p1.append(f"🪙 COIN FLIPS ({len(flips)} — MEDIUM conviction 5-10% edge):")
+    p1.append(f"🪙 COIN FLIPS ({len(flips)} — MEDIUM conviction 4-7% edge):")
     if flips and day_cls["ml_allowed"]:
         for analysis, side in flips:
             stake  = _ml_stake(analysis, side)
@@ -1476,8 +1476,9 @@ def _should_recommend(game: dict, side: str, bet_type: str = "ML") -> bool:
         return False
 
     confidence = game.get(f"{side}_confidence_score", 0)
-    if confidence < 60:
-        print(f"  PASS {team}: confidence {confidence}/100 < 60 threshold")
+    min_conf = 60 if conv == "HIGH" else 55
+    if confidence < min_conf:
+        print(f"  PASS {team}: confidence {confidence}/100 < {min_conf} threshold ({conv})")
         return False
 
     print(f"  BET  {team}: edge {edge:+.1f}% model={model:.3f} nv={nv:.3f} stake=${stake:.2f} [{conv}] conf={confidence}/100")
@@ -2076,8 +2077,8 @@ def run_daily_scout():
             try:
                 _game_dt = datetime.fromisoformat(_commence.replace("Z", "+00:00"))
                 _hours_until = (_game_dt - datetime.now(pytz.utc)).total_seconds() / 3600
-                if _hours_until < 2.0:
-                    print(f"  SKIP: game starts in {_hours_until:.1f}h (< 2h) — lineup/SP still volatile")
+                if _hours_until < 0.0:
+                    print(f"  SKIP: game starts in {_hours_until:.1f}h (< 0h) — lineup/SP still volatile")
                     continue
             except Exception:
                 pass
@@ -2334,7 +2335,7 @@ def run_daily_scout():
                         print(f"  SKIP totals {game_lbl} {direction}: model_p={model_p:.1%} ≥75% — λ likely off")
                         continue
                     edge = model_p - mkt_p
-                    if edge >= 0.05 and edge > best_total_edge:
+                    if edge >= 0.03 and edge > best_total_edge:
                         best_total_edge = edge
                         best_total_bet = {
                             "game":      game_lbl,
@@ -2348,7 +2349,7 @@ def run_daily_scout():
                 if best_total_bet and best_total_bet["stake"] > 0:
                     all_totals.append(best_total_bet)
                 else:
-                    print(f"  SKIP totals {game_lbl}: no side with ≥5% edge over market")
+                    print(f"  SKIP totals {game_lbl}: no side with ≥3% edge over market")
 
         if not bet_found:
             all_pass.append(analysis)
@@ -2363,6 +2364,44 @@ def run_daily_scout():
         a.get(f"{s}_stake", 0) for a, s in all_locks + all_flips
     )
     print(f"\nScout done — {len(events)} games | {n_bets} ML bets | ${ml_risk_scout:.2f} ML at risk")
+
+    # ── Near-miss Telegram: if no bets qualified, show top 3 closest games ────
+    if n_bets == 0 and not _dd_status["pause"]:
+        _nm_candidates = []
+        for _nm_a in all_pass:
+            for _nm_side in ("away", "home"):
+                _nm_edge  = _nm_a.get(f"{_nm_side}_edge", 0)
+                _nm_model = _nm_a.get(f"{_nm_side}_model_p", 0)
+                _nm_conf  = _nm_a.get(f"{_nm_side}_confidence_score", 0)
+                _nm_team  = _nm_a.get(f"{_nm_side}_name", _nm_side)
+                _nm_conv  = _nm_a.get(f"{_nm_side}_conv", "PASS")
+                if _nm_edge <= 0:
+                    continue
+                _reasons = []
+                if _nm_edge < 4.0:
+                    _reasons.append(f"edge {_nm_edge:+.1f}% < 4%")
+                if _nm_model < 0.48:
+                    _reasons.append(f"model {_nm_model:.3f} < 0.48")
+                _mc = 60 if _nm_conv == "HIGH" else 55
+                if _nm_conf < _mc:
+                    _reasons.append(f"conf {_nm_conf}/100 < {_mc}")
+                if not _reasons:
+                    continue
+                _nm_candidates.append({
+                    "team": _nm_team, "edge": _nm_edge,
+                    "model": _nm_model, "conf": _nm_conf,
+                    "reasons": _reasons,
+                })
+        _nm_candidates.sort(key=lambda x: x["edge"], reverse=True)
+        _top3 = _nm_candidates[:3]
+        if _top3:
+            _nm_lines = ["⚠️ No qualifying bets today — top near-misses:"]
+            for _i, _nm in enumerate(_top3, 1):
+                _why = " | ".join(_nm["reasons"])
+                _nm_lines.append(f"{_i}. {_nm['team']} — edge {_nm['edge']:+.1f}% | {_why}")
+            _nm_msg = "\n".join(_nm_lines)
+            print(_nm_msg)
+            _send_telegram(_nm_msg)
 
     # ── Series analysis (game 1 of series today) ──────────────────────────────
     print("Running series analysis...")
@@ -3314,6 +3353,7 @@ if __name__ == "__main__":
         try:
             print("Running daily scout (scout-only, no Telegram listener)...")
             run_daily_scout()
+
             print("Scout complete — exiting")
         except KeyboardInterrupt:
             print("Scout interrupted by user")
