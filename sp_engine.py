@@ -360,12 +360,53 @@ def _ttop_flag(stats: dict) -> bool:
 
 
 def _abs_adjustment(bb9: float, k9: float, hand: str) -> float:
-    """ABS robot umpire: command SPs get edge, fastball-heavy SPs lose edge."""
+    """Simple ABS heuristic fallback when no pitch mix data is available."""
     if bb9 < 2.5:
         return ABS_COMMAND_BONUS
     if bb9 > 3.5 and k9 < 7.5:
         return ABS_FB_HEAVY_MALUS
     return 0.0
+
+
+def compute_abs_score(bb9: float, pm: dict | None) -> float | None:
+    """
+    Full ABS score using pitch mix data.
+    Formula: (diversity × 0.3) + ((4.0 - bb9) × 0.3) + ((1 - fb_pct) × 0.25) + (offspeed_whiff × 0.15)
+    Normalized 0–100. Returns None when insufficient pitch data (< 100 pitches).
+
+    ABS score > 65 → +0.025 run factor (command/diverse arsenal benefits).
+    ABS score < 35 → -0.020 run factor (fastball-heavy penalized by robot umpire).
+    """
+    if not pm:
+        return None
+    pitch_mix = pm.get("pitch_mix") or {}
+    if len(pitch_mix) < 2:
+        return None
+    if pm.get("total_pitches", 0) < 100:
+        return None
+
+    # Arsenal diversity: distinct pitch types with ≥5% usage (1 type=0.0, 5+=1.0)
+    significant = [pt for pt, d in pitch_mix.items() if d.get("usage_pct", 0) >= 0.05]
+    n_types   = len(significant)
+    diversity = min((n_types - 1) / 4.0, 1.0)
+
+    # Fastball percentage (four-seam, two-seam, cutter, sinker)
+    _FB_TYPES = {"FF", "SI", "FT", "FA", "FC"}
+    fb_pct = sum(pitch_mix.get(pt, {}).get("usage_pct", 0) for pt in _FB_TYPES)
+    fb_pct = min(max(fb_pct, 0.0), 1.0)
+
+    # Off-speed weighted whiff rate (slider, curve, change, splitter, sweeper)
+    _OS_TYPES = {"SL", "CU", "KC", "CH", "FS", "FO", "CS", "ST", "SV"}
+    os_np     = sum(pitch_mix.get(pt, {}).get("count", 0) for pt in _OS_TYPES)
+    os_whiff  = sum(
+        pitch_mix.get(pt, {}).get("count", 0) * pitch_mix.get(pt, {}).get("whiff_rate", 0)
+        for pt in _OS_TYPES
+    )
+    offspeed_whiff = (os_whiff / os_np) if os_np >= 20 else 0.10
+
+    bb9_c = max(1.5, min(bb9, 6.0))
+    raw = (diversity * 0.3) + ((4.0 - bb9_c) * 0.3) + ((1 - fb_pct) * 0.25) + (offspeed_whiff * 0.15)
+    return round(min(max(raw / 1.3 * 100, 0.0), 100.0), 1)
 
 
 def _sp_platoon_splits(pitcher_id: int) -> dict:
@@ -462,27 +503,38 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "",
         effective_era = round(0.60 * era + 0.40 * r3_era, 2)
 
     ump_k, ump_run, ump_note = UMPIRE_TENDENCIES.get(umpire, (1.0, 1.0, ""))
-    abs_adj  = _abs_adjustment(bb9, k9, hand)
     plat_rf  = _platoon_run_factor(hand, opp_team)
     ttop     = _ttop_flag(stats)
 
-    sp_quality = round(xfip / max(LG_ERA, 0.01), 4)
-    run_factor = round(ump_run * plat_rf * sp_quality * (1.0 + abs_adj), 4)
-
-    # ── New: platoon splits, GB rate, FP strike rate ──────────────────────────
+    # ── GB rate, FP strike rate, and ABS score from Savant pitch-level data ──
     platoon_splits = _sp_platoon_splits(pitcher_id) if pitcher_id else {}
-
-    # GB rate and FP strike rate from Savant pitch-level data
     gb_rate        = None
     fp_strike_rate = None
+    abs_score      = None
+    pm             = None
     try:
         from statcast_engine import get_pitcher_pitch_mix
         pm = get_pitcher_pitch_mix(pitcher_id)
         if pm:
             gb_rate        = pm.get("gb_rate")
             fp_strike_rate = pm.get("fp_strike_rate")
+            abs_score      = compute_abs_score(bb9, pm)
     except Exception:
         pass
+
+    # ABS adjustment: use full score when available, else simple heuristic
+    if abs_score is not None:
+        if abs_score > 65:
+            abs_adj = ABS_COMMAND_BONUS
+        elif abs_score < 35:
+            abs_adj = ABS_FB_HEAVY_MALUS
+        else:
+            abs_adj = 0.0
+    else:
+        abs_adj = _abs_adjustment(bb9, k9, hand)
+
+    sp_quality = round(xfip / max(LG_ERA, 0.01), 4)
+    run_factor = round(ump_run * plat_rf * sp_quality * (1.0 + abs_adj), 4)
 
     return {
         "pitcher_id":       pitcher_id,
@@ -501,6 +553,7 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "",
         "ump_run_factor":   ump_run,
         "ump_note":         ump_note,
         "abs_adj":          abs_adj,
+        "abs_score":        abs_score,
         "plat_run_factor":  plat_rf,
         "run_factor":       run_factor,
         # Last-3-start rolling stats
@@ -548,6 +601,7 @@ def _default_sp(pitcher_id, opp_team, umpire) -> dict:
         "ump_run_factor":   ump_run,
         "ump_note":         ump_note,
         "abs_adj":          0.0,
+        "abs_score":        None,
         "plat_run_factor":  1.0,
         "run_factor":       ump_run,
         "rolling_era_3":    None,

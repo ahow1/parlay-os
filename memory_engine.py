@@ -1157,6 +1157,141 @@ def run_weekly_maintenance() -> dict:
     return report
 
 
+# ── BETTING PATTERN TRACKING ─────────────────────────────────────────────────
+
+def track_bet_pattern(bet: dict) -> None:
+    """
+    Record a settled bet into betting_patterns along multiple dimensions:
+      sp_tier, edge_range, situation_type, day_of_week, park, home_vs_away.
+
+    Called after result is known. bet dict should have: result ('W'/'L'),
+    edge_pct, park, side ('home'/'away'), situations_triggered (JSON list),
+    sp_tier (e.g. 'ELITE'), day_of_week (0=Mon…6=Sun).
+    """
+    import db as _db_mod
+    result = bet.get("result", "")
+    if result not in ("W", "L", "win", "loss"):
+        return
+    won = 1 if result in ("W", "win") else 0
+
+    edge = float(bet.get("edge_pct") or 0)
+    park = str(bet.get("park") or "UNK")
+    side = str(bet.get("side") or "unknown")
+    sp_tier = str(bet.get("sp_tier") or "UNKNOWN")
+    dow = int(bet.get("day_of_week", datetime.utcnow().weekday()))
+    dow_name = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][dow % 7]
+
+    # Edge range bucket
+    if edge < 4:
+        edge_bucket = "edge_3to4"
+    elif edge < 6:
+        edge_bucket = "edge_4to6"
+    elif edge < 9:
+        edge_bucket = "edge_6to9"
+    else:
+        edge_bucket = "edge_9plus"
+
+    # Situation labels from JSON
+    sit_list = []
+    sit_raw = bet.get("situations_triggered") or "[]"
+    try:
+        import json as _json
+        sit_list = _json.loads(sit_raw) if isinstance(sit_raw, str) else list(sit_raw)
+    except Exception:
+        sit_list = []
+
+    def _upsert(key, category, desc):
+        try:
+            existing = _db_mod.get_pattern_confidence_adj(key)
+            with _db_mod._conn() as conn:
+                row = conn.execute(
+                    "SELECT bets_evaluated, wins FROM betting_patterns WHERE pattern_key=?",
+                    (key,),
+                ).fetchone()
+            if row:
+                n = (row["bets_evaluated"] or 0) + 1
+                w = (row["wins"] or 0) + won
+            else:
+                n, w = 1, won
+            wr = w / n
+            # confidence_adj: positive when win_rate > 52%, negative below 48%
+            adj = round((wr - 0.50) * 20, 2)   # ±10 range
+            _db_mod.upsert_betting_pattern(key, category, desc, n, w, wr, adj)
+        except Exception as e:
+            log.debug(f"[patterns] upsert failed for {key}: {e}")
+
+    _upsert(f"sp_tier:{sp_tier}",        "sp_tier",      f"SP xFIP tier = {sp_tier}")
+    _upsert(f"edge:{edge_bucket}",       "edge_range",   f"Model edge {edge_bucket.replace('_', ' ')}")
+    _upsert(f"dow:{dow_name}",           "day_of_week",  f"Day of week = {dow_name}")
+    _upsert(f"park:{park}",              "park",         f"Park = {park}")
+    _upsert(f"side:{side}",              "home_vs_away", f"Side = {side}")
+
+    for sit in sit_list:
+        _upsert(f"situation:{sit}", "situation_type", f"Situation angle = {sit}")
+
+
+def weekly_pattern_report(send_fn=None) -> str:
+    """
+    Generate and optionally send a Telegram-ready weekly pattern report.
+
+    Covers: SP tier, edge range, day of week, home/away, top situations.
+    Called Monday morning by scheduler.
+    Returns report string.
+    """
+    import db as _db_mod
+
+    patterns = _db_mod.get_all_betting_patterns()
+    if not patterns:
+        msg = "📊 Weekly Pattern Report\nNo pattern data yet — need settled bets."
+        if send_fn:
+            send_fn(msg)
+        return msg
+
+    # Organize by category
+    cats: dict[str, list] = {}
+    for p in patterns:
+        cat = p.get("category", "other")
+        cats.setdefault(cat, []).append(p)
+
+    lines = ["📊 <b>Weekly Pattern Report</b>"]
+
+    def _fmt_cat(cat_name: str, label: str):
+        rows = sorted(cats.get(cat_name, []), key=lambda x: x.get("bets_evaluated", 0), reverse=True)
+        rows = [r for r in rows if r.get("bets_evaluated", 0) >= 5]
+        if not rows:
+            return
+        lines.append(f"\n<b>{label}</b>")
+        for r in rows[:5]:
+            wr = r.get("win_rate", 0)
+            n  = r.get("bets_evaluated", 0)
+            adj = r.get("confidence_adj", 0)
+            desc = r.get("description", r.get("pattern_key", ""))
+            icon = "✅" if wr >= 0.55 else ("⚠️" if wr < 0.45 else "➡️")
+            lines.append(f"  {icon} {desc}: {wr:.0%} W/R ({n} bets) | conf_adj {adj:+.1f}")
+
+    _fmt_cat("sp_tier",      "SP Tier Performance")
+    _fmt_cat("edge_range",   "Edge Range Performance")
+    _fmt_cat("day_of_week",  "Day of Week Performance")
+    _fmt_cat("home_vs_away", "Home vs Away Performance")
+    _fmt_cat("situation_type", "Situation Angles Performance")
+    _fmt_cat("park",         "Park Performance (top 5)")
+
+    # Overall summary
+    all_n = sum(p.get("bets_evaluated", 0) for p in patterns if p.get("category") == "edge_range")
+    all_w = sum(p.get("wins", 0)          for p in patterns if p.get("category") == "edge_range")
+    if all_n >= 5:
+        lines.append(f"\n<b>Overall (from edge-range buckets)</b>: {all_w}/{all_n} = {all_w/all_n:.0%}")
+
+    msg = "\n".join(lines)
+    log.info(f"[patterns] Weekly report: {len(patterns)} pattern rows")
+    if send_fn:
+        try:
+            send_fn(msg)
+        except Exception as e:
+            log.error(f"[patterns] Telegram send failed: {e}")
+    return msg
+
+
 if __name__ == "__main__":
     init_memory_tables()
     print("Memory tables initialized")

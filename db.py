@@ -218,6 +218,40 @@ def init_db():
             edge_pct     REAL,
             notes        TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS umpire_stats (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            name          TEXT NOT NULL UNIQUE,
+            games         INTEGER DEFAULT 0,
+            home_win_rate REAL,
+            avg_runs      REAL,
+            k_rate        REAL,
+            over_rate     REAL,
+            updated_date  TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS betting_patterns (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            pattern_key     TEXT NOT NULL UNIQUE,
+            category        TEXT NOT NULL,
+            description     TEXT,
+            bets_evaluated  INTEGER DEFAULT 0,
+            wins            INTEGER DEFAULT 0,
+            win_rate        REAL DEFAULT 0.0,
+            confidence_adj  REAL DEFAULT 0.0,
+            last_updated    TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS confidence_weights (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            trained_at    TEXT NOT NULL,
+            n_bets        INTEGER,
+            feature_names TEXT,
+            coefficients  TEXT,
+            intercept     REAL,
+            accuracy      REAL,
+            training_log  TEXT
+        );
         """)
     # Migrations for existing DBs that predate schema additions
     with _conn() as conn:
@@ -228,6 +262,18 @@ def init_db():
             "ALTER TABLE bets ADD COLUMN framing_edge TEXT",
             "ALTER TABLE bets ADD COLUMN closer_avail TEXT",
             "ALTER TABLE bets ADD COLUMN lineup_slot_score REAL",
+            "ALTER TABLE bets ADD COLUMN sharp_signal TEXT",
+            "ALTER TABLE bets ADD COLUMN umpire_edge TEXT",
+            "ALTER TABLE bets ADD COLUMN home_dog_angle INTEGER",
+            "ALTER TABLE bets ADD COLUMN first_pitch_strike_rate REAL",
+            "ALTER TABLE bets ADD COLUMN sp_gb_rate REAL",
+            # Priority 10: new columns for situations + confidence engine
+            "ALTER TABLE bets ADD COLUMN situations_triggered TEXT",
+            "ALTER TABLE bets ADD COLUMN abs_score REAL",
+            "ALTER TABLE bets ADD COLUMN sharp_checklist_results TEXT",
+            "ALTER TABLE bets ADD COLUMN confidence_engine_score INTEGER",
+            # line_history: signal_type column (also added lazily by LME)
+            "ALTER TABLE line_history ADD COLUMN signal_type TEXT",
         ]:
             try:
                 conn.execute(ddl)
@@ -250,7 +296,10 @@ def init_db():
 def log_bet(date, bet, bet_type, game, sp, park, umpire,
             bet_odds, model_prob, market_prob, edge_pct, conviction, stake,
             pitch_trap=None, framing_edge=None, closer_avail=None,
-            lineup_slot_score=None):
+            lineup_slot_score=None, sharp_signal=None, umpire_edge=None,
+            home_dog_angle=None, first_pitch_strike_rate=None, sp_gb_rate=None,
+            situations_triggered=None, abs_score=None,
+            sharp_checklist_results=None, confidence_engine_score=None):
     now = datetime.now(ET).isoformat()
     verify_hash = hashlib.sha256(
         f"{game}|{bet}|{bet_odds}|{now}".encode()
@@ -260,11 +309,19 @@ def log_bet(date, bet, bet_type, game, sp, park, umpire,
             INSERT OR IGNORE INTO bets
               (date, timestamp, bet, type, game, sp, park, umpire,
                bet_odds, model_prob, market_prob, edge_pct, conviction, stake, verify_hash,
-               pitch_trap, framing_edge, closer_avail, lineup_slot_score)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               pitch_trap, framing_edge, closer_avail, lineup_slot_score,
+               sharp_signal, umpire_edge, home_dog_angle,
+               first_pitch_strike_rate, sp_gb_rate,
+               situations_triggered, abs_score,
+               sharp_checklist_results, confidence_engine_score)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (date, now, bet, bet_type, game, sp, park, umpire,
               bet_odds, model_prob, market_prob, edge_pct, conviction, stake, verify_hash,
-              pitch_trap, framing_edge, closer_avail, lineup_slot_score))
+              pitch_trap, framing_edge, closer_avail, lineup_slot_score,
+              sharp_signal, umpire_edge, home_dog_angle,
+              first_pitch_strike_rate, sp_gb_rate,
+              situations_triggered, abs_score,
+              sharp_checklist_results, confidence_engine_score))
 
 
 def get_pick_by_hash(verify_hash: str) -> dict | None:
@@ -595,6 +652,94 @@ def get_prop_accuracy(prop_type: str = None, days: int = 30) -> list:
     q += " ORDER BY date DESC"
     with _conn() as conn:
         return [dict(r) for r in conn.execute(q, params)]
+
+
+# ─── UMPIRE STATS ─────────────────────────────────────────────────────────────
+
+def upsert_umpire_stats(stats: dict) -> None:
+    """Insert or update one umpire's stats row."""
+    with _conn() as conn:
+        conn.execute("""
+            INSERT INTO umpire_stats
+              (name, games, home_win_rate, avg_runs, k_rate, over_rate, updated_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(name) DO UPDATE SET
+              games         = excluded.games,
+              home_win_rate = excluded.home_win_rate,
+              avg_runs      = excluded.avg_runs,
+              k_rate        = excluded.k_rate,
+              over_rate     = excluded.over_rate,
+              updated_date  = excluded.updated_date
+        """, (
+            stats.get("name"), stats.get("games", 0),
+            stats.get("home_win_rate"), stats.get("avg_runs"),
+            stats.get("k_rate"), stats.get("over_rate"),
+            stats.get("updated_date"),
+        ))
+
+
+def get_all_umpire_stats() -> dict:
+    """Return all umpire stats as {name: stats_dict}."""
+    with _conn() as conn:
+        rows = conn.execute("SELECT * FROM umpire_stats").fetchall()
+    return {row["name"]: dict(row) for row in rows}
+
+
+def get_umpire_stat(name: str) -> dict | None:
+    """Return stats for one umpire by name."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM umpire_stats WHERE name=?", (name,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+# ─── BETTING PATTERNS ──────────────────────────────────────────────────────────
+
+def upsert_betting_pattern(
+    pattern_key: str,
+    category: str,
+    description: str,
+    bets_evaluated: int,
+    wins: int,
+    win_rate: float,
+    confidence_adj: float,
+) -> None:
+    """Upsert one betting pattern row."""
+    now = datetime.now(ET).isoformat()
+    with _conn() as conn:
+        conn.execute("""
+            INSERT INTO betting_patterns
+              (pattern_key, category, description, bets_evaluated, wins,
+               win_rate, confidence_adj, last_updated)
+            VALUES (?,?,?,?,?,?,?,?)
+            ON CONFLICT(pattern_key) DO UPDATE SET
+              bets_evaluated = excluded.bets_evaluated,
+              wins           = excluded.wins,
+              win_rate       = excluded.win_rate,
+              confidence_adj = excluded.confidence_adj,
+              last_updated   = excluded.last_updated
+        """, (pattern_key, category, description, bets_evaluated, wins,
+              round(win_rate, 4), round(confidence_adj, 2), now))
+
+
+def get_all_betting_patterns() -> list[dict]:
+    """Return all betting patterns."""
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM betting_patterns ORDER BY bets_evaluated DESC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_pattern_confidence_adj(pattern_key: str) -> float:
+    """Return confidence adjustment for a specific pattern. 0.0 if not found."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT confidence_adj FROM betting_patterns WHERE pattern_key=?",
+            (pattern_key,),
+        ).fetchone()
+    return float(row["confidence_adj"]) if row else 0.0
 
 
 # Initialize on import

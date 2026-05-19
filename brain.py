@@ -140,6 +140,30 @@ except ImportError:
     def get_team_oaa(*a, **k): return None
     def check_defense_edge(o, *a, **k): return {"run_adj": 0.0, "tag": "", "oaa": o}
 
+try:
+    from umpire_engine import get_umpire_edge, umpire_telegram_flag
+    _UMPIRE_ENGINE_AVAILABLE = True
+except ImportError:
+    _UMPIRE_ENGINE_AVAILABLE = False
+    def get_umpire_edge(n): return {"home_win_adj": 0.0, "total_adj": 0.0, "tag": "", "has_data": False}
+    def umpire_telegram_flag(n, e=None): return ""
+
+try:
+    from situations_engine import check_situations, situations_telegram_line
+    _SITUATIONS_AVAILABLE = True
+except ImportError:
+    _SITUATIONS_AVAILABLE = False
+    def check_situations(*a, **k): return {"triggered": [], "n_triggered": 0, "adjustments": {}, "total_away_adj": 0.0, "total_home_adj": 0.0, "situation_stack": False, "high_conviction": False, "labels": [], "details": {}}
+    def situations_telegram_line(r): return ""
+
+try:
+    from confidence_engine import get_confidence_score, build_bet_features as _build_conf_features
+    _CONFIDENCE_ENGINE_AVAILABLE = True
+except ImportError:
+    _CONFIDENCE_ENGINE_AVAILABLE = False
+    def get_confidence_score(f): return 65
+    def _build_conf_features(a, s): return {}
+
 STATSAPI  = "https://statsapi.mlb.com/api/v1"
 ET        = pytz.timezone("America/New_York")
 BOT_TOKEN         = os.getenv("TELEGRAM_BOT_TOKEN", "")
@@ -209,6 +233,8 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     # ── Umpire ────────────────────────────────────────────────────────────────
     umpire    = _get_umpire(game_pk)
     ump_k, ump_run, ump_note = UMPIRE_TENDENCIES.get(umpire, (1.0, 1.0, ""))
+    ump_edge  = get_umpire_edge(umpire)
+    ump_home_win_adj = ump_edge.get("home_win_adj", 0.0)
 
     # ── SPs ───────────────────────────────────────────────────────────────────
     sps  = get_game_sps(game_pk or 0, away_code, home_code, umpire) if game_pk else {}
@@ -323,7 +349,7 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     _away_framing_adj = away_framing_res.get("prob_adj", 0.0)
     _home_framing_adj = home_framing_res.get("prob_adj", 0.0)
 
-    # ── Factor 12: Lineup slot quality ────────────────────────────────────────
+    # ── Factor 12 data: Lineup slot (kept for DB logging, not in blend) ──────
     _away_slot_adj = away_off.get("slot_run_adj", 0.0)
     _home_slot_adj = home_off.get("slot_run_adj", 0.0)
 
@@ -355,8 +381,7 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         home_framing_adj       = _home_framing_adj,
         away_key_reliever_avail = away_key_rel_avail,
         home_key_reliever_avail = home_key_rel_avail,
-        away_slot_run_adj      = _away_slot_adj,
-        home_slot_run_adj      = _home_slot_adj,
+        ump_home_win_adj       = ump_home_win_adj,
     )
     _a_tier, _ = _sp_tier(away_sp.get("xfip", 4.35))
     _h_tier, _ = _sp_tier(home_sp.get("xfip", 4.35))
@@ -364,7 +389,8 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
           f"SP:{away_sp.get('xfip',4.35):.2f}({_a_tier}) vs {home_sp.get('xfip',4.35):.2f}({_h_tier}) "
           f"BP:{away_bp.get('avg_fatigue',4.0):.1f}/{home_bp.get('avg_fatigue',4.0):.1f} "
           f"Pyth={pyth_away_p:.3f} PT:{_pt_away_adj:.3f}/{_pt_home_adj:.3f} "
-          f"FR:{_away_framing_adj:.2f}/{_home_framing_adj:.2f}")
+          f"FR:{_away_framing_adj:.2f}/{_home_framing_adj:.2f} "
+          f"UMP_HWA:{ump_home_win_adj:+.3f}")
 
     # ── H2H historical matchup (10% weight) ─────────────────────────────────
     h2h = {}
@@ -572,6 +598,29 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     home_k_prop = k_prop(home_sp, home_sp.get("k9", 8.5) * 5 / 9,
                           ump_k_factor=ump_k) if home_sp else None
 
+    # ── Situational angles ────────────────────────────────────────────────────
+    _sit_game_data = {
+        "away_tid":           away_tid,
+        "home_tid":           home_tid,
+        "best_away_odds":     best_away_odds,
+        "best_home_odds":     best_home_odds,
+        "game_time_et":       _parse_game_time_et(event.get("commence_utc", "")),
+        "series_game_number": event.get("series_game_number"),
+        "games_in_series":    event.get("games_in_series"),
+    }
+    situations_result = check_situations(
+        away_code, home_code,
+        _sit_game_data,
+        sp_data={"away": away_sp, "home": home_sp},
+        bullpen_data={"away": away_bp, "home": home_bp},
+        market_data=market,
+        offense_data={"away": away_off, "home": home_off},
+    )
+    if situations_result.get("triggered"):
+        _sit_labels = " | ".join(situations_result.get("labels", []))
+        print(f"  SITUATIONS ({situations_result['n_triggered']}): {_sit_labels}"
+              + (" ⚡STACK" if situations_result.get("situation_stack") else ""))
+
     # ── Conviction ────────────────────────────────────────────────────────────
     away_conv = _conviction(away_edge, away_model_p, away_bp, market)
     home_conv = _conviction(home_edge, home_model_p, home_bp, market)
@@ -682,7 +731,7 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         "home_sp_tier": _sp_tier(home_sp.get("xfip", 4.35))[0],
         # Home dog structural edge result
         "home_dog": home_dog_result,
-        # 12-factor: pitch trap, framing, key reliever, lineup slot
+        # 12-factor: pitch trap, framing, key reliever, umpire edge
         "away_pitch_trap":      away_pitch_trap,
         "home_pitch_trap":      home_pitch_trap,
         "away_framing":         away_framing_res,
@@ -691,6 +740,18 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         "home_key_rel_avail":   home_key_rel_avail,
         "away_slot_run_adj":    _away_slot_adj,
         "home_slot_run_adj":    _home_slot_adj,
+        # Umpire engine edge
+        "ump_edge":             ump_edge,
+        # Sharp money signals (for confidence adjustment and FLAGS)
+        "market_sharp_signal":  (market.get("reverse_line") or {}).get("sharp_side", ""),
+        "market_line_direction": _lm_dir,
+        "market_line_magnitude": _lm_mag,
+        "ump_note":             ump_note,
+        # Team IDs (needed by situations engine and pattern tracking)
+        "away_tid":             away_tid,
+        "home_tid":             home_tid,
+        # Situational angles
+        "situations":           situations_result,
     }
 
 
@@ -856,14 +917,13 @@ def _weighted_win_prob(
     home_framing_adj: float = 0.0,     # home catcher framing
     away_key_reliever_avail: bool = True,
     home_key_reliever_avail: bool = True,
-    away_slot_run_adj: float = 0.0,    # +0.15 elite, -0.15 weak top order
-    home_slot_run_adj: float = 0.0,
+    ump_home_win_adj: float = 0.0,     # umpire historical home win edge (+0.02)
 ) -> tuple[float, float]:
     """
     12-factor weighted win probability.
     Weights: SP 25%, Bullpen 18%, Offense 16%, Home dog 9%,
              Pythagorean 7%, Line movement 6%, Platoon 5%, Momentum 4%,
-             Pitch mix 3%, Key reliever 3%, Catcher framing 2%, Lineup slot 2%.
+             Pitch mix 3%, Key reliever 3%, Catcher framing 2%, Umpire edge 2%.
     Returns (away_p, home_p) rounded to 4 decimal places.
     """
     # Factor 1 — SP xFIP (25%)
@@ -924,10 +984,9 @@ def _weighted_win_prob(
     framing_net  = away_framing_adj - home_framing_adj
     framing_away_p = max(0.40, min(0.60, 0.50 + framing_net))
 
-    # Factor 12 — Lineup slot quality (2%)
-    # High away slot_run_adj = elite top order = more run scoring expected = away_p up
-    slot_net     = away_slot_run_adj - home_slot_run_adj
-    slot_away_p  = max(0.40, min(0.60, 0.50 + slot_net * 0.15))
+    # Factor 12 — Umpire edge (2%)
+    # ump_home_win_adj > 0 = umpire historically favors home team → away_p down
+    ump_edge_away_p = max(0.40, min(0.60, 0.50 - ump_home_win_adj))
 
     away_p = (
         0.25 * sp_away_p +
@@ -941,7 +1000,7 @@ def _weighted_win_prob(
         0.03 * pm_away_p +
         0.03 * kra_away_p +
         0.02 * framing_away_p +
-        0.02 * slot_away_p
+        0.02 * ump_edge_away_p
     )
     away_p = round(max(0.15, min(0.85, away_p)), 4)
     return away_p, round(1.0 - away_p, 4)
@@ -1739,6 +1798,64 @@ def _should_recommend(game: dict, side: str, bet_type: str = "ML") -> bool:
         return False
 
     confidence = game.get(f"{side}_confidence_score", 0)
+
+    # Sharp money boost: reverse line movement (sharp bettors driving line against public)
+    sharp_side = game.get("market_sharp_signal", "")
+    if sharp_side and sharp_side == side:
+        confidence = min(confidence + 10, 100)
+        print(f"  [SHARP] {team}: sharp reverse line signal, confidence +10 → {confidence}")
+
+    # Line moved against our direction (8+ cents) — smart money fading us
+    lm_dir = game.get("market_line_direction", "")
+    lm_mag = game.get("market_line_magnitude", 0.0)
+    if lm_mag >= 0.08:
+        if (side == "home" and "toward_away" in lm_dir) or (side == "away" and "toward_home" in lm_dir):
+            confidence = max(confidence - 15, 0)
+            print(f"  [LME] {team}: line moved against our direction ({lm_mag:.3f}), confidence -15 → {confidence}")
+
+    # ── Sharp bettor 5-check checklist ────────────────────────────────────────
+    # Each check PASS/FAIL is logged; situation_stack boosts conviction.
+    _checklist = {}
+
+    # Check 1: Line value — our model price beats market by minimum threshold
+    _checklist["line_value"] = "PASS" if edge >= MIN_EDGE_PCT else "FAIL"
+
+    # Check 2: Market efficiency — no large steam against us
+    _lm_against = lm_mag >= 0.08 and (
+        (side == "home" and "toward_away" in lm_dir)
+        or (side == "away" and "toward_home" in lm_dir)
+    )
+    _checklist["market_efficiency"] = "FAIL" if _lm_against else "PASS"
+
+    # Check 3: CLV projection — expected closing line value positive
+    # If our model edge ≥ 3% at current line, we expect positive CLV at close
+    _checklist["clv_projection"] = "PASS" if edge >= 3.0 else "FAIL"
+
+    # Check 4: Kelly sanity — stake is within reasonable fraction of bankroll
+    try:
+        from bankroll_engine import current_bankroll as _ckb
+        _ckb_val = _ckb()
+        _kelly_frac = (stake / _ckb_val) if _ckb_val > 0 else 0.0
+        _checklist["kelly_sanity"] = "PASS" if 0.001 <= _kelly_frac <= 0.06 else "WARN"
+    except Exception:
+        _checklist["kelly_sanity"] = "PASS"
+
+    # Check 5: Situation stack — 3+ situations triggered = HIGH conviction bonus
+    _sit_res = game.get("situations") or {}
+    _n_sit   = _sit_res.get("n_triggered", 0)
+    if _n_sit >= 3:
+        _checklist["situation_stack"] = "STACK"
+        confidence = min(confidence + 8, 100)
+        print(f"  [SITUATIONS] {team}: stack ({_n_sit} angles), confidence +8 → {confidence}")
+    elif _n_sit >= 1:
+        _checklist["situation_stack"] = f"ACTIVE_{_n_sit}"
+    else:
+        _checklist["situation_stack"] = "NONE"
+
+    _checks_passed = sum(1 for v in _checklist.values() if v == "PASS")
+    _checklist_str = " | ".join(f"{k}={v}" for k, v in _checklist.items())
+    print(f"  [CHECKLIST] {team}: {_checks_passed}/5 | {_checklist_str}")
+
     min_conf = 60 if conv == "HIGH" else 55
     if confidence < min_conf:
         print(f"  PASS {team}: confidence {confidence}/100 < {min_conf} threshold ({conv})")
@@ -1773,8 +1890,8 @@ def _should_recommend(game: dict, side: str, bet_type: str = "ML") -> bool:
 
 def _format_bet_message(game: dict, side: str) -> str:
     """
-    6-element Telegram pick format:
-    EDGE / SP MATCHUP / BULLPEN / KEY STAT / RISK / CONFIDENCE
+    8-element Telegram pick format:
+    EDGE / SP MATCHUP / BULLPEN / KEY STAT / RISK / CONFIDENCE / SITUATIONS / FLAGS
     """
     team    = game.get(f"{side}_name", game.get(side, ""))
     opp_s   = "home" if side == "away" else "away"
@@ -1916,7 +2033,44 @@ def _format_bet_message(game: dict, side: str) -> str:
 
     # ── CONFIDENCE ────────────────────────────────────────────────────────────
     min_conf = 60 if conv == "HIGH" else 55
-    lines.append(f"CONFIDENCE {conf}/100 (threshold {min_conf}) | Ump: {game.get('umpire','?')}{' ' + game.get('ump_note','') if game.get('ump_note') else ''}")
+    lines.append(f"CONFIDENCE {conf}/100 (threshold {min_conf}) | Ump: {game.get('umpire','?')}{' — ' + game.get('ump_note','') if game.get('ump_note') else ''}")
+
+    # ── SITUATIONS ────────────────────────────────────────────────────────────
+    _sit_res = game.get("situations") or {}
+    _sit_line = situations_telegram_line(_sit_res)
+    if _sit_line:
+        lines.append(f"SITUATIONS {_sit_line.lstrip('SITUATIONS ')}" if _sit_line.startswith("SITUATIONS") else f"SITUATIONS {_sit_line}")
+
+    # ── FLAGS ─────────────────────────────────────────────────────────────────
+    flag_parts = []
+    # Pitch trap
+    if _our_pt.get("is_pitch_trap"):
+        _pt_types = ", ".join(_our_pt.get("exploitable_pitches", []))
+        flag_parts.append(f"PITCH_TRAP {_pt_types}")
+    # Home dog structural angle
+    hd_result = game.get("home_dog") or {}
+    if hd_result.get("is_home_dog_value"):
+        flag_parts.append(f"HOME_DOG +4%")
+    # Sharp money signal
+    _sharp_side = game.get("market_sharp_signal", "")
+    if _sharp_side and _sharp_side == side:
+        flag_parts.append("SHARP_MONEY ↑")
+    elif _sharp_side and _sharp_side != side:
+        flag_parts.append(f"SHARP_MONEY vs us (fading {side})")
+    # Umpire edge
+    _ump_e = game.get("ump_edge") or {}
+    _ump_tag = _ump_e.get("tag", "")
+    if _ump_tag:
+        flag_parts.append(f"UMP_EDGE: {_ump_tag}")
+    # ABS score for our SP
+    _abs = sp.get("abs_score")
+    if _abs is not None:
+        if _abs > 65:
+            flag_parts.append(f"ABS_EDGE {_abs:.0f}/100")
+        elif _abs < 35:
+            flag_parts.append(f"ABS_FADE {_abs:.0f}/100")
+    if flag_parts:
+        lines.append(f"FLAGS      {' | '.join(flag_parts)}")
 
     return "\n".join(lines)
 
@@ -2415,8 +2569,16 @@ def run_daily_scout():
             continue
 
         # Compute confidence scores for both sides
+        # Use confidence_engine (logistic regression) when available; fall back to heuristic
         for _cs_side in ("away", "home"):
-            analysis[f"{_cs_side}_confidence_score"] = _confidence_score(analysis, _cs_side)
+            if _CONFIDENCE_ENGINE_AVAILABLE:
+                try:
+                    _conf_feats = _build_conf_features(analysis, _cs_side)
+                    analysis[f"{_cs_side}_confidence_score"] = get_confidence_score(_conf_feats)
+                except Exception as _ce:
+                    analysis[f"{_cs_side}_confidence_score"] = _confidence_score(analysis, _cs_side)
+            else:
+                analysis[f"{_cs_side}_confidence_score"] = _confidence_score(analysis, _cs_side)
 
         scout_out["games"].append({
             "away":       analysis["away"],
@@ -2479,34 +2641,77 @@ def run_daily_scout():
             print(f"  Hitter props error: {hp_err}")
             game_hitter_props = []
 
-        # ── Collect K-props for slip ──────────────────────────────────────────
+        # ── Collect K-props for slip (uses analyze_k_prop when edge ≥ 0.8) ─────
         _game_lbl_kp = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
         for _kside, _sp in (("away", analysis.get("away_sp") or {}), ("home", analysis.get("home_sp") or {})):
             if not _sp or not _sp.get("name") or _sp.get("name") == "TBD" or _sp.get("sp_missing"):
                 continue
             _k_line = round(_sp.get("k9", 8.5) * 5.0 / 9, 1)
-            _k_r    = k_prop(_sp, _k_line)
-            _p_k    = _k_r.get("p_over", 0)
-            if _p_k >= 0.55:
-                _k_stake = kelly_stake(_p_k, "-110", "MEDIUM")
-                # Check if SP Statcast data is from 2025 (flag for caution)
-                _sp_sc = {}
-                if _STATCAST_AVAILABLE and _sp.get("pitcher_id"):
-                    try:
-                        _sp_sc = get_pitcher_statcast(_sp["pitcher_id"])
-                    except Exception:
-                        _sp_sc = {}
+            _opp_tid = analysis.get("home_tid" if _kside == "away" else "away_tid")
+            _park    = analysis.get("home", "")
+            _ump_k_f = UMPIRE_TENDENCIES.get(analysis.get("umpire", ""), (1.0, 1.0, ""))[0]
+            # Try new analyze_k_prop (richer model) first
+            _akp = None
+            if _STRIKEOUT_ENGINE_AVAILABLE:
+                try:
+                    _akp = analyze_k_prop(_sp, _opp_tid, _park, _k_line, ump_k_factor=_ump_k_f)
+                except Exception:
+                    _akp = None
+            if _akp:
+                _k_stake = kelly_stake(_akp["model_p"] if "model_p" in _akp else 0.55, "-110", "MEDIUM")
                 all_k_props.append({
-                    "sp":             _sp.get("name"),
-                    "team":           analysis.get(_kside, ""),
-                    "game":           _game_lbl_kp,
-                    "line":           _k_line,
-                    "p_over":         _p_k,
-                    "market_p":       0.5,
-                    "edge_pct":       round((_p_k - 0.50) * 100, 1),
-                    "stake":          _k_stake,
-                    "statcast_2025":  _sp_sc.get("STATCAST_2025", False),
+                    "sp":         _sp.get("name"),
+                    "team":       analysis.get(_kside, ""),
+                    "game":       _game_lbl_kp,
+                    "line":       _k_line,
+                    "p_over":     _akp.get("model_p", 0.55),
+                    "market_p":   0.5,
+                    "edge_pct":   _akp.get("gap", 0) * 10,
+                    "stake":      _k_stake,
+                    "statcast_2025": False,
+                    "projected_k":  _akp.get("projected_k"),
+                    "whiff_rate":   _akp.get("whiff_rate"),
+                    "confidence":   _akp.get("confidence", 0),
                 })
+                print(f"  K PROP [{_kside}]: {k_prop_telegram_line(_akp)}")
+            else:
+                # Fallback to simple k_prop from props_engine
+                _k_r = k_prop(_sp, _k_line)
+                _p_k = _k_r.get("p_over", 0)
+                if _p_k >= 0.55:
+                    _k_stake = kelly_stake(_p_k, "-110", "MEDIUM")
+                    _sp_sc = {}
+                    if _STATCAST_AVAILABLE and _sp.get("pitcher_id"):
+                        try:
+                            _sp_sc = get_pitcher_statcast(_sp["pitcher_id"])
+                        except Exception:
+                            _sp_sc = {}
+                    all_k_props.append({
+                        "sp":             _sp.get("name"),
+                        "team":           analysis.get(_kside, ""),
+                        "game":           _game_lbl_kp,
+                        "line":           _k_line,
+                        "p_over":         _p_k,
+                        "market_p":       0.5,
+                        "edge_pct":       round((_p_k - 0.50) * 100, 1),
+                        "stake":          _k_stake,
+                        "statcast_2025":  _sp_sc.get("STATCAST_2025", False),
+                    })
+
+        # ── ER props for this game ────────────────────────────────────────────
+        if _ER_AVAILABLE:
+            for _er_side, _er_sp, _er_opp_off, _er_bp in [
+                ("away", analysis.get("away_sp") or {}, analysis.get("home_off") or {}, analysis.get("home_bp") or {}),
+                ("home", analysis.get("home_sp") or {}, analysis.get("away_off") or {}, analysis.get("away_bp") or {}),
+            ]:
+                if not _er_sp or _er_sp.get("sp_missing"):
+                    continue
+                try:
+                    _er_res = analyze_earned_runs(_er_sp, _er_opp_off, _er_bp)
+                    if _er_res:
+                        print(f"  ER PROJ [{_er_side}]: {er_prop_telegram_line(_er_res)}")
+                except Exception as _er_err:
+                    pass
 
         # ── Collect props data for props_output.json (no per-game Telegram send) ─
         try:
@@ -2552,14 +2757,18 @@ def run_daily_scout():
                 # DB log
                 if not DRY_RUN:
                     try:
-                        _pt_res = analysis.get(f"{side}_pitch_trap") or {}
-                        _fr_res = analysis.get(f"{side}_framing")    or {}
+                        _pt_res  = analysis.get(f"{side}_pitch_trap") or {}
+                        _fr_res  = analysis.get(f"{side}_framing")    or {}
+                        _sp_data_log = analysis.get(f"{side}_sp") or {}
+                        _ump_e_log   = analysis.get("ump_edge") or {}
+                        _hd_log      = analysis.get("home_dog") or {}
+                        _sharp_s     = analysis.get("market_sharp_signal", "")
                         _db.log_bet(
                             date=today,
                             bet=analysis.get(f"{side}_name", ""),
                             bet_type="ML",
                             game=f"{analysis['away_name']} @ {analysis['home_name']}",
-                            sp=analysis.get(f"{side}_sp", {}).get("name", ""),
+                            sp=_sp_data_log.get("name", ""),
                             park=analysis["home"],
                             umpire=analysis["umpire"],
                             bet_odds=str(analysis.get(f"best_{side}_odds", "")),
@@ -2572,6 +2781,11 @@ def run_daily_scout():
                             framing_edge=_fr_res.get("tag") or None,
                             closer_avail=str(analysis.get(f"{side}_key_rel_avail", True)),
                             lineup_slot_score=analysis.get(f"{side}_slot_run_adj"),
+                            sharp_signal=_sharp_s if _sharp_s else None,
+                            umpire_edge=_ump_e_log.get("tag") or None,
+                            home_dog_angle=1 if _hd_log.get("is_home_dog_value") else 0,
+                            first_pitch_strike_rate=_sp_data_log.get("fp_strike_rate"),
+                            sp_gb_rate=_sp_data_log.get("gb_rate"),
                         )
                     except Exception as e:
                         print(f"DB log error: {e}")
@@ -2718,6 +2932,8 @@ def run_daily_scout():
                     "team": _nm_team, "edge": _nm_edge,
                     "model": _nm_model, "conf": _nm_conf,
                     "reasons": _reasons,
+                    "game": f"{_nm_a.get('away_name','')} @ {_nm_a.get('home_name','')}",
+                    "odds": _nm_a.get(f"best_{_nm_side}_odds"),
                 })
         _nm_candidates.sort(key=lambda x: x["edge"], reverse=True)
         _top3 = _nm_candidates[:3]
@@ -2725,10 +2941,53 @@ def run_daily_scout():
             _nm_lines = ["⚠️ No qualifying bets today — top near-misses:"]
             for _i, _nm in enumerate(_top3, 1):
                 _why = " | ".join(_nm["reasons"])
-                _nm_lines.append(f"{_i}. {_nm['team']} — edge {_nm['edge']:+.1f}% | {_why}")
+                _odds_s = ""
+                if _nm.get("odds") is not None:
+                    _o = _nm["odds"]
+                    _odds_s = f" ({'+' if isinstance(_o, int) and _o > 0 else ''}{_o})"
+                _nm_lines.append(
+                    f"{_i}. {_nm['team']}{_odds_s} [{_nm['game']}]"
+                    f" — edge {_nm['edge']:+.1f}% | {_why}"
+                )
             _nm_msg = "\n".join(_nm_lines)
-            print(_nm_msg)
-            _send_telegram(_nm_msg)
+            # Strip HTML tags — near-miss sent as plain text to avoid Telegram 400
+            import re as _re
+            _nm_msg_clean = _re.sub(r"<[^>]+>", "", _nm_msg)
+            print(_nm_msg_clean)
+            _send_telegram(_nm_msg_clean)
+
+    # ── Top 3 props — always send, regardless of ML pick count ───────────────
+    # Collect best props (K + hitter) by edge, lowered threshold to 3% for this section
+    _top_props_all = []
+    for _kb in all_k_props:
+        if _kb.get("edge_pct", 0) >= 3.0:
+            _top_props_all.append({
+                "label": f"{_kb['sp']} O{_kb['line']}K",
+                "edge": _kb.get("edge_pct", 0),
+                "p": _kb.get("p_over", 0),
+                "game": _kb.get("game", ""),
+            })
+    for _hb in all_hitter_props:
+        if _hb.get("edge_pct", 0) >= 3.0:
+            _top_props_all.append({
+                "label": f"{_hb['player']} {_hb.get('prop','')}",
+                "edge": _hb.get("edge_pct", 0),
+                "p": _hb.get("model_prob", 0),
+                "game": _hb.get("game", ""),
+            })
+    _top_props_all.sort(key=lambda x: x["edge"], reverse=True)
+    _top_props_3 = _top_props_all[:3]
+    if _top_props_3:
+        _tp_lines = [f"📊 TOP PROPS TODAY ({today}):"]
+        for _i, _tp in enumerate(_top_props_3, 1):
+            _tp_lines.append(
+                f"  {_i}. {_tp['label']} — model {_tp['p']:.1%} | edge +{_tp['edge']:.1f}% | {_tp['game']}"
+            )
+        _tp_msg = "\n".join(_tp_lines)
+        print(_tp_msg)
+        # Only send standalone props message when there are no ML picks (otherwise props appear in slip)
+        if n_bets == 0:
+            _send_telegram(_tp_msg)
 
     # ── Series analysis (game 1 of series today) ──────────────────────────────
     print("Running series analysis...")

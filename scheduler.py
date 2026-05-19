@@ -83,6 +83,64 @@ def run_improvement_check_task():
         log.error(f"[scheduler] Improvement check failed: {e}", exc_info=True)
 
 
+def run_umpire_refresh_task():
+    """Monday morning: refresh umpire stats DB from last 14 days of MLB games."""
+    try:
+        from umpire_engine import refresh_umpire_stats
+        result = refresh_umpire_stats(days=14)
+        log.info(f"[scheduler] Umpire refresh done: {len(result)} umpires updated")
+    except Exception as e:
+        log.error(f"[scheduler] Umpire refresh failed: {e}", exc_info=True)
+
+
+def run_confidence_retrain_task():
+    """Sunday 2am ET: retrain confidence logistic regression model on settled bets."""
+    try:
+        from confidence_engine import retrain_confidence_model
+        report = retrain_confidence_model()
+        status = report.get("status", "unknown")
+        n      = report.get("n_bets", 0)
+        acc    = report.get("accuracy", 0)
+        log.info(f"[scheduler] Confidence retrain: status={status} n={n} accuracy={acc:.1%}")
+        if status == "trained":
+            log.info(f"[scheduler] Confidence model updated ({n} bets, acc={acc:.1%})")
+        elif status == "insufficient_data":
+            log.info(f"[scheduler] Confidence retrain skipped — {n}/{report.get('need',20)} bets available")
+    except Exception as e:
+        log.error(f"[scheduler] Confidence retrain failed: {e}", exc_info=True)
+
+
+def run_pattern_report_task(send_telegram_fn=None):
+    """Monday morning: compute betting pattern win rates and send Telegram summary."""
+    try:
+        from memory_engine import weekly_pattern_report
+        msg = weekly_pattern_report(send_fn=send_telegram_fn)
+        log.info("[scheduler] Weekly pattern report sent")
+    except Exception as e:
+        log.error(f"[scheduler] Pattern report failed: {e}", exc_info=True)
+
+
+def run_prop_settlement_task():
+    """
+    Nightly: auto-settle unsettled prop_results rows that are >= 1 day old.
+    Marks expired props as 'expired' so accuracy stats aren't polluted.
+    """
+    try:
+        from datetime import date as _date, timedelta as _td
+        import db as _db
+        cutoff = (_date.today() - _td(days=1)).isoformat()
+        with _db._conn() as conn:
+            # Mark any prop result older than yesterday with no result as expired
+            updated = conn.execute(
+                "UPDATE prop_results SET result='expired' WHERE result IS NULL AND date < ?",
+                (cutoff,),
+            ).rowcount
+        if updated:
+            log.info(f"[scheduler] Prop settlement: marked {updated} old props as expired")
+    except Exception as e:
+        log.error(f"[scheduler] Prop settlement failed: {e}", exc_info=True)
+
+
 # ── SCHEDULER LOOP ────────────────────────────────────────────────────────────
 
 # (weekday, hour, minute) → task function
@@ -103,8 +161,11 @@ def schedule_loop(stop_event=None):
     """
     log.info("[scheduler] Starting scheduler loop")
 
-    last_daily  = ""   # YYYY-MM-DD
-    last_weekly = ""   # YYYY-WW
+    last_daily        = ""   # YYYY-MM-DD
+    last_weekly       = ""   # YYYY-WW
+    last_monday       = ""   # YYYY-MM-DD — for Monday umpire refresh + pattern report
+    last_prop_settle  = ""   # YYYY-MM-DD
+    last_conf_retrain = ""   # YYYY-WW — Sunday confidence retrain
 
     while True:
         if stop_event and stop_event.is_set():
@@ -130,19 +191,42 @@ def schedule_loop(stop_event=None):
             last_daily = today
             log.info(f"[scheduler] Daily tasks fired for {today}")
 
+        # Nightly 1am prop settlement (run once per day after midnight tasks)
+        if today != last_prop_settle and now_et.hour == 1 and now_et.minute < 5:
+            run_prop_settlement_task()
+            last_prop_settle = today
+
+        # Monday 7am ET: umpire stats refresh + weekly pattern report
+        if (now_et.weekday() == 0                   # Monday
+                and now_et.hour == 7
+                and now_et.minute < 5
+                and today != last_monday):
+            run_umpire_refresh_task()
+            # Pattern report: try to get send_fn from brain module
+            _send_fn = None
+            try:
+                import brain as _brain_mod
+                _send_fn = _brain_mod._send_telegram
+            except Exception:
+                pass
+            run_pattern_report_task(send_telegram_fn=_send_fn)
+            last_monday = today
+            log.info(f"[scheduler] Monday tasks (umpire + pattern report) fired for {today}")
+
         # Weekly Sunday 2am task
         if (now_et.weekday() == 6
                 and now_et.hour == 2
                 and now_et.minute < 5
                 and week != last_weekly):
             run_weekly_maintenance_task()
+            run_confidence_retrain_task()
             try:
                 from profile_engine import run_weekly_team_updates
                 run_weekly_team_updates()
             except Exception as e:
                 log.error(f"[scheduler] Weekly team updates failed: {e}", exc_info=True)
             last_weekly = week
-            log.info(f"[scheduler] Weekly tasks fired for week {week}")
+            log.info(f"[scheduler] Weekly tasks (maintenance + conf_retrain) fired for week {week}")
 
         time.sleep(_POLL_INTERVAL)
 
@@ -151,17 +235,16 @@ def schedule_loop(stop_event=None):
 
 def scheduler_status() -> dict:
     """Human-readable status for dashboard."""
-    now     = _now_et()
-    sun_2am = _next_occurrence(weekday=6, hour=2)
-    midnight = _next_occurrence(
-        weekday=now.weekday(),
-        hour=0
-    )
+    now      = _now_et()
+    sun_2am  = _next_occurrence(weekday=6, hour=2)
+    mon_7am  = _next_occurrence(weekday=0, hour=7)
+    midnight = _next_occurrence(weekday=now.weekday(), hour=0)
     return {
-        "current_et":       now.strftime("%Y-%m-%d %H:%M %Z"),
-        "next_daily_et":    datetime.fromtimestamp(midnight, ET).strftime("%Y-%m-%d %H:%M %Z"),
-        "next_weekly_et":   datetime.fromtimestamp(sun_2am, ET).strftime("%Y-%m-%d %H:%M %Z"),
-        "next_weekly_secs": int(_seconds_until(sun_2am)),
+        "current_et":           now.strftime("%Y-%m-%d %H:%M %Z"),
+        "next_daily_et":        datetime.fromtimestamp(midnight, ET).strftime("%Y-%m-%d %H:%M %Z"),
+        "next_weekly_et":       datetime.fromtimestamp(sun_2am, ET).strftime("%Y-%m-%d %H:%M %Z"),
+        "next_weekly_secs":     int(_seconds_until(sun_2am)),
+        "next_umpire_refresh":  datetime.fromtimestamp(mon_7am, ET).strftime("%Y-%m-%d %H:%M %Z"),
     }
 
 
