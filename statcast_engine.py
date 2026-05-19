@@ -279,6 +279,133 @@ def sp_statcast_summary(pitcher_id: int, season: int = 2026) -> str:
     return " ".join(parts) if parts else ""
 
 
+# ── Pitcher pitch mix + GB rate + FP strike rate ─────────────────────────────
+
+_FP_STRIKE_DESCS = {
+    "called_strike", "swinging_strike", "swinging_strike_blocked",
+    "foul", "foul_tip", "hit_into_play", "foul_bunt",
+    "missed_bunt", "bunt_foul_tip",
+}
+_BATTED_BALL_TYPES = {"ground_ball", "fly_ball", "line_drive", "popup"}
+
+
+def _savant_pitcher_detail_url(pitcher_id: int, season: int = 2026) -> str:
+    return (
+        f"{SAVANT_BASE}/statcast_search/csv"
+        f"?all=true&hfGT=R%7C&hfSea={season}%7C&player_type=pitcher"
+        f"&pitchers_lookup%5B%5D={pitcher_id}"
+        f"&min_pitches=0&min_results=0"
+        f"&sort_col=pitches&sort_order=desc&type=details&min_pas=0"
+    )
+
+
+def _parse_pitch_details(text: str) -> dict:
+    """
+    Parse individual pitch-level Savant CSV.
+    Returns gb_rate, fp_strike_rate, pitch_mix {type: {usage_pct, whiff_rate}}.
+    """
+    try:
+        text = text.lstrip("﻿")
+        reader = csv.DictReader(io.StringIO(text))
+
+        total_pitches   = 0
+        total_bb        = 0
+        gb_count        = 0
+        fp_total        = 0
+        fp_strike_count = 0
+        type_totals: dict = {}
+
+        for row in reader:
+            pt   = (row.get("pitch_type") or "").strip()
+            desc = (row.get("description") or "").strip()
+            bb_t = (row.get("bb_type") or "").strip()
+            try:
+                pnum = int(row.get("pitch_number") or 0)
+            except (ValueError, TypeError):
+                pnum = 0
+
+            if not pt or pt in ("", "None"):
+                continue
+
+            total_pitches += 1
+            if pt not in type_totals:
+                type_totals[pt] = {"n": 0, "whiffs": 0}
+            type_totals[pt]["n"] += 1
+            if desc in ("swinging_strike", "swinging_strike_blocked", "foul_tip"):
+                type_totals[pt]["whiffs"] += 1
+
+            if bb_t in _BATTED_BALL_TYPES:
+                total_bb += 1
+                if bb_t == "ground_ball":
+                    gb_count += 1
+
+            if pnum == 1:
+                fp_total += 1
+                if desc in _FP_STRIKE_DESCS:
+                    fp_strike_count += 1
+
+        if total_pitches < 50:
+            return {}
+
+        pitch_mix: dict = {}
+        for pt, data in type_totals.items():
+            n = data["n"]
+            if n < 5:
+                continue
+            pitch_mix[pt] = {
+                "count":      n,
+                "usage_pct":  round(n / total_pitches, 4),
+                "whiff_rate": round(data["whiffs"] / n, 4),
+            }
+
+        gb_rate        = round(gb_count / total_bb, 4) if total_bb >= 20 else None
+        fp_strike_rate = round(fp_strike_count / fp_total, 4) if fp_total >= 30 else None
+
+        return {
+            "pitch_mix":      pitch_mix,
+            "gb_rate":        gb_rate,
+            "fp_strike_rate": fp_strike_rate,
+            "total_pitches":  total_pitches,
+        }
+    except Exception as e:
+        print(f"  [STATCAST] pitch detail parse error: {e}")
+        return {}
+
+
+@lru_cache(maxsize=64)
+def get_pitcher_pitch_mix(pitcher_id: int, season: int = 2026) -> dict:
+    """
+    Fetch per-pitch-type usage%, whiff rate, GB rate, and FP-strike rate.
+    Cached per pitcher. Returns {} on failure.
+    """
+    if not pitcher_id:
+        return {}
+    for try_season in ([season, season - 1] if season == 2026 else [season]):
+        url = _savant_pitcher_detail_url(pitcher_id, try_season)
+        try:
+            r = _http_get(
+                url, timeout=30,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; ParlayOS/1.0)"},
+                skip_cache=False,
+            )
+            if r.status_code != 200 or not r.text.strip():
+                continue
+            result = _parse_pitch_details(r.text)
+            if result:
+                if try_season != season:
+                    result["is_2025_data"] = True
+                print(
+                    f"  [STATCAST] PitchMix {pitcher_id} season={try_season}: "
+                    f"gb={result.get('gb_rate')} fp={result.get('fp_strike_rate')} "
+                    f"pitches={result.get('total_pitches')} "
+                    f"types={list(result.get('pitch_mix', {}).keys())}"
+                )
+                return result
+        except Exception as e:
+            print(f"  [STATCAST] PitchMix fetch error {pitcher_id}: {e}")
+    return {}
+
+
 if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1:
@@ -286,5 +413,8 @@ if __name__ == "__main__":
         print(f"Fetching pitcher {pid} Statcast...")
         sc = get_pitcher_statcast(pid)
         print(sc if sc else "No data returned")
+        print("\nFetching pitch mix...")
+        pm = get_pitcher_pitch_mix(pid)
+        print(pm if pm else "No pitch mix data")
     else:
         print("Usage: python statcast_engine.py PITCHER_MLB_ID")

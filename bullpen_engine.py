@@ -136,33 +136,51 @@ def _is_closer(p: dict, stats: list) -> bool:
     return svs >= 5
 
 
+def _np_yesterday(games: list) -> int:
+    """Return pitch count from yesterday's game only (days_ago == 1)."""
+    today = date.today()
+    for g in games:
+        try:
+            gd = date.fromisoformat(g["date"])
+            if (today - gd).days == 1:
+                return g.get("np", 0)
+        except Exception:
+            pass
+    return 0
+
+
 def analyze_bullpen(team_id: int, game_date: str, label: str = "") -> dict:
     """
     Full bullpen analysis for team_id on game_date.
     Returns fatigue tier, closer availability, top relievers.
     Fatigue scores are on a 0–10 scale; arms ≥7 are flagged.
+    Also identifies whether the top 2 key relievers (CL + top RP) are available.
+    Key reliever = unavailable if 25+ pitches yesterday.
     """
     roster  = _team_roster(team_id, game_date)
     rp_list = [p for p in roster if p["position"] in ("RP", "CL")]
 
-    total_fatigue    = 0.0
-    fatigued_arms    = 0
+    total_fatigue     = 0.0
+    fatigued_arms     = 0
     high_fatigue_arms = []
-    closer_available = True
-    closer_name      = ""
-    details          = []
+    closer_available  = True
+    closer_name       = ""
+    details           = []
 
     for p in rp_list:
         games  = _pitcher_game_log(p["id"], days=3)
         fscore = _fatigue_score(games)
         np3    = sum(g.get("np", 0) for g in games)
+        np1    = _np_yesterday(games)
 
         details.append({
-            "id":      p["id"],
-            "name":    p["name"],
-            "fatigue": fscore,
-            "np_3d":   np3,
-            "flagged": fscore >= 7.0,
+            "id":        p["id"],
+            "name":      p["name"],
+            "position":  p["position"],
+            "fatigue":   fscore,
+            "np_3d":     np3,
+            "np_yest":   np1,
+            "flagged":   fscore >= 7.0,
         })
         total_fatigue += fscore
         if fscore >= 5.0:
@@ -184,21 +202,47 @@ def analyze_bullpen(team_id: int, game_date: str, label: str = "") -> dict:
     else:
         fatigue_tier = "TIRED"
 
+    # ── Key reliever availability: CL + highest-usage RP ─────────────────────
+    # Sort by yesterday's pitch count desc; flagged if 25+ pitches yesterday
+    KEY_NP_THRESH = 25
+    key_flagged:   list[str] = []
+    key_available: bool      = True
+
+    # CL is always a key reliever
+    cl_arms = [d for d in details if d["position"] == "CL"]
+    rp_arms = sorted(
+        [d for d in details if d["position"] == "RP"],
+        key=lambda x: -x["np_3d"],   # top RP by recent usage
+    )
+    key_relievers = (cl_arms + rp_arms)[:2]   # top 2
+
+    for arm in key_relievers:
+        if arm.get("np_yest", 0) >= KEY_NP_THRESH:
+            key_flagged.append(arm["name"])
+
+    if key_flagged:
+        key_available = False
+
     print(f"[BULLPEN] {label or team_id}: {len(rp_list)} relievers — "
-          f"avg_fatigue={avg_fatigue}/10 tier={fatigue_tier}")
+          f"avg_fatigue={avg_fatigue}/10 tier={fatigue_tier} "
+          f"key_avail={key_available}"
+          + (f" flagged={key_flagged}" if key_flagged else ""))
 
     return {
-        "team":               label,
-        "team_id":            team_id,
-        "avg_fatigue":        avg_fatigue,
-        "fatigue_tier":       fatigue_tier,
-        "fatigued_arms":      fatigued_arms,
-        "high_fatigue_arms":  high_fatigue_arms,
-        "total_rp":           len(rp_list),
-        "closer_available":   closer_available,
-        "closer_name":        closer_name,
-        "heavy_usage":        high_fatigue_arms,
-        "arms":               sorted(details, key=lambda x: -x["fatigue"]),
+        "team":                label,
+        "team_id":             team_id,
+        "avg_fatigue":         avg_fatigue,
+        "fatigue_tier":        fatigue_tier,
+        "fatigued_arms":       fatigued_arms,
+        "high_fatigue_arms":   high_fatigue_arms,
+        "total_rp":            len(rp_list),
+        "closer_available":    closer_available,
+        "closer_name":         closer_name,
+        "heavy_usage":         high_fatigue_arms,
+        "arms":                sorted(details, key=lambda x: -x["fatigue"]),
+        # Key reliever availability (new)
+        "key_reliever_available": key_available,
+        "key_relievers_flagged":  key_flagged,
     }
 
 

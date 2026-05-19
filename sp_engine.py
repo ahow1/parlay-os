@@ -368,6 +368,61 @@ def _abs_adjustment(bb9: float, k9: float, hand: str) -> float:
     return 0.0
 
 
+def _sp_platoon_splits(pitcher_id: int) -> dict:
+    """
+    Fetch SP platoon splits vs LHH and RHH from MLB Stats API (current season only).
+    Returns {vs_lhh: {woba, obp, slg, pa}, vs_rhh: {...}, platoon_vulnerability: bool}.
+    wOBA > 0.360 vs one side = PLATOON_VULNERABILITY.
+    Weights: 70% current season / 30% career blend NOT applied here — season-only data.
+    """
+    result: dict = {}
+    for sit, key in (("vl", "vs_lhh"), ("vr", "vs_rhh")):
+        try:
+            r = _http_get(
+                f"{STATSAPI}/people/{pitcher_id}/stats",
+                params={
+                    "stats":    "statSplits",
+                    "group":    "pitching",
+                    "season":   "2026",
+                    "gameType": "R",
+                    "sitCodes": sit,
+                },
+                timeout=10,
+            )
+            splits = r.json().get("stats", [{}])[0].get("splits", [])
+            if not splits:
+                continue
+            s = splits[0].get("stat", {})
+            obp  = float(s.get("obp", 0.320) or 0.320)
+            slg  = float(s.get("slg", 0.410) or 0.410)
+            woba_raw = float(s.get("wOBA") or s.get("woba") or 0.330)
+            pa   = int(s.get("plateAppearances", 0) or 0)
+            # wOBA proxy: league wOBA ≈ OBP * 0.72 + SLG * 0.28 when not directly available
+            if woba_raw == 0.330 and obp != 0.320:
+                woba_raw = round(obp * 0.72 + slg * 0.28, 3)
+            result[key] = {
+                "woba": round(woba_raw, 3),
+                "obp":  obp,
+                "slg":  slg,
+                "pa":   pa,
+            }
+        except Exception:
+            pass
+
+    # Platoon vulnerability: wOBA > 0.360 vs either handedness (with enough PA)
+    vuln = False
+    vuln_side = ""
+    for key, hand in (("vs_lhh", "LHH"), ("vs_rhh", "RHH")):
+        split = result.get(key, {})
+        if split.get("pa", 0) >= 30 and split.get("woba", 0) >= 0.360:
+            vuln = True
+            vuln_side = f"{split['woba']:.3f} wOBA vs {hand}"
+
+    result["platoon_vulnerability"] = vuln
+    result["platoon_vuln_detail"]   = vuln_side
+    return result
+
+
 def _platoon_run_factor(sp_hand: str, opp_team: str) -> float:
     """Adjust run expectancy based on SP handedness vs opponent LHB%."""
     lhb_pct   = TEAM_LHB_PCT.get(opp_team, 0.43)
@@ -404,7 +459,6 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "",
     effective_era = era
     if last3.get("rolling_era_3") is not None:
         r3_era = last3["rolling_era_3"]
-        # Weight: 60% season, 40% last 3 starts
         effective_era = round(0.60 * era + 0.40 * r3_era, 2)
 
     ump_k, ump_run, ump_note = UMPIRE_TENDENCIES.get(umpire, (1.0, 1.0, ""))
@@ -412,10 +466,23 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "",
     plat_rf  = _platoon_run_factor(hand, opp_team)
     ttop     = _ttop_flag(stats)
 
-    # Run factor: higher = more runs scored against this SP
-    # xFIP quality: <1 suppresses runs (good SP), >1 allows more (bad SP)
     sp_quality = round(xfip / max(LG_ERA, 0.01), 4)
     run_factor = round(ump_run * plat_rf * sp_quality * (1.0 + abs_adj), 4)
+
+    # ── New: platoon splits, GB rate, FP strike rate ──────────────────────────
+    platoon_splits = _sp_platoon_splits(pitcher_id) if pitcher_id else {}
+
+    # GB rate and FP strike rate from Savant pitch-level data
+    gb_rate        = None
+    fp_strike_rate = None
+    try:
+        from statcast_engine import get_pitcher_pitch_mix
+        pm = get_pitcher_pitch_mix(pitcher_id)
+        if pm:
+            gb_rate        = pm.get("gb_rate")
+            fp_strike_rate = pm.get("fp_strike_rate")
+    except Exception:
+        pass
 
     return {
         "pitcher_id":       pitcher_id,
@@ -437,11 +504,11 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "",
         "plat_run_factor":  plat_rf,
         "run_factor":       run_factor,
         # Last-3-start rolling stats
-        "rolling_era_3":     last3.get("rolling_era_3"),
-        "rolling_k9_3":      last3.get("rolling_k9_3"),
-        "rolling_bb9_3":     last3.get("rolling_bb9_3"),
-        "worsening_walk":    last3.get("worsening_walk", False),
-        "k9_declining":      last3.get("k9_declining", False),
+        "rolling_era_3":    last3.get("rolling_era_3"),
+        "rolling_k9_3":     last3.get("rolling_k9_3"),
+        "rolling_bb9_3":    last3.get("rolling_bb9_3"),
+        "worsening_walk":   last3.get("worsening_walk", False),
+        "k9_declining":     last3.get("k9_declining", False),
         # Velocity trend (K-rate proxy; true velocity requires Statcast)
         "velocity_decline":      last3.get("velocity_decline", False),
         "velocity_injury_risk":  last3.get("velocity_injury_risk", False),
@@ -449,9 +516,16 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "",
         # Fatigue: 100+ pitch start in last 4 days
         "high_pitch_recent":     last3.get("high_pitch_recent", False),
         # First inning performance
-        "first_inning_era":    fi_data.get("first_inning_era"),
-        "fi_n_starts":         fi_data.get("fi_n_starts"),
-        "yrfi_lean":           fi_data.get("yrfi_lean", False),
+        "first_inning_era":      fi_data.get("first_inning_era"),
+        "fi_n_starts":           fi_data.get("fi_n_starts"),
+        "yrfi_lean":             fi_data.get("yrfi_lean", False),
+        # Platoon splits (this season only)
+        "platoon_splits":        platoon_splits,
+        "platoon_vulnerability": platoon_splits.get("platoon_vulnerability", False),
+        "platoon_vuln_detail":   platoon_splits.get("platoon_vuln_detail", ""),
+        # Batted ball / command metrics from Savant
+        "gb_rate":           gb_rate,
+        "fp_strike_rate":    fp_strike_rate,
     }
 
 
@@ -484,10 +558,15 @@ def _default_sp(pitcher_id, opp_team, umpire) -> dict:
         "velocity_decline":  False,
         "velocity_injury_risk": False,
         "k9_trend_10s":      0.0,
-        "high_pitch_recent": False,
-        "first_inning_era":  None,
-        "fi_n_starts":         None,
-        "yrfi_lean":           False,
+        "high_pitch_recent":     False,
+        "first_inning_era":      None,
+        "fi_n_starts":           None,
+        "yrfi_lean":             False,
+        "platoon_splits":        {},
+        "platoon_vulnerability": False,
+        "platoon_vuln_detail":   "",
+        "gb_rate":               None,
+        "fp_strike_rate":        None,
     }
 
 

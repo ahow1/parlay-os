@@ -117,6 +117,29 @@ except ImportError:
     _LINE_POLLING_AVAILABLE = False
     def start_line_polling(*a, **k): return None
 
+try:
+    from pitch_mix_engine import check_pitch_trap
+    _PITCH_MIX_AVAILABLE = True
+except ImportError:
+    _PITCH_MIX_AVAILABLE = False
+    def check_pitch_trap(*a, **k): return {"is_pitch_trap": False, "prob_add": 0.0, "tag": ""}
+
+try:
+    from framing_engine import get_team_framing, check_framing_edge
+    _FRAMING_AVAILABLE = True
+except ImportError:
+    _FRAMING_AVAILABLE = False
+    def get_team_framing(*a, **k): return None
+    def check_framing_edge(r, *a, **k): return {"prob_adj": 0.0, "tag": "", "framing_runs": r}
+
+try:
+    from defense_engine import get_team_oaa, check_defense_edge
+    _DEFENSE_AVAILABLE = True
+except ImportError:
+    _DEFENSE_AVAILABLE = False
+    def get_team_oaa(*a, **k): return None
+    def check_defense_edge(o, *a, **k): return {"run_adj": 0.0, "tag": "", "oaa": o}
+
 STATSAPI  = "https://statsapi.mlb.com/api/v1"
 ET        = pytz.timezone("America/New_York")
 BOT_TOKEN         = os.getenv("TELEGRAM_BOT_TOKEN", "")
@@ -271,7 +294,40 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     if home_dog_add > 0:
         print(f"  🐶 HOME_DOG_ANGLE fired (+{home_dog_add:.2f} home win prob in blend)")
 
-    # ── 8-factor weighted probability blend ──────────────────────────────────
+    # ── Factor 9: Pitch trap (away offense vs home SP / home offense vs away SP)
+    away_pitch_trap = check_pitch_trap(
+        home_sp.get("pitcher_id", 0) or 0,
+        home_sp.get("name", ""),
+        away_code,
+    )
+    home_pitch_trap = check_pitch_trap(
+        away_sp.get("pitcher_id", 0) or 0,
+        away_sp.get("name", ""),
+        home_code,
+    )
+    # prob_add = benefit for the OFFENSE; away offense benefits = away_p up
+    _pt_away_adj = away_pitch_trap.get("prob_add", 0.0)   # away lineup exploits home SP
+    _pt_home_adj = home_pitch_trap.get("prob_add", 0.0)   # home lineup exploits away SP
+
+    # ── Factor 10: Key reliever availability (from bullpen engine) ────────────
+    away_key_rel_avail = away_bp.get("key_reliever_available", True)
+    home_key_rel_avail = home_bp.get("key_reliever_available", True)
+
+    # ── Factor 11: Catcher framing ────────────────────────────────────────────
+    away_framing_runs = get_team_framing(away_code)
+    home_framing_runs = get_team_framing(home_code)
+    away_framing_res  = check_framing_edge(away_framing_runs, away_code)
+    home_framing_res  = check_framing_edge(home_framing_runs, home_code)
+    # prob_adj is signed: positive = team's pitching benefits (harder for opponents to score)
+    # In away_p terms: away framing helps away pitchers → away_p up; home framing → away_p down
+    _away_framing_adj = away_framing_res.get("prob_adj", 0.0)
+    _home_framing_adj = home_framing_res.get("prob_adj", 0.0)
+
+    # ── Factor 12: Lineup slot quality ────────────────────────────────────────
+    _away_slot_adj = away_off.get("slot_run_adj", 0.0)
+    _home_slot_adj = home_off.get("slot_run_adj", 0.0)
+
+    # ── 12-factor weighted probability blend ─────────────────────────────────
     _lm_raw       = market.get("line_movement") or {}
     _lm_dir       = _lm_raw.get("direction", "stable")
     _lm_mag       = _lm_raw.get("magnitude", 0.0)
@@ -279,27 +335,36 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     home_wrc_v    = home_off.get("adj_wrc_plus", home_off.get("wrc_plus", 100.0))
 
     away_model_p, home_model_p = _weighted_win_prob(
-        away_xfip         = away_sp.get("xfip", 4.35),
-        home_xfip         = home_sp.get("xfip", 4.35),
-        away_bp_fatigue   = away_bp.get("avg_fatigue", 4.0),
-        home_bp_fatigue   = home_bp.get("avg_fatigue", 4.0),
-        away_wrc          = away_wrc_v,
-        home_wrc          = home_wrc_v,
-        home_dog_add      = home_dog_add,
-        pyth_away_p       = pyth_or_ml_away_p,
-        lm_direction      = _lm_dir,
-        lm_magnitude      = _lm_mag,
-        away_platoon_edge = away_off.get("platoon_edge", 0),
-        home_platoon_edge = home_off.get("platoon_edge", 0),
-        away_momentum_score = away_momentum.get("score", 0.0),
-        home_momentum_score = home_momentum.get("score", 0.0),
+        away_xfip              = away_sp.get("xfip", 4.35),
+        home_xfip              = home_sp.get("xfip", 4.35),
+        away_bp_fatigue        = away_bp.get("avg_fatigue", 4.0),
+        home_bp_fatigue        = home_bp.get("avg_fatigue", 4.0),
+        away_wrc               = away_wrc_v,
+        home_wrc               = home_wrc_v,
+        home_dog_add           = home_dog_add,
+        pyth_away_p            = pyth_or_ml_away_p,
+        lm_direction           = _lm_dir,
+        lm_magnitude           = _lm_mag,
+        away_platoon_edge      = away_off.get("platoon_edge", 0),
+        home_platoon_edge      = home_off.get("platoon_edge", 0),
+        away_momentum_score    = away_momentum.get("score", 0.0),
+        home_momentum_score    = home_momentum.get("score", 0.0),
+        pitch_trap_away_adj    = _pt_away_adj,
+        pitch_trap_home_adj    = _pt_home_adj,
+        away_framing_adj       = _away_framing_adj,
+        home_framing_adj       = _home_framing_adj,
+        away_key_reliever_avail = away_key_rel_avail,
+        home_key_reliever_avail = home_key_rel_avail,
+        away_slot_run_adj      = _away_slot_adj,
+        home_slot_run_adj      = _home_slot_adj,
     )
     _a_tier, _ = _sp_tier(away_sp.get("xfip", 4.35))
     _h_tier, _ = _sp_tier(home_sp.get("xfip", 4.35))
-    print(f"  8-factor: away={away_model_p:.3f} home={home_model_p:.3f} "
+    print(f"  12-factor: away={away_model_p:.3f} home={home_model_p:.3f} "
           f"SP:{away_sp.get('xfip',4.35):.2f}({_a_tier}) vs {home_sp.get('xfip',4.35):.2f}({_h_tier}) "
           f"BP:{away_bp.get('avg_fatigue',4.0):.1f}/{home_bp.get('avg_fatigue',4.0):.1f} "
-          f"Pyth={pyth_away_p:.3f}")
+          f"Pyth={pyth_away_p:.3f} PT:{_pt_away_adj:.3f}/{_pt_home_adj:.3f} "
+          f"FR:{_away_framing_adj:.2f}/{_home_framing_adj:.2f}")
 
     # ── H2H historical matchup (10% weight) ─────────────────────────────────
     h2h = {}
@@ -617,6 +682,15 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         "home_sp_tier": _sp_tier(home_sp.get("xfip", 4.35))[0],
         # Home dog structural edge result
         "home_dog": home_dog_result,
+        # 12-factor: pitch trap, framing, key reliever, lineup slot
+        "away_pitch_trap":      away_pitch_trap,
+        "home_pitch_trap":      home_pitch_trap,
+        "away_framing":         away_framing_res,
+        "home_framing":         home_framing_res,
+        "away_key_rel_avail":   away_key_rel_avail,
+        "home_key_rel_avail":   home_key_rel_avail,
+        "away_slot_run_adj":    _away_slot_adj,
+        "home_slot_run_adj":    _home_slot_adj,
     }
 
 
@@ -775,15 +849,24 @@ def _weighted_win_prob(
     lm_direction: str, lm_magnitude: float,
     away_platoon_edge: float, home_platoon_edge: float,
     away_momentum_score: float, home_momentum_score: float,
+    # New factors (12-factor model)
+    pitch_trap_away_adj: float = 0.0,  # away offense benefits vs home SP
+    pitch_trap_home_adj: float = 0.0,  # home offense benefits vs away SP
+    away_framing_adj: float = 0.0,     # away catcher framing (+/-0.02)
+    home_framing_adj: float = 0.0,     # home catcher framing
+    away_key_reliever_avail: bool = True,
+    home_key_reliever_avail: bool = True,
+    away_slot_run_adj: float = 0.0,    # +0.15 elite, -0.15 weak top order
+    home_slot_run_adj: float = 0.0,
 ) -> tuple[float, float]:
     """
-    8-factor weighted win probability.
-    Weights: SP 28%, Bullpen 20%, Offense 18%, Home dog 10%,
-             Pythagorean 8%, Line movement 7%, Platoon 5%, Momentum 4%.
+    12-factor weighted win probability.
+    Weights: SP 25%, Bullpen 18%, Offense 16%, Home dog 9%,
+             Pythagorean 7%, Line movement 6%, Platoon 5%, Momentum 4%,
+             Pitch mix 3%, Key reliever 3%, Catcher framing 2%, Lineup slot 2%.
     Returns (away_p, home_p) rounded to 4 decimal places.
     """
-    # Factor 1 — SP xFIP (28%)
-    # Reciprocal quality score: lower xFIP = higher quality. Tier mult amplifies signal.
+    # Factor 1 — SP xFIP (25%)
     _, away_tm = _sp_tier(away_xfip)
     _, home_tm = _sp_tier(home_xfip)
     away_sp_q  = (1.0 / max(away_xfip, 0.5)) * away_tm
@@ -791,26 +874,25 @@ def _weighted_win_prob(
     sp_denom   = away_sp_q + home_sp_q
     sp_away_p  = away_sp_q / sp_denom if sp_denom > 0 else 0.5
 
-    # Factor 2 — Bullpen (20%)
+    # Factor 2 — Bullpen (18%)
     away_bp_q  = 1.0 / (1.0 + max(away_bp_fatigue, 0))
     home_bp_q  = 1.0 / (1.0 + max(home_bp_fatigue, 0))
     bp_denom   = away_bp_q + home_bp_q
     bp_away_p  = away_bp_q / bp_denom if bp_denom > 0 else 0.5
 
-    # Factor 3 — Offense wRC+ (18%)
+    # Factor 3 — Offense wRC+ (16%)
     away_wrc_s = max(away_wrc, 50.0)
     home_wrc_s = max(home_wrc, 50.0)
     off_denom  = away_wrc_s + home_wrc_s
     off_away_p = away_wrc_s / off_denom if off_denom > 0 else 0.5
 
-    # Factor 4 — Home dog structural edge (10%)
-    # home_dog_add = 0.04 when conditions met → home prob boosted → away reduced.
+    # Factor 4 — Home dog structural edge (9%)
     hdog_away_p = 0.50 - home_dog_add
 
-    # Factor 5 — Pythagorean / ML (8%)
+    # Factor 5 — Pythagorean / ML (7%)
     pyth_p = max(0.20, min(0.80, pyth_away_p))
 
-    # Factor 6 — Line movement (7%)
+    # Factor 6 — Line movement (6%)
     lm_away_p = 0.50
     if lm_direction == "toward_away":
         lm_away_p = 0.50 + min(lm_magnitude * 0.6, 0.10)
@@ -825,15 +907,41 @@ def _weighted_win_prob(
     mom_diff        = (away_momentum_score or 0) - (home_momentum_score or 0)
     momentum_away_p = max(0.40, min(0.60, 0.50 + mom_diff * 1.5))
 
+    # Factor 9 — Pitch mix matchup (3%)
+    # pitch_trap_away_adj: away offense gains (home SP exploitable by away lineup)
+    # pitch_trap_home_adj: home offense gains (away SP exploitable by home lineup)
+    pm_net    = pitch_trap_away_adj - pitch_trap_home_adj
+    pm_away_p = max(0.40, min(0.60, 0.50 + pm_net))
+
+    # Factor 10 — Key reliever availability (3%)
+    # Missing key reliever = that team's bullpen is weaker → opponent benefits
+    kra_adj   = (0.0 if home_key_reliever_avail else 0.04) - (0.0 if away_key_reliever_avail else 0.04)
+    kra_away_p = max(0.40, min(0.60, 0.50 + kra_adj))
+
+    # Factor 11 — Catcher framing (2%)
+    # Elite home framer helps home pitching → away team harder to score → away_p down
+    # Elite away framer helps away pitching → home team harder to score → away_p up
+    framing_net  = away_framing_adj - home_framing_adj
+    framing_away_p = max(0.40, min(0.60, 0.50 + framing_net))
+
+    # Factor 12 — Lineup slot quality (2%)
+    # High away slot_run_adj = elite top order = more run scoring expected = away_p up
+    slot_net     = away_slot_run_adj - home_slot_run_adj
+    slot_away_p  = max(0.40, min(0.60, 0.50 + slot_net * 0.15))
+
     away_p = (
-        0.28 * sp_away_p +
-        0.20 * bp_away_p +
-        0.18 * off_away_p +
-        0.10 * hdog_away_p +
-        0.08 * pyth_p +
-        0.07 * lm_away_p +
+        0.25 * sp_away_p +
+        0.18 * bp_away_p +
+        0.16 * off_away_p +
+        0.09 * hdog_away_p +
+        0.07 * pyth_p +
+        0.06 * lm_away_p +
         0.05 * platoon_away_p +
-        0.04 * momentum_away_p
+        0.04 * momentum_away_p +
+        0.03 * pm_away_p +
+        0.03 * kra_away_p +
+        0.02 * framing_away_p +
+        0.02 * slot_away_p
     )
     away_p = round(max(0.15, min(0.85, away_p)), 4)
     return away_p, round(1.0 - away_p, 4)
@@ -1755,6 +1863,19 @@ def _format_bet_message(game: dict, side: str) -> str:
     mom_score = our_mom.get("score", 0)
     if abs(mom_score) >= 0.03:
         key_parts.append(f"Momentum {'hot' if mom_score > 0 else 'cold'} ({mom_score:+.3f})")
+    # Pitch trap: our offense exploits opponent SP's pitch arsenal
+    _our_pt = game.get(f"{side}_pitch_trap") or {}
+    if _our_pt.get("is_pitch_trap"):
+        _pt_types = ", ".join(_our_pt.get("exploitable_pitches", []))
+        key_parts.append(f"PITCH TRAP {_pt_types} +{_our_pt.get('prob_add', 0):.1%}")
+    # Elite catcher framing (our catcher helps our pitchers)
+    _our_fr = game.get(f"{side}_framing") or {}
+    if _our_fr.get("is_elite"):
+        key_parts.append(f"FRAMING EDGE +{_our_fr.get('framing_runs', 0):.0f} runs")
+    # Opponent key reliever unavailable → bullpen edge for us
+    opp_key_rel = game.get(f"{opp_s}_key_rel_avail", True)
+    if not opp_key_rel:
+        key_parts.append(f"Opp closer/RP unavailable today")
     if not key_parts:
         key_parts.append("Model consensus play")
     lines.append(f"KEY STAT   {' | '.join(key_parts)}")
@@ -1782,6 +1903,13 @@ def _format_bet_message(game: dict, side: str) -> str:
     injury_flags = game.get("injury_flags") or []
     for inj in injury_flags[:2]:
         risk_parts.append(f"{inj.get('emoji','🚑')} {inj.get('message','')}")
+    # Poor catcher framing (our catcher hurts our pitchers)
+    _our_fr_risk = game.get(f"{side}_framing") or {}
+    if _our_fr_risk.get("is_poor"):
+        risk_parts.append(f"⚠ Poor framing {_our_fr_risk.get('framing_runs', 0):.0f} runs")
+    # Our key reliever unavailable
+    if not game.get(f"{side}_key_rel_avail", True):
+        risk_parts.append("⚠ Our closer/key RP unavailable today")
     if not risk_parts:
         risk_parts.append("No major risk flags")
     lines.append(f"RISK       {' | '.join(risk_parts)}")
@@ -2424,6 +2552,8 @@ def run_daily_scout():
                 # DB log
                 if not DRY_RUN:
                     try:
+                        _pt_res = analysis.get(f"{side}_pitch_trap") or {}
+                        _fr_res = analysis.get(f"{side}_framing")    or {}
                         _db.log_bet(
                             date=today,
                             bet=analysis.get(f"{side}_name", ""),
@@ -2438,6 +2568,10 @@ def run_daily_scout():
                             edge_pct=analysis.get(f"{side}_edge"),
                             conviction=analysis.get(f"{side}_conv", ""),
                             stake=float(analysis.get(f"{side}_stake", 0)),
+                            pitch_trap=_pt_res.get("tag") or None,
+                            framing_edge=_fr_res.get("tag") or None,
+                            closer_avail=str(analysis.get(f"{side}_key_rel_avail", True)),
+                            lineup_slot_score=analysis.get(f"{side}_slot_run_adj"),
                         )
                     except Exception as e:
                         print(f"DB log error: {e}")

@@ -315,6 +315,93 @@ def _lineup_from_boxscore(game_pk: int, side: str) -> list:
         return []
 
 
+# ── Lineup slot quality ───────────────────────────────────────────────────────
+
+def _player_season_ops(player_id: int) -> float | None:
+    """Fetch a hitter's season OPS from MLB Stats API. Returns None on failure."""
+    try:
+        r = _http_get(
+            f"{STATSAPI}/people/{player_id}/stats",
+            params={"stats": "season", "group": "hitting", "season": "2026"},
+            timeout=8,
+        )
+        splits = r.json().get("stats", [{}])[0].get("splits", [])
+        if not splits:
+            return None
+        s   = splits[0].get("stat", {})
+        ops = float(s.get("ops", 0) or 0)
+        return ops if ops > 0 else None
+    except Exception:
+        return None
+
+
+def lineup_slot_quality(lineup: list, park_factor: float = 1.0) -> dict:
+    """
+    Compute combined wRC+ for batting order slots 1-3 vs 4-6.
+    lineup: list of {id, name, batting_order} dicts.
+
+    Returns:
+        top_order_wrc:   float — combined wRC+ for spots 1-3
+        mid_order_wrc:   float — combined wRC+ for spots 4-6
+        slot_run_adj:    float — run expectancy adjustment (-0.15 to +0.15)
+        tag:             str   — flag string for Telegram
+        elite_top_order: bool
+        weak_top_order:  bool
+    """
+    result = {
+        "top_order_wrc":   None,
+        "mid_order_wrc":   None,
+        "slot_run_adj":    0.0,
+        "tag":             "",
+        "elite_top_order": False,
+        "weak_top_order":  False,
+    }
+
+    if not lineup:
+        return result
+
+    # Sort by batting_order; filter to slots 1-6
+    sorted_lu = sorted(lineup, key=lambda p: p.get("batting_order", 99))
+    top3 = [p for p in sorted_lu if 1 <= p.get("batting_order", 0) <= 3][:3]
+    mid3 = [p for p in sorted_lu if 4 <= p.get("batting_order", 0) <= 6][:3]
+
+    if len(top3) < 2 and len(mid3) < 2:
+        return result   # not enough confirmed lineup data
+
+    def _wrc_list(players: list) -> list[float]:
+        wrc_vals = []
+        for p in players:
+            pid = p.get("id")
+            if not pid:
+                continue
+            ops = _player_season_ops(pid)
+            if ops:
+                wrc_vals.append(_wrc_plus_proxy(ops, park_factor))
+        return wrc_vals
+
+    top_vals = _wrc_list(top3)
+    mid_vals = _wrc_list(mid3)
+
+    if not top_vals:
+        return result
+
+    top_wrc = round(sum(top_vals), 1)
+    mid_wrc = round(sum(mid_vals), 1) if mid_vals else None
+    result["top_order_wrc"] = top_wrc
+    result["mid_order_wrc"] = mid_wrc
+
+    if top_wrc > 380:
+        result["slot_run_adj"]    = 0.15
+        result["elite_top_order"] = True
+        result["tag"]             = f"⚡ LINEUP DEPTH: elite top-3 wRC+ {top_wrc:.0f} — top-order runs pressure"
+    elif top_wrc < 260:
+        result["slot_run_adj"]    = -0.15
+        result["weak_top_order"]  = True
+        result["tag"]             = f"⚠ LINEUP WEAKNESS: weak top-3 wRC+ {top_wrc:.0f}"
+
+    return result
+
+
 # ── Main analysis ─────────────────────────────────────────────────────────────
 
 def analyze_offense(team_code: str, game_pk: int = None, side: str = "away",
@@ -386,6 +473,9 @@ def analyze_offense(team_code: str, game_pk: int = None, side: str = "away",
         if not lineup_confirmed:
             lineup_unconfirmed_penalty = 0.10  # 10% confidence reduction
 
+    # ── Lineup slot quality (if lineup is confirmed) ──────────────────────────
+    slot_quality = lineup_slot_quality(lineup, park_factor) if lineup else {}
+
     # ── Run expectancy factor ─────────────────────────────────────────────────
     run_factor = round(wrc_plus_adj / 100, 4)
 
@@ -447,6 +537,11 @@ def analyze_offense(team_code: str, game_pk: int = None, side: str = "away",
         "run_factor":             run_factor,
         # Woba proxy for ML model compat
         "woba":                   hitting.get("obp", 0.320),
+        # Lineup slot quality
+        "lineup_slot_quality":    slot_quality,
+        "slot_run_adj":           slot_quality.get("slot_run_adj", 0.0),
+        "elite_top_order":        slot_quality.get("elite_top_order", False),
+        "weak_top_order":         slot_quality.get("weak_top_order", False),
     }
 
 
@@ -486,6 +581,10 @@ def _default_offense(team_code: str) -> dict:
         "lineup":             [],
         "lhb_pct":            0.43,
         "woba":               0.320,
+        "lineup_slot_quality": {},
+        "slot_run_adj":        0.0,
+        "elite_top_order":     False,
+        "weak_top_order":      False,
     }
 
 

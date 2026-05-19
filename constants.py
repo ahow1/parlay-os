@@ -152,6 +152,17 @@ LG_K_RATE = 0.221
 # League-average swinging-strike rate per pitch (~11.0%)
 LG_WHIFF_RATE = 0.110
 
+# HR park factors (1.0 = neutral; >1.0 = homer-friendly; <1.0 = HR-suppressive)
+PARK_HR_FACTORS = {
+    "COL": 1.20, "CIN": 1.15, "CHC": 1.08, "BOS": 1.08, "PHI": 1.06,
+    "MIN": 1.06, "NYY": 1.04, "BAL": 1.04, "TEX": 1.03, "ATL": 1.03,
+    "LAD": 1.02, "AZ":  1.02, "WAS": 1.01, "TOR": 1.01, "KC":  1.00,
+    "MIL": 1.00, "STL": 0.99, "DET": 0.99, "HOU": 0.98, "CWS": 0.98,
+    "CLE": 0.97, "MIA": 0.96, "PIT": 0.96, "OAK": 0.95, "ATH": 0.95,
+    "NYM": 0.94, "LAA": 0.94, "TB":  0.93, "SEA": 0.93, "SD":  0.92,
+    "SF":  0.88,
+}
+
 # Park strikeout factors (1.0 = neutral; <1.0 = fewer Ks; >1.0 = more Ks)
 PARK_K_FACTORS = {
     "COL": 0.92,  # altitude — thinner air, less pitch break

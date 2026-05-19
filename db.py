@@ -224,6 +224,10 @@ def init_db():
         for ddl in [
             "ALTER TABLE bets ADD COLUMN verify_hash TEXT",
             "ALTER TABLE bets ADD COLUMN profit REAL",
+            "ALTER TABLE bets ADD COLUMN pitch_trap TEXT",
+            "ALTER TABLE bets ADD COLUMN framing_edge TEXT",
+            "ALTER TABLE bets ADD COLUMN closer_avail TEXT",
+            "ALTER TABLE bets ADD COLUMN lineup_slot_score REAL",
         ]:
             try:
                 conn.execute(ddl)
@@ -244,7 +248,9 @@ def init_db():
 # ─── BETS ─────────────────────────────────────────────────────────────────────
 
 def log_bet(date, bet, bet_type, game, sp, park, umpire,
-            bet_odds, model_prob, market_prob, edge_pct, conviction, stake):
+            bet_odds, model_prob, market_prob, edge_pct, conviction, stake,
+            pitch_trap=None, framing_edge=None, closer_avail=None,
+            lineup_slot_score=None):
     now = datetime.now(ET).isoformat()
     verify_hash = hashlib.sha256(
         f"{game}|{bet}|{bet_odds}|{now}".encode()
@@ -253,10 +259,12 @@ def log_bet(date, bet, bet_type, game, sp, park, umpire,
         conn.execute("""
             INSERT OR IGNORE INTO bets
               (date, timestamp, bet, type, game, sp, park, umpire,
-               bet_odds, model_prob, market_prob, edge_pct, conviction, stake, verify_hash)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               bet_odds, model_prob, market_prob, edge_pct, conviction, stake, verify_hash,
+               pitch_trap, framing_edge, closer_avail, lineup_slot_score)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (date, now, bet, bet_type, game, sp, park, umpire,
-              bet_odds, model_prob, market_prob, edge_pct, conviction, stake, verify_hash))
+              bet_odds, model_prob, market_prob, edge_pct, conviction, stake, verify_hash,
+              pitch_trap, framing_edge, closer_avail, lineup_slot_score))
 
 
 def get_pick_by_hash(verify_hash: str) -> dict | None:
