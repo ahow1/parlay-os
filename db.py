@@ -189,6 +189,35 @@ def init_db():
             scout_json  TEXT,
             props_json  TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS line_history (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp  TEXT NOT NULL,
+            game_id    TEXT NOT NULL,
+            away_team  TEXT,
+            home_team  TEXT,
+            away_ml    INTEGER,
+            home_ml    INTEGER,
+            game_date  TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS prop_results (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            date         TEXT NOT NULL,
+            timestamp    TEXT NOT NULL,
+            player       TEXT,
+            team         TEXT,
+            prop_type    TEXT,
+            line         REAL,
+            direction    TEXT,
+            projected    REAL,
+            confidence   INTEGER,
+            stake        REAL,
+            result       TEXT,
+            actual_value REAL,
+            edge_pct     REAL,
+            notes        TEXT
+        );
         """)
     # Migrations for existing DBs that predate schema additions
     with _conn() as conn:
@@ -495,6 +524,69 @@ def get_roi_by_umpire():
             GROUP BY umpire ORDER BY total DESC LIMIT 20
         """)
         return [dict(r) for r in rows]
+
+
+# ─── LINE HISTORY ─────────────────────────────────────────────────────────────
+
+def log_line_snapshot(game_id: str, away_team: str, home_team: str,
+                      away_ml, home_ml, game_date: str) -> None:
+    now = datetime.now(ET).isoformat()
+    with _conn() as conn:
+        conn.execute("""
+            INSERT INTO line_history
+              (timestamp, game_id, away_team, home_team, away_ml, home_ml, game_date)
+            VALUES (?,?,?,?,?,?,?)
+        """, (now, game_id, away_team, home_team, away_ml, home_ml, game_date))
+
+
+def get_line_history(game_id: str, hours_back: int = 4) -> list:
+    """Return line snapshots for a game ordered newest-first."""
+    cutoff = (datetime.now(ET) - __import__("datetime").timedelta(hours=hours_back)).isoformat()
+    with _conn() as conn:
+        rows = conn.execute("""
+            SELECT * FROM line_history
+            WHERE game_id=? AND timestamp >= ?
+            ORDER BY timestamp DESC
+        """, (game_id, cutoff)).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ─── PROP RESULTS ─────────────────────────────────────────────────────────────
+
+def log_prop_result(date: str, player: str, team: str, prop_type: str,
+                    line: float, direction: str, projected: float,
+                    confidence: int, stake: float, edge_pct: float,
+                    notes: str = "") -> None:
+    now = datetime.now(ET).isoformat()
+    with _conn() as conn:
+        conn.execute("""
+            INSERT INTO prop_results
+              (date, timestamp, player, team, prop_type, line, direction,
+               projected, confidence, stake, edge_pct, notes)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+        """, (date, now, player, team, prop_type, line, direction,
+              projected, confidence, stake, edge_pct, notes))
+
+
+def settle_prop(prop_id: int, result: str, actual_value: float) -> None:
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE prop_results SET result=?, actual_value=? WHERE id=?",
+            (result, actual_value, prop_id),
+        )
+
+
+def get_prop_accuracy(prop_type: str = None, days: int = 30) -> list:
+    """Return settled prop results for accuracy analysis."""
+    cutoff = (datetime.now(ET) - __import__("datetime").timedelta(days=days)).strftime("%Y-%m-%d")
+    q = "SELECT * FROM prop_results WHERE result IS NOT NULL AND date >= ?"
+    params: list = [cutoff]
+    if prop_type:
+        q += " AND prop_type=?"
+        params.append(prop_type)
+    q += " ORDER BY date DESC"
+    with _conn() as conn:
+        return [dict(r) for r in conn.execute(q, params)]
 
 
 # Initialize on import

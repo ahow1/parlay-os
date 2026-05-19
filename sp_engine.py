@@ -223,14 +223,24 @@ def _last_3_starts_summary(pitcher_id: int) -> dict:
     # K9 drop >1.5 over last 3 suggests potential velocity decline
     k9_declining = (len(k9s) >= 2) and (k9s[0] - k9s[-1]) > 1.5
 
+    # High-pitch recent flag: 100+ pitches in any start within last 4 days
+    from datetime import date as _date
+    _today = _date.today()
+    high_pitch_recent = any(
+        ((_today - _date.fromisoformat(g["date"])).days <= 4 and g.get("np", 0) >= 100)
+        for g in starts[-5:]
+        if g.get("date") and g.get("np") is not None
+    )
+
     result = {
-        "rolling_era_3": rolling_era,
-        "rolling_k9_3":  rolling_k9,
-        "rolling_bb9_3": rolling_bb9,
-        "n_starts":      len(last3),
-        "worsening_walk": worsening_walk,
-        "k9_declining":  k9_declining,
-        "game_log_3":    last3,
+        "rolling_era_3":    rolling_era,
+        "rolling_k9_3":     rolling_k9,
+        "rolling_bb9_3":    rolling_bb9,
+        "n_starts":         len(last3),
+        "worsening_walk":   worsening_walk,
+        "k9_declining":     k9_declining,
+        "game_log_3":       last3,
+        "high_pitch_recent": high_pitch_recent,
     }
 
     # Velocity trend from last 10 starts K rate trend
@@ -427,15 +437,17 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "",
         "plat_run_factor":  plat_rf,
         "run_factor":       run_factor,
         # Last-3-start rolling stats
-        "rolling_era_3":    last3.get("rolling_era_3"),
-        "rolling_k9_3":     last3.get("rolling_k9_3"),
-        "rolling_bb9_3":    last3.get("rolling_bb9_3"),
-        "worsening_walk":   last3.get("worsening_walk", False),
-        "k9_declining":     last3.get("k9_declining", False),
+        "rolling_era_3":     last3.get("rolling_era_3"),
+        "rolling_k9_3":      last3.get("rolling_k9_3"),
+        "rolling_bb9_3":     last3.get("rolling_bb9_3"),
+        "worsening_walk":    last3.get("worsening_walk", False),
+        "k9_declining":      last3.get("k9_declining", False),
         # Velocity trend (K-rate proxy; true velocity requires Statcast)
-        "velocity_decline":     last3.get("velocity_decline", False),
-        "velocity_injury_risk": last3.get("velocity_injury_risk", False),
-        "k9_trend_10s":         last3.get("k9_trend_10s", 0.0),
+        "velocity_decline":      last3.get("velocity_decline", False),
+        "velocity_injury_risk":  last3.get("velocity_injury_risk", False),
+        "k9_trend_10s":          last3.get("k9_trend_10s", 0.0),
+        # Fatigue: 100+ pitch start in last 4 days
+        "high_pitch_recent":     last3.get("high_pitch_recent", False),
         # First inning performance
         "first_inning_era":    fi_data.get("first_inning_era"),
         "fi_n_starts":         fi_data.get("fi_n_starts"),
@@ -469,10 +481,11 @@ def _default_sp(pitcher_id, opp_team, umpire) -> dict:
         "rolling_bb9_3":    None,
         "worsening_walk":   False,
         "k9_declining":     False,
-        "velocity_decline": False,
+        "velocity_decline":  False,
         "velocity_injury_risk": False,
-        "k9_trend_10s":     0.0,
-        "first_inning_era":    None,
+        "k9_trend_10s":      0.0,
+        "high_pitch_recent": False,
+        "first_inning_era":  None,
         "fi_n_starts":         None,
         "yrfi_lean":           False,
     }

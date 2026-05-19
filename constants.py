@@ -145,3 +145,24 @@ ABS_COMMAND_BONUS   =  0.03   # run factor boost for command SPs
 ABS_FB_HEAVY_MALUS  = -0.02   # run factor penalty for fastball-only SPs
 
 BOOK_PRIORITY = ["pinnacle", "draftkings", "fanduel", "betmgm", "caesars", "pointsbet", "betrivers"]
+
+# ── K PROP CONSTANTS ─────────────────────────────────────────────────────────
+# League-average team strikeout rate per plate appearance (~22.1%)
+LG_K_RATE = 0.221
+# League-average swinging-strike rate per pitch (~11.0%)
+LG_WHIFF_RATE = 0.110
+
+# Park strikeout factors (1.0 = neutral; <1.0 = fewer Ks; >1.0 = more Ks)
+PARK_K_FACTORS = {
+    "COL": 0.92,  # altitude — thinner air, less pitch break
+    "TB":  0.96,  "MIA": 0.96,  "KC":  0.97,
+    "MIN": 0.97,  "DET": 0.97,  "CLE": 0.97,
+    "STL": 0.98,  "CIN": 0.98,  "MIL": 0.98,
+    "HOU": 0.99,  "ATL": 0.99,  "CWS": 0.99,
+    "WAS": 1.00,  "BAL": 1.00,  "PHI": 1.00,
+    "NYY": 1.00,  "BOS": 1.00,  "TOR": 1.00,
+    "OAK": 1.00,  "ATH": 1.00,
+    "PIT": 1.01,  "TEX": 1.01,  "AZ":  1.01,  "LAD": 1.01,
+    "CHC": 1.02,  "NYM": 1.02,  "SF":  1.02,
+    "SD":  1.02,  "SEA": 1.02,  "LAA": 1.02,
+}

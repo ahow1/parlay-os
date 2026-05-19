@@ -85,6 +85,38 @@ except ImportError:
     def get_lineup_statcast(*a, **k): return {}
     def sp_statcast_summary(*a, **k): return ""
 
+# New engine imports — degrade gracefully if any fail
+try:
+    from home_dog_engine import check_home_dog_value, home_dog_telegram_tag
+    _HOME_DOG_AVAILABLE = True
+except ImportError:
+    _HOME_DOG_AVAILABLE = False
+    def check_home_dog_value(a): return {"is_home_dog_value": False, "add_prob": 0.0, "conditions_failed": []}
+    def home_dog_telegram_tag(h): return ""
+
+try:
+    from earned_runs_engine import analyze_earned_runs, er_prop_telegram_line
+    _ER_AVAILABLE = True
+except ImportError:
+    _ER_AVAILABLE = False
+    def analyze_earned_runs(*a, **k): return None
+    def er_prop_telegram_line(*a): return ""
+
+try:
+    from strikeout_engine import analyze_k_prop, k_prop_telegram_line
+    _STRIKEOUT_ENGINE_AVAILABLE = True
+except ImportError:
+    _STRIKEOUT_ENGINE_AVAILABLE = False
+    def analyze_k_prop(*a, **k): return None
+    def k_prop_telegram_line(*a): return ""
+
+try:
+    from line_movement_engine import start_line_polling
+    _LINE_POLLING_AVAILABLE = True
+except ImportError:
+    _LINE_POLLING_AVAILABLE = False
+    def start_line_polling(*a, **k): return None
+
 STATSAPI  = "https://statsapi.mlb.com/api/v1"
 ET        = pytz.timezone("America/New_York")
 BOT_TOKEN         = os.getenv("TELEGRAM_BOT_TOKEN", "")
@@ -200,39 +232,74 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     pyth_away_p  = pythagorean_prob(away_xr, adj_home_xr)
     pyth_home_p  = round(1.0 - pyth_away_p, 4)
 
-    # ── ML ensemble blend (if models trained, else use Pythagorean only) ─────
+    # ── ML model: run for SHAP/total/NRFI outputs; prediction fills Pyth slot ──
+    shap_home = shap_away = []
+    ml_total  = ml_nrfi_p = None
+    ml_conf   = "weighted_8factor"
+    pyth_or_ml_away_p = pyth_away_p   # slot 5 of 8-factor blend
     if _ML_AVAILABLE and models_available():
         try:
             feat_vec = build_game_features(
                 away_sp, home_sp, away_off, home_off,
                 away_xr, home_xr, weather, park_rf,
             )
-            ml_pred      = predict_game(feat_vec)
-            ml_home_p    = ml_pred.get("home_win_prob", pyth_home_p)
-            ml_away_p    = ml_pred.get("away_win_prob", pyth_away_p)
-            shap_home    = ml_pred.get("shap_home", [])
-            shap_away    = ml_pred.get("shap_away", [])
-            ml_total     = ml_pred.get("total_runs_pred")
-            ml_nrfi_p    = ml_pred.get("nrfi_prob")
-            ml_conf      = ml_pred.get("confidence", "low")
-            # Blend: 60% ML + 40% Pythagorean (conservative until model matures)
-            away_model_p = round(0.60 * ml_away_p + 0.40 * pyth_away_p, 4)
-            home_model_p = round(0.60 * ml_home_p + 0.40 * pyth_home_p, 4)
-            print(f"  ML: home={ml_home_p:.3f} pyth={pyth_home_p:.3f} "
-                  f"blend={home_model_p:.3f} conf={ml_conf}")
-        except Exception as e:
-            print(f"  ML predict failed ({e}), using Pythagorean")
-            away_model_p = pyth_away_p
-            home_model_p = pyth_home_p
-            shap_home = shap_away = []
-            ml_total = ml_nrfi_p = None
-            ml_conf  = "fallback"
-    else:
-        away_model_p = pyth_away_p
-        home_model_p = pyth_home_p
-        shap_home = shap_away = []
-        ml_total = ml_nrfi_p = None
-        ml_conf  = "pythagorean"
+            ml_pred           = predict_game(feat_vec)
+            pyth_or_ml_away_p = ml_pred.get("away_win_prob", pyth_away_p)
+            shap_home         = ml_pred.get("shap_home", [])
+            shap_away         = ml_pred.get("shap_away", [])
+            ml_total          = ml_pred.get("total_runs_pred")
+            ml_nrfi_p         = ml_pred.get("nrfi_prob")
+            ml_conf           = ml_pred.get("confidence", "weighted_8factor")
+            print(f"  ML slot5={pyth_or_ml_away_p:.3f} pyth={pyth_away_p:.3f} conf={ml_conf}")
+        except Exception as _ml_e:
+            print(f"  ML predict failed ({_ml_e}), using Pythagorean in slot 5")
+
+    # ── Momentum — computed here for 8-factor blend (reused below) ───────────
+    away_momentum = weighted_momentum(away_tid, away_code)
+    home_momentum = weighted_momentum(home_tid, home_code)
+
+    # ── Home dog structural edge check ────────────────────────────────────────
+    _hd_partial = {
+        "best_home_odds": market.get("best_home_odds"),
+        "home_sp":  home_sp,
+        "away_sp":  away_sp,
+        "home_bp":  home_bp,
+        "home_off": home_off,
+    }
+    home_dog_result = check_home_dog_value(_hd_partial)
+    home_dog_add    = home_dog_result.get("add_prob", 0.0)
+    if home_dog_add > 0:
+        print(f"  🐶 HOME_DOG_ANGLE fired (+{home_dog_add:.2f} home win prob in blend)")
+
+    # ── 8-factor weighted probability blend ──────────────────────────────────
+    _lm_raw       = market.get("line_movement") or {}
+    _lm_dir       = _lm_raw.get("direction", "stable")
+    _lm_mag       = _lm_raw.get("magnitude", 0.0)
+    away_wrc_v    = away_off.get("adj_wrc_plus", away_off.get("wrc_plus", 100.0))
+    home_wrc_v    = home_off.get("adj_wrc_plus", home_off.get("wrc_plus", 100.0))
+
+    away_model_p, home_model_p = _weighted_win_prob(
+        away_xfip         = away_sp.get("xfip", 4.35),
+        home_xfip         = home_sp.get("xfip", 4.35),
+        away_bp_fatigue   = away_bp.get("avg_fatigue", 4.0),
+        home_bp_fatigue   = home_bp.get("avg_fatigue", 4.0),
+        away_wrc          = away_wrc_v,
+        home_wrc          = home_wrc_v,
+        home_dog_add      = home_dog_add,
+        pyth_away_p       = pyth_or_ml_away_p,
+        lm_direction      = _lm_dir,
+        lm_magnitude      = _lm_mag,
+        away_platoon_edge = away_off.get("platoon_edge", 0),
+        home_platoon_edge = home_off.get("platoon_edge", 0),
+        away_momentum_score = away_momentum.get("score", 0.0),
+        home_momentum_score = home_momentum.get("score", 0.0),
+    )
+    _a_tier, _ = _sp_tier(away_sp.get("xfip", 4.35))
+    _h_tier, _ = _sp_tier(home_sp.get("xfip", 4.35))
+    print(f"  8-factor: away={away_model_p:.3f} home={home_model_p:.3f} "
+          f"SP:{away_sp.get('xfip',4.35):.2f}({_a_tier}) vs {home_sp.get('xfip',4.35):.2f}({_h_tier}) "
+          f"BP:{away_bp.get('avg_fatigue',4.0):.1f}/{home_bp.get('avg_fatigue',4.0):.1f} "
+          f"Pyth={pyth_away_p:.3f}")
 
     # ── H2H historical matchup (10% weight) ─────────────────────────────────
     h2h = {}
@@ -292,9 +359,7 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     # Injury flags (IL transactions + SP velocity risk)
     injury_flags = get_injury_flags(away_code, home_code, away_sp, home_sp)
 
-    # Enhanced momentum
-    away_momentum = weighted_momentum(away_tid, away_code)
-    home_momentum = weighted_momentum(home_tid, home_code)
+    # Enhanced momentum (computed earlier for 8-factor blend — reuse here)
     momentum = {
         "away":     away_momentum["score"],
         "home":     home_momentum["score"],
@@ -547,6 +612,11 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         "home_sp_yrfi_lean":   home_sp.get("yrfi_lean", False),
         "away_sp_fi_era":      away_sp.get("first_inning_era"),
         "home_sp_fi_era":      home_sp.get("first_inning_era"),
+        # SP tier labels for Telegram format
+        "away_sp_tier": _sp_tier(away_sp.get("xfip", 4.35))[0],
+        "home_sp_tier": _sp_tier(home_sp.get("xfip", 4.35))[0],
+        # Home dog structural edge result
+        "home_dog": home_dog_result,
     }
 
 
@@ -682,6 +752,91 @@ def _conviction(edge_pct: float, model_p: float, bp: dict, market: dict) -> str:
     if edge_pct >= 4 and model_p >= 0.48:
         return "MEDIUM"
     return "PASS"
+
+
+# ── SP QUALITY TIERS ─────────────────────────────────────────────────────────
+
+def _sp_tier(xfip: float) -> tuple[str, float]:
+    """SP quality tier label and signal amplifier multiplier (applied to quality score)."""
+    if xfip < 3.25: return "ELITE",   1.18
+    if xfip < 3.75: return "GREAT",   1.10
+    if xfip < 4.25: return "GOOD",    1.04
+    if xfip < 4.75: return "AVERAGE", 1.00
+    if xfip < 5.25: return "BAD",     1.06
+    return "TERRIBLE", 1.14
+
+
+def _weighted_win_prob(
+    away_xfip: float, home_xfip: float,
+    away_bp_fatigue: float, home_bp_fatigue: float,
+    away_wrc: float, home_wrc: float,
+    home_dog_add: float,
+    pyth_away_p: float,
+    lm_direction: str, lm_magnitude: float,
+    away_platoon_edge: float, home_platoon_edge: float,
+    away_momentum_score: float, home_momentum_score: float,
+) -> tuple[float, float]:
+    """
+    8-factor weighted win probability.
+    Weights: SP 28%, Bullpen 20%, Offense 18%, Home dog 10%,
+             Pythagorean 8%, Line movement 7%, Platoon 5%, Momentum 4%.
+    Returns (away_p, home_p) rounded to 4 decimal places.
+    """
+    # Factor 1 — SP xFIP (28%)
+    # Reciprocal quality score: lower xFIP = higher quality. Tier mult amplifies signal.
+    _, away_tm = _sp_tier(away_xfip)
+    _, home_tm = _sp_tier(home_xfip)
+    away_sp_q  = (1.0 / max(away_xfip, 0.5)) * away_tm
+    home_sp_q  = (1.0 / max(home_xfip, 0.5)) * home_tm
+    sp_denom   = away_sp_q + home_sp_q
+    sp_away_p  = away_sp_q / sp_denom if sp_denom > 0 else 0.5
+
+    # Factor 2 — Bullpen (20%)
+    away_bp_q  = 1.0 / (1.0 + max(away_bp_fatigue, 0))
+    home_bp_q  = 1.0 / (1.0 + max(home_bp_fatigue, 0))
+    bp_denom   = away_bp_q + home_bp_q
+    bp_away_p  = away_bp_q / bp_denom if bp_denom > 0 else 0.5
+
+    # Factor 3 — Offense wRC+ (18%)
+    away_wrc_s = max(away_wrc, 50.0)
+    home_wrc_s = max(home_wrc, 50.0)
+    off_denom  = away_wrc_s + home_wrc_s
+    off_away_p = away_wrc_s / off_denom if off_denom > 0 else 0.5
+
+    # Factor 4 — Home dog structural edge (10%)
+    # home_dog_add = 0.04 when conditions met → home prob boosted → away reduced.
+    hdog_away_p = 0.50 - home_dog_add
+
+    # Factor 5 — Pythagorean / ML (8%)
+    pyth_p = max(0.20, min(0.80, pyth_away_p))
+
+    # Factor 6 — Line movement (7%)
+    lm_away_p = 0.50
+    if lm_direction == "toward_away":
+        lm_away_p = 0.50 + min(lm_magnitude * 0.6, 0.10)
+    elif lm_direction == "toward_home":
+        lm_away_p = 0.50 - min(lm_magnitude * 0.6, 0.10)
+
+    # Factor 7 — Platoon edge (5%)
+    plat_diff      = (away_platoon_edge or 0) - (home_platoon_edge or 0)
+    platoon_away_p = max(0.40, min(0.60, 0.50 + plat_diff * 0.0015))
+
+    # Factor 8 — Momentum (4%)
+    mom_diff        = (away_momentum_score or 0) - (home_momentum_score or 0)
+    momentum_away_p = max(0.40, min(0.60, 0.50 + mom_diff * 1.5))
+
+    away_p = (
+        0.28 * sp_away_p +
+        0.20 * bp_away_p +
+        0.18 * off_away_p +
+        0.10 * hdog_away_p +
+        0.08 * pyth_p +
+        0.07 * lm_away_p +
+        0.05 * platoon_away_p +
+        0.04 * momentum_away_p
+    )
+    away_p = round(max(0.15, min(0.85, away_p)), 4)
+    return away_p, round(1.0 - away_p, 4)
 
 
 # ── SGP FORMAT ───────────────────────────────────────────────────────────────
@@ -1481,6 +1636,27 @@ def _should_recommend(game: dict, side: str, bet_type: str = "ML") -> bool:
         print(f"  PASS {team}: confidence {confidence}/100 < {min_conf} threshold ({conv})")
         return False
 
+    # ── Veto rules ────────────────────────────────────────────────────────────
+    # Veto 1: Both SPs xFIP > 5.0 — high variance coin flip, skip
+    _a_sp = game.get("away_sp") or {}
+    _h_sp = game.get("home_sp") or {}
+    if _a_sp.get("xfip", 4.35) > 5.0 and _h_sp.get("xfip", 4.35) > 5.0:
+        print(f"  PASS {team}: both SPs xFIP > 5.0 ({_a_sp.get('xfip',4.35):.2f}/{_h_sp.get('xfip',4.35):.2f}) — high variance skip")
+        return False
+
+    # Veto 2: SP threw 100+ pitches in last 4 days — fatigue/injury risk
+    _sp_data = game.get(f"{side}_sp") or {}
+    if _sp_data.get("high_pitch_recent", False):
+        print(f"  PASS {team}: {_sp_data.get('name','SP')} threw 100+ pitches within last 4 days")
+        return False
+
+    # Veto 3: Team on 6+ game losing streak (7-day record 0 wins, 6+ losses)
+    _off_data  = game.get(f"{side}_off") or {}
+    _record_7d = _off_data.get("record_7d", {})
+    if _record_7d.get("losses", 0) >= 6 and _record_7d.get("wins", 0) == 0:
+        print(f"  PASS {team}: 6+ game losing streak (record_7d: {_record_7d})")
+        return False
+
     print(f"  BET  {team}: edge {edge:+.1f}% model={model:.3f} nv={nv:.3f} stake=${stake:.2f} [{conv}] conf={confidence}/100")
     return True
 
@@ -1488,121 +1664,131 @@ def _should_recommend(game: dict, side: str, bet_type: str = "ML") -> bool:
 # ── TELEGRAM FORMAT ───────────────────────────────────────────────────────────
 
 def _format_bet_message(game: dict, side: str) -> str:
+    """
+    6-element Telegram pick format:
+    EDGE / SP MATCHUP / BULLPEN / KEY STAT / RISK / CONFIDENCE
+    """
     team    = game.get(f"{side}_name", game.get(side, ""))
     opp_s   = "home" if side == "away" else "away"
-    opp     = game.get(f"{opp_s}_name", game.get(opp_s, ""))
     odds    = game.get(f"best_{side}_odds")
     book    = game.get(f"best_{side}_book", "")
     edge    = game.get(f"{side}_edge", 0)
     model_p = game.get(f"{side}_model_p", 0)
+    nv      = game.get(f"{side}_nv", 0)
     stake   = game.get(f"{side}_stake", 0)
     conv    = game.get(f"{side}_conv", "")
-    sp      = game.get(f"{side}_sp", {})
-    opp_sp  = game.get(f"{opp_s}_sp", {})
-    wx      = game.get("weather", {})
+    sp      = game.get(f"{side}_sp") or {}
+    opp_sp  = game.get(f"{opp_s}_sp") or {}
+    our_bp  = game.get(f"{side}_bp") or {}
+    opp_bp  = game.get(f"{opp_s}_bp") or {}
+    wx      = game.get("weather") or {}
+    conf    = game.get(f"{side}_confidence_score", 0)
+    our_code = game.get(side, "")
+    opp_code = game.get(opp_s, "")
 
-    def _sp_line(s: dict) -> str:
-        name = s.get("name", "TBD")
-        era  = s.get("era", "?")
-        xfip = s.get("xfip")
-        xfip_str = f" / xFIP {xfip:.2f}" if xfip is not None else ""
-        return f"{name} ({era} ERA{xfip_str})"
-
-    sp_str  = _sp_line(sp)
-    osp_str = _sp_line(opp_sp)
+    odds_s = (f"+{odds}" if isinstance(odds, int) and odds > 0 else str(odds or ""))
     sides_str = f"{game.get('away_name','')} @ {game.get('home_name','')}"
 
+    conv_icon = "🔒" if conv == "HIGH" else "🪙"
     lines = [
-        f"BET | {conv}",
-        f"<b>{team} ML</b>",
+        f"{conv_icon} {conv} | <b>{team} ML {odds_s}</b> @ {book.upper() if book else '?'}",
         f"{sides_str}",
-        f"Odds: {odds:+d} @ {book.upper()}  |  Edge: +{edge:.1f}%",
-        f"Model: {model_p:.1%}  |  Stake: ${stake:.2f}",
-        f"Our SP: {sp_str}",
-        f"Opp SP: {osp_str}",
-        f"Park: {game.get('home','')}  |  Ump: {game.get('umpire','?')} {game.get('ump_note','')}",
-        f"Wx: {wx.get('note','?')} | rf={wx.get('run_factor',1):.3f}",
+        "━━━━━━━━━━━━━━━━━━━━",
+        "",
     ]
 
-    # Append props
-    nrfi = game.get("nrfi", {})
-    if nrfi.get("note") in ("nrfi", "yrfi"):
-        lines.append(f"NRFI: {nrfi['p_nrfi']:.1%} | YRFI: {nrfi['p_yrfi']:.1%} → {nrfi['note'].upper()}")
+    # ── EDGE ─────────────────────────────────────────────────────────────────
+    lines.append(f"EDGE       {edge:+.1f}% | Model {model_p:.1%} vs Market {nv:.1%} | Stake ${stake:.2f}")
 
-    total = game.get("total", {})
-    if total and total.get("note") != "neutral":
-        lines.append(f"Total {total.get('line','?')}: O={total['p_over']:.1%} U={total['p_under']:.1%} → {total['note'].upper()}")
+    # ── SP MATCHUP ────────────────────────────────────────────────────────────
+    def _sp_summary(s: dict, tier_side: str) -> str:
+        name  = s.get("name", "TBD")
+        era   = s.get("era", "?")
+        xfip  = s.get("xfip")
+        tier  = game.get(f"{tier_side}_sp_tier", "")
+        xfip_s = f"xFIP {xfip:.2f} [{tier}]" if xfip is not None else ""
+        era_s  = f"ERA {era}" if era != "?" else "ERA ?"
+        return f"{name} ({era_s}{' / ' + xfip_s if xfip_s else ''})"
 
-    poly = game.get("polymarket")
-    if poly:
-        p_str = " | ".join(f"{k.upper()} {v:.1%}" for k, v in poly.items())
-        lines.append(f"Poly: {p_str}")
+    our_sp_s = _sp_summary(sp, side)
+    opp_sp_s = _sp_summary(opp_sp, opp_s)
+    lines.append(f"SP MATCHUP Our: {our_sp_s}")
+    lines.append(f"           Opp: {opp_sp_s}")
 
-    lm = game.get("line_movement") or {}
-    if lm.get("direction") not in ("unknown", "stable", None):
-        lines.append(f"Line: {lm['direction']} Δ{lm['magnitude']:.3f}")
+    # ── BULLPEN ───────────────────────────────────────────────────────────────
+    our_bp_tier = our_bp.get("fatigue_tier", "?")
+    our_bp_fat  = our_bp.get("avg_fatigue", 0)
+    opp_bp_tier = opp_bp.get("fatigue_tier", "?")
+    opp_bp_fat  = opp_bp.get("avg_fatigue", 0)
+    bp_adv = ""
+    if our_bp_fat < opp_bp_fat - 0.5:
+        bp_adv = f" ← {our_code} advantage"
+    elif opp_bp_fat < our_bp_fat - 0.5:
+        bp_adv = f" ← {opp_code} advantage (risk)"
+    lines.append(f"BULLPEN    {our_code}: {our_bp_tier} ({our_bp_fat:.1f}) vs {opp_code}: {opp_bp_tier} ({opp_bp_fat:.1f}){bp_adv}")
 
-    # SHAP explanation
-    shap_key  = f"shap_{side}"
-    shap_data = game.get(shap_key, [])
-    if shap_data:
-        parts = []
-        for s in shap_data[:3]:
-            feat = s.get("feature", "").replace("_", " ")
-            val  = s.get("shap_val", 0)
-            parts.append(f"{feat} {'+' if val > 0 else ''}{val*100:.1f}%")
-        lines.append(f"Why: {' | '.join(parts)}")
-
-    # Platoon edge flag
-    opp_s = "home" if side == "away" else "away"
+    # ── KEY STAT ──────────────────────────────────────────────────────────────
+    key_parts = []
+    # xFIP gap (SP regression signal)
+    our_xfip = sp.get("xfip")
+    opp_xfip = opp_sp.get("xfip")
+    if our_xfip is not None and opp_xfip is not None:
+        xfip_gap = round(opp_xfip - our_xfip, 2)
+        if abs(xfip_gap) >= 0.4:
+            key_parts.append(f"xFIP gap {xfip_gap:+.2f} {'(our SP dominates)' if xfip_gap > 0 else '(opp SP dominates)'}")
+    # Home dog structural edge
+    hd = game.get("home_dog") or {}
+    if hd.get("is_home_dog_value"):
+        key_parts.append(f"Home dog structural +4% ({odds_s})")
+    # Platoon advantage
     plat_edge = game.get(f"{side}_platoon_edge", 0)
-    strong_adv = game.get(f"{side}_strong_platoon_adv", False)
-    strong_dis = abs(plat_edge) >= 15 and not strong_adv
-    if strong_adv:
-        lines.append(f"⚡ Platoon edge: +{plat_edge:.0f} wRC+ vs today's SP")
-    elif strong_dis:
-        lines.append(f"⚠ Platoon disadvantage: {plat_edge:.0f} wRC+ vs today's SP")
-
-    # YRFI lean from SP first inning ERA
-    sp_key = f"{side}_sp"
-    sp_data = game.get(sp_key) or {}
-    if sp_data.get("yrfi_lean"):
-        fi_era = sp_data.get("first_inning_era", "?")
-        sea_era = sp_data.get("era", "?")
-        lines.append(f"⚠ Opp SP 1st-inn ERA {fi_era} vs season {sea_era} — YRFI lean")
-
-    # Confidence score
-    conf = game.get(f"{side}_confidence_score", 0)
-    lines.append(f"Confidence: {conf}/100")
-
-    # Regression / intelligence flags
-    reg_flags = game.get("reg_flags", [])
-    for flag in reg_flags[:2]:
-        lines.append(f"⚠ {flag.get('message', '')}")
-
-    # SP intelligence flags (ERA vs xFIP, velocity, control)
-    intel_flags = game.get("intel_flags", [])
-    for flag in intel_flags[:3]:
-        emoji = flag.get("emoji", "⚠️")
-        lines.append(f"{emoji} {flag.get('message', '')}")
-
-    # Injury flags
-    injury_flags = game.get("injury_flags", [])
-    for inj in injury_flags[:2]:
-        lines.append(f"{inj.get('emoji','🚑')} {inj['message']}")
-
+    if game.get(f"{side}_strong_platoon_adv"):
+        key_parts.append(f"Platoon edge {plat_edge:+.0f} wRC+")
+    # NRFI/YRFI lean
+    nrfi = game.get("nrfi") or {}
+    nrfi_note = nrfi.get("note", "")
+    if nrfi_note in ("nrfi", "yrfi"):
+        p = nrfi.get("p_nrfi", 0) if nrfi_note == "nrfi" else nrfi.get("p_yrfi", 0)
+        key_parts.append(f"{nrfi_note.upper()} {p:.0%}")
     # Momentum
-    away_mom = game.get("away_momentum") or {}
-    home_mom = game.get("home_momentum") or {}
-    if away_mom.get("summary") or home_mom.get("summary"):
-        for mom in (away_mom, home_mom):
-            s = mom.get("summary", "")
-            if s:
-                lines.append(s)
+    our_mom = game.get(f"{side}_momentum") or {}
+    mom_score = our_mom.get("score", 0)
+    if abs(mom_score) >= 0.03:
+        key_parts.append(f"Momentum {'hot' if mom_score > 0 else 'cold'} ({mom_score:+.3f})")
+    if not key_parts:
+        key_parts.append("Model consensus play")
+    lines.append(f"KEY STAT   {' | '.join(key_parts)}")
 
-    ml_model = game.get("ml_model", "")
-    if ml_model and ml_model not in ("pythagorean", "pythagorean_fallback"):
-        lines.append(f"Model: {ml_model}")
+    # ── RISK ──────────────────────────────────────────────────────────────────
+    risk_parts = []
+    if sp.get("high_pitch_recent"):
+        risk_parts.append(f"⚠ {sp.get('name','SP')} high pitch count last 4 days")
+    if sp.get("worsening_walk"):
+        risk_parts.append("⚠ Walk rate rising")
+    if sp.get("velocity_decline"):
+        risk_parts.append("⚠ Velo declining")
+    if game.get(f"{side}_sp_tbd") or sp.get("name") in ("TBD", "", None):
+        risk_parts.append("⚠ SP TBD")
+    if not game.get(f"{side}_lineup_confirmed"):
+        risk_parts.append("⚠ Lineup unconfirmed")
+    wx_adj = wx.get("run_adjustment", 0)
+    if abs(wx_adj) >= 0.5:
+        risk_parts.append(f"Wx: {wx.get('wind_label','')}{' (runs up)' if wx_adj > 0 else ' (runs down)'}")
+    # SP ERA-xFIP regression risk for OPP SP (means they might get better — risk for our pick)
+    if opp_xfip is not None and opp_sp.get("era") is not None:
+        opp_era = float(opp_sp.get("era", 4.35))
+        if opp_era - opp_xfip >= 1.5:
+            risk_parts.append(f"Opp SP ERA/xFIP gap {opp_era - opp_xfip:+.1f} (may improve)")
+    injury_flags = game.get("injury_flags") or []
+    for inj in injury_flags[:2]:
+        risk_parts.append(f"{inj.get('emoji','🚑')} {inj.get('message','')}")
+    if not risk_parts:
+        risk_parts.append("No major risk flags")
+    lines.append(f"RISK       {' | '.join(risk_parts)}")
+
+    # ── CONFIDENCE ────────────────────────────────────────────────────────────
+    min_conf = 60 if conv == "HIGH" else 55
+    lines.append(f"CONFIDENCE {conf}/100 (threshold {min_conf}) | Ump: {game.get('umpire','?')}{' ' + game.get('ump_note','') if game.get('ump_note') else ''}")
 
     return "\n".join(lines)
 
@@ -2003,6 +2189,13 @@ def run_daily_scout():
     print(f"Games from Odds API: {len(events)}")
     if not events:
         print("WARNING: 0 games returned — check ODDS_API_KEY env var and API quota")
+
+    # ── Start line movement polling thread (background, 30-min intervals) ─────
+    if events and _LINE_POLLING_AVAILABLE:
+        try:
+            start_line_polling(events, _send_telegram, today)
+        except Exception as _lp_e:
+            print(f"[LME] Line polling start failed: {_lp_e}")
 
     br        = current_bankroll()
     mem       = memory_report()
