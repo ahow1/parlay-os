@@ -632,6 +632,27 @@ def api_seed():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/reset_bets", methods=["POST"])
+def api_reset_bets():
+    try:
+        from seed_bets import seed
+        with _db._conn() as conn:
+            conn.execute("DELETE FROM bets")
+        seed()
+        with _db._conn() as conn:
+            conn.execute("""
+                UPDATE bets SET profit = CASE
+                    WHEN result='win'  THEN stake
+                    WHEN result='loss' THEN -stake
+                    ELSE 0
+                END WHERE profit IS NULL OR profit = 0
+            """)
+            count = conn.execute("SELECT COUNT(*) FROM bets").fetchone()[0]
+        return jsonify({"ok": True, "total_bets": count})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
