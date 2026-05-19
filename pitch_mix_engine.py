@@ -32,7 +32,11 @@ _disc_cache: dict | None = None   # {team_abbrev: o_swing_pct}
 
 def _fetch_team_discipline(season: int = 2026) -> dict:
     """
-    Fetch Baseball Savant team plate discipline leaderboard.
+    Fetch team-level O-Swing% from Baseball Savant statcast search
+    filtered to out-of-zone pitches (zones 11-14).
+
+    O-Swing% = out-of-zone swings / out-of-zone pitches seen.
+    The old /leaderboard/plate-discipline endpoint is gone in 2026.
     Returns {team_abbrev: o_swing_pct} for all MLB teams.
     Falls back to {} on any error (caller uses LG average).
     """
@@ -40,74 +44,67 @@ def _fetch_team_discipline(season: int = 2026) -> dict:
     with _disc_lock:
         if _disc_cache is not None:
             return _disc_cache
-        url = (
-            f"{SAVANT_BASE}/leaderboard/plate-discipline"
-            f"?type=team&year={season}&team=&min=q&csv=true"
-        )
+
         result: dict = {}
-        try:
-            r = _http_get(
-                url, timeout=TIMEOUT,
-                headers={"User-Agent": "Mozilla/5.0 (compatible; ParlayOS/1.0)"},
-                skip_cache=False,
-            )
-            if r.status_code != 200 or not r.text.strip():
-                _disc_cache = result
-                return result
 
-            text   = r.text.lstrip("﻿")
-            reader = csv.DictReader(io.StringIO(text))
-
-            def _flt(v, d=0.0):
-                try:
-                    return float(v) if v not in ("", "null", "NA", ".", None) else d
-                except (ValueError, TypeError):
-                    return d
-
-            for row in reader:
-                team = (row.get("team_abbrev") or row.get("team") or row.get("team_name") or "").strip().upper()
-                if not team:
-                    continue
-                # O-Swing% may be a fraction (0-1) or percent (0-100)
-                o_swing = (
-                    _flt(row.get("o_swing_percent") or row.get("o_swing_pct") or
-                         row.get("o_swing") or row.get("oz_swing_percent"))
-                )
-                if o_swing > 1:
-                    o_swing = o_swing / 100
-                if 0 < o_swing < 1:
-                    result[team] = round(o_swing, 4)
-
-        except Exception as e:
-            print(f"  [PITCH_MIX] Discipline fetch error: {e}")
-
-        if not result and season == 2026:
-            # Try 2025 fallback
-            url25 = url.replace(f"year={season}", "year=2025")
+        def _flt(v, d=0.0):
             try:
-                r2 = _http_get(url25, timeout=TIMEOUT,
-                               headers={"User-Agent": "Mozilla/5.0 (compatible; ParlayOS/1.0)"},
-                               skip_cache=False)
-                if r2.status_code == 200 and r2.text.strip():
-                    text2 = r2.text.lstrip("﻿")
-                    for row2 in csv.DictReader(io.StringIO(text2)):
-                        team2 = (row2.get("team_abbrev") or row2.get("team") or "").strip().upper()
-                        if not team2:
-                            continue
-                        def _flt2(v, d=0.0):
-                            try:
-                                return float(v) if v not in ("", "null", "NA", ".", None) else d
-                            except (ValueError, TypeError):
-                                return d
-                        ov = _flt2(row2.get("o_swing_percent") or row2.get("o_swing") or row2.get("oz_swing_percent"))
-                        if ov > 1:
-                            ov = ov / 100
-                        if 0 < ov < 1:
-                            result[team2] = round(ov, 4)
-            except Exception:
-                pass
+                return float(v) if v not in ("", "null", "NA", ".", None) else d
+            except (ValueError, TypeError):
+                return d
+
+        def _try_season(yr: int) -> dict:
+            # hfZ=11|12|13|14 filters to out-of-zone pitches; group_by=team
+            url = (
+                f"{SAVANT_BASE}/statcast_search/csv"
+                f"?all=true&hfGT=R%7C&hfSea={yr}%7C"
+                f"&player_type=batter&group_by=team"
+                f"&hfZ=11%7C12%7C13%7C14%7C"
+                f"&min_pitches=0&sort_col=pitches&sort_order=desc&min_pas=0"
+            )
+            out = {}
+            try:
+                r = _http_get(
+                    url, timeout=TIMEOUT,
+                    headers={"User-Agent": "Mozilla/5.0 (compatible; ParlayOS/1.0)"},
+                    skip_cache=False,
+                )
+                if r.status_code != 200 or not r.text.strip():
+                    return out
+                text   = r.text.lstrip("﻿")
+                reader = csv.DictReader(io.StringIO(text))
+                for row in reader:
+                    # player_name = team abbrev (3-letter) when group_by=team
+                    team = (row.get("player_name") or "").strip().upper()
+                    if not team or len(team) > 4:
+                        continue
+                    # Out-of-zone pitches = swings + takes for the filtered set
+                    swings = _flt(row.get("swings"))
+                    takes  = _flt(row.get("takes"))
+                    total  = swings + takes
+                    if total < 50:
+                        continue
+                    o_swing = swings / total
+                    if 0.10 < o_swing < 0.60:
+                        out[team] = round(o_swing, 4)
+            except Exception as e:
+                print(f"  [PITCH_MIX] Discipline fetch error (year={yr}): {e}")
+            return out
+
+        result = _try_season(season)
+        if not result and season == 2026:
+            result = _try_season(2025)
 
         _disc_cache = result
+        if result:
+            teams_sorted = sorted(result.items(), key=lambda x: -x[1])
+            print(
+                f"  [PITCH_MIX] Discipline loaded: {len(result)} teams — "
+                f"top chase: {teams_sorted[0][0]}={teams_sorted[0][1]:.1%} "
+                f"lowest: {teams_sorted[-1][0]}={teams_sorted[-1][1]:.1%}"
+            )
+        else:
+            print("  [PITCH_MIX] Discipline fetch returned no data — using LG avg")
         return result
 
 

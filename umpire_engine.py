@@ -215,6 +215,19 @@ def umpire_telegram_flag(name: str, edge: dict | None = None) -> str:
     return f"UMP EDGE — {name}: {tag}"
 
 
+def ensure_umpire_db_populated(min_umpires: int = 20) -> None:
+    """
+    Auto-populate umpire_stats if the DB has fewer than min_umpires rows.
+    Called at startup so the model always has real data on day one.
+    """
+    stats = _load_from_db()
+    if len(stats) < min_umpires:
+        print(f"[UMP] DB has {len(stats)} umpires (<{min_umpires}) — fetching 30d history")
+        refresh_umpire_stats(days=30)
+    else:
+        print(f"[UMP] DB already has {len(stats)} umpires — skipping auto-populate")
+
+
 if __name__ == "__main__":
     import sys
     days = int(sys.argv[1]) if len(sys.argv) > 1 else 14

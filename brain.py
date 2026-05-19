@@ -2465,6 +2465,12 @@ def run_daily_scout():
     print("Brain starting — daily scout")
     init_memory_tables()
 
+    try:
+        from umpire_engine import ensure_umpire_db_populated
+        ensure_umpire_db_populated()
+    except Exception as _ump_e:
+        print(f"[UMP] startup populate failed: {_ump_e}")
+
     today     = date.today().isoformat()
     print(f"Date: {today} — fetching events from Odds API...")
     events    = get_mlb_events()
