@@ -522,6 +522,14 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "",
     except Exception:
         pass
 
+    # ── Savant leaderboard signals (ADDs 1-10) ────────────────────────────────
+    savant_signals: dict = {}
+    try:
+        from savant_leaderboards import sp_savant_signals
+        savant_signals = sp_savant_signals(pitcher_id)
+    except Exception:
+        pass
+
     # ABS adjustment: use full score when available, else simple heuristic
     if abs_score is not None:
         if abs_score > 65:
@@ -579,6 +587,17 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "",
         # Batted ball / command metrics from Savant
         "gb_rate":           gb_rate,
         "fp_strike_rate":    fp_strike_rate,
+        # Savant leaderboard signals (ADDs 1-10)
+        "savant":            savant_signals,
+        "xwoba_against":     savant_signals.get("xwoba_against"),
+        "xwoba_tier":        savant_signals.get("xwoba_tier", "UNKNOWN"),
+        "rolling_xwoba_tier":savant_signals.get("rolling_tier", "UNKNOWN"),
+        "pitch_tempo":       savant_signals.get("pitch_tempo"),
+        "tempo_label":       savant_signals.get("tempo_label", "UNKNOWN"),
+        "arm_angle":         savant_signals.get("arm_angle"),
+        "fps_model_adj":     savant_signals.get("fps_model_adj", 0.0),
+        "yoy_conf_adj":      savant_signals.get("yoy_conf_adj", 0),
+        "k_conf_adj_savant": savant_signals.get("k_conf_adj", 0),
     }
 
 
@@ -621,6 +640,16 @@ def _default_sp(pitcher_id, opp_team, umpire) -> dict:
         "platoon_vuln_detail":   "",
         "gb_rate":               None,
         "fp_strike_rate":        None,
+        "savant":                {},
+        "xwoba_against":         None,
+        "xwoba_tier":            "UNKNOWN",
+        "rolling_xwoba_tier":    "UNKNOWN",
+        "pitch_tempo":           None,
+        "tempo_label":           "UNKNOWN",
+        "arm_angle":             None,
+        "fps_model_adj":         0.0,
+        "yoy_conf_adj":          0,
+        "k_conf_adj_savant":     0,
     }
 
 

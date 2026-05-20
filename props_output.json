@@ -1,7 +1,175 @@
 {
   "date": "2026-05-19",
-  "timestamp": "2026-05-19T18:59:13.366743-04:00",
+  "timestamp": "2026-05-19T18:32:34.803459-04:00",
   "games": [
+    {
+      "away": "BAL",
+      "home": "TB",
+      "away_name": "Baltimore Orioles",
+      "home_name": "Tampa Bay Rays",
+      "time": "6:41 PM ET",
+      "asp": "Kyle Bradish",
+      "hsp": "Griffin Jax",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Kyle Bradish",
+          "sp_side": "away",
+          "model_line": 5.5,
+          "p_over": 0.5182,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Griffin Jax",
+          "sp_side": "home",
+          "model_line": 3.9,
+          "p_over": 0.6574,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4034,
+          "p_yrfi": 0.5966,
+          "recommendation": "YRFI"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.3,
+          "market_line": 7.5,
+          "p_over": 0.5882,
+          "p_under": 0.4118,
+          "recommendation": "OVER 7.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "CIN",
+      "home": "PHI",
+      "away_name": "Cincinnati Reds",
+      "home_name": "Philadelphia Phillies",
+      "time": "6:41 PM ET",
+      "asp": "Chase Burns",
+      "hsp": "Jes\u00fas Luzardo",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Chase Burns",
+          "sp_side": "away",
+          "model_line": 5.2,
+          "p_over": 0.572,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Jes\u00fas Luzardo",
+          "sp_side": "home",
+          "model_line": 6.1,
+          "p_over": 0.517,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.5004,
+          "p_yrfi": 0.4996,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.3,
+          "market_line": 8.5,
+          "p_over": 0.3102,
+          "p_under": 0.6898,
+          "recommendation": "UNDER 8.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "CLE",
+      "home": "DET",
+      "away_name": "Cleveland Guardians",
+      "home_name": "Detroit Tigers",
+      "time": "6:41 PM ET",
+      "asp": "Parker Messick",
+      "hsp": "Keider Montero",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Parker Messick",
+          "sp_side": "away",
+          "model_line": 5.4,
+          "p_over": 0.6238,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Keider Montero",
+          "sp_side": "home",
+          "model_line": 3.5,
+          "p_over": 0.5407,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4822,
+          "p_yrfi": 0.5178,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 6.79,
+          "market_line": 8.0,
+          "p_over": 0.2446,
+          "p_under": 0.7554,
+          "recommendation": "UNDER 8.0"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "NYM",
+      "home": "WAS",
+      "away_name": "New York Mets",
+      "home_name": "Washington Nationals",
+      "time": "6:46 PM ET",
+      "asp": "Nolan McLean",
+      "hsp": "Foster Griffin",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Nolan McLean",
+          "sp_side": "away",
+          "model_line": 6.1,
+          "p_over": 0.5664,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Foster Griffin",
+          "sp_side": "home",
+          "model_line": 4.8,
+          "p_over": 0.634,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4532,
+          "p_yrfi": 0.5468,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.58,
+          "market_line": 9.0,
+          "p_over": 0.2331,
+          "p_under": 0.7669,
+          "recommendation": "UNDER 9.0"
+        }
+      ],
+      "sgp": []
+    },
     {
       "away": "TOR",
       "home": "NYY",
@@ -40,48 +208,6 @@
           "p_over": 0.2304,
           "p_under": 0.7696,
           "recommendation": "UNDER 8.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "NYM",
-      "home": "WAS",
-      "away_name": "New York Mets",
-      "home_name": "Washington Nationals",
-      "time": "7:11 PM ET",
-      "asp": "Nolan McLean",
-      "hsp": "Foster Griffin",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Nolan McLean",
-          "sp_side": "away",
-          "model_line": 6.1,
-          "p_over": 0.5664,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Foster Griffin",
-          "sp_side": "home",
-          "model_line": 4.8,
-          "p_over": 0.634,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4532,
-          "p_yrfi": 0.5468,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.58,
-          "market_line": 9.0,
-          "p_over": 0.2331,
-          "p_under": 0.7669,
-          "recommendation": "UNDER 9.0"
         }
       ],
       "sgp": []
@@ -155,16 +281,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.5801,
-          "p_yrfi": 0.4199,
+          "p_nrfi": 0.5871,
+          "p_yrfi": 0.4129,
           "recommendation": "NRFI"
         },
         {
           "type": "TOTAL",
-          "model_total": 6.1,
+          "model_total": 5.97,
           "market_line": 7.5,
-          "p_over": 0.2702,
-          "p_under": 0.7298,
+          "p_over": 0.2515,
+          "p_under": 0.7485,
           "recommendation": "UNDER 7.5"
         }
       ],
@@ -173,10 +299,10 @@
           "type": "SP_DOMINANCE",
           "legs": [
             "Jacob Misiorowski OVER 7.8 Ks (66.3%)",
-            "NRFI (58.0%)",
-            "Game UNDER 7.5 (73.0%)"
+            "NRFI (58.7%)",
+            "Game UNDER 7.5 (74.9%)"
           ],
-          "joint_prob": 0.3999,
+          "joint_prob": 0.4086,
           "kelly_stake": 0.0,
           "ev": -0.15
         },
@@ -184,10 +310,10 @@
           "type": "SP_DOMINANCE",
           "legs": [
             "Ben Brown OVER 5.1 Ks (70.8%)",
-            "NRFI (58.0%)",
-            "Game UNDER 7.5 (73.0%)"
+            "NRFI (58.7%)",
+            "Game UNDER 7.5 (74.9%)"
           ],
-          "joint_prob": 0.416,
+          "joint_prob": 0.4254,
           "kelly_stake": 0.0,
           "ev": -0.15
         }
@@ -226,10 +352,10 @@
         },
         {
           "type": "TOTAL",
-          "model_total": 8.48,
+          "model_total": 8.52,
           "market_line": 8.5,
-          "p_over": 0.474,
-          "p_under": 0.526,
+          "p_over": 0.4792,
+          "p_under": 0.5208,
           "recommendation": "PASS"
         }
       ],

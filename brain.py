@@ -360,6 +360,100 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     away_wrc_v    = away_off.get("adj_wrc_plus", away_off.get("wrc_plus", 100.0))
     home_wrc_v    = home_off.get("adj_wrc_plus", home_off.get("wrc_plus", 100.0))
 
+    # ── Savant pipeline signals for weighted blend ────────────────────────────
+    # Factor 1 — SP xwOBA against (from savant_leaderboards via sp_engine)
+    _away_xwoba  = away_sp.get("xwoba_against")
+    _home_xwoba  = home_sp.get("xwoba_against")
+
+    # Factor 2 — Pitch quality: k_conf_adj from arsenal (convert to prob adj)
+    _away_pq_adj = away_sp.get("k_conf_adj_savant", 0) / 300.0   # ~0.033 per 10pt
+    _home_pq_adj = home_sp.get("k_conf_adj_savant", 0) / 300.0
+
+    # Factor 3 — Rolling form tier
+    _away_roll_tier = away_sp.get("rolling_xwoba_tier", "UNKNOWN")
+    _home_roll_tier = home_sp.get("rolling_xwoba_tier", "UNKNOWN")
+
+    # Factor 4 — Bullpen stuff_plus adj (from savant_leaderboards if available)
+    _away_bp_stuff = 0.0
+    _home_bp_stuff = 0.0
+    try:
+        from savant_leaderboards import bullpen_stuff_lambda_adj as _bpsla
+        _away_bp_pids = [p.get("pitcher_id") for p in (away_bp.get("arms") or []) if p.get("pitcher_id")]
+        _home_bp_pids = [p.get("pitcher_id") for p in (home_bp.get("arms") or []) if p.get("pitcher_id")]
+        if _away_bp_pids:
+            _away_bp_stuff = _bpsla(_away_bp_pids) * 0.1   # scale -0.2 → 0.02 prob adj
+        if _home_bp_pids:
+            _home_bp_stuff = _bpsla(_home_bp_pids) * 0.1
+    except Exception:
+        pass
+
+    # Factor 5 — Bat tracking adj (team lineup average blast)
+    _away_bat_adj = 0.0
+    _home_bat_adj = 0.0
+    try:
+        from savant_leaderboards import blast_tb_adj as _blastadj
+        _away_lineup_ids = [p.get("id") for p in (away_off.get("lineup") or [])[:6] if p.get("id")]
+        _home_lineup_ids = [p.get("id") for p in (home_off.get("lineup") or [])[:6] if p.get("id")]
+        if _away_lineup_ids:
+            adjs = [_blastadj(pid) for pid in _away_lineup_ids]
+            _away_bat_adj = sum(adjs) / len(adjs) if adjs else 0.0
+        if _home_lineup_ids:
+            adjs = [_blastadj(pid) for pid in _home_lineup_ids]
+            _home_bat_adj = sum(adjs) / len(adjs) if adjs else 0.0
+    except Exception:
+        pass
+
+    # Factor 8 — Park + OF defense combined adj
+    _park_of_adj = 0.0
+    try:
+        from savant_leaderboards import team_of_lambda_adj as _ofadj
+        _away_of_ids = [p.get("id") for p in (away_off.get("lineup") or []) if p.get("id")]
+        _home_of_ids = [p.get("id") for p in (home_off.get("lineup") or []) if p.get("id")]
+        _away_of_rv = _ofadj(_away_of_ids)
+        _home_of_rv = _ofadj(_home_of_ids)
+        _park_of_adj = (_away_of_rv - _home_of_rv) * 0.05
+    except Exception:
+        pass
+
+    # Factor 9 — YoY conf adj (convert -3/+3 to probability adj)
+    _away_yoy_adj = away_sp.get("yoy_conf_adj", 0) / 100.0
+    _home_yoy_adj = home_sp.get("yoy_conf_adj", 0) / 100.0
+
+    # Factor 10 — ABS/FPS model adj (from sp_engine)
+    _away_fps_adj = away_sp.get("fps_model_adj", 0.0)
+    _home_fps_adj = home_sp.get("fps_model_adj", 0.0)
+
+    # Factor 10 — Tempo adj
+    _tempo_map  = {"QUICK_WORKER": 0.01, "SLOW_WORKER": -0.01, "NORMAL": 0.0, "UNKNOWN": 0.0}
+    _away_tempo_adj = _tempo_map.get(away_sp.get("tempo_label", "UNKNOWN"), 0.0)
+    _home_tempo_adj = _tempo_map.get(home_sp.get("tempo_label", "UNKNOWN"), 0.0)
+
+    # Factor 11 — Sprint speed + baserunning
+    _away_sprint_adj = 0.0
+    _home_sprint_adj = 0.0
+    try:
+        from savant_leaderboards import sprint_lambda_adj as _sprintadj, baserunning_lambda_adj as _bsadj
+        _away_lineup_ids2 = [p.get("id") for p in (away_off.get("lineup") or [])[:9] if p.get("id")]
+        _home_lineup_ids2 = [p.get("id") for p in (home_off.get("lineup") or [])[:9] if p.get("id")]
+        _away_sprint_adj = (_sprintadj(_away_lineup_ids2) + _bsadj(away_tid or 0)) * 0.05
+        _home_sprint_adj = (_sprintadj(_home_lineup_ids2) + _bsadj(home_tid or 0)) * 0.05
+    except Exception:
+        pass
+
+    # Factor 7 — Arm angle platoon adj
+    _away_arm_adj = 0.0
+    _home_arm_adj = 0.0
+    try:
+        from savant_leaderboards import arm_angle_platoon_adj as _armadj
+        _away_arm_ang = away_sp.get("arm_angle")
+        _home_arm_ang = home_sp.get("arm_angle")
+        if _away_arm_ang is not None:
+            _away_arm_adj = _armadj(_away_arm_ang) * 0.5
+        if _home_arm_ang is not None:
+            _home_arm_adj = _armadj(_home_arm_ang) * 0.5
+    except Exception:
+        pass
+
     away_model_p, home_model_p = _weighted_win_prob(
         away_xfip              = away_sp.get("xfip", 4.35),
         home_xfip              = home_sp.get("xfip", 4.35),
@@ -382,15 +476,38 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         away_key_reliever_avail = away_key_rel_avail,
         home_key_reliever_avail = home_key_rel_avail,
         ump_home_win_adj       = ump_home_win_adj,
+        # New Savant-powered factors
+        away_xwoba_against     = _away_xwoba,
+        home_xwoba_against     = _home_xwoba,
+        away_pitch_quality_adj = _away_pq_adj,
+        home_pitch_quality_adj = _home_pq_adj,
+        away_rolling_tier      = _away_roll_tier,
+        home_rolling_tier      = _home_roll_tier,
+        away_bp_stuff_adj      = _away_bp_stuff,
+        home_bp_stuff_adj      = _home_bp_stuff,
+        away_bat_tracking_adj  = _away_bat_adj,
+        home_bat_tracking_adj  = _home_bat_adj,
+        park_of_adj            = _park_of_adj,
+        away_yoy_adj           = _away_yoy_adj,
+        home_yoy_adj           = _home_yoy_adj,
+        away_fps_adj           = _away_fps_adj,
+        home_fps_adj           = _home_fps_adj,
+        away_tempo_adj         = _away_tempo_adj,
+        home_tempo_adj         = _home_tempo_adj,
+        away_sprint_adj        = _away_sprint_adj,
+        home_sprint_adj        = _home_sprint_adj,
+        away_arm_angle_adj     = _away_arm_adj,
+        home_arm_angle_adj     = _home_arm_adj,
+        h2h_away_p             = 0.50,   # H2H handled separately post-blend
     )
     _a_tier, _ = _sp_tier(away_sp.get("xfip", 4.35))
     _h_tier, _ = _sp_tier(home_sp.get("xfip", 4.35))
     print(f"  12-factor: away={away_model_p:.3f} home={home_model_p:.3f} "
           f"SP:{away_sp.get('xfip',4.35):.2f}({_a_tier}) vs {home_sp.get('xfip',4.35):.2f}({_h_tier}) "
+          f"xwOBA:{_away_xwoba or '?'}/{_home_xwoba or '?'} "
+          f"roll:{_away_roll_tier}/{_home_roll_tier} "
           f"BP:{away_bp.get('avg_fatigue',4.0):.1f}/{home_bp.get('avg_fatigue',4.0):.1f} "
-          f"Pyth={pyth_away_p:.3f} PT:{_pt_away_adj:.3f}/{_pt_home_adj:.3f} "
-          f"FR:{_away_framing_adj:.2f}/{_home_framing_adj:.2f} "
-          f"UMP_HWA:{ump_home_win_adj:+.3f}")
+          f"Pyth={pyth_away_p:.3f} UMP_HWA:{ump_home_win_adj:+.3f}")
 
     # ── H2H historical matchup (10% weight) ─────────────────────────────────
     h2h = {}
@@ -740,6 +857,17 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         "home_key_rel_avail":   home_key_rel_avail,
         "away_slot_run_adj":    _away_slot_adj,
         "home_slot_run_adj":    _home_slot_adj,
+        # Savant pipeline signals
+        "away_xwoba_against":   _away_xwoba,
+        "home_xwoba_against":   _home_xwoba,
+        "away_rolling_tier":    _away_roll_tier,
+        "home_rolling_tier":    _home_roll_tier,
+        "away_tempo_label":     away_sp.get("tempo_label"),
+        "home_tempo_label":     home_sp.get("tempo_label"),
+        "away_arm_angle":       away_sp.get("arm_angle"),
+        "home_arm_angle":       home_sp.get("arm_angle"),
+        "away_fps_model_adj":   _away_fps_adj,
+        "home_fps_model_adj":   _home_fps_adj,
         # Umpire engine edge
         "ump_edge":             ump_edge,
         # Sharp money signals (for confidence adjustment and FLAGS)
@@ -910,97 +1038,139 @@ def _weighted_win_prob(
     lm_direction: str, lm_magnitude: float,
     away_platoon_edge: float, home_platoon_edge: float,
     away_momentum_score: float, home_momentum_score: float,
-    # New factors (12-factor model)
-    pitch_trap_away_adj: float = 0.0,  # away offense benefits vs home SP
-    pitch_trap_home_adj: float = 0.0,  # home offense benefits vs away SP
-    away_framing_adj: float = 0.0,     # away catcher framing (+/-0.02)
-    home_framing_adj: float = 0.0,     # home catcher framing
+    # Legacy 12-factor inputs (kept for backward compat)
+    pitch_trap_away_adj: float = 0.0,
+    pitch_trap_home_adj: float = 0.0,
+    away_framing_adj: float = 0.0,
+    home_framing_adj: float = 0.0,
     away_key_reliever_avail: bool = True,
     home_key_reliever_avail: bool = True,
-    ump_home_win_adj: float = 0.0,     # umpire historical home win edge (+0.02)
+    ump_home_win_adj: float = 0.0,
+    # New Savant-powered factors
+    away_xwoba_against: float | None = None,  # SP xwOBA against (ADD 1)
+    home_xwoba_against: float | None = None,
+    away_pitch_quality_adj: float = 0.0,      # pitch run value + whiff (ADDs 2-3)
+    home_pitch_quality_adj: float = 0.0,
+    away_rolling_tier: str = "STABLE",        # rolling xwOBA form (ADD 8)
+    home_rolling_tier: str = "STABLE",
+    away_bp_stuff_adj: float = 0.0,           # bullpen stuff_plus (ADD 19)
+    home_bp_stuff_adj: float = 0.0,
+    away_bat_tracking_adj: float = 0.0,       # bat tracking (ADD 11)
+    home_bat_tracking_adj: float = 0.0,
+    park_of_adj: float = 0.0,                 # park + OF defense combined (ADD 16)
+    away_yoy_adj: float = 0.0,               # YoY xwOBA change (ADD 9)
+    home_yoy_adj: float = 0.0,
+    away_fps_adj: float = 0.0,               # ABS/FPS (ADD 7)
+    home_fps_adj: float = 0.0,
+    away_tempo_adj: float = 0.0,             # pitch tempo (ADD 10)
+    home_tempo_adj: float = 0.0,
+    away_sprint_adj: float = 0.0,           # baserunning + sprint (ADDs 13,17)
+    home_sprint_adj: float = 0.0,
+    away_arm_angle_adj: float = 0.0,        # arm angle platoon (ADD 4)
+    home_arm_angle_adj: float = 0.0,
+    h2h_away_p: float = 0.50,               # H2H win rate (ADD — existing factor)
 ) -> tuple[float, float]:
     """
-    12-factor weighted win probability.
-    Weights: SP 25%, Bullpen 18%, Offense 16%, Home dog 9%,
-             Pythagorean 7%, Line movement 6%, Platoon 5%, Momentum 4%,
-             Pitch mix 3%, Key reliever 3%, Catcher framing 2%, Umpire edge 2%.
+    Updated 12-factor weighted win probability (Savant data pipeline expansion).
+    Weights:
+      SP xwOBA 18%, Pitch quality 12%, Rolling form 7%, Bullpen 15%,
+      Offense (wRC++bat tracking) 13%, Pythagorean 8%,
+      Platoon+arm angle 8%, Park+weather+OF defense 6%,
+      Momentum+YoY 5%, ABS+tempo 3%, Baserunning+sprint 3%, H2H 2%.
     Returns (away_p, home_p) rounded to 4 decimal places.
     """
-    # Factor 1 — SP xFIP (25%)
-    _, away_tm = _sp_tier(away_xfip)
-    _, home_tm = _sp_tier(home_xfip)
-    away_sp_q  = (1.0 / max(away_xfip, 0.5)) * away_tm
-    home_sp_q  = (1.0 / max(home_xfip, 0.5)) * home_tm
-    sp_denom   = away_sp_q + home_sp_q
-    sp_away_p  = away_sp_q / sp_denom if sp_denom > 0 else 0.5
+    # Factor 1 — SP xwOBA against (18%)
+    # Convert xwOBA to quality score: lower xwOBA = better pitcher
+    # Neutral xwOBA ≈ 0.320; scale so 0.280 → 1.20, 0.360 → 0.80
+    _LG_XWOBA = 0.320
+    away_xwoba = away_xwoba_against if away_xwoba_against is not None else _LG_XWOBA
+    home_xwoba = home_xwoba_against if home_xwoba_against is not None else _LG_XWOBA
+    # Fallback: if no xwOBA data, use xFIP quality
+    if away_xwoba_against is None:
+        _, away_tm = _sp_tier(away_xfip)
+        away_sp_q = (1.0 / max(away_xfip, 0.5)) * away_tm
+    else:
+        away_sp_q = max(0.5, (_LG_XWOBA / max(away_xwoba, 0.10)))
+    if home_xwoba_against is None:
+        _, home_tm = _sp_tier(home_xfip)
+        home_sp_q = (1.0 / max(home_xfip, 0.5)) * home_tm
+    else:
+        home_sp_q = max(0.5, (_LG_XWOBA / max(home_xwoba, 0.10)))
+    sp_denom  = away_sp_q + home_sp_q
+    sp_away_p = away_sp_q / sp_denom if sp_denom > 0 else 0.5
 
-    # Factor 2 — Bullpen (18%)
-    away_bp_q  = 1.0 / (1.0 + max(away_bp_fatigue, 0))
-    home_bp_q  = 1.0 / (1.0 + max(home_bp_fatigue, 0))
+    # Factor 2 — Pitch quality: run value + whiff (12%)
+    # away_pitch_quality_adj: positive = away SP has better arsenal → away team's
+    # pitching dominates → home team scores less → away_p up
+    pq_net    = away_pitch_quality_adj - home_pitch_quality_adj
+    pq_away_p = max(0.40, min(0.60, 0.50 + pq_net))
+
+    # Factor 3 — Rolling form (10-game xwOBA) (7%)
+    # PEAKING pitcher → runs suppressed; DECLINING → more runs allowed
+    def _rolling_q(tier: str) -> float:
+        return {"PEAKING": 1.10, "STABLE": 1.00, "DECLINING": 0.90, "UNKNOWN": 1.00}.get(tier, 1.00)
+    roll_away_q = _rolling_q(away_rolling_tier)
+    roll_home_q = _rolling_q(home_rolling_tier)
+    roll_denom  = roll_away_q + roll_home_q
+    roll_away_p = roll_away_q / roll_denom if roll_denom > 0 else 0.5
+
+    # Factor 4 — Bullpen (xFIP fatigue + stuff_plus) (15%)
+    away_bp_q  = 1.0 / (1.0 + max(away_bp_fatigue, 0)) + away_bp_stuff_adj
+    home_bp_q  = 1.0 / (1.0 + max(home_bp_fatigue, 0)) + home_bp_stuff_adj
     bp_denom   = away_bp_q + home_bp_q
     bp_away_p  = away_bp_q / bp_denom if bp_denom > 0 else 0.5
 
-    # Factor 3 — Offense wRC+ (16%)
-    away_wrc_s = max(away_wrc, 50.0)
-    home_wrc_s = max(home_wrc, 50.0)
-    off_denom  = away_wrc_s + home_wrc_s
-    off_away_p = away_wrc_s / off_denom if off_denom > 0 else 0.5
+    # Factor 5 — Offense (wRC+ + bat tracking) (13%)
+    away_off_q = max(away_wrc, 50.0) + away_bat_tracking_adj * 10
+    home_off_q = max(home_wrc, 50.0) + home_bat_tracking_adj * 10
+    off_denom  = away_off_q + home_off_q
+    off_away_p = away_off_q / off_denom if off_denom > 0 else 0.5
 
-    # Factor 4 — Home dog structural edge (9%)
+    # Factor 6 — Pythagorean + home dog (8%)
+    # Blend Pythagorean and home dog structural edge
+    pyth_p      = max(0.20, min(0.80, pyth_away_p))
     hdog_away_p = 0.50 - home_dog_add
+    pyth_blend  = max(0.20, min(0.80, 0.70 * pyth_p + 0.30 * hdog_away_p))
 
-    # Factor 5 — Pythagorean / ML (7%)
-    pyth_p = max(0.20, min(0.80, pyth_away_p))
-
-    # Factor 6 — Line movement (6%)
-    lm_away_p = 0.50
-    if lm_direction == "toward_away":
-        lm_away_p = 0.50 + min(lm_magnitude * 0.6, 0.10)
-    elif lm_direction == "toward_home":
-        lm_away_p = 0.50 - min(lm_magnitude * 0.6, 0.10)
-
-    # Factor 7 — Platoon edge (5%)
+    # Factor 7 — Platoon + arm angle (8%)
     plat_diff      = (away_platoon_edge or 0) - (home_platoon_edge or 0)
-    platoon_away_p = max(0.40, min(0.60, 0.50 + plat_diff * 0.0015))
+    arm_net        = away_arm_angle_adj - home_arm_angle_adj
+    platoon_away_p = max(0.40, min(0.60, 0.50 + plat_diff * 0.0015 + arm_net))
 
-    # Factor 8 — Momentum (4%)
+    # Factor 8 — Park + weather + OF defense (6%)
+    # park_of_adj: positive = favors away, negative = favors home
+    park_away_p = max(0.40, min(0.60, 0.50 + park_of_adj))
+
+    # Factor 9 — Momentum + YoY (5%)
     mom_diff        = (away_momentum_score or 0) - (home_momentum_score or 0)
-    momentum_away_p = max(0.40, min(0.60, 0.50 + mom_diff * 1.5))
+    yoy_net         = away_yoy_adj - home_yoy_adj  # away SP improved more than home SP → away_p up
+    momentum_away_p = max(0.40, min(0.60, 0.50 + mom_diff * 1.5 + yoy_net))
 
-    # Factor 9 — Pitch mix matchup (3%)
-    # pitch_trap_away_adj: away offense gains (home SP exploitable by away lineup)
-    # pitch_trap_home_adj: home offense gains (away SP exploitable by home lineup)
-    pm_net    = pitch_trap_away_adj - pitch_trap_home_adj
-    pm_away_p = max(0.40, min(0.60, 0.50 + pm_net))
+    # Factor 10 — ABS + tempo (3%)
+    fps_net   = away_fps_adj - home_fps_adj
+    tempo_net = away_tempo_adj - home_tempo_adj
+    abs_away_p = max(0.40, min(0.60, 0.50 + fps_net + tempo_net))
 
-    # Factor 10 — Key reliever availability (3%)
-    # Missing key reliever = that team's bullpen is weaker → opponent benefits
-    kra_adj   = (0.0 if home_key_reliever_avail else 0.04) - (0.0 if away_key_reliever_avail else 0.04)
-    kra_away_p = max(0.40, min(0.60, 0.50 + kra_adj))
+    # Factor 11 — Baserunning + sprint speed (3%)
+    sprint_net   = away_sprint_adj - home_sprint_adj
+    sprint_away_p = max(0.40, min(0.60, 0.50 + sprint_net))
 
-    # Factor 11 — Catcher framing (2%)
-    # Elite home framer helps home pitching → away team harder to score → away_p down
-    # Elite away framer helps away pitching → home team harder to score → away_p up
-    framing_net  = away_framing_adj - home_framing_adj
-    framing_away_p = max(0.40, min(0.60, 0.50 + framing_net))
-
-    # Factor 12 — Umpire edge (2%)
-    # ump_home_win_adj > 0 = umpire historically favors home team → away_p down
-    ump_edge_away_p = max(0.40, min(0.60, 0.50 - ump_home_win_adj))
+    # Factor 12 — H2H historical (2%)
+    h2h_away_p_clamped = max(0.35, min(0.65, h2h_away_p))
 
     away_p = (
-        0.25 * sp_away_p +
-        0.18 * bp_away_p +
-        0.16 * off_away_p +
-        0.09 * hdog_away_p +
-        0.07 * pyth_p +
-        0.06 * lm_away_p +
-        0.05 * platoon_away_p +
-        0.04 * momentum_away_p +
-        0.03 * pm_away_p +
-        0.03 * kra_away_p +
-        0.02 * framing_away_p +
-        0.02 * ump_edge_away_p
+        0.18 * sp_away_p +
+        0.12 * pq_away_p +
+        0.07 * roll_away_p +
+        0.15 * bp_away_p +
+        0.13 * off_away_p +
+        0.08 * pyth_blend +
+        0.08 * platoon_away_p +
+        0.06 * park_away_p +
+        0.05 * momentum_away_p +
+        0.03 * abs_away_p +
+        0.03 * sprint_away_p +
+        0.02 * h2h_away_p_clamped
     )
     away_p = round(max(0.15, min(0.85, away_p)), 4)
     return away_p, round(1.0 - away_p, 4)
@@ -2113,6 +2283,17 @@ def _format_bet_message(game: dict, side: str) -> str:
             flag_parts.append(f"ABS_EDGE {_abs:.0f}/100")
         elif _abs < 35:
             flag_parts.append(f"ABS_FADE {_abs:.0f}/100")
+    _xwoba_tier = sp.get("xwoba_tier", "")
+    if _xwoba_tier in ("ELITE", "GREAT"):
+        _xwoba_val = sp.get("xwoba_against")
+        _xv_str = f" {_xwoba_val:.3f}" if _xwoba_val is not None else ""
+        flag_parts.append(f"xwOBA_{_xwoba_tier}{_xv_str}")
+    _roll_tier = sp.get("rolling_xwoba_tier", "")
+    if _roll_tier in ("PEAKING", "DECLINING"):
+        flag_parts.append(f"FORM_{_roll_tier}")
+    _tempo_lbl = sp.get("tempo_label", "")
+    if _tempo_lbl in ("QUICK_WORKER", "SLOW_WORKER"):
+        flag_parts.append(f"TEMPO_{_tempo_lbl}")
     if flag_parts:
         lines.append(f"FLAGS      {' | '.join(flag_parts)}")
 
