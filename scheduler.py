@@ -25,7 +25,8 @@ ET = pytz.timezone("America/New_York")
 # ── HELPERS ───────────────────────────────────────────────────────────────────
 
 def _now_et() -> datetime:
-    return datetime.now(ET)
+    """Always returns tz-aware ET datetime regardless of server TZ setting."""
+    return datetime.now(timezone.utc).astimezone(ET)
 
 
 def _next_occurrence(weekday: int, hour: int, minute: int = 0) -> float:
@@ -265,8 +266,15 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT,  _handle_signal)
     signal.signal(signal.SIGTERM, _handle_signal)
 
+    _boot_et  = _now_et()
+    _boot_utc = datetime.now(timezone.utc)
+    log.info(
+        f"[scheduler] Booting. Server UTC={_boot_utc.strftime('%H:%M')}, "
+        f"ET={_boot_et.strftime('%H:%M %Z')} (offset {_boot_et.utcoffset()}). "
+        f"All schedule times are ET."
+    )
     status = scheduler_status()
-    log.info(f"[scheduler] Booting. Next weekly: {status['next_weekly_et']}, "
+    log.info(f"[scheduler] Next weekly: {status['next_weekly_et']}, "
              f"Next daily: {status['next_daily_et']}")
 
     # Run an immediate improvement check on startup

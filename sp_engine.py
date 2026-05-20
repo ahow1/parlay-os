@@ -326,7 +326,7 @@ def _sp_first_inning_era(pitcher_id: int, season_era: float, n_starts: int = 3) 
     return {
         "first_inning_era": fi_era,
         "fi_n_starts":      counted,
-        "yrfi_lean":        fi_era >= (season_era + 2.0),
+        "yrfi_lean":        fi_era >= (season_era + 3.0),
     }
 
 

@@ -37,7 +37,7 @@ from bullpen_engine import analyze_bullpen, bullpen_run_factor
 from offense_engine import analyze_offense
 from market_engine  import get_mlb_events, full_market_snapshot
 from bankroll_engine import (
-    kelly_stake, sizing_summary, current_bankroll, is_drawdown_pause,
+    kelly_stake, sizing_summary, current_bankroll, peak_bankroll, is_drawdown_pause,
     daily_budget, daily_budget_pct, pool_budget, pool_remaining, drawdown_tier,
     growth_tracker, MIN_STAKE,
 )
@@ -1031,6 +1031,8 @@ def _format_sgp(sgp: dict, game_label: str = "") -> str:
 
 
 # ── SERIES BETTING MODEL ─────────────────────────────────────────────────────
+_SENT_SERIES: set = set()   # tracks (away_code, home_code, game_date) already messaged
+
 
 def _fetch_polymarket_series(team_code: str, team_name: str) -> float | None:
     """Try to fetch Polymarket series winner probability. Returns 0-1 float or None."""
@@ -1196,6 +1198,15 @@ def _series_analysis(events: list, game_date: str, game_analyses: dict) -> None:
         model_pct   = round(series_prob * 100, 1)
         sp_adv_str  = " | ".join(xfip_details[:3])
 
+        series_key = (
+            min(away_code, home_code),
+            max(away_code, home_code),
+            game_date,
+        )
+        if series_key in _SENT_SERIES:
+            continue
+        _SENT_SERIES.add(series_key)
+
         msg = "\n".join([
             "🏆 SERIES EDGE",
             f"{team_name} vs {opp_name} — {n_games}-game series starting {game_date}",
@@ -1273,6 +1284,35 @@ def _daily_bet_slip(
     parlay_pool_rem  = pool_remaining("PARLAY", br)
     budget           = daily_budget(br)
 
+    # Enforce props pool budget — admit highest-edge props first until pool is exhausted
+    _props_spent = 0.0
+    _capped_hitter: list = []
+    for _h in hitter_bets:
+        _s = float(_h.get("stake") or 0)
+        if _props_spent + _s > props_pool_rem:
+            break
+        _capped_hitter.append(_h)
+        _props_spent += _s
+    hitter_bets = _capped_hitter
+
+    _capped_k: list = []
+    for _b in k_bets:
+        _s = float(_b.get("stake") or 0)
+        if _props_spent + _s > props_pool_rem:
+            break
+        _capped_k.append(_b)
+        _props_spent += _s
+    k_bets = _capped_k
+
+    _capped_nrfi: list = []
+    for _b in nrfi_bets:
+        _s = float(_b.get("stake") or 0)
+        if _props_spent + _s > props_pool_rem:
+            break
+        _capped_nrfi.append(_b)
+        _props_spent += _s
+    nrfi_bets = _capped_nrfi
+
     # Parlay: HIGH conviction ML picks only
     # Rules: ≤3 legs, no leg worse than -180, combined no-vig prob ≥ 35%
     # Stake: min(15% of daily budget, 1.5% of bankroll)
@@ -1347,7 +1387,7 @@ def _daily_bet_slip(
         "PART 1/3 — ML PICKS",
         "",
         # Bankroll status
-        f"💰 Bankroll: ${br:.2f} | Peak: ${gt['current_bankroll']:.2f}",
+        f"💰 Bankroll: ${br:.2f} | Peak: ${peak_bankroll():.2f}",
     ]
     if dd_status["pct"] > 0:
         dd_icon = "🚨" if dd_status["pause"] else ("⚠️" if dd_status["tier"] >= 2 else "📉")
@@ -1857,8 +1897,12 @@ def _should_recommend(game: dict, side: str, bet_type: str = "ML") -> bool:
     print(f"  [CHECKLIST] {team}: {_checks_passed}/5 | {_checklist_str}")
 
     min_conf = 60 if conv == "HIGH" else 55
+    # Strong edge overrides the confidence floor — if model edge ≥ 7% the line value
+    # is the primary signal and shouldn't be blocked by market noise penalties.
+    if edge >= 7.0:
+        min_conf = max(min_conf - 10, 45)
     if confidence < min_conf:
-        print(f"  PASS {team}: confidence {confidence}/100 < {min_conf} threshold ({conv})")
+        print(f"  PASS {team}: confidence {confidence}/100 < {min_conf} threshold ({conv}, edge={edge:+.1f}%)")
         return False
 
     # ── Veto rules ────────────────────────────────────────────────────────────
@@ -2385,7 +2429,7 @@ def _scan_hitter_props(
                 lam    = lam * (sp_era / _LG_ERA_HITTER_BASE)
 
         lam      = max(lam, 0.001)
-        model_p  = prob_over(lam, line)
+        model_p  = min(prob_over(lam, line), 0.87)   # Poisson tails blow up; 87% is realistic ceiling
         edge     = round(model_p - market_p, 4)
 
         if edge < _HITTER_PROP_MIN_EDGE:
@@ -2398,6 +2442,7 @@ def _scan_hitter_props(
         else:
             _odds_str = f"+{round((1.0 - _mp) / _mp * 100)}"
         stake = kelly_stake(model_p, _odds_str, "MEDIUM")
+        stake = min(stake, round(br * 0.015, 2))   # hard cap: 1.5% of bankroll per prop
         recs.append({
             "player":     player_name,
             "team":       team,
@@ -2713,9 +2758,22 @@ def run_daily_scout():
                 if not _er_sp or _er_sp.get("sp_missing"):
                     continue
                 try:
-                    _er_res = analyze_earned_runs(_er_sp, _er_opp_off, _er_bp)
+                    # Derive a market-line proxy from ERA × expected IP / 9.
+                    # Rounded to nearest 0.5 so it matches typical sportsbook ER lines.
+                    # Replace with a live odds feed when one is wired up.
+                    _er_era = _er_sp.get("era") or _er_sp.get("xfip") or 4.35
+                    _er_gs  = max(_er_sp.get("gs", 1) or 1, 1)
+                    _er_ip  = _er_sp.get("ip", 0) or 0
+                    _er_ips = min(_er_ip / _er_gs, 6.0)   # cap at 6 IP (typical max)
+                    _er_ips = max(_er_ips, 4.5)            # floor at 4.5 IP
+                    _er_raw_line = _er_era * _er_ips / 9.0
+                    _er_market_line = round(round(_er_raw_line * 2) / 2, 1)  # round to 0.5
+                    _er_market_line = max(_er_market_line, 1.5)
+
+                    _er_res = analyze_earned_runs(_er_sp, _er_opp_off, _er_bp,
+                                                  market_line=_er_market_line)
                     if _er_res:
-                        print(f"  ER PROJ [{_er_side}]: {er_prop_telegram_line(_er_res)}")
+                        print(f"  ER PROP [{_er_side}]: {er_prop_telegram_line(_er_res)}")
                 except Exception as _er_err:
                     pass
 
@@ -3134,6 +3192,37 @@ def run_daily_scout():
     scout_out["slip_sent"]     = True
     scout_out["sent_pick_ids"] = sorted(current_pick_ids)
 
+    # ── Guard: don't send RED day if lineups are broadly unconfirmed ─────────
+    # If >60% of today's games have unconfirmed lineups and we have zero locks,
+    # lineups haven't posted yet — send a holding message instead of RED.
+    _all_analyses = list(game_key_map.values())
+    _n_games_total = len(_all_analyses)
+    if _n_games_total > 0 and len(all_locks) == 0:
+        _unconf_count = sum(
+            1 for _a in _all_analyses
+            if not _a.get("away_lineup_confirmed") or not _a.get("home_lineup_confirmed")
+        )
+        if _unconf_count / _n_games_total > 0.60:
+            _msg = (
+                f"⏳ PARLAY OS — {today}\n"
+                f"Lineups unconfirmed for {_unconf_count}/{_n_games_total} games — "
+                f"picks pending.\nRe-running when lineups post (typically 11–11:30am ET)."
+            )
+            print(f"[SLIP] Lineup hold — {_unconf_count}/{_n_games_total} unconfirmed, skipping RED slip")
+            _send_telegram(_msg)
+            scout_out["slip_sent"] = False   # allow re-run once lineups post
+            with open("last_scout.json", "w") as _sf:
+                json.dump(scout_out, _sf, indent=2, default=str)
+            return
+
+    # ── Dedup: remove fades that contradict an active bet on the same team ──────
+    _bet_teams = {a.get(f"{s}_name") for a, s in all_locks + all_flips}
+    _before_fade_count = len(all_fades)
+    all_fades = [(a, s, r) for a, s, r in all_fades
+                 if a.get(f"{s}_name") not in _bet_teams]
+    if len(all_fades) < _before_fade_count:
+        print(f"[SLIP] Removed {_before_fade_count - len(all_fades)} fade(s) that contradicted active bets")
+
     # ── Daily bet slip ────────────────────────────────────────────────────────
     if slip_already_sent and not new_ml_pick_ids:
         n_other = len(new_pick_ids - current_ml_ids)
@@ -3144,8 +3233,8 @@ def run_daily_scout():
     elif slip_already_sent:
         # Only ML picks appear in the update; props/totals are supplementary
         print(f"[SLIP] Slip already sent today — {len(new_ml_pick_ids)} new ML pick(s). Sending update.")
-        _send_slip_update(new_ml_pick_ids, all_locks, all_flips, all_totals,
-                          all_nrfi, all_k_props, all_hitter_props, today, br)
+        _daily_bet_slip(all_locks, all_flips, all_sgp, all_fades, br,
+                        all_nrfi, all_totals, all_hitter_props, all_k_props, all_injuries)
     else:
         print(
             f"Building daily bet slip — "
@@ -3239,7 +3328,7 @@ def _build_props_entry(analysis: dict, sgp_list: list) -> dict:
             "type":          "NRFI",
             "p_nrfi":        round(p_nrfi, 4),
             "p_yrfi":        round(p_yrfi, 4),
-            "recommendation": "NRFI" if p_nrfi >= 0.58 else ("YRFI" if p_yrfi >= 0.58 else "PASS"),
+            "recommendation": "NRFI" if p_nrfi >= 0.62 else ("YRFI" if p_yrfi >= 0.62 else "PASS"),
         })
 
     if totals_line is None:
@@ -3351,14 +3440,14 @@ def _format_props_message(
     else:
         p_nrfi = nrfi_r.get("p_nrfi", 0)
         p_yrfi = nrfi_r.get("p_yrfi", 0)
-        if p_nrfi >= 0.58:
+        if p_nrfi >= 0.62:
             stake     = round(br * 0.015, 2)
             edge_est  = round((p_nrfi - 0.50) * 100, 1)
             odds      = _est_odds(p_nrfi)
             odds_s    = f" {odds}" if odds else ""
             pitcher_lines.append(f"✅ BET: NRFI{odds_s} — ${stake:.2f} — EDGE: +{edge_est:.1f}%")
             any_bet = True
-        elif p_yrfi >= 0.58:
+        elif p_yrfi >= 0.62:
             stake     = round(br * 0.015, 2)
             edge_est  = round((p_yrfi - 0.50) * 100, 1)
             odds      = _est_odds(p_yrfi)

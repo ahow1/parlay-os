@@ -102,7 +102,7 @@ def nrfi_prob(away_sp: dict, home_sp: dict,
         "p_yrfi":         p_yrfi,
         "lam_away_bats":  round(lam_away_bats, 3),
         "lam_home_bats":  round(lam_home_bats, 3),
-        "note":           "nrfi" if p_nrfi > 0.58 else ("yrfi" if p_yrfi > 0.58 else "neutral"),
+        "note":           "nrfi" if p_nrfi >= 0.62 else ("yrfi" if p_yrfi >= 0.62 else "neutral"),
     }
 
 
@@ -121,7 +121,8 @@ def team_run_expectancy(off_run_factor: float, sp_run_factor: float,
     sp_share = min(sp_ip_per_start / 9.0, 1.0)
     bp_share = max(1.0 - sp_share, 0.0)
     pitching_rf = sp_share * sp_run_factor + bp_share * opp_bp_run_factor
-    return round(LG_RPG * off_run_factor * pitching_rf * park_factor * weather_factor, 3)
+    xr = LG_RPG * off_run_factor * pitching_rf * park_factor * weather_factor
+    return round(max(xr, 3.5), 3)   # floor: no team projected below 3.5 R/G
 
 
 def game_total_prob(away_xr: float, home_xr: float, total_line: float) -> dict:

@@ -1,6 +1,6 @@
 """PARLAY OS — shared constants. Import from here, never re-define elsewhere."""
 
-LG_RPG   = 4.35
+LG_RPG   = 4.62   # 2025 MLB actual ~4.6 R/G; prior 4.35 was 2014-era causing UNDER bias
 LG_ERA   = 4.35
 PYTH_EXP = 1.83
 HOME_ADV = 1.035
@@ -31,6 +31,19 @@ MLB_TEAM_MAP = {
     "Tampa Bay Rays": "TB",         "Texas Rangers": "TEX",
     "Toronto Blue Jays": "TOR",     "Washington Nationals": "WAS",
     "Athletics": "ATH",
+    # Alternate / short names returned by some API providers (e.g. "Blue Jays" instead of
+    # "Toronto Blue Jays"). Keeps team matching robust when full name is unavailable.
+    "Diamondbacks": "AZ",  "D-backs": "AZ",
+    "Braves": "ATL",       "Orioles": "BAL",      "Red Sox": "BOS",
+    "Cubs": "CHC",         "White Sox": "CWS",    "Reds": "CIN",
+    "Guardians": "CLE",    "Rockies": "COL",      "Tigers": "DET",
+    "Astros": "HOU",       "Royals": "KC",        "Angels": "LAA",
+    "Dodgers": "LAD",      "Marlins": "MIA",      "Brewers": "MIL",
+    "Twins": "MIN",        "Mets": "NYM",         "Yankees": "NYY",
+    "Phillies": "PHI",     "Pirates": "PIT",      "Padres": "SD",
+    "Giants": "SF",        "Mariners": "SEA",     "Cardinals": "STL",
+    "Rays": "TB",          "Rangers": "TEX",      "Blue Jays": "TOR",
+    "Nationals": "WAS",    "Oakland": "ATH",
 }
 
 MLB_TEAM_NAMES = {
