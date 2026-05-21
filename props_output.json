@@ -1,225 +1,45 @@
 {
-  "date": "2026-05-20",
-  "timestamp": "2026-05-20T19:04:38.467644-04:00",
+  "date": "2026-05-21",
+  "timestamp": "2026-05-21T18:55:48.711560-04:00",
   "games": [
     {
       "away": "TOR",
       "home": "NYY",
       "away_name": "Toronto Blue Jays",
       "home_name": "New York Yankees",
-      "time": "7:36 PM ET",
-      "asp": "Trey Yesavage",
-      "hsp": "Cam Schlittler",
+      "time": "7:06 PM ET",
+      "asp": "Braydon Fisher",
+      "hsp": "Carlos Rod\u00f3n",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Trey Yesavage",
+          "sp": "Braydon Fisher",
           "sp_side": "away",
-          "model_line": 5.4,
-          "p_over": 0.4266,
-          "recommendation": "PASS"
+          "model_line": 4.6,
+          "p_over": 0.7624,
+          "recommendation": "BET"
         },
         {
           "type": "K_PROP",
-          "sp": "Cam Schlittler",
+          "sp": "Carlos Rod\u00f3n",
           "sp_side": "home",
-          "model_line": 5.7,
-          "p_over": 0.673,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.6179,
-          "p_yrfi": 0.3821,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.0,
-          "market_line": 7.5,
-          "p_over": 0.4013,
-          "p_under": 0.5987,
-          "recommendation": "UNDER 7.5"
-        }
-      ],
-      "sgp": [
-        {
-          "type": "SP_DOMINANCE",
-          "legs": [
-            "Cam Schlittler OVER 5.7 Ks (67.3%)",
-            "NRFI (61.8%)",
-            "Game UNDER 7.5 (59.9%)"
-          ],
-          "joint_prob": 0.3743,
-          "kelly_stake": 0.0,
-          "ev": -0.15
-        }
-      ]
-    },
-    {
-      "away": "BOS",
-      "home": "KC",
-      "away_name": "Boston Red Sox",
-      "home_name": "Kansas City Royals",
-      "time": "7:41 PM ET",
-      "asp": "Connelly Early",
-      "hsp": "Michael Wacha",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Connelly Early",
-          "sp_side": "away",
-          "model_line": 4.7,
-          "p_over": 0.5606,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Michael Wacha",
-          "sp_side": "home",
-          "model_line": 4.1,
-          "p_over": 0.5974,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4136,
-          "p_yrfi": 0.5864,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.7,
-          "market_line": 7.5,
-          "p_over": 0.504,
-          "p_under": 0.496,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "MIL",
-      "home": "CHC",
-      "away_name": "Milwaukee Brewers",
-      "home_name": "Chicago Cubs",
-      "time": "7:41 PM ET",
-      "asp": "Kyle Harrison",
-      "hsp": "Edward Cabrera",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Kyle Harrison",
-          "sp_side": "away",
           "model_line": 6.2,
-          "p_over": 0.3943,
+          "p_over": 0.2378,
           "recommendation": "PASS"
         },
         {
-          "type": "K_PROP",
-          "sp": "Edward Cabrera",
-          "sp_side": "home",
-          "model_line": 4.4,
-          "p_over": 0.5593,
-          "recommendation": "BET"
-        },
-        {
           "type": "NRFI",
-          "p_nrfi": 0.477,
-          "p_yrfi": 0.523,
+          "p_nrfi": 0.4487,
+          "p_yrfi": 0.5513,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.14,
-          "market_line": 6.5,
-          "p_over": 0.7031,
-          "p_under": 0.2969,
-          "recommendation": "OVER 6.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "PIT",
-      "home": "STL",
-      "away_name": "Pittsburgh Pirates",
-      "home_name": "St. Louis Cardinals",
-      "time": "7:46 PM ET",
-      "asp": "Carmen Mlodzinski",
-      "hsp": "Michael McGreevy",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Carmen Mlodzinski",
-          "sp_side": "away",
-          "model_line": 4.8,
-          "p_over": 0.7336,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Michael McGreevy",
-          "sp_side": "home",
-          "model_line": 3.5,
-          "p_over": 0.5657,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4881,
-          "p_yrfi": 0.5119,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.75,
-          "market_line": 7.5,
-          "p_over": 0.5111,
-          "p_under": 0.4889,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "LAD",
-      "home": "SD",
-      "away_name": "Los Angeles Dodgers",
-      "home_name": "San Diego Padres",
-      "time": "8:41 PM ET",
-      "asp": "Shohei Ohtani",
-      "hsp": "Randy V\u00e1squez",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Shohei Ohtani",
-          "sp_side": "away",
-          "model_line": 5.7,
-          "p_over": 0.7174,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Randy V\u00e1squez",
-          "sp_side": "home",
-          "model_line": 4.5,
-          "p_over": 0.5593,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.5258,
-          "p_yrfi": 0.4742,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.47,
-          "market_line": 7.5,
-          "p_over": 0.4715,
-          "p_under": 0.5285,
-          "recommendation": "PASS"
+          "model_total": 7.76,
+          "market_line": 8.5,
+          "p_over": 0.3739,
+          "p_under": 0.6261,
+          "recommendation": "UNDER 8.5"
         }
       ],
       "sgp": []
@@ -230,38 +50,80 @@
       "away_name": "Athletics",
       "home_name": "Los Angeles Angels",
       "time": "9:39 PM ET",
-      "asp": "Aaron Civale",
-      "hsp": "Jack Kochanowicz",
+      "asp": "Luis Severino",
+      "hsp": "Jos\u00e9 Soriano",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Aaron Civale",
+          "sp": "Luis Severino",
           "sp_side": "away",
-          "model_line": 3.8,
-          "p_over": 0.5452,
-          "recommendation": "PASS"
+          "model_line": 4.9,
+          "p_over": 0.6272,
+          "recommendation": "BET"
         },
         {
           "type": "K_PROP",
-          "sp": "Jack Kochanowicz",
+          "sp": "Jos\u00e9 Soriano",
           "sp_side": "home",
-          "model_line": 3.3,
-          "p_over": 0.5214,
-          "recommendation": "PASS"
+          "model_line": 5.6,
+          "p_over": 0.6602,
+          "recommendation": "BET"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.3976,
-          "p_yrfi": 0.6024,
+          "p_nrfi": 0.4213,
+          "p_yrfi": 0.5787,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.25,
-          "market_line": 9.5,
-          "p_over": 0.3152,
-          "p_under": 0.6848,
-          "recommendation": "UNDER 9.5"
+          "model_total": 8.17,
+          "market_line": 8.5,
+          "p_over": 0.4313,
+          "p_under": 0.5687,
+          "recommendation": "UNDER 8.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "COL",
+      "home": "AZ",
+      "away_name": "Colorado Rockies",
+      "home_name": "Arizona Diamondbacks",
+      "time": "9:41 PM ET",
+      "asp": "Zach Agnos",
+      "hsp": "Eduardo Rodriguez",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Zach Agnos",
+          "sp_side": "away",
+          "model_line": 3.5,
+          "p_over": 0.5255,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Eduardo Rodriguez",
+          "sp_side": "home",
+          "model_line": 3.7,
+          "p_over": 0.6282,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4159,
+          "p_yrfi": 0.5841,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.11,
+          "market_line": 9.0,
+          "p_over": 0.2969,
+          "p_under": 0.7031,
+          "recommendation": "UNDER 9.0"
         }
       ],
       "sgp": []
