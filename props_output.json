@@ -1,87 +1,213 @@
 {
-  "date": "2026-05-21",
-  "timestamp": "2026-05-21T18:55:48.711560-04:00",
+  "date": "2026-05-23",
+  "timestamp": "2026-05-23T16:44:02.379001-04:00",
   "games": [
     {
-      "away": "TOR",
-      "home": "NYY",
-      "away_name": "Toronto Blue Jays",
-      "home_name": "New York Yankees",
-      "time": "7:06 PM ET",
-      "asp": "Braydon Fisher",
-      "hsp": "Carlos Rod\u00f3n",
+      "away": "CLE",
+      "home": "PHI",
+      "away_name": "Cleveland Guardians",
+      "home_name": "Philadelphia Phillies",
+      "time": "5:06 PM ET",
+      "asp": "Slade Cecconi",
+      "hsp": "Zack Wheeler",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Braydon Fisher",
+          "sp": "Slade Cecconi",
           "sp_side": "away",
-          "model_line": 4.6,
-          "p_over": 0.7624,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Carlos Rod\u00f3n",
-          "sp_side": "home",
-          "model_line": 6.2,
-          "p_over": 0.2378,
+          "model_line": 4.0,
+          "p_over": 0.4094,
           "recommendation": "PASS"
         },
         {
+          "type": "K_PROP",
+          "sp": "Zack Wheeler",
+          "sp_side": "home",
+          "model_line": 4.7,
+          "p_over": 0.7161,
+          "recommendation": "BET"
+        },
+        {
           "type": "NRFI",
-          "p_nrfi": 0.4487,
-          "p_yrfi": 0.5513,
+          "p_nrfi": 0.4456,
+          "p_yrfi": 0.5544,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.76,
+          "model_total": 8.24,
+          "market_line": 7.0,
+          "p_over": 0.5797,
+          "p_under": 0.4203,
+          "recommendation": "OVER 7.0"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "STL",
+      "home": "CIN",
+      "away_name": "St. Louis Cardinals",
+      "home_name": "Cincinnati Reds",
+      "time": "7:16 PM ET",
+      "asp": "Kyle Leahy",
+      "hsp": "Chris Paddack",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Kyle Leahy",
+          "sp_side": "away",
+          "model_line": 3.7,
+          "p_over": 0.5224,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Chris Paddack",
+          "sp_side": "home",
+          "model_line": 4.3,
+          "p_over": 0.4452,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3688,
+          "p_yrfi": 0.6312,
+          "recommendation": "YRFI"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.11,
+          "market_line": 10.0,
+          "p_over": 0.3068,
+          "p_under": 0.6932,
+          "recommendation": "UNDER 10.0"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "LAD",
+      "home": "MIL",
+      "away_name": "Los Angeles Dodgers",
+      "home_name": "Milwaukee Brewers",
+      "time": "7:16 PM ET",
+      "asp": "Roki Sasaki",
+      "hsp": "Robert Gasser",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Roki Sasaki",
+          "sp_side": "away",
+          "model_line": 4.8,
+          "p_over": 0.5378,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Robert Gasser",
+          "sp_side": "home",
+          "model_line": 3.8,
+          "p_over": 0.3528,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4125,
+          "p_yrfi": 0.5875,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.06,
           "market_line": 8.5,
-          "p_over": 0.3739,
-          "p_under": 0.6261,
-          "recommendation": "UNDER 8.5"
+          "p_over": 0.5522,
+          "p_under": 0.4478,
+          "recommendation": "OVER 8.5"
         }
       ],
       "sgp": []
     },
     {
       "away": "ATH",
-      "home": "LAA",
+      "home": "SD",
       "away_name": "Athletics",
-      "home_name": "Los Angeles Angels",
-      "time": "9:39 PM ET",
-      "asp": "Luis Severino",
-      "hsp": "Jos\u00e9 Soriano",
+      "home_name": "San Diego Padres",
+      "time": "9:41 PM ET",
+      "asp": "J.T. Ginn",
+      "hsp": "Lucas Giolito",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Luis Severino",
+          "sp": "J.T. Ginn",
           "sp_side": "away",
-          "model_line": 4.9,
-          "p_over": 0.6272,
+          "model_line": 4.3,
+          "p_over": 0.6414,
           "recommendation": "BET"
         },
         {
           "type": "K_PROP",
-          "sp": "Jos\u00e9 Soriano",
+          "sp": "Lucas Giolito",
           "sp_side": "home",
-          "model_line": 5.6,
-          "p_over": 0.6602,
-          "recommendation": "BET"
+          "model_line": 3.0,
+          "p_over": 0.3528,
+          "recommendation": "PASS"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4213,
-          "p_yrfi": 0.5787,
+          "p_nrfi": 0.4488,
+          "p_yrfi": 0.5512,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.17,
-          "market_line": 8.5,
-          "p_over": 0.4313,
-          "p_under": 0.5687,
-          "recommendation": "UNDER 8.5"
+          "model_total": 7.83,
+          "market_line": 8.0,
+          "p_over": 0.383,
+          "p_under": 0.617,
+          "recommendation": "UNDER 8.0"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "TEX",
+      "home": "LAA",
+      "away_name": "Texas Rangers",
+      "home_name": "Los Angeles Angels",
+      "time": "10:06 PM ET",
+      "asp": "Nathan Eovaldi",
+      "hsp": "Walbert Ure\u00f1a",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Nathan Eovaldi",
+          "sp_side": "away",
+          "model_line": 5.0,
+          "p_over": 0.5721,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Walbert Ure\u00f1a",
+          "sp_side": "home",
+          "model_line": 4.5,
+          "p_over": 0.5586,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4381,
+          "p_yrfi": 0.5619,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.01,
+          "market_line": 7.5,
+          "p_over": 0.5489,
+          "p_under": 0.4511,
+          "recommendation": "PASS"
         }
       ],
       "sgp": []
@@ -91,38 +217,38 @@
       "home": "AZ",
       "away_name": "Colorado Rockies",
       "home_name": "Arizona Diamondbacks",
-      "time": "9:41 PM ET",
-      "asp": "Zach Agnos",
-      "hsp": "Eduardo Rodriguez",
+      "time": "10:11 PM ET",
+      "asp": "Michael Lorenzen",
+      "hsp": "Zac Gallen",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Zach Agnos",
+          "sp": "Michael Lorenzen",
           "sp_side": "away",
-          "model_line": 3.5,
-          "p_over": 0.5255,
+          "model_line": 3.7,
+          "p_over": 0.4856,
           "recommendation": "PASS"
         },
         {
           "type": "K_PROP",
-          "sp": "Eduardo Rodriguez",
+          "sp": "Zac Gallen",
           "sp_side": "home",
-          "model_line": 3.7,
-          "p_over": 0.6282,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4159,
-          "p_yrfi": 0.5841,
+          "model_line": 3.5,
+          "p_over": 0.441,
           "recommendation": "PASS"
         },
         {
+          "type": "NRFI",
+          "p_nrfi": 0.3582,
+          "p_yrfi": 0.6418,
+          "recommendation": "YRFI"
+        },
+        {
           "type": "TOTAL",
-          "model_total": 8.11,
+          "model_total": 9.18,
           "market_line": 9.0,
-          "p_over": 0.2969,
-          "p_under": 0.7031,
+          "p_over": 0.4362,
+          "p_under": 0.5638,
           "recommendation": "UNDER 9.0"
         }
       ],
