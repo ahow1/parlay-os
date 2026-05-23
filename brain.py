@@ -1402,8 +1402,9 @@ def _daily_bet_slip(
     all_hitter_props: list | None = None,
     all_k_props: list | None = None,
     all_injuries: list | None = None,
-) -> None:
-    """Send the daily bet slip as 3 labeled Telegram messages."""
+) -> bool:
+    """Send the daily bet slip as 3 labeled Telegram messages.
+    Returns True only if Part 1 was sent (HTTP 200) AND contained at least 1 bet."""
     print(
         f"[SLIP] _daily_bet_slip called — "
         f"locks={len(all_locks)} flips={len(all_flips)} props={len(all_props)} "
@@ -1444,6 +1445,11 @@ def _daily_bet_slip(
     n_locks = len(locks)
     day_cls = day_classification(n_locks)
     s_mult  = day_cls["stake_mult"]
+    print(
+        f"[SLIP] Build started — locks={len(locks)} flips={len(flips)} "
+        f"day={day_cls['color']} ml_allowed={day_cls.get('ml_allowed', True)} "
+        f"stake_mult={s_mult}"
+    )
 
     def _ml_stake(analysis, side):
         return round(max((analysis.get(f"{side}_stake") or 0) * s_mult, MIN_STAKE), 2)
@@ -1623,7 +1629,7 @@ def _daily_bet_slip(
     p1.append("")
 
     p1.append(f"🪙 COIN FLIPS ({len(flips)} — MEDIUM conviction 4-7% edge):")
-    if flips and day_cls["ml_allowed"]:
+    if flips:
         for analysis, side in flips:
             stake  = _ml_stake(analysis, side)
             odds   = analysis.get(f"best_{side}_odds", "")
@@ -1633,8 +1639,6 @@ def _daily_bet_slip(
             odds_s = (f"+{odds}" if isinstance(odds, int) and odds > 0 else str(odds or ""))
             conf = analysis.get(f"{side}_confidence_score", 0)
             p1.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}% — CONF: {conf}/100")
-    elif not day_cls["ml_allowed"]:
-        p1.append("  🔴 RED day — no ML bets")
     else:
         p1.append("  None today")
     p1.append("")
@@ -1662,8 +1666,13 @@ def _daily_bet_slip(
     elif day_cls["color"] == "RED":
         p1.append("🔴 RED day — no locks found, props only, no ML bets")
 
+    _has_bets = bool(locks or flips)
+    print(
+        f"[SLIP] Part 1 pre-send — {len(p1)} lines | "
+        f"locks={len(locks)} flips={len(flips)} has_bets={_has_bets}"
+    )
     print(f"[SLIP] Sending PART 1/3 ({len(p1)} lines)...")
-    _send_telegram("\n".join(p1))
+    _p1_ok = _send_telegram("\n".join(p1))
 
     # ── PART 2: PLAYER PROPS + NRFI/YRFI ─────────────────────────────────────
     # Normalise k_bets and hitter_bets into a unified list, sorted by edge desc.
@@ -1863,7 +1872,13 @@ def _daily_bet_slip(
 
     print(f"[SLIP] Sending PART 3/3 ({len(p3)} lines)...")
     _send_telegram("\n".join(p3))
-    print("[SLIP] All 3 parts sent.")
+    if _p1_ok and _has_bets:
+        print("[SLIP] All 3 parts sent — Part 1 confirmed OK with bets.")
+    elif not _p1_ok:
+        print("[SLIP] WARNING: Part 1 send failed (non-200 or exception) — slip will NOT be marked as sent.")
+    else:
+        print("[SLIP] All 3 parts sent — Part 1 was empty (no locks or flips).")
+    return _p1_ok and _has_bets
 
 
 def _send_slip_update(
@@ -1876,8 +1891,9 @@ def _send_slip_update(
     all_hitter_props: list,
     today: str,
     br: float,
-) -> None:
-    """Send a brief Telegram update containing only newly-added picks."""
+) -> bool:
+    """Send a brief Telegram update containing only newly-added picks plus a
+    rebuilt parlay from ALL current locks. Returns True on successful send."""
 
     def _id_ml(a: dict, s: str) -> str:
         return f"ML:{a.get(f'{s}_name','')}:{a.get(f'best_{s}_odds','')}"
@@ -1945,9 +1961,56 @@ def _send_slip_update(
     if len(lines) == 3:
         lines.append("(no new pick details matched — check scout logs)")
 
+    # ── Rebuild parlay from ALL current locks so the parlay always reflects the
+    # full day's confirmed games, not just the first scout run ──────────────────
+    try:
+        _prl_candidates: list = []
+        for _a, _s in all_locks:
+            _odds_val = _a.get(f"best_{_s}_odds")
+            if _odds_val is None:
+                continue
+            try:
+                if int(str(_odds_val).replace("+", "")) < -180:
+                    continue
+            except (ValueError, TypeError):
+                pass
+            _prl_candidates.append((_a, _s))
+            if len(_prl_candidates) == 3:
+                break
+
+        if len(_prl_candidates) >= 2:
+            _odds_strs = [str(_a.get(f"best_{_s}_odds", "")) for _a, _s in _prl_candidates]
+            _prl = parlay_odds(_odds_strs)
+            if _prl.get("valid"):
+                _combined_model_p = 1.0
+                for _a, _s in _prl_candidates:
+                    _combined_model_p *= _a.get(f"{_s}_model_p", 0.5)
+                if _combined_model_p >= 0.35:
+                    _day_cls = day_classification(len(all_locks))
+                    _budget  = daily_budget(br)
+                    _s_mult  = _day_cls.get("stake_mult", 1.0)
+                    _prl_stake = round(min(_budget * 0.15, br * 0.015) * _s_mult, 2)
+                    _prl_win   = round((_prl["decimal"] - 1) * _prl_stake, 2)
+                    _leg_parts = []
+                    for _a, _s in _prl_candidates:
+                        _t = _a.get(f"{_s}_name", "")
+                        _o = _a.get(f"best_{_s}_odds", "")
+                        _o_str = (f"+{_o}" if isinstance(_o, int) and _o > 0 else str(_o or ""))
+                        _leg_parts.append(f"{_t} ML {_o_str}")
+                    lines.append("")
+                    lines.append("♻️ UPDATED PARLAY (rebuilt from all current locks):")
+                    lines.append(f"  {' + '.join(_leg_parts)}")
+                    lines.append(f"  ({_prl['american']}) — ${_prl_stake:.2f} — to win ${_prl_win:.2f}")
+    except Exception as _prl_err:
+        print(f"[SLIP UPDATE] Parlay rebuild error: {_prl_err}")
+
     print(f"[SLIP UPDATE] Sending {len(new_pick_ids)} new picks...")
-    _send_telegram("\n".join(lines))
-    print("[SLIP UPDATE] Sent.")
+    _ok = _send_telegram("\n".join(lines))
+    if _ok:
+        print("[SLIP UPDATE] Sent successfully.")
+    else:
+        print("[SLIP UPDATE] Send failed — will allow retry on next run.")
+    return _ok
 
 
 # ── BET RECOMMENDATION FILTER ─────────────────────────────────────────────────
@@ -2312,16 +2375,17 @@ def _format_pass_message(game: dict) -> str:
     )
 
 
-def _send_telegram(msg: str):
+def _send_telegram(msg: str) -> bool:
+    """Send a Telegram message. Returns True only if the API returned HTTP 200."""
     if DRY_RUN:
         print("[TG] DRY_RUN — printing instead of sending:")
         print(msg)
         print("---")
-        return
+        return True
     if not BOT_TOKEN or not CHAT_ID:
         print(f"[TG] WARN: BOT_TOKEN={'set' if BOT_TOKEN else 'MISSING'} CHAT_ID={'set' if CHAT_ID else 'MISSING'} — printing instead:")
         print(msg)
-        return
+        return True
     print(f"[TG] Sending message to chat {CHAT_ID} (len={len(msg)})...")
     try:
         resp = requests.post(
@@ -2332,8 +2396,10 @@ def _send_telegram(msg: str):
         print(f"[TG] Sent — status={resp.status_code} ok={resp.ok}")
         if not resp.ok:
             print(f"[TG] Response body: {resp.text[:300]}")
+        return resp.status_code == 200
     except Exception as e:
         print(f"[TG] ERROR sending: {e}")
+        return False
 
 
 def _generate_pick_narrative(analysis: dict, side: str) -> str:
@@ -3370,8 +3436,11 @@ def run_daily_scout():
     prev_ml_ids    = {pid for pid in prev_pick_ids if pid.startswith("ML:")}
     new_ml_pick_ids = current_ml_ids - prev_ml_ids
 
-    scout_out["slip_sent"]     = True
-    scout_out["sent_pick_ids"] = sorted(current_pick_ids)
+    # slip_sent defaults to False — only set True after a confirmed successful send
+    # that contained at least 1 bet. This prevents empty or failed sends from
+    # blocking legitimate retries on the next run (Bug 3 fix).
+    scout_out["slip_sent"]     = False
+    scout_out["sent_pick_ids"] = sorted(prev_pick_ids)   # keep old IDs until confirmed sent
 
     # ── Guard: don't send RED day if lineups are broadly unconfirmed ─────────
     # If >60% of today's games have unconfirmed lineups and we have zero locks,
@@ -3391,7 +3460,6 @@ def run_daily_scout():
             )
             print(f"[SLIP] Lineup hold — {_unconf_count}/{_n_games_total} unconfirmed, skipping RED slip")
             _send_telegram(_msg)
-            scout_out["slip_sent"] = False   # allow re-run once lineups post
             with open("last_scout.json", "w") as _sf:
                 json.dump(scout_out, _sf, indent=2, default=str)
             return
@@ -3405,6 +3473,7 @@ def run_daily_scout():
         print(f"[SLIP] Removed {_before_fade_count - len(all_fades)} fade(s) that contradicted active bets")
 
     # ── Daily bet slip ────────────────────────────────────────────────────────
+    _slip_sent_ok = False
     if slip_already_sent and not new_ml_pick_ids:
         n_other = len(new_pick_ids - current_ml_ids)
         print(
@@ -3412,10 +3481,17 @@ def run_daily_scout():
             f"(props/totals changes: {n_other}). Skipping update."
         )
     elif slip_already_sent:
-        # Only ML picks appear in the update; props/totals are supplementary
-        print(f"[SLIP] Slip already sent today — {len(new_ml_pick_ids)} new ML pick(s). Sending update.")
-        _daily_bet_slip(all_locks, all_flips, all_sgp, all_fades, br,
-                        all_nrfi, all_totals, all_hitter_props, all_k_props, all_injuries)
+        # New locks confirmed after the first slip (e.g. night game SPs posted).
+        # Send a targeted UPDATE with the new picks and a rebuilt parlay.
+        print(
+            f"[SLIP] Slip already sent today — {len(new_ml_pick_ids)} new ML pick(s). "
+            f"Sending update with rebuilt parlay."
+        )
+        _slip_sent_ok = _send_slip_update(
+            new_ml_pick_ids, all_locks, all_flips,
+            all_totals, all_nrfi, all_k_props, all_hitter_props,
+            today, br,
+        )
     else:
         print(
             f"Building daily bet slip — "
@@ -3424,11 +3500,23 @@ def run_daily_scout():
             f"hitter_props={len(all_hitter_props)} injuries={len(all_injuries)}"
         )
         try:
-            _daily_bet_slip(all_locks, all_flips, all_sgp, all_fades, br,
-                            all_nrfi, all_totals, all_hitter_props, all_k_props, all_injuries)
+            _slip_sent_ok = _daily_bet_slip(
+                all_locks, all_flips, all_sgp, all_fades, br,
+                all_nrfi, all_totals, all_hitter_props, all_k_props, all_injuries,
+            )
         except Exception as slip_err:
             print(f"Daily slip EXCEPTION: {slip_err}")
             traceback.print_exc()
+            _slip_sent_ok = False
+
+    # Only mark the slip as sent if Telegram confirmed delivery AND the message
+    # contained at least 1 bet. Empty or failed sends allow a retry next run.
+    if _slip_sent_ok:
+        scout_out["slip_sent"]     = True
+        scout_out["sent_pick_ids"] = sorted(current_pick_ids)
+        print(f"[SLIP] Marked as sent — {len(current_pick_ids)} pick IDs recorded.")
+    else:
+        print("[SLIP] Slip NOT marked as sent — will retry on next run.")
 
     # ── Public channel post ───────────────────────────────────────────────────
     if PUBLIC_CHANNEL_ID:
