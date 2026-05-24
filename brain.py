@@ -38,8 +38,8 @@ from offense_engine import analyze_offense
 from market_engine  import get_mlb_events, full_market_snapshot
 from bankroll_engine import (
     kelly_stake, sizing_summary, current_bankroll, peak_bankroll, is_drawdown_pause,
-    daily_budget, daily_budget_pct, pool_budget, pool_remaining, drawdown_tier,
-    growth_tracker, MIN_STAKE,
+    daily_budget, daily_budget_pct, pool_budget, pool_exposure, pool_remaining,
+    drawdown_tier, growth_tracker, MIN_STAKE,
 )
 from profile_engine import update_sp_profile, update_hitter_profile, update_bullpen_profile
 from props_engine   import (
@@ -1443,7 +1443,8 @@ def _daily_bet_slip(
     totals_bets = sorted(totals_bets, key=lambda b: b.get("edge_pct", 0), reverse=True)[:5]
 
     n_locks = len(locks)
-    day_cls = day_classification(n_locks)
+    _has_props_today = bool(nrfi_bets or totals_bets or k_bets or hitter_bets or all_props)
+    day_cls = day_classification(n_locks, len(flips), _has_props_today)
     s_mult  = day_cls["stake_mult"]
     print(
         f"[SLIP] Build started — locks={len(locks)} flips={len(flips)} "
@@ -1452,7 +1453,12 @@ def _daily_bet_slip(
     )
 
     def _ml_stake(analysis, side):
-        return round(max((analysis.get(f"{side}_stake") or 0) * s_mult, MIN_STAKE), 2)
+        raw   = (analysis.get(f"{side}_stake") or 0) * s_mult
+        stake = round(max(raw, MIN_STAKE), 2)
+        if 0 < raw < MIN_STAKE:
+            _team = analysis.get(f"{side}_name", side)
+            print(f"[KELLY] WARNING — stake below minimum for {_team}, forcing to ${MIN_STAKE:.2f}")
+        return stake
 
     # Pool budgets for this slip
     ml_pool_rem      = pool_remaining("ML", br)
@@ -1489,10 +1495,12 @@ def _daily_bet_slip(
         _props_spent += _s
     nrfi_bets = _capped_nrfi
 
-    # Parlay: HIGH conviction ML picks only
-    # Rules: ≤3 legs, no leg worse than -180, combined no-vig prob ≥ 35%
+    # Parlay: HIGH conviction locks first; fall back to top picks by confidence
+    # Rules: ≤3 legs, no leg worse than -180, combined model prob threshold
     # Stake: min(15% of daily budget, 1.5% of bankroll)
     parlay_candidates = []
+    parlay_label = "PARLAY (HIGH conviction ML only):"
+    _prl_min_prob = 0.35
     for a, s in locks:
         if a.get(f"best_{s}_odds") is None:
             continue
@@ -1506,6 +1514,36 @@ def _daily_bet_slip(
         if len(parlay_candidates) == 3:
             break
 
+    # Fall back to top picks by confidence when < 2 HIGH conviction locks
+    if len(parlay_candidates) < 2 and (locks + flips):
+        _fb_pool = sorted(
+            locks + flips,
+            key=lambda x: x[0].get(f"{x[1]}_confidence_score", 0),
+            reverse=True,
+        )
+        _fb_cands: list = []
+        for _a, _s in _fb_pool:
+            _odds_v = _a.get(f"best_{_s}_odds")
+            if _odds_v is None:
+                continue
+            try:
+                if int(str(_odds_v).replace("+", "")) < -180:
+                    continue
+            except (ValueError, TypeError):
+                pass
+            _fb_cands.append((_a, _s))
+            if len(_fb_cands) == 3:
+                break
+        if len(_fb_cands) >= 2:
+            _combined_fb_p = 1.0
+            for _a, _s in _fb_cands:
+                _combined_fb_p *= _a.get(f"{_s}_model_p", 0.5)
+            if _combined_fb_p >= 0.28:
+                parlay_candidates = _fb_cands
+                parlay_label = "BEST AVAILABLE PARLAY (top picks by confidence):"
+                _prl_min_prob = 0.28
+                print(f"  [PARLAY] No lock candidates — using best-available fallback (combined_p={_combined_fb_p:.1%})")
+
     prl_valid = False
     prl_stake = 0.0
     prl_win   = 0.0
@@ -1514,17 +1552,17 @@ def _daily_bet_slip(
         odds_strs = [str(a.get(f"best_{s}_odds", "")) for a, s in parlay_candidates]
         prl = parlay_odds(odds_strs)
         if prl.get("valid"):
-            # Combined no-vig probability check: product of model probs ≥ 35%
+            # Combined no-vig probability check
             combined_model_p = 1.0
             for a, s in parlay_candidates:
                 combined_model_p *= a.get(f"{s}_model_p", 0.5)
-            if combined_model_p >= 0.35:
+            if combined_model_p >= _prl_min_prob:
                 prl_stake = round(min(budget * 0.15, br * 0.015) * s_mult, 2)
                 prl_win   = round((prl["decimal"] - 1) * prl_stake, 2)
                 prl_valid = True
                 prl_data  = prl
             else:
-                print(f"  [PARLAY] Skip: combined model prob {combined_model_p:.1%} < 35%")
+                print(f"  [PARLAY] Skip: combined model prob {combined_model_p:.1%} < {_prl_min_prob:.0%}")
 
     # Risk totals
     ml_risk = 0.0
@@ -1650,7 +1688,7 @@ def _daily_bet_slip(
             o     = a.get(f"best_{s}_odds", "")
             o_str = (f"+{o}" if isinstance(o, int) and o > 0 else str(o or ""))
             leg_parts.append(f"{t} ML {o_str}")
-        p1.append("PARLAY (HIGH conviction ML only):")
+        p1.append(parlay_label)
         p1.append(f"  {' + '.join(leg_parts)}")
         p1.append(f"  ({prl_data['american']}) — ${prl_stake:.2f} — to win ${prl_win:.2f}")
         p1.append("")
@@ -1662,9 +1700,9 @@ def _daily_bet_slip(
         p1.append("")
 
     if day_cls["color"] == "YELLOW":
-        p1.append("⚠ YELLOW day — fewer than 2 locks, stakes reduced 20%")
+        p1.append("⚠ YELLOW day — no ML picks qualified, props only")
     elif day_cls["color"] == "RED":
-        p1.append("🔴 RED day — no locks found, props only, no ML bets")
+        p1.append("🔴 RED day — no picks of any kind qualified today")
 
     _has_bets = bool(locks or flips)
     print(
@@ -1961,10 +1999,11 @@ def _send_slip_update(
     if len(lines) == 3:
         lines.append("(no new pick details matched — check scout logs)")
 
-    # ── Rebuild parlay from ALL current locks so the parlay always reflects the
-    # full day's confirmed games, not just the first scout run ──────────────────
+    # ── Rebuild parlay from all current picks so it always reflects the full day ──
     try:
         _prl_candidates: list = []
+        _prl_upd_label = "♻️ UPDATED PARLAY (rebuilt from all current locks):"
+        _prl_min_prob_upd = 0.35
         for _a, _s in all_locks:
             _odds_val = _a.get(f"best_{_s}_odds")
             if _odds_val is None:
@@ -1978,6 +2017,35 @@ def _send_slip_update(
             if len(_prl_candidates) == 3:
                 break
 
+        # Fall back to top picks by confidence when < 2 locks
+        if len(_prl_candidates) < 2 and (all_locks + all_flips):
+            _upd_fb_pool = sorted(
+                all_locks + all_flips,
+                key=lambda x: x[0].get(f"{x[1]}_confidence_score", 0),
+                reverse=True,
+            )
+            _upd_fb_cands: list = []
+            for _a, _s in _upd_fb_pool:
+                _ov = _a.get(f"best_{_s}_odds")
+                if _ov is None:
+                    continue
+                try:
+                    if int(str(_ov).replace("+", "")) < -180:
+                        continue
+                except (ValueError, TypeError):
+                    pass
+                _upd_fb_cands.append((_a, _s))
+                if len(_upd_fb_cands) == 3:
+                    break
+            if len(_upd_fb_cands) >= 2:
+                _upd_combined_fb = 1.0
+                for _a, _s in _upd_fb_cands:
+                    _upd_combined_fb *= _a.get(f"{_s}_model_p", 0.5)
+                if _upd_combined_fb >= 0.28:
+                    _prl_candidates = _upd_fb_cands
+                    _prl_upd_label = "♻️ BEST AVAILABLE PARLAY (top picks by confidence):"
+                    _prl_min_prob_upd = 0.28
+
         if len(_prl_candidates) >= 2:
             _odds_strs = [str(_a.get(f"best_{_s}_odds", "")) for _a, _s in _prl_candidates]
             _prl = parlay_odds(_odds_strs)
@@ -1985,8 +2053,8 @@ def _send_slip_update(
                 _combined_model_p = 1.0
                 for _a, _s in _prl_candidates:
                     _combined_model_p *= _a.get(f"{_s}_model_p", 0.5)
-                if _combined_model_p >= 0.35:
-                    _day_cls = day_classification(len(all_locks))
+                if _combined_model_p >= _prl_min_prob_upd:
+                    _day_cls = day_classification(len(all_locks), len(all_flips))
                     _budget  = daily_budget(br)
                     _s_mult  = _day_cls.get("stake_mult", 1.0)
                     _prl_stake = round(min(_budget * 0.15, br * 0.015) * _s_mult, 2)
@@ -1998,7 +2066,7 @@ def _send_slip_update(
                         _o_str = (f"+{_o}" if isinstance(_o, int) and _o > 0 else str(_o or ""))
                         _leg_parts.append(f"{_t} ML {_o_str}")
                     lines.append("")
-                    lines.append("♻️ UPDATED PARLAY (rebuilt from all current locks):")
+                    lines.append(_prl_upd_label)
                     lines.append(f"  {' + '.join(_leg_parts)}")
                     lines.append(f"  ({_prl['american']}) — ${_prl_stake:.2f} — to win ${_prl_win:.2f}")
     except Exception as _prl_err:
@@ -2780,6 +2848,15 @@ def run_daily_scout():
     br        = current_bankroll()
     mem       = memory_report()
     print(f"Bankroll: ${br:.2f} | Memory cal ready: {mem['ready_to_recalibrate']}")
+    _ml_bgt  = pool_budget("ML", br)
+    _ml_used = pool_exposure("ML")
+    _ml_rem  = max(0.0, round(_ml_bgt - _ml_used, 2))
+    print(f"[POOL] ML pool: ${_ml_rem:.2f} remaining (used ${_ml_used:.2f} of ${_ml_bgt:.2f} today)")
+    if _ml_used > _ml_bgt:
+        _send_telegram(
+            f"⚠️ [POOL] ML pool over budget — used ${_ml_used:.2f} of ${_ml_bgt:.2f} today. "
+            f"No new ML bets will be placed until reset."
+        )
 
     all_bets  = []
     all_pass  = []
@@ -3424,8 +3501,15 @@ def run_daily_scout():
         with open("last_scout.json") as _lf:
             _prev = json.load(_lf)
         if _prev.get("date") == today and _prev.get("slip_sent"):
-            slip_already_sent = True
-            prev_pick_ids = set(_prev.get("sent_pick_ids", []))
+            _prev_quality = _prev.get("slip_quality", "good")
+            if _prev_quality == "good":
+                slip_already_sent = True
+                prev_pick_ids = set(_prev.get("sent_pick_ids", []))
+            else:
+                print(
+                    "[SLIP] Previous slip marked as BAD QUALITY (near-zero stakes from RED day bug) "
+                    "— treating as unsent, will resend with correct stakes"
+                )
     except Exception:
         pass
 
@@ -3512,11 +3596,30 @@ def run_daily_scout():
     # Only mark the slip as sent if Telegram confirmed delivery AND the message
     # contained at least 1 bet. Empty or failed sends allow a retry next run.
     if _slip_sent_ok:
+        # Slip quality: good only if avg Kelly stake > $1.00 (guards against RED day zero-stakes bug)
+        _sent_stakes = [float(a.get(f"{s}_stake") or 0) for a, s in all_locks + all_flips]
+        _avg_sent_stake = sum(_sent_stakes) / len(_sent_stakes) if _sent_stakes else 0.0
+        _slip_quality = "good" if _avg_sent_stake > MIN_STAKE and bool(all_locks or all_flips) else "bad"
         scout_out["slip_sent"]     = True
+        scout_out["slip_quality"]  = _slip_quality
         scout_out["sent_pick_ids"] = sorted(current_pick_ids)
-        print(f"[SLIP] Marked as sent — {len(current_pick_ids)} pick IDs recorded.")
+        print(
+            f"[SLIP] Marked as sent — quality={_slip_quality} "
+            f"avg_stake=${_avg_sent_stake:.2f} — {len(current_pick_ids)} pick IDs recorded."
+        )
     else:
+        scout_out["slip_quality"] = "bad"
         print("[SLIP] Slip NOT marked as sent — will retry on next run.")
+
+    # ── Sanity check: bets found but slip not sent ────────────────────────────
+    if n_bets > 0 and not _slip_sent_ok and not slip_already_sent:
+        _sanity_msg = (
+            f"[SANITY FAIL] Scout found {n_bets} ML bet(s) but slip sent 0 — "
+            f"check RED day logic and pool calculations"
+        )
+        print(_sanity_msg)
+        if not DRY_RUN:
+            _send_telegram(_sanity_msg)
 
     # ── Public channel post ───────────────────────────────────────────────────
     if PUBLIC_CHANNEL_ID:

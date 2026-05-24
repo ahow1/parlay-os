@@ -139,16 +139,18 @@ YELLOW_STAKE_CUT   = 0.20 # reduce stakes by 20% on YELLOW day
 DAILY_RISK_CAP_PCT = 0.15 # legacy fallback — active budget uses bankroll_engine.daily_budget()
 
 
-def day_classification(n_locks: int) -> dict:
+def day_classification(n_locks: int, n_flips: int = 0, has_props: bool = False) -> dict:
     """
     Return day color, stake multiplier, and ML bet permission.
-    GREEN  = ≥2 locks → full stakes
-    YELLOW = 1 lock  → stakes reduced 20%
-    RED    = 0 locks → props only, no ML bets
+    GREEN  = ≥1 ML pick (lock or flip) → full stakes, all bets allowed
+    YELLOW = 0 ML picks but props/totals qualify → props only, full prop stakes
+    RED    = 0 picks of any kind → nothing to send
+    stake_mult is never 0.0 — Kelly handles stake sizing per-bet.
     """
-    if n_locks >= 2:
-        return {"color": "GREEN",  "emoji": "🟢", "stake_mult": 1.0,  "ml_allowed": True}
-    elif n_locks == 1:
-        return {"color": "YELLOW", "emoji": "🟡", "stake_mult": 0.80, "ml_allowed": True}
+    total_ml = n_locks + n_flips
+    if total_ml >= 1:
+        return {"color": "GREEN",  "emoji": "🟢", "stake_mult": 1.0, "ml_allowed": True}
+    elif has_props:
+        return {"color": "YELLOW", "emoji": "🟡", "stake_mult": 1.0, "ml_allowed": False}
     else:
-        return {"color": "RED",    "emoji": "🔴", "stake_mult": 0.0,  "ml_allowed": False}
+        return {"color": "RED",    "emoji": "🔴", "stake_mult": 1.0, "ml_allowed": False}

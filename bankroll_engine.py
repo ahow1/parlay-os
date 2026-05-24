@@ -172,10 +172,16 @@ def pool_exposure(pool: str) -> float:
 
 
 def pool_remaining(pool: str, br: float | None = None) -> float:
-    """Remaining pool budget for today."""
+    """Remaining pool budget for today (floored at $0.00 — never goes negative)."""
     if br is None:
         br = sizing_bankroll()
-    return round(pool_budget(pool, br) - pool_exposure(pool), 2)
+    raw = round(pool_budget(pool, br) - pool_exposure(pool), 2)
+    if raw < 0:
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "[POOL] %s pool over budget — exposure exceeds limit by $%.2f", pool, -raw
+        )
+    return max(0.0, raw)
 
 
 # ── Drawdown ───────────────────────────────────────────────────────────────────
