@@ -111,6 +111,8 @@ def _load_xwoba_against() -> dict:
         if val is not None:
             data[pid] = val
     _set_cache(_XWOBA_KEY, data)
+    _sample = list(data.items())[:3]
+    print(f"[SAVANT] xwOBA against: {len(data)} pitchers loaded | first 3 IDs: {_sample}")
     log.info(f"[SAVANT] xwOBA against: {len(data)} pitchers loaded")
     return data
 

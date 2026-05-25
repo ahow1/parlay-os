@@ -367,6 +367,8 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     # Factor 1 — SP xwOBA against (from savant_leaderboards via sp_engine)
     _away_xwoba  = away_sp.get("xwoba_against")
     _home_xwoba  = home_sp.get("xwoba_against")
+    print(f"  [xwOBA] away_sp_id={away_sp.get('pitcher_id')} name={away_sp.get('name')} xwoba={_away_xwoba}")
+    print(f"  [xwOBA] home_sp_id={home_sp.get('pitcher_id')} name={home_sp.get('name')} xwoba={_home_xwoba}")
 
     # Factor 2 — Pitch quality: k_conf_adj from arsenal (convert to prob adj)
     _away_pq_adj = away_sp.get("k_conf_adj_savant", 0) / 300.0   # ~0.033 per 10pt
@@ -1061,6 +1063,10 @@ def _confidence_score(analysis: dict, side: str) -> int:
 def _conviction(edge_pct: float, model_p: float, bp: dict, market: dict) -> str:
     if edge_pct < MIN_EDGE_PCT:
         return "PASS"
+    # Value underdog exception: +10% edge on a big underdog, floor lowered to 0.40.
+    # Market at +200 implies 33% — our 40% model is still a real edge, not a flip.
+    if edge_pct >= 10 and model_p >= 0.40:
+        return "HIGH" if edge_pct >= 14 else "MEDIUM"
     if edge_pct >= 7 and model_p >= 0.52:
         return "HIGH"
     if edge_pct >= 4 and model_p >= 0.48:
@@ -2176,8 +2182,17 @@ def _should_recommend(game: dict, side: str, bet_type: str = "ML") -> bool:
             f"br=${_br:.2f} peak=${_peak:.2f} dd={_dd:.1f}%]"
         )
         return False
-    if model < MIN_PROB:
-        print(f"  PASS {team}: model {model:.3f} < min {MIN_PROB}")
+    # Value underdog exception: if edge >= 10% and odds are +200 or better, floor
+    # drops to 0.40. A +270 team with 46% model vs 27% market is a real edge play.
+    _odds_int = 0
+    try:
+        _odds_int = int(str(odds).replace("+", "")) if odds is not None else 0
+    except (ValueError, TypeError):
+        pass
+    _is_value_dog = edge >= 10.0 and _odds_int >= 200
+    _effective_floor = 0.40 if _is_value_dog else MIN_PROB
+    if model < _effective_floor:
+        print(f"  PASS {team}: model {model:.3f} < floor {_effective_floor} (value_dog={_is_value_dog})")
         return False
 
     dd = drawdown_tier()
@@ -2494,8 +2509,26 @@ def _format_pass_message(game: dict) -> str:
     )
 
 
+def _sanitize_telegram_html(msg: str) -> str:
+    """Escape < and > not belonging to known Telegram HTML tags.
+    Preserves <b>, </b>, <i>, </i>, <u>, <s>, <code>, <pre> intentional markup.
+    Replaces stray angle brackets (stat values, arrows, etc.) with ( and ).
+    """
+    import re as _re
+    _safe = _re.compile(r'</?(?:b|i|u|s|code|pre)>')
+    parts = _safe.split(msg)
+    tags  = _safe.findall(msg)
+    out   = []
+    for idx, part in enumerate(parts):
+        out.append(part.replace('<', '(').replace('>', ')'))
+        if idx < len(tags):
+            out.append(tags[idx])
+    return ''.join(out)
+
+
 def _send_telegram(msg: str) -> bool:
     """Send a Telegram message. Returns True only if the API returned HTTP 200."""
+    msg = _sanitize_telegram_html(msg)
     if DRY_RUN:
         print("[TG] DRY_RUN — printing instead of sending:")
         print(msg)
