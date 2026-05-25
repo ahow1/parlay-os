@@ -252,6 +252,39 @@ def init_db():
             accuracy      REAL,
             training_log  TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS sp_tracker (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            date                TEXT NOT NULL,
+            game_pk             TEXT NOT NULL,
+            away_team           TEXT,
+            home_team           TEXT,
+            away_sp_id          INTEGER,
+            away_sp_name        TEXT,
+            away_sp_xfip        REAL,
+            home_sp_id          INTEGER,
+            home_sp_name        TEXT,
+            home_sp_xfip        REAL,
+            game_time           TEXT,
+            sp_changed          INTEGER DEFAULT 0,
+            change_detected_at  TEXT,
+            new_away_sp         TEXT,
+            new_home_sp         TEXT,
+            alert_sent          INTEGER DEFAULT 0,
+            UNIQUE(date, game_pk)
+        );
+
+        CREATE TABLE IF NOT EXISTS lineup_tracker (
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            date              TEXT NOT NULL,
+            game_pk           TEXT NOT NULL,
+            team              TEXT,
+            projected_lineup  TEXT,
+            confirmed_lineup  TEXT,
+            changes_detected  TEXT,
+            alert_sent        INTEGER DEFAULT 0,
+            UNIQUE(date, team)
+        );
         """)
     # Migrations for existing DBs that predate schema additions
     with _conn() as conn:
@@ -740,6 +773,101 @@ def get_pattern_confidence_adj(pattern_key: str) -> float:
             (pattern_key,),
         ).fetchone()
     return float(row["confidence_adj"]) if row else 0.0
+
+
+# ─── SP TRACKER ───────────────────────────────────────────────────────────────
+
+def upsert_sp_tracker(date: str, game_pk: str, away_team: str, home_team: str,
+                      away_sp_id: int, away_sp_name: str, away_sp_xfip: float,
+                      home_sp_id: int, home_sp_name: str, home_sp_xfip: float,
+                      game_time: str) -> None:
+    with _conn() as conn:
+        conn.execute("""
+            INSERT INTO sp_tracker
+              (date, game_pk, away_team, home_team,
+               away_sp_id, away_sp_name, away_sp_xfip,
+               home_sp_id, home_sp_name, home_sp_xfip, game_time)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(date, game_pk) DO UPDATE SET
+              away_team    = excluded.away_team,
+              home_team    = excluded.home_team,
+              away_sp_id   = excluded.away_sp_id,
+              away_sp_name = excluded.away_sp_name,
+              away_sp_xfip = excluded.away_sp_xfip,
+              home_sp_id   = excluded.home_sp_id,
+              home_sp_name = excluded.home_sp_name,
+              home_sp_xfip = excluded.home_sp_xfip,
+              game_time    = excluded.game_time
+        """, (date, str(game_pk), away_team, home_team,
+              away_sp_id, away_sp_name, away_sp_xfip,
+              home_sp_id, home_sp_name, home_sp_xfip, game_time))
+
+
+def get_sp_tracker(date: str) -> list:
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM sp_tracker WHERE date=? ORDER BY game_time", (date,)
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def mark_sp_changed(date: str, game_pk: str, new_away_sp: str, new_home_sp: str) -> None:
+    now = datetime.now(ET).isoformat()
+    with _conn() as conn:
+        conn.execute("""
+            UPDATE sp_tracker
+            SET sp_changed=1, change_detected_at=?, new_away_sp=?, new_home_sp=?
+            WHERE date=? AND game_pk=?
+        """, (now, new_away_sp, new_home_sp, date, str(game_pk)))
+
+
+def mark_sp_alert_sent(date: str, game_pk: str) -> None:
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE sp_tracker SET alert_sent=1 WHERE date=? AND game_pk=?",
+            (date, str(game_pk)),
+        )
+
+
+# ─── LINEUP TRACKER ───────────────────────────────────────────────────────────
+
+def upsert_lineup_tracker(date: str, game_pk: str, team: str,
+                          projected_lineup: list) -> None:
+    lineup_json = json.dumps(projected_lineup)
+    with _conn() as conn:
+        conn.execute("""
+            INSERT INTO lineup_tracker (date, game_pk, team, projected_lineup)
+            VALUES (?,?,?,?)
+            ON CONFLICT(date, team) DO UPDATE SET
+              game_pk          = excluded.game_pk,
+              projected_lineup = excluded.projected_lineup
+        """, (date, str(game_pk), team, lineup_json))
+
+
+def get_lineup_tracker(date: str) -> list:
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM lineup_tracker WHERE date=?", (date,)
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def mark_lineup_alert_sent(date: str, team: str, changes_json: str) -> None:
+    with _conn() as conn:
+        conn.execute("""
+            UPDATE lineup_tracker
+            SET alert_sent=1, changes_detected=?
+            WHERE date=? AND team=?
+        """, (changes_json, date, team))
+
+
+def update_confirmed_lineup(date: str, team: str, confirmed_lineup: list) -> None:
+    with _conn() as conn:
+        conn.execute("""
+            UPDATE lineup_tracker
+            SET confirmed_lineup=?
+            WHERE date=? AND team=?
+        """, (json.dumps(confirmed_lineup), date, team))
 
 
 # Initialize on import

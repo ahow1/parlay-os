@@ -2,8 +2,8 @@ name: Parlay OS — All Systems
 
 on:
   schedule:
-    - cron: '0 16 * * *'     # day_brain      — 11am ET (16:00 UTC): day games before 4pm ET
-    - cron: '0 21 * * *'     # evening_brain  — 4pm ET (21:00 UTC): evening games 4–8pm ET
+    - cron: '0 15 * * *'     # day_brain      — 11am ET (15:00 UTC): day games before 3pm ET
+    - cron: '0 20 * * *'     # evening_brain  — 4pm ET (20:00 UTC): evening games 3–8pm ET
     - cron: '30 23 * * *'    # west_brain     — 6:30pm ET (23:30 UTC): west coast games 8pm+ ET
     - cron: '30 22 * * *'    # line_movement  — 5:30pm ET (22:30 UTC)
     - cron: '*/5 23 * * *'   # live_engine    — 6–7pm ET (23:00–23:55 UTC), every 5 min
@@ -35,11 +35,11 @@ on:
 
 jobs:
 
-  # ─── 1a. DAY GAMES SCOUT — 11am ET (day games before 4pm ET) ────────────
+  # ─── 1a. DAY GAMES SCOUT — 11am ET (day games before 3pm ET) ────────────
   daily_brain_day:
     if: >
       (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'daily_brain_day') ||
-      (github.event_name == 'schedule' && github.event.schedule == '0 16 * * *')
+      (github.event_name == 'schedule' && github.event.schedule == '0 15 * * *')
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -52,7 +52,7 @@ jobs:
 
       - run: pip install -q requests pytz flask flask-cors
 
-      - name: Run day scout (games before 4pm ET)
+      - name: Run day scout (games before 3pm ET)
         env:
           ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -67,11 +67,11 @@ jobs:
           git diff --staged --quiet || git commit -m "Scout: $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push || true
 
-  # ─── 1b. EVENING GAMES SCOUT — 4pm ET (games 4–8pm ET) ──────────────────
+  # ─── 1b. EVENING GAMES SCOUT — 4pm ET (games 3–8pm ET) ──────────────────
   daily_brain_evening:
     if: >
       (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'daily_brain_evening') ||
-      (github.event_name == 'schedule' && github.event.schedule == '0 21 * * *')
+      (github.event_name == 'schedule' && github.event.schedule == '0 20 * * *')
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -84,7 +84,7 @@ jobs:
 
       - run: pip install -q requests pytz flask flask-cors
 
-      - name: Run evening scout (games 4–8pm ET)
+      - name: Run evening scout (games 3–8pm ET)
         env:
           ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

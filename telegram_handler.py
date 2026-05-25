@@ -548,6 +548,7 @@ HELP_TEXT = (
     "  e.g. /team SF\n"
     "/scout                — on-demand fresh analysis (all games)\n"
     "  e.g. /scout day, /scout evening, /scout west\n"
+    "/monitor              — SP tracker status + change log\n"
     "\nSYSTEM:\n"
     "/status               — system health check\n"
     "/resetcap             — delete all pending bets for today (resets daily cap)\n"
@@ -1003,6 +1004,19 @@ def dispatch(text: str) -> None:
         _scout_window = t[6:].strip().lower() if lower.startswith("scout ") else "all"
         _send(_handle_scout(_scout_window))
         return
+
+    # /monitor — SP tracker status
+    if lower == "monitor":
+        _send(_handle_monitor())
+        return
+
+
+def _handle_monitor() -> str:
+    try:
+        from sp_monitor import get_monitor_status
+        return get_monitor_status()
+    except Exception as e:
+        return f"📡 Monitor: error — {e}"
 
 
 def _handle_scout(window: str = "all") -> str:

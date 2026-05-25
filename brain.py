@@ -928,9 +928,9 @@ def _game_in_window(commence_utc: str, window: str) -> bool:
     """True if the game's ET start time falls within the requested scout window.
 
     Windows:
-      day     — before 4:00pm ET  (Run 1, 11am)
-      evening — 4:00pm–8:00pm ET  (Run 2, 4pm)
-      west    — 8:00pm+ ET        (Run 3, 6:30pm)
+      day     — before 3:00pm ET  (Run 1, 11am)
+      evening — 3:00pm–8:00pm ET  (Run 2, 4pm)
+      west    — 8:00pm+ ET        (Run 3, 7:30pm)
       all     — no filter         (manual / on-demand)
     """
     if window == "all" or not commence_utc:
@@ -938,8 +938,8 @@ def _game_in_window(commence_utc: str, window: str) -> bool:
     try:
         dt_et = datetime.fromisoformat(commence_utc.replace("Z", "+00:00")).astimezone(ET)
         hour  = dt_et.hour + dt_et.minute / 60.0
-        if window == "day":      return hour < 16.0           # before 4pm ET
-        if window == "evening":  return 16.0 <= hour < 20.0   # 4–8pm ET
+        if window == "day":      return hour < 15.0           # before 3pm ET
+        if window == "evening":  return 15.0 <= hour < 20.0   # 3–8pm ET
         if window == "west":     return hour >= 20.0           # 8pm+ ET
     except Exception:
         pass
@@ -2871,8 +2871,8 @@ def _fetch_game_hitter_props(
 # ── DAILY SCOUT ───────────────────────────────────────────────────────────────
 
 _WINDOW_LABELS = {
-    "day":     "DAY (before 4pm ET)",
-    "evening": "EVENING (4–8pm ET)",
+    "day":     "DAY (before 3pm ET)",
+    "evening": "EVENING (3–8pm ET)",
     "west":    "WEST COAST (8pm+ ET)",
     "all":     "ALL GAMES",
 }
@@ -2881,7 +2881,7 @@ _WINDOW_LABELS = {
 def run_daily_scout(window: str = "all"):
     """Full daily analysis: all games → recommendations → Telegram.
 
-    window: 'day' (before 4pm ET), 'evening' (4–8pm ET),
+    window: 'day' (before 3pm ET), 'evening' (3–8pm ET),
             'west' (8pm+ ET), or 'all' (no filter, default for manual runs).
     Each run only analyzes games whose ET start time falls within the window.
     Lineups are always re-fetched fresh — no game is skipped because it was
@@ -3707,6 +3707,36 @@ def run_daily_scout(window: str = "all"):
     # block the scout return or delay the next scheduled run.
     _profile_thread.start()
     print("[PROFILE] Background profile updates started")
+
+    # Write analyzed SPs and lineups to tracker tables for SP monitor
+    if not DRY_RUN:
+        for analysis in game_key_map.values():
+            try:
+                _gk = str(analysis.get("game_pk") or "")
+                if not _gk or _gk == "0":
+                    continue
+                _db.upsert_sp_tracker(
+                    today,
+                    _gk,
+                    analysis.get("away_name", ""),
+                    analysis.get("home_name", ""),
+                    int(analysis.get("away_sp", {}).get("pitcher_id") or 0),
+                    analysis.get("away_sp", {}).get("name", "TBD"),
+                    float(analysis.get("away_sp", {}).get("xfip") or 4.35),
+                    int(analysis.get("home_sp", {}).get("pitcher_id") or 0),
+                    analysis.get("home_sp", {}).get("name", "TBD"),
+                    float(analysis.get("home_sp", {}).get("xfip") or 4.35),
+                    analysis.get("game_time_et", ""),
+                )
+                # Lineup tracker — write projected top-4 for each team
+                for _side in ("away", "home"):
+                    _off = analysis.get(f"{_side}_off") or {}
+                    _lineup = _off.get("lineup") or []
+                    _team = analysis.get(f"{_side}_name", "")
+                    if _lineup and _team:
+                        _db.upsert_lineup_tracker(today, _gk, _team, _lineup[:4])
+            except Exception as _te:
+                print(f"[TRACKER] write error for {analysis.get('away_name')} @ {analysis.get('home_name')}: {_te}")
 
     # Save scout output
     if not DRY_RUN:
@@ -4543,11 +4573,15 @@ if __name__ == "__main__":
         _window_val = "all"
 
     if "--bot" in args:
-        # Persistent bot mode: Telegram listener + auto-settler + hedge monitor only — never run scout
+        # Persistent bot mode: Telegram listener + auto-settler + hedge monitor + SP monitor
         try:
+            import threading as _threading
             from telegram_handler import _poll_loop
+            from sp_monitor import SPMonitor
             start_auto_settler()
             start_hedge_monitor()
+            _sp_mon = SPMonitor(send_fn=_send_telegram)
+            _threading.Thread(target=_sp_mon.run, name="sp-monitor", daemon=True).start()
             print("Parlay OS bot running (Ctrl-C to stop)...")
             try:
                 _poll_loop()
