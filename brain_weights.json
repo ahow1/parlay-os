@@ -1,0 +1,14 @@
+{
+  "sp_xwoba": 0.18,
+  "pitch_quality": 0.12,
+  "rolling_form": 0.07,
+  "bullpen": 0.15,
+  "offense": 0.13,
+  "pythagorean": 0.08,
+  "platoon_arm": 0.08,
+  "park_weather_of": 0.06,
+  "momentum_yoy": 0.05,
+  "abs_tempo": 0.03,
+  "sprint_baserun": 0.03,
+  "h2h": 0.02
+}

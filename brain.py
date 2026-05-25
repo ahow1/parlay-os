@@ -62,6 +62,9 @@ from memory_engine  import (
     init_memory_tables, recalibrate_model_prob, adjust_model_prob,
     memory_report,
     pitcher_profile_updated_today, hitter_profile_updated_today,
+    init_brain_tables, apply_brain_to_prob, get_brain_summary,
+    update_bet_memory, update_sp_memory, update_team_memory,
+    update_situation_memory, recalibrate_weights,
 )
 # ML model — imported lazily so brain.py still starts if models not trained
 try:
@@ -523,6 +526,30 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     # Memory calibration
     away_model_p = recalibrate_model_prob(away_model_p)
     home_model_p = recalibrate_model_prob(home_model_p)
+
+    # ── Brain learning adjustments (SP correction + team bias + situations) ────
+    _away_sp_id = away_sp.get("pitcher_id") if away_sp else None
+    _home_sp_id = home_sp.get("pitcher_id") if home_sp else None
+    _brain_situations = ""  # populated below from situations engine
+    try:
+        from situations_engine import get_active_situations
+        _away_sits = get_active_situations(away_code, home_code, away_nv, "away") or []
+        _home_sits = get_active_situations(home_code, away_code, home_nv, "home") or []
+        if _away_sits:
+            _brain_situations = "+".join(sorted(_away_sits))
+    except Exception:
+        pass
+
+    away_model_p, _away_brain_notes = apply_brain_to_prob(
+        away_model_p, _home_sp_id, away_code, _brain_situations,
+    )
+    home_model_p, _home_brain_notes = apply_brain_to_prob(
+        home_model_p, _away_sp_id, home_code,
+        "+".join(sorted(_home_sits)) if _home_sits else "",
+    )
+    if _away_brain_notes or _home_brain_notes:
+        print(f"  [BRAIN] away_adj={away_model_p:.4f} ({', '.join(_away_brain_notes)}) "
+              f"home_adj={home_model_p:.4f} ({', '.join(_home_brain_notes)})")
 
     # ── SP unknown → reduce confidence by 15% (pull toward 0.5) ─────────────
     # A missing SP means we don't know the run-prevention side of the ledger.
@@ -2824,6 +2851,7 @@ def run_daily_scout():
     print("=" * 60)
     print("Brain starting — daily scout")
     init_memory_tables()
+    init_brain_tables()
 
     try:
         from umpire_engine import ensure_umpire_db_populated
@@ -4030,7 +4058,87 @@ def _run_debrief():
     msg = "\n".join(lines)
     print(msg)
     _send_telegram(msg)
+
+    # ── Feed today's settled bets into the brain learning system ─────────────
+    try:
+        _feed_brain_from_settled(resolved)
+    except Exception as _brain_e:
+        print(f"[BRAIN] debrief feed failed: {_brain_e}")
+
     _run_db_backup()
+
+
+def _feed_brain_from_settled(resolved: list):
+    """
+    After debrief: log each settled bet into bet_memory, update SP/team memory,
+    update situation memory, and trigger weight recalibration every 20 new bets.
+    """
+    from memory_engine import init_brain_tables
+    init_brain_tables()
+
+    new_count = 0
+    for b in resolved:
+        bid    = b.get("id")
+        result = b.get("result")  # "W" or "L"
+        if result not in ("W", "L") or not bid:
+            continue
+
+        team       = (b.get("bet") or "").upper()
+        game       = b.get("game") or ""
+        # Derive opponent from game string "AWAY @ HOME" or "HOME vs AWAY"
+        opponent = ""
+        if "@" in game:
+            parts = game.split("@")
+            opponent = (parts[0].strip() if team in (parts[1].strip()[:3].upper()) else parts[1].strip())[:3].upper()
+        situations = b.get("situations_triggered") or ""
+
+        update_bet_memory(
+            bet_id=bid,
+            result=result,
+            team=team,
+            opponent=opponent,
+            edge_pct=b.get("edge_pct"),
+            model_prob=b.get("model_prob"),
+            market_prob=b.get("market_prob"),
+            confidence=b.get("conviction") or "",
+            situations=situations,
+            stake=float(b.get("stake") or 0),
+            odds=str(b.get("bet_odds") or ""),
+            date_str=b.get("date") or date.today().isoformat(),
+        )
+        new_count += 1
+
+        # Situation memory
+        if situations:
+            update_situation_memory(situations, result == "W")
+
+        # Team memory (uses model_prob as projected win prob)
+        mp = b.get("model_prob")
+        if mp and team:
+            update_team_memory(
+                team_code=team,
+                projected_win_prob=float(mp),
+                won=(result == "W"),
+                projected_runs=0.0,   # runs data not stored per-bet
+                actual_runs=0.0,
+            )
+
+    # Trigger weight recalibration every 20 new bets logged
+    if new_count > 0:
+        try:
+            import sqlite3
+            with __import__("memory_engine")._conn() as conn:
+                total_row = conn.execute(
+                    "SELECT COUNT(*) FROM bet_memory WHERE result IN ('W','L')"
+                ).fetchone()
+                total_n = total_row[0] if total_row else 0
+            if total_n > 0 and total_n % 20 < new_count:
+                recalibrate_weights()
+                print(f"[BRAIN] Weight recalibration triggered at {total_n} settled bets")
+        except Exception as _re:
+            print(f"[BRAIN] Recalibrate check failed: {_re}")
+
+    print(f"[BRAIN] Fed {new_count} settled bets into brain memory")
 
 
 def _run_db_backup():
@@ -4330,6 +4438,13 @@ def _run_morning_planner():
     except Exception:
         pass
 
+    # Brain insights section
+    brain_section = ""
+    try:
+        brain_section = get_brain_summary()
+    except Exception:
+        pass
+
     lines = [
         f"🌅 PARLAY OS — MORNING BRIEF — {today_label}",
         f"{len(events)} games today | Scout runs at 1pm ET",
@@ -4342,6 +4457,10 @@ def _run_morning_planner():
         lines.append(f"Line movement since yesterday: {' | '.join(line_moves)}")
     else:
         lines.append("Line movement since yesterday: none significant yet")
+
+    if brain_section:
+        lines.append("")
+        lines.append(brain_section)
 
     msg = "\n".join(lines)
     print(msg)

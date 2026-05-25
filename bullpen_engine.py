@@ -3,9 +3,12 @@ Fetches bullpen usage from MLB Stats API, computes fatigue score and closer avai
 Fatigue scale: 0–10 (10 = exhausted). Arms scoring ≥7 are flagged.
 """
 
+import logging
 import requests
 from api_client import get as _http_get
 from datetime import date, timedelta
+
+log = logging.getLogger(__name__)
 
 STATSAPI = "https://statsapi.mlb.com/api/v1"
 
@@ -223,10 +226,9 @@ def analyze_bullpen(team_id: int, game_date: str, label: str = "") -> dict:
     if key_flagged:
         key_available = False
 
-    print(f"[BULLPEN] {label or team_id}: {len(rp_list)} relievers — "
-          f"avg_fatigue={avg_fatigue}/10 tier={fatigue_tier} "
-          f"key_avail={key_available}"
-          + (f" flagged={key_flagged}" if key_flagged else ""))
+    log.debug("[BULLPEN] %s: %d relievers — avg_fatigue=%.1f/10 tier=%s key_avail=%s%s",
+              label or team_id, len(rp_list), avg_fatigue, fatigue_tier, key_available,
+              f" flagged={key_flagged}" if key_flagged else "")
 
     return {
         "team":                label,

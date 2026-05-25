@@ -94,7 +94,7 @@ def _load_xwoba_against() -> dict:
     )
     data: dict[int, float] = {}
     for row in rows:
-        pid = _player_id(row, "pitcher_id", "player_id", "xwoba_against")
+        pid = _player_id(row, "pitcher_id", "player_id")
         if pid is None:
             # Try name-based fallback
             for k, v in row.items():
@@ -640,7 +640,7 @@ def _load_swing_take() -> dict:
         return _get_cached(_SWINGTAKE_KEY)
     rows = _fetch_csv(
         f"{SAVANT_BASE}/leaderboard/swing-take",
-        {"year": 2025, "csv": "true"},
+        {"year": CURRENT_YEAR, "csv": "true"},
     )
     data: dict[int, float] = {}
     for row in rows:

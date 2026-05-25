@@ -540,6 +540,12 @@ HELP_TEXT = (
     "/share                — today's picks formatted for Twitter + Discord\n"
     "/fade [team] [reason] — log a manual fade\n"
     "  e.g. /fade LAD public overreaction\n"
+    "/brain                — brain learning summary + model insights\n"
+    "/accuracy             — model accuracy breakdown by conviction + type\n"
+    "/sp [name]            — SP learned correction factor\n"
+    "  e.g. /sp Dylan Cease\n"
+    "/team [code]          — team win/run bias vs model\n"
+    "  e.g. /team SF\n"
     "\nSYSTEM:\n"
     "/status               — system health check\n"
     "/resetcap             — delete all pending bets for today (resets daily cap)\n"
@@ -967,6 +973,151 @@ def dispatch(text: str) -> None:
     if lower in ("help", "start"):
         _send(HELP_TEXT)
         return
+
+    # /brain — brain learning summary
+    if lower == "brain":
+        _send(_handle_brain())
+        return
+
+    # /accuracy — model accuracy breakdown
+    if lower == "accuracy":
+        _send(_handle_accuracy())
+        return
+
+    # /sp [name] — SP correction factor
+    if lower.startswith("sp ") or lower.startswith("sp\n"):
+        pitcher_name = t[3:].strip()
+        _send(_handle_sp_lookup(pitcher_name))
+        return
+
+    # /team [code] — team bias
+    if lower.startswith("team "):
+        team_arg = t[5:].strip().upper()
+        _send(_handle_team_lookup(team_arg))
+        return
+
+
+def _handle_brain() -> str:
+    try:
+        from memory_engine import get_brain_summary, init_brain_tables
+        init_brain_tables()
+        return get_brain_summary()
+    except Exception as e:
+        return f"🧠 Brain: error — {e}"
+
+
+def _handle_accuracy() -> str:
+    try:
+        import db as _db
+        from math_engine import american_to_decimal
+        bets = _db.get_bets()
+        settled = [b for b in bets if b.get("result") in ("W", "L")]
+        if not settled:
+            return "📊 Accuracy: no settled bets yet"
+        total = len(settled)
+        wins  = sum(1 for b in settled if b["result"] == "W")
+        lines = [
+            f"📊 MODEL ACCURACY — {total} settled bets",
+            f"Overall: {wins}/{total} = {wins/total:.1%}",
+        ]
+        by_conv: dict = {}
+        for b in settled:
+            c = (b.get("conviction") or "MANUAL").upper()
+            by_conv.setdefault(c, [0, 0])
+            by_conv[c][1] += 1
+            if b["result"] == "W":
+                by_conv[c][0] += 1
+        if by_conv:
+            lines.append("By conviction:")
+            for c, (w, n) in sorted(by_conv.items()):
+                lines.append(f"  {c}: {w}/{n} = {w/n:.1%}")
+        by_type: dict = {}
+        for b in settled:
+            bt = (b.get("type") or "ML").upper()
+            by_type.setdefault(bt, [0, 0])
+            by_type[bt][1] += 1
+            if b["result"] == "W":
+                by_type[bt][0] += 1
+        if by_type:
+            lines.append("By type:")
+            for bt, (w, n) in sorted(by_type.items()):
+                lines.append(f"  {bt}: {w}/{n} = {w/n:.1%}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"📊 Accuracy: error — {e}"
+
+
+def _handle_sp_lookup(pitcher_name: str) -> str:
+    if not pitcher_name:
+        return "❓ Try: /sp Dylan Cease"
+    try:
+        import db as _db
+        from memory_engine import init_brain_tables
+        init_brain_tables()
+        with _db._conn() as conn:
+            row = conn.execute(
+                "SELECT pitcher_name, starts, sum_projected_runs, sum_actual_runs, "
+                "sum_proj_ks, sum_actual_ks FROM sp_performance "
+                "WHERE LOWER(pitcher_name) LIKE ? ORDER BY starts DESC LIMIT 1",
+                (f"%{pitcher_name.lower()}%",),
+            ).fetchone()
+        if not row or row["starts"] < 1:
+            return f"🎯 {pitcher_name}: no SP data yet (need 5+ starts)"
+        starts = row["starts"]
+        proj_r = round(row["sum_projected_runs"] / starts, 2)
+        act_r  = round(row["sum_actual_runs"]    / starts, 2)
+        diff_r = round(act_r - proj_r, 2)
+        lines  = [f"🎯 SP MEMORY: {row['pitcher_name']} ({starts} starts)"]
+        lines.append(f"Runs: proj {proj_r} → actual {act_r} ({diff_r:+.2f}/start)")
+        if starts >= 5:
+            from memory_engine import get_sp_correction
+            import db as _db2
+            pid_row = conn.execute(
+                "SELECT pitcher_id FROM sp_performance WHERE LOWER(pitcher_name) LIKE ? LIMIT 1",
+                (f"%{pitcher_name.lower()}%",),
+            ).fetchone() if False else None
+            corr = round((act_r / max(proj_r, 0.01)), 3)
+            corr = max(0.80, min(1.20, corr))
+            lines.append(f"Correction factor: ×{corr:.3f}")
+            if corr > 1.05:
+                lines.append("⚠️ Allows more runs than model projects")
+            elif corr < 0.95:
+                lines.append("✅ Suppresses more runs than model projects")
+        if row.get("sum_proj_ks") and row["sum_proj_ks"] > 0:
+            proj_k = round(row["sum_proj_ks"] / starts, 1)
+            act_k  = round(row["sum_actual_ks"] / starts, 1)
+            lines.append(f"Ks: proj {proj_k} → actual {act_k} ({act_k - proj_k:+.1f}/start)")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"🎯 SP lookup error: {e}"
+
+
+def _handle_team_lookup(team_code: str) -> str:
+    if not team_code:
+        return "❓ Try: /team SF"
+    try:
+        from memory_engine import get_team_bias, init_brain_tables
+        init_brain_tables()
+        bias = get_team_bias(team_code)
+        n    = bias.get("n", 0)
+        if n < 5:
+            return f"📋 {team_code}: not enough data yet ({n} games tracked, need 10+)"
+        wb = bias.get("win_bias", 1.0)
+        rb = bias.get("runs_bias", 1.0)
+        lines = [f"📋 TEAM MEMORY: {team_code} ({n} games)"]
+        wb_pct = round((wb - 1.0) * 100, 1)
+        rb_pct = round((rb - 1.0) * 100, 1)
+        wb_icon = "✅" if wb > 1.02 else ("⚠️" if wb < 0.98 else "➡️")
+        rb_icon = "✅" if rb > 1.02 else ("⚠️" if rb < 0.98 else "➡️")
+        lines.append(f"{wb_icon} Win bias: ×{wb:.3f} ({wb_pct:+.1f}% vs model)")
+        lines.append(f"{rb_icon} Run bias: ×{rb:.3f} ({rb_pct:+.1f}% vs model)")
+        if wb > 1.05:
+            lines.append("Model is underestimating this team's win probability")
+        elif wb < 0.95:
+            lines.append("Model is overestimating this team's win probability")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"📋 Team lookup error: {e}"
 
 
 # ── AUTO-SETTLEMENT ──────────────────────────────────────────────────────────

@@ -33,12 +33,12 @@ def _calc_bankroll(bets):
     for b in bets:
         result = b.get("result")
         stake  = float(b.get("stake") or 0)
-        if result == "win":
+        if result == "W":
             dec = american_to_decimal(str(b.get("bet_odds", "")))
             if dec:
                 current += (dec - 1) * stake
             peak = max(peak, current)
-        elif result == "loss":
+        elif result == "L":
             current -= stake
     pending_stakes = sum(float(b.get("stake") or 0) for b in bets if not b.get("result"))
     current = round(current - pending_stakes, 2)
@@ -52,7 +52,7 @@ def _utc_today() -> str:
 
 def _today_pnl(bets):
     today = _utc_today()
-    today_settled = [b for b in bets if b.get("date") == today and b.get("result") in ("win", "loss", "push")]
+    today_settled = [b for b in bets if b.get("date") == today and b.get("result") in ("W", "L", "P")]
     print(f"[today_pnl] utc_today={today} settled_count={len(today_settled)}")
     pnl = sum(float(b.get("profit") or 0) for b in today_settled)
     return round(pnl, 2)
@@ -171,9 +171,9 @@ def api_bankroll():
         drawdown_pct  = round((peak - current) / peak * 100, 1) if peak > 0 else 0.0
     today         = _utc_today()
     today_bets    = [b for b in bets if b.get("date") == today]
-    resolved      = [b for b in bets if b.get("result") in ("win", "loss", "push")]
-    wins          = sum(1 for b in resolved if b["result"] == "win")
-    losses        = sum(1 for b in resolved if b["result"] == "loss")
+    resolved      = [b for b in bets if b.get("result") in ("W", "L", "P")]
+    wins          = sum(1 for b in resolved if b["result"] == "W")
+    losses        = sum(1 for b in resolved if b["result"] == "L")
     pending_today = [b for b in today_bets if not b.get("result")]
     starting      = STARTING_BANKROLL
     bankroll      = float(os.environ.get("BANKROLL_OVERRIDE", starting))
@@ -198,9 +198,9 @@ def api_bankroll():
 @app.route("/api/stats")
 def api_stats():
     with _db._conn() as conn:
-        wins   = conn.execute("SELECT COUNT(*) FROM bets WHERE result='win'").fetchone()[0]
-        losses = conn.execute("SELECT COUNT(*) FROM bets WHERE result='loss'").fetchone()[0]
-        pushes = conn.execute("SELECT COUNT(*) FROM bets WHERE result='push'").fetchone()[0]
+        wins   = conn.execute("SELECT COUNT(*) FROM bets WHERE result='W'").fetchone()[0]
+        losses = conn.execute("SELECT COUNT(*) FROM bets WHERE result='L'").fetchone()[0]
+        pushes = conn.execute("SELECT COUNT(*) FROM bets WHERE result='P'").fetchone()[0]
 
     starting     = STARTING_BANKROLL
     bankroll     = float(os.environ.get("BANKROLL_OVERRIDE", starting))
@@ -259,14 +259,14 @@ def api_clv():
 def api_summary():
     today    = _utc_today()
     bets     = _db.get_bets()
-    resolved = [b for b in bets if b.get("result") in ("win", "loss", "push")]
-    wins     = sum(1 for b in resolved if b["result"] == "win")
-    losses   = sum(1 for b in resolved if b["result"] == "loss")
+    resolved = [b for b in bets if b.get("result") in ("W", "L", "P")]
+    wins     = sum(1 for b in resolved if b["result"] == "W")
+    losses   = sum(1 for b in resolved if b["result"] == "L")
 
     bankroll      = float(os.environ.get("BANKROLL_OVERRIDE", STARTING_BANKROLL))
     total_pnl     = bankroll - STARTING_BANKROLL
     roi           = total_pnl / STARTING_BANKROLL * 100
-    total_wagered = sum(float(b.get("stake") or 0) for b in resolved if b["result"] != "push")
+    total_wagered = sum(float(b.get("stake") or 0) for b in resolved if b["result"] != "P")
 
     clv_log   = _load_json("clv_log.json") or []
     clv_stats = clv_stats_summary(clv_log)
@@ -294,10 +294,10 @@ def record_page():
 @app.route("/api/record")
 def api_record():
     bets     = _db.get_bets()
-    resolved = [b for b in bets if b.get("result") in ("win", "loss", "push")]
-    wins     = sum(1 for b in resolved if b["result"] == "win")
-    losses   = sum(1 for b in resolved if b["result"] == "loss")
-    pushes   = sum(1 for b in resolved if b["result"] == "push")
+    resolved = [b for b in bets if b.get("result") in ("W", "L", "P")]
+    wins     = sum(1 for b in resolved if b["result"] == "W")
+    losses   = sum(1 for b in resolved if b["result"] == "L")
+    pushes   = sum(1 for b in resolved if b["result"] == "P")
 
     starting     = STARTING_BANKROLL
     bankroll     = float(os.environ.get("BANKROLL_OVERRIDE", starting))
@@ -312,9 +312,9 @@ def api_record():
         conv = (b.get("conviction") or "MANUAL").strip().upper()
         rec = by_conviction.setdefault(conv, {"wins": 0, "losses": 0, "pushes": 0, "total": 0})
         rec["total"] += 1
-        if b["result"] == "win":
+        if b["result"] == "W":
             rec["wins"] += 1
-        elif b["result"] == "loss":
+        elif b["result"] == "L":
             rec["losses"] += 1
         else:
             rec["pushes"] += 1
@@ -328,9 +328,9 @@ def api_record():
         btype = "TOTAL" if raw and raw[0] in ("O", "U") else raw
         rec = by_type.setdefault(btype, {"wins": 0, "losses": 0, "total": 0})
         rec["total"] += 1
-        if b["result"] == "win":
+        if b["result"] == "W":
             rec["wins"] += 1
-        elif b["result"] == "loss":
+        elif b["result"] == "L":
             rec["losses"] += 1
     for btype, rec in by_type.items():
         t = rec["total"]
@@ -342,12 +342,12 @@ def api_record():
     with _db._conn() as conn:
         month_rows = conn.execute("""
             SELECT strftime('%Y-%m', date) AS month,
-                   SUM(CASE WHEN result='win'  THEN 1 ELSE 0 END) AS wins,
-                   SUM(CASE WHEN result='loss' THEN 1 ELSE 0 END) AS losses,
-                   SUM(CASE WHEN result='push' THEN 1 ELSE 0 END) AS pushes,
+                   SUM(CASE WHEN result='W' THEN 1 ELSE 0 END) AS wins,
+                   SUM(CASE WHEN result='L' THEN 1 ELSE 0 END) AS losses,
+                   SUM(CASE WHEN result='P' THEN 1 ELSE 0 END) AS pushes,
                    COUNT(*) AS total
             FROM bets
-            WHERE result IN ('win','loss','push')
+            WHERE result IN ('W','L','P')
             GROUP BY month
             ORDER BY month
         """).fetchall()
@@ -372,7 +372,7 @@ def api_record():
     sorted_resolved = sorted(resolved, key=lambda x: x.get("timestamp") or "", reverse=True)
     win_streak = 0
     for b in sorted_resolved:
-        if b["result"] == "win":
+        if b["result"] == "W":
             win_streak += 1
         else:
             break

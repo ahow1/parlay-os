@@ -46,7 +46,14 @@ def _load_fg_xfip() -> dict:
         if _fg_cache is not None:
             return _fg_cache
         try:
-            r = _http_get(FG_PITCHING_URL, timeout=12, skip_cache=False)
+            r = _http_get(
+                FG_PITCHING_URL, timeout=12, skip_cache=False,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    "Accept": "application/json, text/plain, */*",
+                    "Referer": "https://www.fangraphs.com/leaders/major-league",
+                },
+            )
             data = r.json()
             rows = data.get("data", []) if isinstance(data, dict) else data
             result = {}

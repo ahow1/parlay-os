@@ -282,8 +282,8 @@ def init_db():
         conn.execute("""
             UPDATE bets
             SET profit = CASE
-                WHEN result='win'  THEN stake
-                WHEN result='loss' THEN -stake
+                WHEN result='W' THEN stake
+                WHEN result='L' THEN -stake
                 ELSE 0
             END
             WHERE profit IS NULL OR profit = 0
