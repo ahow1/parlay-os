@@ -530,7 +530,9 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     # ── Brain learning adjustments (SP correction + team bias + situations) ────
     _away_sp_id = away_sp.get("pitcher_id") if away_sp else None
     _home_sp_id = home_sp.get("pitcher_id") if home_sp else None
-    _brain_situations = ""  # populated below from situations engine
+    _brain_situations = ""
+    _away_sits: list = []
+    _home_sits: list = []
     try:
         from situations_engine import get_active_situations
         _away_sits = get_active_situations(away_code, home_code, away_nv, "away") or []
