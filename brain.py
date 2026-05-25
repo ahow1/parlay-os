@@ -924,6 +924,28 @@ def _parse_game_time_et(commence_utc: str) -> str:
         return ""
 
 
+def _game_in_window(commence_utc: str, window: str) -> bool:
+    """True if the game's ET start time falls within the requested scout window.
+
+    Windows:
+      day     — before 4:00pm ET  (Run 1, 11am)
+      evening — 4:00pm–8:00pm ET  (Run 2, 4pm)
+      west    — 8:00pm+ ET        (Run 3, 6:30pm)
+      all     — no filter         (manual / on-demand)
+    """
+    if window == "all" or not commence_utc:
+        return True
+    try:
+        dt_et = datetime.fromisoformat(commence_utc.replace("Z", "+00:00")).astimezone(ET)
+        hour  = dt_et.hour + dt_et.minute / 60.0
+        if window == "day":      return hour < 16.0           # before 4pm ET
+        if window == "evening":  return 16.0 <= hour < 20.0   # 4–8pm ET
+        if window == "west":     return hour >= 20.0           # 8pm+ ET
+    except Exception:
+        pass
+    return True  # include if time is unparseable
+
+
 def _momentum_score(away_code: str, home_code: str) -> dict:
     """Legacy simple momentum proxy (kept for fallback use)."""
     from memory_engine import team_prior
@@ -2848,10 +2870,26 @@ def _fetch_game_hitter_props(
 
 # ── DAILY SCOUT ───────────────────────────────────────────────────────────────
 
-def run_daily_scout():
-    """Full daily analysis: all games → recommendations → Telegram."""
+_WINDOW_LABELS = {
+    "day":     "DAY (before 4pm ET)",
+    "evening": "EVENING (4–8pm ET)",
+    "west":    "WEST COAST (8pm+ ET)",
+    "all":     "ALL GAMES",
+}
+
+
+def run_daily_scout(window: str = "all"):
+    """Full daily analysis: all games → recommendations → Telegram.
+
+    window: 'day' (before 4pm ET), 'evening' (4–8pm ET),
+            'west' (8pm+ ET), or 'all' (no filter, default for manual runs).
+    Each run only analyzes games whose ET start time falls within the window.
+    Lineups are always re-fetched fresh — no game is skipped because it was
+    seen in an earlier window run.
+    """
+    _window_label = _WINDOW_LABELS.get(window, "ALL GAMES")
     print("=" * 60)
-    print("Brain starting — daily scout")
+    print(f"Brain starting — daily scout [{_window_label}]")
     init_memory_tables()
     init_brain_tables()
 
@@ -2941,6 +2979,7 @@ def run_daily_scout():
     scout_out = {
         "timestamp": datetime.now(pytz.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "date":      today,
+        "window":    window,
         "bankroll":  br,
         "games":     [],
         "bets":      [],
@@ -2948,11 +2987,16 @@ def run_daily_scout():
     }
 
     for event in events:
-        away_n = event.get("away", "?")
-        home_n = event.get("home", "?")
+        away_n   = event.get("away", "?")
+        home_n   = event.get("home", "?")
+        _commence = event.get("commence_utc", "")
+
+        # Window filter — skip games outside this run's time slot
+        if not _game_in_window(_commence, window):
+            continue
+
         print(f"\n--- Analyzing: {away_n} @ {home_n} ---")
         # 2-hour filter: never bet on games starting within 2 hours
-        _commence = event.get("commence_utc", "")
         if _commence:
             try:
                 _game_dt = datetime.fromisoformat(_commence.replace("Z", "+00:00"))
@@ -3322,7 +3366,7 @@ def run_daily_scout():
     ml_risk_scout = sum(
         a.get(f"{s}_stake", 0) for a, s in all_locks + all_flips
     )
-    print(f"\nScout done — {len(events)} games | {n_bets} ML bets | ${ml_risk_scout:.2f} ML at risk")
+    print(f"\nScout done [{_window_label}] — {len(events)} total | {n_bets} ML bets | ${ml_risk_scout:.2f} ML at risk")
 
     # ── Near-miss Telegram: if no bets qualified, show top 3 closest games ────
     if n_bets == 0 and not _dd_status["pause"]:
@@ -4449,7 +4493,7 @@ def _run_morning_planner():
 
     lines = [
         f"🌅 PARLAY OS — MORNING BRIEF — {today_label}",
-        f"{len(events)} games today | Scout runs at 1pm ET",
+        f"{len(events)} games today | Scouts: 11am ET (day), 4pm ET (evening), 6:30pm ET (west coast)",
         "Watch:",
     ]
     for g in watch_games[:3]:
@@ -4485,6 +4529,18 @@ if __name__ == "__main__":
         def start_hedge_monitor(): pass
 
     args = set(sys.argv[1:])
+
+    # Parse --window flag (applies only to scout mode; ignored by other modes)
+    _window_val = "all"
+    _argv_list  = sys.argv[1:]
+    for _i, _av in enumerate(_argv_list):
+        if _av.startswith("--window="):
+            _window_val = _av.split("=", 1)[1]
+        elif _av == "--window" and _i + 1 < len(_argv_list):
+            _window_val = _argv_list[_i + 1]
+    if _window_val not in ("all", "day", "evening", "west"):
+        print(f"[WARN] Unknown --window='{_window_val}' — defaulting to 'all'")
+        _window_val = "all"
 
     if "--bot" in args:
         # Persistent bot mode: Telegram listener + auto-settler + hedge monitor only — never run scout
@@ -4525,8 +4581,9 @@ if __name__ == "__main__":
     else:
         # Scout-only mode: no listener, no polling — just run the scout and send via direct HTTP
         try:
-            print("Running daily scout (scout-only, no Telegram listener)...")
-            run_daily_scout()
+            _wl = _WINDOW_LABELS.get(_window_val, "ALL GAMES")
+            print(f"Running daily scout [{_wl}] (scout-only, no Telegram listener)...")
+            run_daily_scout(window=_window_val)
 
             print("Scout complete — exiting")
         except KeyboardInterrupt:

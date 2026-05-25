@@ -2,7 +2,9 @@ name: Parlay OS — All Systems
 
 on:
   schedule:
-    - cron: '0 18 * * *'     # daily_brain    — 1pm ET (18:00 UTC)
+    - cron: '0 16 * * *'     # day_brain      — 11am ET (16:00 UTC): day games before 4pm ET
+    - cron: '0 21 * * *'     # evening_brain  — 4pm ET (21:00 UTC): evening games 4–8pm ET
+    - cron: '30 23 * * *'    # west_brain     — 6:30pm ET (23:30 UTC): west coast games 8pm+ ET
     - cron: '30 22 * * *'    # line_movement  — 5:30pm ET (22:30 UTC)
     - cron: '*/5 23 * * *'   # live_engine    — 6–7pm ET (23:00–23:55 UTC), every 5 min
     - cron: '*/5 0-3 * * *'  # live_engine    — 7pm–11pm ET (00:00–03:55 UTC), every 5 min
@@ -18,6 +20,9 @@ on:
         type: choice
         options:
           - daily_brain
+          - daily_brain_day
+          - daily_brain_evening
+          - daily_brain_west
           - line_movement
           - live_engine
           - daily_debrief
@@ -30,11 +35,11 @@ on:
 
 jobs:
 
-  # ─── 1. DAILY BRAIN SCOUT — 1pm ET ───────────────────────────────────────
-  daily_brain:
+  # ─── 1a. DAY GAMES SCOUT — 11am ET (day games before 4pm ET) ────────────
+  daily_brain_day:
     if: >
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'daily_brain') ||
-      (github.event_name == 'schedule' && github.event.schedule == '0 18 * * *')
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'daily_brain_day') ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 16 * * *')
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -47,12 +52,107 @@ jobs:
 
       - run: pip install -q requests pytz flask flask-cors
 
-      - name: Run daily brain scout
+      - name: Run day scout (games before 4pm ET)
         env:
           ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python brain.py
+        run: python brain.py --window day
+
+      - name: Commit scout outputs
+        run: |
+          git config user.name "Parlay OS Bot"
+          git config user.email "bot@parlay-os.com"
+          git add last_scout.json props_output.json parlay_os.db || true
+          git diff --staged --quiet || git commit -m "Scout: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push || true
+
+  # ─── 1b. EVENING GAMES SCOUT — 4pm ET (games 4–8pm ET) ──────────────────
+  daily_brain_evening:
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'daily_brain_evening') ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 21 * * *')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+
+      - run: pip install -q requests pytz flask flask-cors
+
+      - name: Run evening scout (games 4–8pm ET)
+        env:
+          ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python brain.py --window evening
+
+      - name: Commit scout outputs
+        run: |
+          git config user.name "Parlay OS Bot"
+          git config user.email "bot@parlay-os.com"
+          git add last_scout.json props_output.json parlay_os.db || true
+          git diff --staged --quiet || git commit -m "Scout: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push || true
+
+  # ─── 1c. WEST COAST SCOUT — 6:30pm ET (games after 8pm ET) ──────────────
+  daily_brain_west:
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'daily_brain_west') ||
+      (github.event_name == 'schedule' && github.event.schedule == '30 23 * * *')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+
+      - run: pip install -q requests pytz flask flask-cors
+
+      - name: Run west coast scout (games after 8pm ET)
+        env:
+          ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python brain.py --window west
+
+      - name: Commit scout outputs
+        run: |
+          git config user.name "Parlay OS Bot"
+          git config user.email "bot@parlay-os.com"
+          git add last_scout.json props_output.json parlay_os.db || true
+          git diff --staged --quiet || git commit -m "Scout: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push || true
+
+  # ─── 1d. MANUAL FULL SCOUT — all games (workflow_dispatch only) ──────────
+  daily_brain:
+    if: >
+      github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'daily_brain'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+
+      - run: pip install -q requests pytz flask flask-cors
+
+      - name: Run full scout (all games, window=all)
+        env:
+          ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python brain.py --window all
 
       - name: Commit scout outputs
         run: |

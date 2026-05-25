@@ -546,6 +546,8 @@ HELP_TEXT = (
     "  e.g. /sp Dylan Cease\n"
     "/team [code]          — team win/run bias vs model\n"
     "  e.g. /team SF\n"
+    "/scout                — on-demand fresh analysis (all games)\n"
+    "  e.g. /scout day, /scout evening, /scout west\n"
     "\nSYSTEM:\n"
     "/status               — system health check\n"
     "/resetcap             — delete all pending bets for today (resets daily cap)\n"
@@ -628,12 +630,12 @@ def handle_preview() -> str:
         with open("last_scout.json") as f:
             data = json.load(f)
     except Exception:
-        return "No scout data yet — scout runs at 1pm ET."
+        return "No scout data yet — scouts run at 11am, 4pm, and 6:30pm ET."
 
     today = date.today().isoformat()
     scout_date = data.get("date", "")
     if scout_date and scout_date != today:
-        return f"Scout data is from {scout_date} — today's scout hasn't run yet (runs at 1pm ET)."
+        return f"Scout data is from {scout_date} — today's scout hasn't run yet (runs at 11am, 4pm, and 6:30pm ET)."
 
     games = data.get("games", [])
     if not games:
@@ -703,7 +705,7 @@ def handle_props() -> str:
 
     today = date.today().isoformat()
     if file_date and file_date != today:
-        return f"Props data is from {file_date} — today's scout hasn't run yet (runs at 1pm ET)."
+        return f"Props data is from {file_date} — today's scout hasn't run yet (runs at 11am, 4pm, and 6:30pm ET)."
 
     lines = [f"PROPS SLATE — {today}"]
     bets_found = 0
@@ -781,7 +783,7 @@ def handle_edges() -> str:
         edges = []
 
     if not edges:
-        return "No market edges found. Try after 1pm ET when scout runs."
+        return "No market edges found. Try after 11am ET when first scout runs."
 
     lines = [f"📊 MARKET EDGES ({len(edges)} found):"]
     for e in edges[:6]:
@@ -995,6 +997,40 @@ def dispatch(text: str) -> None:
         team_arg = t[5:].strip().upper()
         _send(_handle_team_lookup(team_arg))
         return
+
+    # /scout [window] — on-demand fresh analysis
+    if lower == "scout" or lower.startswith("scout "):
+        _scout_window = t[6:].strip().lower() if lower.startswith("scout ") else "all"
+        _send(_handle_scout(_scout_window))
+        return
+
+
+def _handle_scout(window: str = "all") -> str:
+    """Kick off a fresh scout run in a background thread and return ack message."""
+    import threading as _threading
+    _valid = {"all", "day", "evening", "west"}
+    if window not in _valid:
+        return (
+            f"❓ Unknown window '{window}'.\n"
+            f"Use: /scout, /scout day, /scout evening, /scout west"
+        )
+    _labels = {
+        "all":     "all games",
+        "day":     "day games (before 4pm ET)",
+        "evening": "evening games (4–8pm ET)",
+        "west":    "west coast games (8pm+ ET)",
+    }
+
+    def _run():
+        try:
+            from brain import run_daily_scout
+            run_daily_scout(window=window)
+        except Exception as _e:
+            _send(f"❌ Scout error: {_e}")
+
+    _t = _threading.Thread(target=_run, name="on-demand-scout", daemon=True)
+    _t.start()
+    return f"🔄 Scouting {_labels.get(window, window)}... picks will arrive shortly."
 
 
 def _handle_brain() -> str:
