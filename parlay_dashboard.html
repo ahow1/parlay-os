@@ -4,211 +4,272 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PARLAY OS</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <style>
+/* ── DESIGN TOKENS ─────────────────────────────────────────────────────────── */
 :root {
-  --bg:      #0d1117;
-  --card:    #161b22;
-  --border:  #21262d;
-  --cyan:    #00d4ff;
-  --green:   #00ff88;
-  --red:     #ff4444;
-  --amber:   #f0a500;
-  --text:    #e6edf3;
-  --muted:   #8b949e;
-  --mono:    'JetBrains Mono', monospace;
-  --hdr-h:   70px;
-  --nav-h:   46px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;min-height:100vh;font-size:14px}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-track{background:var(--bg)}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  --bg:         #09090b;
+  --s1:         #111113;
+  --s2:         #1c1c1f;
+  --s3:         #28282d;
+  --border:     #2c2c32;
+  --border-hi:  #3d3d45;
 
-/* HEADER */
+  --cyan:       #22d3ee;
+  --cyan-dim:   rgba(34,211,238,.1);
+  --cyan-glow:  rgba(34,211,238,.08);
+  --green:      #4ade80;
+  --green-dim:  rgba(74,222,128,.1);
+  --red:        #f87171;
+  --red-dim:    rgba(248,113,113,.1);
+  --amber:      #fbbf24;
+  --amber-dim:  rgba(251,191,36,.1);
+
+  --t1:   #f4f4f5;
+  --t2:   #a1a1aa;
+  --t3:   #71717a;
+  --t4:   #52525b;
+
+  --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+
+  --sp1:  4px;
+  --sp2:  8px;
+  --sp3:  12px;
+  --sp4:  16px;
+  --sp5:  20px;
+  --sp6:  24px;
+
+  --r:    10px;
+  --rsm:  6px;
+  --rlg:  14px;
+
+  --hdr-h: 64px;
+  --nav-h: 44px;
+}
+
+/* ── RESET ──────────────────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--t1);min-height:100vh;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px}
+
+/* ── HEADER ─────────────────────────────────────────────────────────────────── */
 #hdr{
   position:sticky;top:0;z-index:100;height:var(--hdr-h);
-  background:rgba(13,17,23,.97);backdrop-filter:blur(12px);
+  background:rgba(9,9,11,.94);backdrop-filter:blur(20px);
   border-bottom:1px solid var(--border);
-  display:flex;align-items:center;padding:0 1.25rem;gap:1.25rem;
+  display:flex;align-items:center;padding:0 var(--sp5);gap:var(--sp4);
 }
-.hdr-logo{flex-shrink:0;display:flex;flex-direction:column;gap:2px}
-.hdr-logo .pos{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--cyan);letter-spacing:3px}
-.hdr-logo .hdr-date{font-size:10px;color:var(--muted)}
-.hdr-center{flex:1;display:flex;align-items:center;justify-content:center;gap:1.5rem;flex-wrap:wrap}
-.hdr-br{font-family:var(--mono);font-size:28px;font-weight:700}
-.hdr-stat{display:flex;flex-direction:column;align-items:center;gap:2px}
-.hdr-stat .v{font-family:var(--mono);font-size:14px;font-weight:600}
-.hdr-stat .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.hdr-right{flex-shrink:0;display:flex;align-items:center;gap:.85rem}
-.pool-blk{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
-.pool-blk .pv{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--cyan)}
-.pool-blk .pl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
-.live-badge{display:flex;align-items:center;gap:5px;background:rgba(255,68,68,.12);border:1px solid var(--red);border-radius:20px;padding:3px 9px;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--red)}
-.live-dot{width:6px;height:6px;border-radius:50%;background:var(--red);animation:pulse 1.2s infinite}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.75)}}
-.hdr-upd{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.hdr-logo{flex-shrink:0}
+.hdr-wordmark{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:4px;color:var(--cyan)}
+.hdr-sub{font-size:10px;color:var(--t4);margin-top:1px;letter-spacing:.3px}
+.hdr-sep{width:1px;height:28px;background:var(--border);flex-shrink:0}
+.hdr-bankroll{display:flex;flex-direction:column;gap:1px;flex-shrink:0}
+.hdr-bankroll-val{font-family:var(--mono);font-size:22px;font-weight:700;line-height:1}
+.hdr-bankroll-lbl{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px}
+.hdr-metrics{display:flex;align-items:center;gap:var(--sp5);flex:1}
+.hdr-metric{display:flex;flex-direction:column;gap:1px}
+.hdr-metric-val{font-family:var(--mono);font-size:13px;font-weight:600}
+.hdr-metric-lbl{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px}
+.hdr-right{flex-shrink:0;margin-left:auto;display:flex;align-items:center;gap:var(--sp3)}
+.pool-chip{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.pool-chip-val{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--cyan)}
+.pool-chip-lbl{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.4px}
+.live-pill{display:flex;align-items:center;gap:var(--sp1);background:var(--red-dim);border:1px solid rgba(248,113,113,.28);border-radius:20px;padding:3px 10px;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--red)}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--red);animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
+.upd-text{font-size:10px;color:var(--t4);font-family:var(--mono)}
 
-/* TAB NAV */
+/* ── TAB NAV ─────────────────────────────────────────────────────────────────── */
 #tab-nav{
   position:sticky;top:var(--hdr-h);z-index:90;height:var(--nav-h);
-  background:rgba(13,17,23,.97);backdrop-filter:blur(10px);
+  background:rgba(9,9,11,.94);backdrop-filter:blur(12px);
   border-bottom:1px solid var(--border);
-  display:flex;align-items:center;padding:0 1.25rem;gap:.35rem;
+  display:flex;align-items:center;padding:0 var(--sp5);gap:2px;
   overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;
 }
 #tab-nav::-webkit-scrollbar{display:none}
 .tab-btn{
   font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:1px;
-  padding:4px 13px;border-radius:20px;border:none;cursor:pointer;
+  padding:5px 14px;border-radius:20px;border:none;cursor:pointer;
   white-space:nowrap;flex-shrink:0;
-  color:var(--muted);background:transparent;
+  color:var(--t3);background:transparent;
   transition:color .15s,background .15s;
 }
-.tab-btn:hover{color:var(--text)}
-.tab-btn.active{background:var(--cyan);color:#0d1117}
-.n-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--red);color:#fff;border-radius:10px;font-size:9px;font-weight:700;padding:1px 5px;margin-left:3px;min-width:15px;vertical-align:middle}
+.tab-btn:hover{color:var(--t1)}
+.tab-btn.active{background:var(--cyan);color:var(--bg)}
+.n-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--red);color:#fff;border-radius:10px;font-size:9px;font-weight:700;padding:1px 5px;margin-left:3px;min-width:16px;vertical-align:middle}
 
-/* CONTENT */
-#content{padding:1.25rem;max-width:1380px;margin:0 auto}
-.tab-pane{display:none;animation:fadeIn .18s ease}
+/* ── CONTENT ─────────────────────────────────────────────────────────────────── */
+#content{padding:var(--sp5);max-width:1400px;margin:0 auto;padding-bottom:calc(var(--sp5) + 64px)}
+.tab-pane{display:none;animation:fadeIn .2s ease}
 .tab-pane.active{display:block}
-@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 
-/* CARDS */
-.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.1rem}
-.card-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:.65rem}
+/* ── CARDS ───────────────────────────────────────────────────────────────────── */
+.card{background:var(--s1);border:1px solid var(--border);border-radius:var(--rlg);padding:var(--sp4)}
+.card-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--t3);margin-bottom:var(--sp3)}
 
-/* GRIDS */
-.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem;margin-bottom:.85rem}
-.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:.85rem;margin-bottom:.85rem}
-.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:.85rem;margin-bottom:.85rem}
-.mb{margin-bottom:.85rem}
+/* ── GRIDS ───────────────────────────────────────────────────────────────────── */
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp3);margin-bottom:var(--sp3)}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp3);margin-bottom:var(--sp3)}
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--sp3);margin-bottom:var(--sp3)}
+.mb{margin-bottom:var(--sp3)}
 
-/* STAT CARD */
+/* ── STAT CARD ───────────────────────────────────────────────────────────────── */
 .sc{text-align:center}
-.sc .sv{font-family:var(--mono);font-size:24px;font-weight:700}
-.sc .sl{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:.4rem}
-.sc .ss{font-size:11px;color:var(--muted);margin-top:3px}
+.sc .sv{font-family:var(--mono);font-size:26px;font-weight:700;line-height:1.1}
+.sc .sl{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);margin-bottom:var(--sp1)}
+.sc .ss{font-size:11px;color:var(--t3);margin-top:var(--sp1)}
 
-/* COLORS */
-.cyan{color:var(--cyan)}.green{color:var(--green)}.red{color:var(--red)}.amber{color:var(--amber)}.muted{color:var(--muted)}
-
-/* BADGES */
-.conv{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:.4px}
-.cH{background:rgba(0,212,255,.12);color:var(--cyan);border:1px solid rgba(0,212,255,.25)}
-.cM{background:rgba(240,165,0,.12);color:var(--amber);border:1px solid rgba(240,165,0,.25)}
-.cX{background:rgba(139,148,158,.12);color:var(--muted);border:1px solid rgba(139,148,158,.2)}
-.rp{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px}
-.rW{background:rgba(0,255,136,.12);color:var(--green)}
-.rL{background:rgba(255,68,68,.12);color:var(--red)}
-.rP{background:rgba(139,148,158,.12);color:var(--muted)}
-
-/* DRAWDOWN */
-.dd-wrap{background:var(--border);border-radius:6px;height:9px;position:relative;overflow:visible;margin:.45rem 0}
-.dd-bar{height:100%;border-radius:6px;transition:width .4s}
-.dd-m{position:absolute;top:-3px;bottom:-3px;width:2px;border-radius:1px}
-.dd-m10{left:10%;background:var(--amber)}
-.dd-m15{left:15%;background:var(--red)}
-
-/* SETTLE BUTTONS */
-.s-row{display:flex;gap:.4rem;margin-top:.7rem}
-.s-btn{flex:1;padding:7px;border:none;border-radius:8px;font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;transition:opacity .15s,transform .1s}
-.s-btn:active{transform:scale(.97)}
-.bW{background:rgba(0,255,136,.18);color:var(--green);border:1px solid rgba(0,255,136,.35)}
-.bL{background:rgba(255,68,68,.18);color:var(--red);border:1px solid rgba(255,68,68,.35)}
-.bP{background:rgba(139,148,158,.18);color:var(--muted);border:1px solid rgba(139,148,158,.25)}
-.s-btn:hover{opacity:.75}
-
-/* SECTION HEADER */
-.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem}
-.sec-title{font-size:15px;font-weight:700;display:flex;align-items:center;gap:.5rem}
-.cnt{background:var(--border);color:var(--muted);border-radius:10px;font-family:var(--mono);font-size:10px;padding:2px 7px}
-
-/* TABLES */
-.dt{width:100%;border-collapse:collapse;font-size:12px}
-.dt th{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:.45rem .65rem;border-bottom:1px solid var(--border);text-align:left;cursor:pointer;user-select:none}
-.dt th:hover{color:var(--text)}
-.dt td{padding:.55rem .65rem;border-bottom:1px solid rgba(33,38,45,.4);vertical-align:middle}
-.dt tr:last-child td{border-bottom:none}
-.dt tbody tr:hover{background:rgba(255,255,255,.02)}
+/* ── COLOR UTILS ─────────────────────────────────────────────────────────────── */
+.cyan{color:var(--cyan)}.green{color:var(--green)}.red{color:var(--red)}.amber{color:var(--amber)}.muted{color:var(--t2)}.dim{color:var(--t3)}
 .mono{font-family:var(--mono)}
 
-/* RESULT ROW */
-.rrow{display:flex;align-items:center;gap:.65rem;padding:.55rem 0;border-bottom:1px solid rgba(33,38,45,.4);font-size:12px}
+/* ── BADGES ─────────────────────────────────────────────────────────────────── */
+.conv{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.4px}
+.cH{background:var(--cyan-dim);color:var(--cyan);border:1px solid rgba(34,211,238,.22)}
+.cM{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(251,191,36,.22)}
+.cX{background:rgba(82,82,91,.15);color:var(--t3);border:1px solid rgba(82,82,91,.25)}
+.rp{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px}
+.rW{background:var(--green-dim);color:var(--green);border:1px solid rgba(74,222,128,.25)}
+.rL{background:var(--red-dim);color:var(--red);border:1px solid rgba(248,113,113,.25)}
+.rP{background:rgba(82,82,91,.15);color:var(--t3)}
+
+/* ── DRAWDOWN ────────────────────────────────────────────────────────────────── */
+.dd-wrap{background:var(--s3);border-radius:6px;height:8px;position:relative;overflow:visible;margin:var(--sp2) 0}
+.dd-bar{height:100%;border-radius:6px;transition:width .5s ease}
+/* markers at 50% and 75% of bar = 10% and 15% drawdown on a 0–20% scale */
+.dd-m{position:absolute;top:-4px;bottom:-4px;width:2px;border-radius:1px}
+.dd-m10{left:50%;background:var(--amber)}
+.dd-m15{left:75%;background:var(--red)}
+
+/* ── SETTLE BUTTONS ─────────────────────────────────────────────────────────── */
+.s-row{display:flex;gap:var(--sp2);margin-top:var(--sp3)}
+.s-btn{flex:1;padding:8px;border:none;border-radius:var(--rsm);font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;transition:opacity .15s,transform .1s;letter-spacing:.4px}
+.s-btn:active{transform:scale(.97)}
+.bW{background:var(--green-dim);color:var(--green);border:1px solid rgba(74,222,128,.28)}
+.bL{background:var(--red-dim);color:var(--red);border:1px solid rgba(248,113,113,.28)}
+.bP{background:rgba(82,82,91,.15);color:var(--t2);border:1px solid rgba(82,82,91,.22)}
+.s-btn:hover{opacity:.72}
+
+/* ── SECTION HEADER ─────────────────────────────────────────────────────────── */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--sp3)}
+.sec-title{font-size:15px;font-weight:700;display:flex;align-items:center;gap:var(--sp2)}
+.cnt{background:var(--s3);color:var(--t3);border-radius:10px;font-family:var(--mono);font-size:10px;padding:2px 8px}
+
+/* ── TABLE ───────────────────────────────────────────────────────────────────── */
+.dt{width:100%;border-collapse:collapse;font-size:12px}
+.dt th{font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);padding:var(--sp2) var(--sp3);border-bottom:1px solid var(--border);text-align:left;cursor:pointer;user-select:none;font-family:var(--sans);font-weight:600}
+.dt th:hover{color:var(--t1)}
+.dt td{padding:var(--sp2) var(--sp3);border-bottom:1px solid rgba(44,44,50,.5);vertical-align:middle}
+.dt tr:last-child td{border-bottom:none}
+.dt tbody tr:hover{background:rgba(255,255,255,.018)}
+
+/* ── ROW ─────────────────────────────────────────────────────────────────────── */
+.rrow{display:flex;align-items:center;gap:var(--sp3);padding:var(--sp2) 0;border-bottom:1px solid rgba(44,44,50,.4);font-size:12px}
 .rrow:last-child{border-bottom:none}
 
-/* PICK CARD */
+/* ── PICK CARD ───────────────────────────────────────────────────────────────── */
 .pc{position:relative}
-.pc .star{position:absolute;top:.65rem;right:.65rem;display:flex;align-items:center;gap:3px;background:rgba(240,165,0,.12);border:1px solid rgba(240,165,0,.25);border-radius:10px;padding:2px 7px;font-size:9px;font-weight:700;color:var(--amber);letter-spacing:.5px}
-.pc-team{font-family:var(--mono);font-size:22px;font-weight:700;margin:.35rem 0 2px}
-.pc-vs{font-size:11px;color:var(--muted)}
-.pc-odds{font-family:var(--mono);font-size:26px;font-weight:700;margin:.6rem 0 .4rem}
-.pc-dg{display:grid;grid-template-columns:1fr 1fr;gap:.3rem .65rem;font-size:11px;margin:.6rem 0}
-.pc-dg .dl{color:var(--muted)}
-.pc-dg .dv{font-family:var(--mono)}
-.pc-er{display:flex;align-items:baseline;justify-content:space-between;margin-top:.65rem;padding-top:.65rem;border-top:1px solid var(--border)}
-.pc-edge{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--cyan)}
+.pc .star{position:absolute;top:var(--sp3);right:var(--sp3);display:flex;align-items:center;gap:3px;background:var(--amber-dim);border:1px solid rgba(251,191,36,.28);border-radius:20px;padding:3px 8px;font-size:9px;font-weight:700;color:var(--amber);letter-spacing:.4px}
+.pc-team{font-family:var(--mono);font-size:22px;font-weight:700;margin:var(--sp2) 0 2px;line-height:1.1}
+.pc-vs{font-size:11px;color:var(--t2)}
+.pc-odds{font-family:var(--mono);font-size:28px;font-weight:700;margin:var(--sp3) 0 var(--sp2)}
+.pc-dg{display:grid;grid-template-columns:1fr 1fr;gap:6px var(--sp4);font-size:11px;margin:var(--sp3) 0}
+.pc-dg .dl{color:var(--t3)}
+.pc-dg .dv{font-family:var(--mono);font-weight:500}
+.pc-edge-bar{background:var(--s3);border-radius:3px;height:3px;overflow:hidden;margin-bottom:var(--sp3)}
+.pc-edge-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--cyan),#0ea5e9);transition:width .5s ease}
+.pc-er{display:flex;align-items:baseline;justify-content:space-between;padding-top:var(--sp3);border-top:1px solid var(--border)}
+.pc-edge{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--cyan)}
 .pc-si{text-align:right;font-size:11px}
 .pc-si .sv{font-family:var(--mono);font-weight:600}
-.pc-reason{font-size:11px;color:var(--muted);line-height:1.55;margin-top:.65rem;padding-top:.65rem;border-top:1px solid var(--border)}
-.pc-btn{width:100%;margin-top:.65rem;padding:9px;border:none;border-radius:8px;font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;transition:opacity .15s}
+.pc-reason{font-size:11px;color:var(--t2);line-height:1.65;margin-top:var(--sp3);padding-top:var(--sp3);border-top:1px solid var(--border)}
+.pc-btn{width:100%;margin-top:var(--sp3);padding:10px;border:none;border-radius:var(--rsm);font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;transition:opacity .15s,transform .1s;letter-spacing:.4px}
+.pc-btn:active{transform:scale(.98)}
+.btn-placed{background:var(--green-dim);color:var(--green);border:1px solid rgba(74,222,128,.28)}
+.btn-place{background:var(--cyan);color:var(--bg)}
 .pc-btn:hover{opacity:.82}
-.btn-placed{background:rgba(0,255,136,.12);color:var(--green);border:1px solid rgba(0,255,136,.25)}
-.btn-place{background:var(--cyan);color:#0d1117}
 
-/* BET CARD */
-.bc{margin-bottom:.75rem}
-.bc-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.45rem}
+/* ── BET CARD ─────────────────────────────────────────────────────────────────── */
+.bc{margin-bottom:var(--sp3)}
+.bc-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--sp2)}
 .bc-team{font-family:var(--mono);font-size:20px;font-weight:700}
-.bc-vs{font-size:11px;color:var(--muted);margin-top:2px}
-.bc-id{font-family:var(--mono);font-size:10px;color:var(--muted)}
-.bc-stats{display:flex;gap:1.25rem;flex-wrap:wrap;margin-top:.45rem}
+.bc-vs{font-size:11px;color:var(--t2);margin-top:2px}
+.bc-id{font-family:var(--mono);font-size:10px;color:var(--t3)}
+.bc-stats{display:flex;gap:var(--sp5);flex-wrap:wrap;margin-top:var(--sp2)}
 .bc-stats span{display:flex;flex-direction:column;gap:2px}
 .bc-stats .bv{font-family:var(--mono);font-size:13px;font-weight:600}
-.bc-stats .bl{font-size:9px;color:var(--muted);text-transform:uppercase}
+.bc-stats .bl{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.3px}
 
-/* PROP CARD */
+/* ── PROP CARD ───────────────────────────────────────────────────────────────── */
 .prop-card .pp{font-family:var(--mono);font-size:17px;font-weight:700}
-.prop-card .pt{font-size:11px;color:var(--muted)}
-.prop-card .pstat{font-size:12px;margin:.3rem 0}
+.prop-card .pt{font-size:11px;color:var(--t2)}
+.prop-card .pstat{font-size:12px;margin:var(--sp1) 0}
 .prop-card .podds{font-family:var(--mono);font-size:17px;font-weight:700}
-.prop-card .ppcts{display:flex;gap:.85rem;font-size:11px;margin-top:.4rem}
-.prop-card .ppcts span{display:flex;flex-direction:column;gap:1px}
-.pdot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:3px}
+.prop-card .ppcts{display:flex;gap:var(--sp4);font-size:11px;margin-top:var(--sp2)}
+.prop-card .ppcts span{display:flex;flex-direction:column;gap:2px}
+.pdot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:3px}
 .dg{background:var(--green)}.da{background:var(--amber)}
 
-/* PROGRESS */
-.pb{background:var(--border);border-radius:4px;height:5px;overflow:hidden;margin-top:.2rem}
+/* ── PROGRESS ────────────────────────────────────────────────────────────────── */
+.pb{background:var(--s3);border-radius:4px;height:5px;overflow:hidden;margin-top:var(--sp1)}
 .pf{height:100%;border-radius:4px}
 
-/* CHART */
-.ch{position:relative;height:210px}
+/* ── CHART ───────────────────────────────────────────────────────────────────── */
+.ch{position:relative;height:200px}
 
-/* LOADING */
-.loading{display:flex;align-items:center;justify-content:center;min-height:100px;color:var(--muted);font-size:12px}
+/* ── LOADING ─────────────────────────────────────────────────────────────────── */
+.loading{display:flex;align-items:center;justify-content:center;min-height:80px;color:var(--t3);font-size:12px}
 
-/* COLLAPSE */
-.ctog{display:flex;align-items:center;gap:.4rem;cursor:pointer;user-select:none;padding:.65rem 1.1rem;border-top:1px solid var(--border);font-size:11px;color:var(--muted)}
-.ctog:hover{color:var(--text)}
+/* ── COLLAPSE ────────────────────────────────────────────────────────────────── */
+.ctog{display:flex;align-items:center;gap:var(--sp2);cursor:pointer;user-select:none;padding:var(--sp3) var(--sp4);border-top:1px solid var(--border);font-size:11px;color:var(--t2)}
+.ctog:hover{color:var(--t1)}
 .carrow{transition:transform .2s}
 .carrow.open{transform:rotate(180deg)}
 .cbody{display:none}
 .cbody.open{display:block}
 
-/* RESPONSIVE */
-@media(max-width:900px){.g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:600px){
-  #content{padding:.85rem .65rem}
-  .g4{grid-template-columns:1fr 1fr}
-  .g3,.g2{grid-template-columns:1fr}
-  .hdr-br{font-size:20px}
-  .hdr-right .pool-blk{display:none}
-  .hdr-center{gap:.85rem}
+/* ── MOBILE NAV ──────────────────────────────────────────────────────────────── */
+#mob-nav{
+  display:none;position:fixed;bottom:0;left:0;right:0;z-index:200;
+  background:rgba(17,17,19,.96);backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  padding:var(--sp2) var(--sp2) calc(var(--sp2) + env(safe-area-inset-bottom,0px));
 }
-@media(max-width:390px){.hdr-br{font-size:17px}.hdr-stat .v{font-size:12px}}
+.mob-nav-inner{display:flex;justify-content:space-around;align-items:center}
+.mob-tab{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:var(--sp1) var(--sp3);border-radius:var(--rsm);border:none;
+  background:transparent;color:var(--t4);
+  font-family:var(--sans);font-size:9px;font-weight:600;
+  letter-spacing:.5px;text-transform:uppercase;cursor:pointer;
+  transition:color .15s;
+}
+.mob-tab.active{color:var(--cyan)}
+
+/* ── RESPONSIVE ──────────────────────────────────────────────────────────────── */
+@media(max-width:960px){.g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:640px){
+  #tab-nav{display:none}
+  #mob-nav{display:block}
+  #content{padding:var(--sp3);padding-bottom:80px}
+  .g4{grid-template-columns:repeat(2,1fr)}
+  .g3,.g2{grid-template-columns:1fr}
+  .hdr-right .pool-chip{display:none}
+  .hdr-metrics{gap:var(--sp3)}
+  .hdr-bankroll-val{font-size:18px}
+  .pc-team{font-size:18px}
+  .pc-odds{font-size:24px}
+}
+@media(max-width:400px){
+  #hdr{padding:0 var(--sp3)}
+  .hdr-metric:nth-child(n+3){display:none}
+}
 </style>
 </head>
 <body>
@@ -216,42 +277,46 @@ body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,
 <!-- HEADER -->
 <header id="hdr">
   <div class="hdr-logo">
-    <div class="pos">POS</div>
-    <div class="hdr-date" id="hdr-date"></div>
+    <div class="hdr-wordmark">PARLAY OS</div>
+    <div class="hdr-sub" id="hdr-date"></div>
   </div>
-  <div class="hdr-center">
-    <div class="hdr-br" id="hdr-br">$—</div>
-    <div class="hdr-stat">
-      <div class="v" id="hdr-pnl">—</div>
-      <div class="l">Today P&amp;L</div>
+  <div class="hdr-sep"></div>
+  <div class="hdr-bankroll">
+    <div class="hdr-bankroll-val" id="hdr-br">$—</div>
+    <div class="hdr-bankroll-lbl">Bankroll</div>
+  </div>
+  <div class="hdr-metrics">
+    <div class="hdr-metric">
+      <div class="hdr-metric-val" id="hdr-pnl">—</div>
+      <div class="hdr-metric-lbl">Today P&amp;L</div>
     </div>
-    <div class="hdr-stat">
-      <div class="v cyan" id="hdr-wr">—</div>
-      <div class="l">Win Rate</div>
+    <div class="hdr-metric">
+      <div class="hdr-metric-val cyan" id="hdr-wr">—</div>
+      <div class="hdr-metric-lbl">Win Rate</div>
     </div>
-    <div class="hdr-stat">
-      <div class="v" id="hdr-roi">—</div>
-      <div class="l">ROI</div>
+    <div class="hdr-metric">
+      <div class="hdr-metric-val" id="hdr-roi">—</div>
+      <div class="hdr-metric-lbl">ROI</div>
     </div>
   </div>
   <div class="hdr-right">
-    <div class="pool-blk">
-      <div class="pv" id="hdr-ml">$—</div>
-      <div class="pl">ML Pool</div>
+    <div class="pool-chip">
+      <div class="pool-chip-val" id="hdr-ml">$—</div>
+      <div class="pool-chip-lbl">ML Pool</div>
     </div>
-    <div class="pool-blk">
-      <div class="pv" id="hdr-pr">$—</div>
-      <div class="pl">Props Pool</div>
+    <div class="pool-chip">
+      <div class="pool-chip-val" id="hdr-pr">$—</div>
+      <div class="pool-chip-lbl">Props Pool</div>
     </div>
-    <div class="live-badge" id="hdr-live" style="display:none">
+    <div class="live-pill" id="hdr-live" style="display:none">
       <div class="live-dot"></div>
       <span id="live-n">0</span>&nbsp;LIVE
     </div>
-    <div class="hdr-upd" id="hdr-upd"></div>
+    <div class="upd-text" id="hdr-upd"></div>
   </div>
 </header>
 
-<!-- TABS -->
+<!-- DESKTOP TAB NAV -->
 <nav id="tab-nav">
   <button class="tab-btn active" data-tab="home"  onclick="tab('home')">HOME</button>
   <button class="tab-btn"        data-tab="picks" onclick="tab('picks')">PICKS</button>
@@ -263,67 +328,44 @@ body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,
 
 <div id="content">
 
-<!-- HOME -->
+<!-- ── HOME ────────────────────────────────────────────────────────────────── -->
 <div class="tab-pane active" id="tab-home">
   <div class="g4 mb">
-    <div class="card sc">
-      <div class="sl">Bankroll</div>
-      <div class="sv" id="h-br">$—</div>
-      <div class="ss" id="h-roi-s">ROI —</div>
-    </div>
-    <div class="card sc">
-      <div class="sl">Today P&amp;L</div>
-      <div class="sv" id="h-pnl">—</div>
-      <div class="ss" id="h-act-s">— active</div>
-    </div>
-    <div class="card sc">
-      <div class="sl">Win Rate</div>
-      <div class="sv cyan" id="h-wr">—%</div>
-      <div class="ss" id="h-rec-s">—</div>
-    </div>
-    <div class="card sc">
-      <div class="sl">ROI</div>
-      <div class="sv green" id="h-roi">—%</div>
-      <div class="ss" id="h-wgd-s">$— wagered</div>
-    </div>
+    <div class="card sc"><div class="sl">Bankroll</div><div class="sv" id="h-br">$—</div><div class="ss" id="h-roi-s">ROI —</div></div>
+    <div class="card sc"><div class="sl">Today P&amp;L</div><div class="sv" id="h-pnl">—</div><div class="ss" id="h-act-s">— active</div></div>
+    <div class="card sc"><div class="sl">Win Rate</div><div class="sv cyan" id="h-wr">—%</div><div class="ss" id="h-rec-s">—</div></div>
+    <div class="card sc"><div class="sl">ROI</div><div class="sv green" id="h-roi">—%</div><div class="ss" id="h-wgd-s">$— wagered</div></div>
   </div>
 
-  <!-- DRAWDOWN -->
   <div class="card mb">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--sp2)">
       <span class="card-title" style="margin:0">Current Drawdown</span>
-      <span class="mono" id="dd-pct" style="font-size:17px;font-weight:700">—%</span>
+      <span class="mono" id="dd-pct" style="font-size:18px;font-weight:700">—%</span>
     </div>
     <div class="dd-wrap">
       <div class="dd-bar" id="dd-bar" style="width:0%"></div>
-      <div class="dd-m dd-m10" title="10% alert"></div>
+      <div class="dd-m dd-m10" title="10% threshold"></div>
       <div class="dd-m dd-m15" title="15% pause"></div>
     </div>
-    <div style="display:flex;font-size:10px;color:var(--muted);margin-top:.2rem;gap:0">
-      <span>0%</span>
-      <span style="margin-left:calc(10% - 6px)">10%</span>
-      <span style="margin-left:calc(5% - 8px)">15%</span>
-      <span style="margin-left:auto">20%+</span>
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t3);margin-top:var(--sp1)">
+      <span>0%</span><span style="margin-left:calc(50% - 12px)">10%</span><span style="margin-left:calc(25% - 12px)">15%</span><span>20%+</span>
     </div>
   </div>
 
-  <!-- BR CHART -->
   <div class="card mb">
     <div class="card-title">Bankroll — Last 30 Bets</div>
     <div class="ch"><canvas id="chart-br"></canvas></div>
   </div>
 
-  <!-- BEST BET -->
   <div class="card mb" id="bb-card">
-    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.6rem">
-      <span style="color:var(--amber)">⭐</span>
+    <div style="display:flex;align-items:center;gap:var(--sp2);margin-bottom:var(--sp3)">
+      <span style="color:var(--amber);font-size:13px">★</span>
       <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--amber)">Best Bet Today</span>
       <span id="bb-conv" class="conv cH" style="margin-left:auto"></span>
     </div>
     <div id="bb-body"><div class="loading">No picks yet</div></div>
   </div>
 
-  <!-- QUICK STATS -->
   <div class="g4">
     <div class="card sc"><div class="sl">Total Bets</div><div class="sv mono" id="qs-tot">—</div></div>
     <div class="card sc"><div class="sl">Current Streak</div><div class="sv" id="qs-str">—</div></div>
@@ -332,7 +374,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,
   </div>
 </div>
 
-<!-- PICKS -->
+<!-- ── PICKS ────────────────────────────────────────────────────────────────── -->
 <div class="tab-pane" id="tab-picks">
   <div class="sec-hdr">
     <div class="sec-title" id="picks-title">Today's Picks</div>
@@ -350,26 +392,26 @@ body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,
   </div>
 </div>
 
-<!-- BETS -->
+<!-- ── BETS ─────────────────────────────────────────────────────────────────── -->
 <div class="tab-pane" id="tab-bets">
   <div class="sec-hdr">
     <div class="sec-title">Open Bets <span id="open-cnt" class="cnt">0</span></div>
   </div>
   <div id="open-list"><div class="card"><div class="loading">Loading…</div></div></div>
 
-  <div class="sec-hdr" style="margin-top:1.25rem">
+  <div class="sec-hdr" style="margin-top:var(--sp5)">
     <div class="sec-title">Today's Results <span id="today-cnt" class="cnt">0</span></div>
     <div class="mono" id="today-pnl-r" style="font-size:13px;font-weight:700">—</div>
   </div>
   <div class="card" id="today-res"><div class="loading">No results yet</div></div>
 
-  <div class="sec-hdr" style="margin-top:1.25rem">
+  <div class="sec-hdr" style="margin-top:var(--sp5)">
     <div class="sec-title">All Open Positions <span id="all-open-cnt" class="cnt">0</span></div>
   </div>
   <div class="card" id="all-pend"><div class="loading">—</div></div>
 </div>
 
-<!-- PROPS -->
+<!-- ── PROPS ─────────────────────────────────────────────────────────────────── -->
 <div class="tab-pane" id="tab-props">
   <div class="card mb" id="prop-parlay"><div class="loading">Loading props…</div></div>
   <div class="sec-hdr">
@@ -382,7 +424,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,
   <div class="g2" id="prop-flips"><div class="card" style="grid-column:1/-1"><div class="loading">—</div></div></div>
 </div>
 
-<!-- STATS -->
+<!-- ── STATS ─────────────────────────────────────────────────────────────────── -->
 <div class="tab-pane" id="tab-stats">
   <div class="card mb" id="st-overall"><div class="loading">Loading…</div></div>
   <div class="card mb">
@@ -404,13 +446,13 @@ body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,
   </div>
 </div>
 
-<!-- CLV -->
+<!-- ── CLV ───────────────────────────────────────────────────────────────────── -->
 <div class="tab-pane" id="tab-clv">
   <div class="g4 mb">
     <div class="card sc">
       <div class="sl">Avg CLV</div>
       <div class="sv" id="clv-avg">—</div>
-      <div id="clv-status" style="margin-top:.3rem"></div>
+      <div id="clv-status" style="margin-top:var(--sp2)"></div>
     </div>
     <div class="card sc"><div class="sl">Bets w/ CLV</div><div class="sv mono" id="clv-tot">—</div></div>
     <div class="card sc"><div class="sl">Positive CLV</div><div class="sv green" id="clv-pos">—</div></div>
@@ -418,7 +460,7 @@ body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,
   </div>
   <div class="card mb">
     <div class="card-title">CLV Breakdown by Bet Type</div>
-    <div id="clv-by-type" style="display:flex;flex-wrap:wrap;gap:.65rem"></div>
+    <div id="clv-by-type" style="display:flex;flex-wrap:wrap;gap:var(--sp3)"></div>
   </div>
   <div class="card mb">
     <div class="card-title">CLV Per Bet</div>
@@ -450,6 +492,32 @@ body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,
 
 </div><!-- /content -->
 
+<!-- MOBILE BOTTOM NAV -->
+<nav id="mob-nav">
+  <div class="mob-nav-inner">
+    <button class="mob-tab tab-btn active" data-tab="home"  onclick="tab('home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg>
+      Home
+    </button>
+    <button class="mob-tab tab-btn" data-tab="picks" onclick="tab('picks')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      Picks
+    </button>
+    <button class="mob-tab tab-btn" data-tab="bets" onclick="tab('bets')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+      Bets
+    </button>
+    <button class="mob-tab tab-btn" data-tab="props" onclick="tab('props')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      Props
+    </button>
+    <button class="mob-tab tab-btn" data-tab="stats" onclick="tab('stats')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+      Stats
+    </button>
+  </div>
+</nav>
+
 <script>
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const S = {};
@@ -466,7 +534,7 @@ async function api(path, opts){
 }
 function fmtMoney(v){ return v==null?'—':'$'+Math.abs(v).toFixed(2) }
 function pnlStr(v){ if(v==null) return '—'; return (v>=0?'+$':'-$')+Math.abs(v).toFixed(2) }
-function colPnl(v){ return v==null?'var(--muted)':v>0?'var(--green)':v<0?'var(--red)':'var(--muted)' }
+function colPnl(v){ return v==null?'var(--t3)':v>0?'var(--green)':v<0?'var(--red)':'var(--t3)' }
 function fmtOdds(v){ if(!v&&v!==0) return '—'; const s=String(v); return (s.startsWith('-')||s.startsWith('+'))?s:(parseInt(s)>0?'+'+s:s) }
 function fmtDate(d){ if(!d) return '—'; const [,m,dy]=d.split('-'); const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return mn[parseInt(m)-1]+' '+parseInt(dy) }
 function cvClass(c){ const m={HIGH:'cH',MEDIUM:'cM'}; return 'conv '+(m[(c||'').toUpperCase()]||'cX') }
@@ -505,9 +573,9 @@ function tab(id){
   $$('.tab-pane').forEach(p=>p.classList.remove('active'));
   $$('.tab-btn').forEach(b=>b.classList.remove('active'));
   const pane=gid('tab-'+id); if(pane) pane.classList.add('active');
-  const btn=document.querySelector(`[data-tab="${id}"]`); if(btn) btn.classList.add('active');
+  document.querySelectorAll(`[data-tab="${id}"]`).forEach(b=>b.classList.add('active'));
   sessionStorage.setItem('posTab',id);
-  if(id==='home'&&S.br) { drawBR(); }
+  if(id==='home'&&S.br) drawBR();
   if(id==='clv'&&S.clv) renderCLV();
   if(id==='stats'&&S.rec) renderStats();
 }
@@ -526,7 +594,6 @@ async function load(){
   ]);
   S.br=br; S.sum=sum; S.rec=rec; S.scout=scout;
   S.live=live||[]; S.props=props; S.clv=clv||[];
-
   renderHeader();
   renderHome();
   renderPicks();
@@ -576,7 +643,6 @@ function renderHome(){
     gid('h-act-s').textContent=(br.pending_count||0)+' active bets';
     gid('qs-pk').textContent='$'+(br.peak||0).toFixed(2);
     gid('qs-tot').textContent=br.total_bets||0;
-    // Drawdown
     const dd=br.drawdown_pct||0;
     const dEl=gid('dd-pct');
     dEl.textContent=dd.toFixed(1)+'%';
@@ -623,14 +689,14 @@ function renderBestBet(){
   const era=b.sp_era!=null?' '+parseFloat(b.sp_era).toFixed(2)+' ERA':'';
   el.innerHTML=`
     <div class="mono" style="font-size:26px;font-weight:700">${b.team||'—'}</div>
-    <div style="font-size:11px;color:var(--muted);margin:.2rem 0 .6rem">${b.game||'—'}</div>
+    <div style="font-size:11px;color:var(--t2);margin:.2rem 0 .6rem">${b.game||'—'}</div>
     <div style="display:flex;gap:1.5rem;flex-wrap:wrap;font-size:12px">
-      <span><div class="mono cyan" style="font-size:16px;font-weight:700">${fmtOdds(b.odds)}</div><div class="muted" style="font-size:9px">ODDS</div></span>
-      <span><div class="mono cyan" style="font-size:16px;font-weight:700">${b.edge_pct!=null&&b.edge_pct!==5.0?'+'+b.edge_pct.toFixed(1)+'%':'N/A'}</div><div class="muted" style="font-size:9px">EDGE</div></span>
-      <span><div class="mono" style="font-size:16px;font-weight:700">${b.confidence_score!=null?b.confidence_score:'—'}<span class="muted">/100</span></div><div class="muted" style="font-size:9px">CONF</div></span>
-      <span><div class="mono" style="font-size:14px;font-weight:600">${b.sp||'—'}</div><div class="muted" style="font-size:9px">${era||'SP'}</div></span>
+      <span><div class="mono cyan" style="font-size:16px;font-weight:700">${fmtOdds(b.odds)}</div><div style="font-size:9px;color:var(--t3)">ODDS</div></span>
+      <span><div class="mono cyan" style="font-size:16px;font-weight:700">${b.edge_pct!=null&&b.edge_pct!==5.0?'+'+b.edge_pct.toFixed(1)+'%':'N/A'}</div><div style="font-size:9px;color:var(--t3)">EDGE</div></span>
+      <span><div class="mono" style="font-size:16px;font-weight:700">${b.confidence_score!=null?b.confidence_score:'—'}<span style="color:var(--t3)">/100</span></div><div style="font-size:9px;color:var(--t3)">CONF</div></span>
+      <span><div class="mono" style="font-size:14px;font-weight:600">${b.sp||'—'}</div><div style="font-size:9px;color:var(--t3)">${era||'SP'}</div></span>
     </div>
-    <div style="font-size:11px;color:var(--muted);line-height:1.55;margin-top:.65rem;padding-top:.65rem;border-top:1px solid var(--border)">${buildReason(b)}</div>
+    <div style="font-size:11px;color:var(--t2);line-height:1.65;margin-top:.65rem;padding-top:.65rem;border-top:1px solid var(--border)">${buildReason(b)}</div>
   `;
 }
 
@@ -652,7 +718,7 @@ function drawBR(){
   const labels=sl.map((h,i)=>i===0?'Start':(h.date?fmtDate(h.date):'#'+i));
   const data=sl.map(h=>h.bank);
   const pts=sl.map(h=>h.res==='L'?5:2);
-  const ptc=sl.map(h=>h.res==='L'?'#ff4444':h.res==='W'?'rgba(0,212,255,0.7)':'rgba(0,212,255,0.4)');
+  const ptc=sl.map(h=>h.res==='L'?'#f87171':h.res==='W'?'rgba(34,211,238,0.7)':'rgba(34,211,238,0.3)');
   const refData=sl.map(()=>start);
   if(_brChart){_brChart.destroy();_brChart=null;}
   _brChart=new Chart(canvas,{
@@ -660,16 +726,16 @@ function drawBR(){
     data:{
       labels,
       datasets:[
-        {data,borderColor:'#00d4ff',backgroundColor:'rgba(0,212,255,0.06)',fill:true,tension:0.3,pointRadius:pts,pointBackgroundColor:ptc,pointBorderColor:ptc,borderWidth:2,label:'Bankroll'},
-        {data:refData,borderColor:'rgba(255,255,255,0.12)',borderDash:[4,4],borderWidth:1,pointRadius:0,fill:false,label:'Start'}
+        {data,borderColor:'#22d3ee',backgroundColor:'rgba(34,211,238,0.05)',fill:true,tension:0.3,pointRadius:pts,pointBackgroundColor:ptc,pointBorderColor:ptc,borderWidth:2,label:'Bankroll'},
+        {data:refData,borderColor:'rgba(255,255,255,0.1)',borderDash:[4,4],borderWidth:1,pointRadius:0,fill:false,label:'Start'}
       ]
     },
     options:{
       responsive:true,maintainAspectRatio:false,animation:{duration:400},
       plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.datasetIndex===1?null:'$'+ctx.raw.toFixed(2)}}},
       scales:{
-        x:{ticks:{color:'#8b949e',font:{size:9},maxTicksLimit:8},grid:{color:'rgba(33,38,45,.5)'}},
-        y:{ticks:{color:'#8b949e',font:{family:"'JetBrains Mono',monospace",size:9},callback:v=>'$'+v.toFixed(0)},grid:{color:'rgba(33,38,45,.5)'}}
+        x:{ticks:{color:'#71717a',font:{size:9},maxTicksLimit:8},grid:{color:'rgba(44,44,50,.5)'}},
+        y:{ticks:{color:'#71717a',font:{family:"'JetBrains Mono',monospace",size:9},callback:v=>'$'+v.toFixed(0)},grid:{color:'rgba(44,44,50,.5)'}}
       }
     }
   });
@@ -687,7 +753,7 @@ function renderPicks(){
     grid.innerHTML='<div class="card" style="grid-column:1/-1"><div class="loading">'+(scout?.message||'Scout hasn\'t run today yet — check back after 1pm ET')+'</div></div>';
     return;
   }
-  const bets=[...( scout.bets||[])].sort((a,b)=>(b.edge_pct||0)-(a.edge_pct||0));
+  const bets=[...(scout.bets||[])].sort((a,b)=>(b.edge_pct||0)-(a.edge_pct||0));
   const openB=(S.br?.bets||[]).filter(b=>!b.result);
   gid('picks-title').textContent=bets.length+' Pick'+(bets.length!==1?'s':'')+' — '+ds;
   grid.innerHTML=bets.map((b,i)=>{
@@ -696,15 +762,18 @@ function renderPicks(){
     const toWin=b.stake&&b.odds?((decOdds(String(b.odds))-1)*parseFloat(b.stake)).toFixed(2):'—';
     const era=b.sp_era!=null?' '+parseFloat(b.sp_era).toFixed(2)+' ERA':'';
     const xfip=b.sp_xfip!=null?parseFloat(b.sp_xfip).toFixed(2)+' xFIP':'—';
+    const edgePct=b.edge_pct!=null&&b.edge_pct!==5.0?b.edge_pct:0;
+    const edgeBarW=Math.min(edgePct/20*100,100);
     return `<div class="card pc" id="pc-${i}">
-      ${isBest?'<div class="star">⭐ BEST BET</div>':''}
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div><span class="${cvClass(b.conviction)}">${cvLabel(b.conviction)}</span></div>
-        <div class="mono muted" style="font-size:11px">${b.confidence_score!=null?'<span class="cyan" style="font-weight:700">'+b.confidence_score+'</span>/100':''}</div>
+      ${isBest?'<div class="star">★ BEST BET</div>':''}
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--sp2)">
+        <span class="${cvClass(b.conviction)}">${cvLabel(b.conviction)}</span>
+        <span class="mono" style="font-size:11px;color:var(--t3)">${b.confidence_score!=null?'<span class="cyan" style="font-weight:700">'+b.confidence_score+'</span>/100':''}</span>
       </div>
       <div class="pc-team">${b.team||'—'}</div>
       <div class="pc-vs">${b.game||'—'}</div>
       <div class="pc-odds">${fmtOdds(b.odds)}</div>
+      <div class="pc-edge-bar"><div class="pc-edge-fill" style="width:${edgeBarW}%"></div></div>
       <div class="pc-dg">
         <span class="dl">SP</span><span class="dv">${(b.sp||'—')+era}</span>
         <span class="dl">xFIP</span><span class="dv">${xfip}</span>
@@ -716,14 +785,13 @@ function renderPicks(){
         <span class="dl">Market</span><span class="dv">${b.market_prob!=null?(b.market_prob*100).toFixed(1)+'%':'—'}</span>
       </div>
       <div class="pc-er">
-        <div><span class="pc-edge">${b.edge_pct!=null&&b.edge_pct!==5.0?'+'+b.edge_pct.toFixed(1)+'%':'N/A'}</span><span class="muted" style="font-size:10px;margin-left:.2rem">EDGE</span></div>
-        <div class="pc-si"><div class="sv">$${b.stake!=null?parseFloat(b.stake).toFixed(2):'—'} stake</div><div class="muted">to win $${toWin}</div></div>
+        <div><span class="pc-edge">${edgePct>0?'+'+edgePct.toFixed(1)+'%':'N/A'}</span><span style="font-size:10px;color:var(--t3);margin-left:4px">EDGE</span></div>
+        <div class="pc-si"><div class="sv">$${b.stake!=null?parseFloat(b.stake).toFixed(2):'—'} stake</div><div style="color:var(--t3)">to win $${toWin}</div></div>
       </div>
       <div class="pc-reason">${buildReason(b)}</div>
       <button class="pc-btn ${placed?'btn-placed':'btn-place'}" onclick="placeBet(${i})">${placed?'✓ BET PLACED — OPEN IN BETS TAB':'+ PLACE BET'}</button>
     </div>`;
   }).join('');
-  // Pass games
   const games=scout.games||[];
   const passg=games.filter(g=>!bets.some(b=>b.game&&g.away&&b.game.includes(g.away)&&b.game.includes(g.home||'')));
   if(passg.length){
@@ -771,7 +839,6 @@ function renderBets(){
   const tpr=gid('today-pnl-r');
   tpr.textContent=pnlStr(p); tpr.style.color=colPnl(p);
 
-  // Open bets
   const ol=gid('open-list');
   if(!open.length){ ol.innerHTML='<div class="card"><div class="loading">No open bets</div></div>'; }
   else {
@@ -780,7 +847,7 @@ function renderBets(){
       return `<div class="card bc" id="bc-${b.id}">
         <div class="bc-hdr">
           <div>
-            <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.25rem">
+            <div style="display:flex;align-items:center;gap:var(--sp2);margin-bottom:var(--sp1)">
               <span class="bc-team">${b.bet||'—'}</span>
               <span class="${cvClass(b.conviction)}">${cvLabel(b.conviction)}</span>
             </div>
@@ -804,7 +871,6 @@ function renderBets(){
     }).join('');
   }
 
-  // Today's results
   const tr=gid('today-res');
   if(!todaySet.length){ tr.innerHTML='<div class="loading">No settled bets today</div>'; }
   else {
@@ -812,24 +878,23 @@ function renderBets(){
       const betPnl=calcPnl(b);
       return `<div class="rrow">
         <div class="mono" style="font-size:13px;font-weight:700;min-width:75px">${b.bet||'—'}</div>
-        <div class="mono muted" style="font-size:11px;min-width:55px">${fmtOdds(b.bet_odds)}</div>
-        <div class="mono muted" style="font-size:11px;min-width:65px">$${parseFloat(b.stake||0).toFixed(2)}</div>
+        <div class="mono" style="font-size:11px;color:var(--t3);min-width:55px">${fmtOdds(b.bet_odds)}</div>
+        <div class="mono" style="font-size:11px;color:var(--t3);min-width:65px">$${parseFloat(b.stake||0).toFixed(2)}</div>
         <div class="mono" style="font-size:12px;font-weight:700;color:${colPnl(betPnl)}">${pnlStr(betPnl)}</div>
         <div style="margin-left:auto"><span class="rp r${b.result}">${b.result==='W'?'WIN':b.result==='L'?'LOSS':'PUSH'}</span></div>
       </div>`;
     }).join('');
   }
 
-  // All pending compact
   const ap=gid('all-pend');
   if(!allPend.length){ ap.innerHTML='<div class="loading">No pending bets</div>'; }
   else {
     ap.innerHTML=allPend.map(b=>
       `<div class="rrow">
         <div class="mono" style="font-size:13px;font-weight:700;min-width:75px">${b.bet||'—'}</div>
-        <div class="mono muted" style="font-size:11px;min-width:55px">${fmtOdds(b.bet_odds)}</div>
-        <div class="mono muted" style="font-size:11px;min-width:65px">$${parseFloat(b.stake||0).toFixed(2)}</div>
-        <div class="mono muted" style="font-size:11px">to win $${((decOdds(b.bet_odds)-1)*parseFloat(b.stake||0)).toFixed(2)}</div>
+        <div class="mono" style="font-size:11px;color:var(--t3);min-width:55px">${fmtOdds(b.bet_odds)}</div>
+        <div class="mono" style="font-size:11px;color:var(--t3);min-width:65px">$${parseFloat(b.stake||0).toFixed(2)}</div>
+        <div class="mono" style="font-size:11px;color:var(--t3)">to win $${((decOdds(b.bet_odds)-1)*parseFloat(b.stake||0)).toFixed(2)}</div>
       </div>`
     ).join('');
   }
@@ -870,31 +935,28 @@ function renderProps(){
   }
   const locks=all.filter(p=>(p.edge_pct||0)>=10).sort((a,b)=>(b.edge_pct||0)-(a.edge_pct||0));
   const flips=all.filter(p=>(p.edge_pct||0)>=5&&(p.edge_pct||0)<10).sort((a,b)=>(b.edge_pct||0)-(a.edge_pct||0));
-
-  // Parlay
   const legs=locks.slice(0,3);
   if(legs.length>=2){
     const dec=legs.reduce((acc,p)=>acc*decOdds(String(p.odds||'-110')),1);
     const co=dec>=2?'+'+Math.round((dec-1)*100):'-'+Math.round(100/(dec-1));
     const toWin=((dec-1)*10).toFixed(2);
     parlayEl.innerHTML=`
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--sp3)">
         <div>
-          <div class="card-title" style="margin-bottom:.2rem">Props Parlay — ${legs.length} Legs</div>
+          <div class="card-title" style="margin-bottom:var(--sp1)">Props Parlay — ${legs.length} Legs</div>
           <div class="mono green" style="font-size:26px;font-weight:700">${co}</div>
         </div>
         <div style="text-align:right">
-          <div class="muted" style="font-size:11px">Stake $10.00</div>
+          <div style="font-size:11px;color:var(--t3)">Stake $10.00</div>
           <div class="mono cyan" style="font-size:15px;font-weight:700">To Win $${toWin}</div>
         </div>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.65rem">
-        ${legs.map(p=>`<span style="background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.18);border-radius:12px;padding:2px 9px;font-size:10px;font-family:var(--mono)">${p.player||p.team||'?'} ${p.stat||''}${p.line!=null?' '+p.line:''}</span>`).join('')}
+      <div style="display:flex;flex-wrap:wrap;gap:var(--sp2);margin-top:var(--sp3)">
+        ${legs.map(p=>`<span style="background:var(--cyan-dim);border:1px solid rgba(34,211,238,.18);border-radius:12px;padding:3px 10px;font-size:10px;font-family:var(--mono)">${p.player||p.team||'?'} ${p.stat||''}${p.line!=null?' '+p.line:''}</span>`).join('')}
       </div>`;
   } else {
     parlayEl.innerHTML='<div class="loading">Not enough locks for a parlay (need 2+)</div>';
   }
-
   const pCard=p=>`<div class="card prop-card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start">
       <div><div class="pp">${p.player||p.team||'—'}</div><div class="pt">${p._g||''}</div></div>
@@ -902,16 +964,15 @@ function renderProps(){
     </div>
     <div class="pstat">${p.stat||''} ${p.line!=null?(p.direction||'')+' '+p.line:''}</div>
     <div class="ppcts">
-      <span><div class="muted" style="font-size:9px">MODEL</div><div class="mono cyan" style="font-size:13px;font-weight:700">${p.model_prob!=null?(p.model_prob*100).toFixed(1)+'%':'—'}</div></span>
-      <span><div class="muted" style="font-size:9px">IMPLIED</div><div class="mono muted" style="font-size:13px">${p.market_prob!=null?(p.market_prob*100).toFixed(1)+'%':'—'}</div></span>
-      <span><div class="muted" style="font-size:9px">EDGE</div><div class="mono green" style="font-size:13px;font-weight:700">${p.edge_pct!=null?'+'+p.edge_pct.toFixed(1)+'%':'—'}</div></span>
+      <span><div style="font-size:9px;color:var(--t3)">MODEL</div><div class="mono cyan" style="font-size:13px;font-weight:700">${p.model_prob!=null?(p.model_prob*100).toFixed(1)+'%':'—'}</div></span>
+      <span><div style="font-size:9px;color:var(--t3)">IMPLIED</div><div class="mono" style="font-size:13px;color:var(--t2)">${p.market_prob!=null?(p.market_prob*100).toFixed(1)+'%':'—'}</div></span>
+      <span><div style="font-size:9px;color:var(--t3)">EDGE</div><div class="mono green" style="font-size:13px;font-weight:700">${p.edge_pct!=null?'+'+p.edge_pct.toFixed(1)+'%':'—'}</div></span>
     </div>
-    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:.4rem">
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-top:var(--sp2)">
       <span class="mono">$${p.stake!=null?parseFloat(p.stake).toFixed(2):'—'}</span>
       <span class="mono">#${p.id||'—'}</span>
     </div>
   </div>`;
-
   locksEl.innerHTML=locks.length?locks.map(pCard).join(''):'<div class="card" style="grid-column:1/-1"><div class="loading">No locks today</div></div>';
   flipsEl.innerHTML=flips.length?flips.map(pCard).join(''):'<div class="card" style="grid-column:1/-1"><div class="loading">No coin flips today</div></div>';
 }
@@ -925,32 +986,28 @@ function renderStats(){
   gid('st-overall').innerHTML=`
     <div style="display:flex;flex-wrap:wrap;gap:1.5rem;align-items:center">
       <div>
-        <div class="muted" style="font-size:9px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:.2rem">Record</div>
-        <div class="mono" style="font-size:32px;font-weight:700">${rec.wins}<span class="muted">-</span>${rec.losses}<span class="muted">-</span>${rec.pushes}</div>
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--t3);margin-bottom:var(--sp1)">Record</div>
+        <div class="mono" style="font-size:32px;font-weight:700">${rec.wins}<span style="color:var(--t3)">-</span>${rec.losses}<span style="color:var(--t3)">-</span>${rec.pushes}</div>
       </div>
       <div class="sc"><div class="sl">Win Rate</div><div class="sv cyan">${wr!=null?wr.toFixed(1)+'%':'—'}</div></div>
       <div class="sc"><div class="sl">ROI</div><div class="sv" style="color:${roi>=0?'var(--green)':'var(--red)'}">${roi!=null?(roi>=0?'+':'')+roi.toFixed(1)+'%':'—'}</div></div>
       <div class="sc"><div class="sl">Total P&amp;L</div><div class="sv" style="color:${colPnl(tot)}">${pnlStr(tot)}</div></div>
     </div>`;
-
-  // Conviction
   const byConv=rec.by_conviction||{};
   const convEl=gid('st-conv');
   if(Object.keys(byConv).length){
     convEl.innerHTML=Object.entries(byConv).map(([c,d])=>{
-      const bc=c==='HIGH'?'var(--cyan)':c==='MEDIUM'?'var(--amber)':'var(--muted)';
+      const bc=c==='HIGH'?'var(--cyan)':c==='MEDIUM'?'var(--amber)':'var(--t3)';
       const w2=d.win_rate||0;
-      return `<div style="margin-bottom:.65rem">
-        <div style="display:flex;justify-content:space-between;margin-bottom:.2rem">
-          <span><span class="${cvClass(c)}">${c}</span> <span class="muted" style="font-size:11px">${d.wins}-${d.losses}</span></span>
+      return `<div style="margin-bottom:var(--sp3)">
+        <div style="display:flex;justify-content:space-between;margin-bottom:var(--sp1)">
+          <span><span class="${cvClass(c)}">${c}</span> <span style="font-size:11px;color:var(--t3)">${d.wins}-${d.losses}</span></span>
           <span class="mono" style="font-weight:700;color:${bc}">${w2.toFixed(1)}%</span>
         </div>
         <div class="pb"><div class="pf" style="width:${w2}%;background:${bc}"></div></div>
       </div>`;
     }).join('');
   } else { convEl.innerHTML='<div class="loading">No data yet</div>'; }
-
-  // Journey
   gid('j-start').textContent='$'+(br?.starting||STARTING).toFixed(2);
   if(br){
     const pg=br.starting>0?((br.peak-br.starting)/br.starting*100):0;
@@ -961,23 +1018,15 @@ function renderStats(){
     gid('j-cur').style.color=cg>=0?'var(--green)':'var(--red)';
     gid('j-cur-g').textContent=(cg>=0?'+':'')+cg.toFixed(1)+'%';
   }
-
-  // Best / Worst — from API profit column
   const best=rec.best_bet, worst=rec.worst_bet;
-  if(best){
-    gid('st-best').innerHTML=`<div class="card-title">Best Bet Ever</div>
-      <div class="mono" style="font-size:20px;font-weight:700">${best.bet||'—'}</div>
-      <div class="muted" style="font-size:11px;margin:.2rem 0">${fmtDate(best.date)} · ${best.game||'—'}</div>
-      <div class="mono green" style="font-size:22px;font-weight:700;margin-top:.3rem">+$${(best.profit||0).toFixed(2)}</div>`;
-  }
-  if(worst){
-    gid('st-worst').innerHTML=`<div class="card-title">Worst Bet Ever</div>
-      <div class="mono" style="font-size:20px;font-weight:700">${worst.bet||'—'}</div>
-      <div class="muted" style="font-size:11px;margin:.2rem 0">${fmtDate(worst.date)} · ${worst.game||'—'}</div>
-      <div class="mono red" style="font-size:22px;font-weight:700;margin-top:.3rem">-$${Math.abs(worst.profit||0).toFixed(2)}</div>`;
-  }
-
-  // Monthly table
+  if(best) gid('st-best').innerHTML=`<div class="card-title">Best Bet Ever</div>
+    <div class="mono" style="font-size:20px;font-weight:700">${best.bet||'—'}</div>
+    <div style="font-size:11px;color:var(--t2);margin:var(--sp1) 0">${fmtDate(best.date)} · ${best.game||'—'}</div>
+    <div class="mono green" style="font-size:22px;font-weight:700;margin-top:var(--sp2)">+$${(best.profit||0).toFixed(2)}</div>`;
+  if(worst) gid('st-worst').innerHTML=`<div class="card-title">Worst Bet Ever</div>
+    <div class="mono" style="font-size:20px;font-weight:700">${worst.bet||'—'}</div>
+    <div style="font-size:11px;color:var(--t2);margin:var(--sp1) 0">${fmtDate(worst.date)} · ${worst.game||'—'}</div>
+    <div class="mono red" style="font-size:22px;font-weight:700;margin-top:var(--sp2)">-$${Math.abs(worst.profit||0).toFixed(2)}</div>`;
   const bm=rec.by_month||{};
   const mo=Object.keys(bm).sort().reverse();
   const mtEl=gid('st-monthly');
@@ -1000,39 +1049,31 @@ function renderCLV(){
   const pos=wc.filter(e=>e.clv_pct>0);
   const neg=wc.filter(e=>e.clv_pct<0);
   const avg=wc.length?wc.reduce((a,b)=>a+b.clv_pct,0)/wc.length:null;
-
   const aEl=gid('clv-avg');
   aEl.textContent=avg!=null?(avg>=0?'+':'')+avg.toFixed(2)+'%':'—';
-  aEl.style.color=avg>0?'var(--green)':avg<0?'var(--red)':'var(--muted)';
-
+  aEl.style.color=avg>0?'var(--green)':avg<0?'var(--red)':'var(--t3)';
   const sEl=gid('clv-status');
-  if(avg>2) sEl.innerHTML='<span style="background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.25);border-radius:10px;padding:2px 7px;font-size:10px;font-weight:700;color:var(--green)">POSITIVE</span>';
-  else if(avg>0) sEl.innerHTML='<span style="background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);border-radius:10px;padding:2px 7px;font-size:10px;font-weight:700;color:var(--cyan)">BUILDING</span>';
-  else sEl.innerHTML='<span style="background:rgba(255,68,68,.08);border:1px solid rgba(255,68,68,.2);border-radius:10px;padding:2px 7px;font-size:10px;font-weight:700;color:var(--red)">NEGATIVE</span>';
-
+  if(avg>2) sEl.innerHTML='<span style="background:var(--green-dim);border:1px solid rgba(74,222,128,.25);border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700;color:var(--green)">POSITIVE</span>';
+  else if(avg>0) sEl.innerHTML='<span style="background:var(--cyan-dim);border:1px solid rgba(34,211,238,.2);border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700;color:var(--cyan)">BUILDING</span>';
+  else sEl.innerHTML='<span style="background:var(--red-dim);border:1px solid rgba(248,113,113,.2);border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700;color:var(--red)">NEGATIVE</span>';
   gid('clv-tot').textContent=wc.length;
   gid('clv-pos').textContent=pos.length;
   gid('clv-neg').textContent=neg.length;
-
-  // By type
   const byT={};
   for(const e of wc){ const t=(e.type||'ML').toUpperCase(); if(!byT[t]){byT[t]={n:0,s:0};} byT[t].n++;byT[t].s+=e.clv_pct; }
   const btEl=gid('clv-by-type');
   if(Object.keys(byT).length){
     btEl.innerHTML=Object.entries(byT).map(([t,d])=>{
       const a=d.s/d.n;
-      return `<div class="card" style="min-width:120px;padding:.7rem">
-        <div class="mono" style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted)">${t}</div>
+      return `<div class="card" style="min-width:120px;padding:var(--sp3)">
+        <div class="mono" style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--t3)">${t}</div>
         <div class="mono" style="font-size:18px;font-weight:700;color:${a>=0?'var(--green)':'var(--red)'}">${a>=0?'+':''}${a.toFixed(2)}%</div>
-        <div style="font-size:10px;color:var(--muted)">${d.n} bets</div>
+        <div style="font-size:10px;color:var(--t3)">${d.n} bets</div>
       </div>`;
     }).join('');
-  } else { btEl.innerHTML='<span class="muted" style="font-size:12px">No CLV data yet</span>'; }
-
+  } else { btEl.innerHTML='<span style="font-size:12px;color:var(--t3)">No CLV data yet</span>'; }
   drawCLVScatter(wc);
   drawCLVLine(wc);
-
-  // Table uses br.bets joined with clv_log
   const allBets=(S.br?.bets||[]).map(b=>{
     const ce=(S.clv||[]).find(e=>e.bet_id===b.id||(e.bet===b.bet&&e.date===b.date));
     return{...b,_clv:b.clv_pct||ce?.clv_pct,_close:ce?.closing_odds};
@@ -1046,12 +1087,12 @@ function drawCLVScatter(data){
   if(!data.length) return;
   _scChart=new Chart(canvas,{type:'scatter',
     data:{datasets:[{label:'CLV',data:data.map((e,i)=>({x:i+1,y:e.clv_pct})),
-      backgroundColor:data.map(e=>e.clv_pct>=0?'rgba(0,255,136,0.7)':'rgba(255,68,68,0.7)'),pointRadius:5}]},
+      backgroundColor:data.map(e=>e.clv_pct>=0?'rgba(74,222,128,0.7)':'rgba(248,113,113,0.7)'),pointRadius:5}]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'#'+ctx.raw.x+': '+(ctx.raw.y>=0?'+':'')+ctx.raw.y.toFixed(2)+'%'}}},
       scales:{
-        x:{ticks:{color:'#8b949e',font:{size:9}},grid:{color:'rgba(33,38,45,.5)'},title:{display:true,text:'Bet #',color:'#8b949e',font:{size:9}}},
-        y:{ticks:{color:'#8b949e',font:{size:9},callback:v=>v+'%'},grid:{color:'rgba(33,38,45,.5)'}}
+        x:{ticks:{color:'#71717a',font:{size:9}},grid:{color:'rgba(44,44,50,.5)'},title:{display:true,text:'Bet #',color:'#71717a',font:{size:9}}},
+        y:{ticks:{color:'#71717a',font:{size:9},callback:v=>v+'%'},grid:{color:'rgba(44,44,50,.5)'}}
       }}
   });
 }
@@ -1063,19 +1104,19 @@ function drawCLVLine(data){
   let cum=0;
   const pts=data.map((e,i)=>{ cum+=e.clv_pct; return {x:i+1,y:Math.round(cum*100)/100}; });
   _lnChart=new Chart(canvas,{type:'line',
-    data:{labels:pts.map(p=>'#'+p.x),datasets:[{data:pts.map(p=>p.y),borderColor:'#00d4ff',backgroundColor:'rgba(0,212,255,0.07)',fill:true,tension:0.3,pointRadius:2}]},
+    data:{labels:pts.map(p=>'#'+p.x),datasets:[{data:pts.map(p=>p.y),borderColor:'#22d3ee',backgroundColor:'rgba(34,211,238,0.06)',fill:true,tension:0.3,pointRadius:2}]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>(ctx.raw>=0?'+':'')+ctx.raw.toFixed(2)+'%'}}},
       scales:{
-        x:{ticks:{color:'#8b949e',font:{size:9},maxTicksLimit:10},grid:{color:'rgba(33,38,45,.5)'}},
-        y:{ticks:{color:'#8b949e',font:{size:9},callback:v=>v+'%'},grid:{color:'rgba(33,38,45,.5)'}}
+        x:{ticks:{color:'#71717a',font:{size:9},maxTicksLimit:10},grid:{color:'rgba(44,44,50,.5)'}},
+        y:{ticks:{color:'#71717a',font:{size:9},callback:v=>v+'%'},grid:{color:'rgba(44,44,50,.5)'}}
       }}
   });
 }
 
 function renderCLVTable(bets){
   const tbody=gid('clv-tbody');
-  if(!bets||!bets.length){ tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:1.5rem">No bets logged yet</td></tr>'; return; }
+  if(!bets||!bets.length){ tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--t3);padding:1.5rem">No bets logged yet</td></tr>'; return; }
   const sorted=[...bets].sort((a,b)=>{
     let va=a[_sCol]??'', vb=b[_sCol]??'';
     if(_sCol==='_pnl'){ va=calcPnl(a)||0; vb=calcPnl(b)||0; }
@@ -1084,16 +1125,15 @@ function renderCLVTable(bets){
     return _sDir*(Number(va)-Number(vb));
   });
   tbody.innerHTML=sorted.map(b=>{
-    const pnl=calcPnl(b);
-    const clv=b._clv;
+    const pnl=calcPnl(b); const clv=b._clv;
     return `<tr>
-      <td class="mono muted">${b.date||'—'}</td>
+      <td class="mono" style="color:var(--t3)">${b.date||'—'}</td>
       <td class="mono" style="font-weight:700">${b.bet||'—'}</td>
-      <td><span class="rp" style="background:rgba(139,148,158,.1);color:var(--muted)">${b.type||'ML'}</span></td>
+      <td><span class="rp" style="background:rgba(82,82,91,.15);color:var(--t3)">${b.type||'ML'}</span></td>
       <td class="mono">${fmtOdds(b.bet_odds)}</td>
-      <td class="mono muted">${b._close?fmtOdds(b._close):'—'}</td>
-      <td class="mono" style="font-weight:700;color:${clv>=0?'var(--green)':clv<0?'var(--red)':'var(--muted)'}">${clv!=null?(clv>=0?'+':'')+clv.toFixed(2)+'%':'—'}</td>
-      <td>${b.result?`<span class="rp r${b.result}">${b.result==='W'?'WIN':b.result==='L'?'LOSS':'PUSH'}</span>`:'<span class="muted">—</span>'}</td>
+      <td class="mono" style="color:var(--t3)">${b._close?fmtOdds(b._close):'—'}</td>
+      <td class="mono" style="font-weight:700;color:${clv>=0?'var(--green)':clv<0?'var(--red)':'var(--t3)'}">${clv!=null?(clv>=0?'+':'')+clv.toFixed(2)+'%':'—'}</td>
+      <td>${b.result?`<span class="rp r${b.result}">${b.result==='W'?'WIN':b.result==='L'?'LOSS':'PUSH'}</span>`:'<span style="color:var(--t3)">—</span>'}</td>
       <td class="mono" style="color:${colPnl(pnl)}">${b.result?pnlStr(pnl):'—'}</td>
     </tr>`;
   }).join('');
