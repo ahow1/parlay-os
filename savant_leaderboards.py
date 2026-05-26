@@ -48,19 +48,37 @@ def _flt(val: str | None) -> float | None:
         return None
 
 
-def _fetch_csv(url: str, params: dict | None = None) -> list[dict]:
+_SAVANT_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "text/csv,application/csv,*/*",
+    "Referer": "https://baseballsavant.mlb.com",
+}
+
+
+def _fetch_csv(url: str, params: dict | None = None, debug: bool = False) -> list[dict]:
     """Fetch a CSV from Savant; return list of row dicts. Returns [] on error."""
     try:
         r = _http_get(
             url,
             params=params,
             timeout=TIMEOUT,
-            headers={"User-Agent": "Mozilla/5.0 (compatible; ParlayOS/2.0)"},
+            headers=_SAVANT_HEADERS,
             skip_cache=False,
         )
+        if debug:
+            full_url = r.url if hasattr(r, "url") else url
+            print(f"[SAVANT DEBUG] URL: {full_url}")
+            print(f"[SAVANT DEBUG] Status: {r.status_code}")
+            print(f"[SAVANT DEBUG] First 500 chars: {r.text[:500]!r}")
         if r.status_code != 200 or not r.text.strip():
             return []
-        text = r.text.lstrip("﻿")
+        # Block HTML responses (Savant bot-detection redirect)
+        text = r.text.lstrip("﻿").strip()
+        if text.startswith("<"):
+            log.warning(f"[SAVANT] HTML response (blocked) from {url}")
+            if debug:
+                print(f"[SAVANT DEBUG] Got HTML — request is being blocked")
+            return []
         reader = csv.DictReader(io.StringIO(text))
         rows = list(reader)
         return rows
@@ -90,13 +108,13 @@ def _load_xwoba_against() -> dict:
         return _get_cached(_XWOBA_KEY)
     rows = _fetch_csv(
         f"{SAVANT_BASE}/leaderboard/expected_statistics",
-        {"type": "pitcher", "year": CURRENT_YEAR, "min": "q", "csv": "true"},
+        {"type": "pitcher", "year": CURRENT_YEAR, "position": "", "team": "", "min": 25, "csv": "true"},
+        debug=True,
     )
     data: dict[int, float] = {}
     for row in rows:
-        pid = _player_id(row, "pitcher_id", "player_id")
+        pid = _player_id(row, "player_id", "pitcher_id")
         if pid is None:
-            # Try name-based fallback
             for k, v in row.items():
                 if "player_id" in k.lower():
                     try:
@@ -106,8 +124,13 @@ def _load_xwoba_against() -> dict:
                         pass
         if pid is None:
             continue
-        # Savant column is typically "est_woba_against" or "xwoba"
-        val = _flt(row.get("est_woba_against") or row.get("xwoba") or row.get("xwoba_against"))
+        # Savant column: est_woba (xwOBA against from expected_statistics endpoint)
+        val = _flt(
+            row.get("est_woba")
+            or row.get("est_woba_against")
+            or row.get("xwoba")
+            or row.get("xwoba_against")
+        )
         if val is not None:
             data[pid] = val
     _set_cache(_XWOBA_KEY, data)
