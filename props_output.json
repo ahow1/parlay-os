@@ -1,175 +1,7 @@
 {
   "date": "2026-05-25",
-  "timestamp": "2026-05-25T16:06:13.116069-04:00",
+  "timestamp": "2026-05-25T18:59:13.962155-04:00",
   "games": [
-    {
-      "away": "CIN",
-      "home": "NYM",
-      "away_name": "Cincinnati Reds",
-      "home_name": "New York Mets",
-      "time": "4:11 PM ET",
-      "asp": "Nick Lodolo",
-      "hsp": "Nolan McLean",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Nick Lodolo",
-          "sp_side": "away",
-          "model_line": 3.7,
-          "p_over": 0.4989,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Nolan McLean",
-          "sp_side": "home",
-          "model_line": 6.0,
-          "p_over": 0.5356,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.357,
-          "p_yrfi": 0.643,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.84,
-          "market_line": 7.5,
-          "p_over": 0.657,
-          "p_under": 0.343,
-          "recommendation": "OVER 7.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "AZ",
-      "home": "SF",
-      "away_name": "Arizona Diamondbacks",
-      "home_name": "San Francisco Giants",
-      "time": "5:06 PM ET",
-      "asp": "Merrill Kelly",
-      "hsp": "Landen Roupp",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Merrill Kelly",
-          "sp_side": "away",
-          "model_line": 3.3,
-          "p_over": 0.5385,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Landen Roupp",
-          "sp_side": "home",
-          "model_line": 5.5,
-          "p_over": 0.5701,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4189,
-          "p_yrfi": 0.5811,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.35,
-          "market_line": 7.5,
-          "p_over": 0.5953,
-          "p_under": 0.4047,
-          "recommendation": "OVER 7.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "WAS",
-      "home": "CLE",
-      "away_name": "Washington Nationals",
-      "home_name": "Cleveland Guardians",
-      "time": "6:11 PM ET",
-      "asp": "PJ Poulin",
-      "hsp": "Tanner Bibee",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "PJ Poulin",
-          "sp_side": "away",
-          "model_line": 3.7,
-          "p_over": 0.399,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Tanner Bibee",
-          "sp_side": "home",
-          "model_line": 4.3,
-          "p_over": 0.5104,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3695,
-          "p_yrfi": 0.6305,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.96,
-          "market_line": 8.0,
-          "p_over": 0.5387,
-          "p_under": 0.4613,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "PHI",
-      "home": "SD",
-      "away_name": "Philadelphia Phillies",
-      "home_name": "San Diego Padres",
-      "time": "6:41 PM ET",
-      "asp": "Jes\u00fas Luzardo",
-      "hsp": "Griffin Canning",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Jes\u00fas Luzardo",
-          "sp_side": "away",
-          "model_line": 5.9,
-          "p_over": 0.6459,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Griffin Canning",
-          "sp_side": "home",
-          "model_line": 5.9,
-          "p_over": 0.3404,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4909,
-          "p_yrfi": 0.5091,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.34,
-          "market_line": 7.0,
-          "p_over": 0.4518,
-          "p_under": 0.5482,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
     {
       "away": "HOU",
       "home": "TEX",
@@ -239,16 +71,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.5142,
-          "p_yrfi": 0.4858,
+          "p_nrfi": 0.5215,
+          "p_yrfi": 0.4785,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.84,
+          "model_total": 7.75,
           "market_line": 7.5,
-          "p_over": 0.5242,
-          "p_under": 0.4758,
+          "p_over": 0.5112,
+          "p_under": 0.4888,
           "recommendation": "PASS"
         }
       ],
@@ -281,16 +113,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4134,
-          "p_yrfi": 0.5866,
+          "p_nrfi": 0.4095,
+          "p_yrfi": 0.5905,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.63,
+          "model_total": 8.69,
           "market_line": 8.5,
-          "p_over": 0.4947,
-          "p_under": 0.5053,
+          "p_over": 0.5031,
+          "p_under": 0.4969,
           "recommendation": "PASS"
         }
       ],
@@ -323,16 +155,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4047,
-          "p_yrfi": 0.5953,
-          "recommendation": "PASS"
+          "p_nrfi": 0.3742,
+          "p_yrfi": 0.6258,
+          "recommendation": "YRFI"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.79,
+          "model_total": 9.55,
           "market_line": 10.5,
-          "p_over": 0.269,
-          "p_under": 0.731,
+          "p_over": 0.3605,
+          "p_under": 0.6395,
           "recommendation": "UNDER 10.5"
         }
       ],

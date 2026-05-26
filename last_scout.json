@@ -1,149 +1,181 @@
 {
-  "timestamp": "2026-05-25T19:51:00Z",
+  "timestamp": "2026-05-25T22:51:18Z",
   "date": "2026-05-25",
+  "window": "all",
   "bankroll": 416.0,
   "games": [
-    {
-      "away": "CIN",
-      "home": "NYM",
-      "away_model": 0.4578,
-      "home_model": 0.5422,
-      "away_edge": 0.39,
-      "home_edge": -0.39,
-      "away_xr": 3.5,
-      "home_xr": 5.34
-    },
-    {
-      "away": "AZ",
-      "home": "SF",
-      "away_model": 0.4926,
-      "home_model": 0.5074,
-      "away_edge": 3.87,
-      "home_edge": -3.87,
-      "away_xr": 3.5,
-      "home_xr": 4.854
-    },
-    {
-      "away": "WAS",
-      "home": "CLE",
-      "away_model": 0.4574,
-      "home_model": 0.5426,
-      "away_edge": 7.32,
-      "home_edge": -7.32,
-      "away_xr": 4.087,
-      "home_xr": 4.87
-    },
-    {
-      "away": "PHI",
-      "home": "SD",
-      "away_model": 0.5614,
-      "home_model": 0.4386,
-      "away_edge": 3.74,
-      "home_edge": -3.74,
-      "away_xr": 3.84,
-      "home_xr": 3.5
-    },
     {
       "away": "HOU",
       "home": "TEX",
       "away_model": 0.4763,
       "home_model": 0.5238,
-      "away_edge": 0.03,
-      "home_edge": -0.02,
+      "away_edge": -0.52,
+      "home_edge": 0.53,
       "away_xr": 3.995,
       "home_xr": 5.19
     },
     {
       "away": "MIA",
       "home": "TOR",
-      "away_model": 0.4667,
-      "home_model": 0.5333,
-      "away_edge": 5.84,
-      "home_edge": -5.84,
+      "away_model": 0.4645,
+      "home_model": 0.5355,
+      "away_edge": 4.72,
+      "home_edge": -4.72,
       "away_xr": 3.5,
-      "home_xr": 4.338
+      "home_xr": 4.247
     },
     {
       "away": "COL",
       "home": "LAD",
-      "away_model": 0.4652,
-      "home_model": 0.5348,
-      "away_edge": 20.34,
-      "home_edge": -20.34,
-      "away_xr": 3.993,
-      "home_xr": 4.637
+      "away_model": 0.4642,
+      "home_model": 0.5357,
+      "away_edge": 19.66,
+      "home_edge": -19.67,
+      "away_xr": 4.036,
+      "home_xr": 4.656
     },
     {
       "away": "SEA",
       "home": "ATH",
-      "away_model": 0.5141,
-      "home_model": 0.4859,
-      "away_edge": 0.25,
-      "home_edge": -0.25,
-      "away_xr": 4.485,
-      "home_xr": 4.301
+      "away_model": 0.5154,
+      "home_model": 0.4846,
+      "away_edge": 0.61,
+      "home_edge": -0.61,
+      "away_xr": 4.873,
+      "home_xr": 4.674
     }
   ],
-  "bets": [],
+  "bets": [
+    {
+      "team": "Colorado Rockies",
+      "side": "away",
+      "game": "Colorado Rockies @ Los Angeles Dodgers",
+      "odds": 270,
+      "book": "williamhill_us",
+      "model_prob": 0.4642,
+      "market_prob": 0.2676,
+      "edge_pct": 19.66,
+      "stake": 25.0,
+      "conviction": "HIGH",
+      "confidence_score": 67,
+      "sp": "Tanner Gordon",
+      "sp_era": 6.59,
+      "sp_xfip": 4.07,
+      "sp_yrfi_lean": false,
+      "bullpen_tier": null,
+      "weather_adj": null,
+      "platoon_edge": 8.4,
+      "h2h": {
+        "h2h_available": true,
+        "n_games": 10,
+        "away_win_rate": 0.3,
+        "home_win_rate": 0.7,
+        "avg_total": 10.7,
+        "over_rate": 0.7
+      }
+    }
+  ],
   "passes": [
-    {
-      "game": "Cincinnati Reds @ New York Mets",
-      "edges": {
-        "away": 0.39,
-        "home": -0.39
-      }
-    },
-    {
-      "game": "Arizona Diamondbacks @ San Francisco Giants",
-      "edges": {
-        "away": 3.87,
-        "home": -3.87
-      }
-    },
-    {
-      "game": "Washington Nationals @ Cleveland Guardians",
-      "edges": {
-        "away": 7.32,
-        "home": -7.32
-      }
-    },
-    {
-      "game": "Philadelphia Phillies @ San Diego Padres",
-      "edges": {
-        "away": 3.74,
-        "home": -3.74
-      }
-    },
     {
       "game": "Houston Astros @ Texas Rangers",
       "edges": {
-        "away": 0.03,
-        "home": -0.02
+        "away": -0.52,
+        "home": 0.53
       }
     },
     {
       "game": "Miami Marlins @ Toronto Blue Jays",
       "edges": {
-        "away": 5.84,
-        "home": -5.84
-      }
-    },
-    {
-      "game": "Colorado Rockies @ Los Angeles Dodgers",
-      "edges": {
-        "away": 20.34,
-        "home": -20.34
+        "away": 4.72,
+        "home": -4.72
       }
     },
     {
       "game": "Seattle Mariners @ Athletics",
       "edges": {
-        "away": 0.25,
-        "home": -0.25
+        "away": 0.61,
+        "home": -0.61
       }
     }
   ],
-  "slip_sent": false,
-  "sent_pick_ids": [],
-  "slip_quality": "bad"
+  "slip_sent": true,
+  "sent_pick_ids": [
+    "HITTER:Alejandro Osuna:TEX:Hits O1.5",
+    "HITTER:Alejandro Osuna:TEX:TB O1.5",
+    "HITTER:Andy Pages:LAD:RBI O0.5",
+    "HITTER:Andy Pages:LAD:SO O0.5",
+    "HITTER:Brandon Nimmo:TEX:Hits O1.5",
+    "HITTER:Brandon Nimmo:TEX:RBI O0.5",
+    "HITTER:Brandon Nimmo:TEX:SO O0.5",
+    "HITTER:Brandon Nimmo:TEX:TB O1.5",
+    "HITTER:Brent Rooker:ATH:RBI O0.5",
+    "HITTER:Brent Rooker:ATH:SO O0.5",
+    "HITTER:Brent Rooker:ATH:TB O1.5",
+    "HITTER:Carlos Cortes:ATH:TB O1.5",
+    "HITTER:Christian Walker:HOU:HR O0.5",
+    "HITTER:Christian Walker:HOU:RBI O0.5",
+    "HITTER:Christian Walker:HOU:TB O1.5",
+    "HITTER:Ernie Clement:TOR:TB O1.5",
+    "HITTER:Evan Carter:TEX:TB O1.5",
+    "HITTER:Ezequiel Duran:TEX:Hits O1.5",
+    "HITTER:Ezequiel Duran:TEX:RBI O0.5",
+    "HITTER:Ezequiel Duran:TEX:SO O0.5",
+    "HITTER:Ezequiel Duran:TEX:TB O1.5",
+    "HITTER:Freddie Freeman:LAD:SO O0.5",
+    "HITTER:Freddie Freeman:LAD:TB O1.5",
+    "HITTER:George Springer:TOR:HR O0.5",
+    "HITTER:George Springer:TOR:RBI O0.5",
+    "HITTER:George Springer:TOR:TB O1.5",
+    "HITTER:Henry Bolte:ATH:SO O0.5",
+    "HITTER:Henry Bolte:ATH:TB O1.5",
+    "HITTER:Hunter Goodman:COL:SO O0.5",
+    "HITTER:Isaac Paredes:HOU:TB O1.5",
+    "HITTER:J.P. Crawford:SEA:RBI O0.5",
+    "HITTER:Jake Meyers:HOU:HR O0.5",
+    "HITTER:Jake Meyers:HOU:TB O1.5",
+    "HITTER:Javier Sanoja:MIA:RBI O0.5",
+    "HITTER:Jeremy Pe\u00f1a:HOU:RBI O0.5",
+    "HITTER:Jeremy Pe\u00f1a:HOU:SO O0.5",
+    "HITTER:Jes\u00fas S\u00e1nchez:TOR:Hits O1.5",
+    "HITTER:Jes\u00fas S\u00e1nchez:TOR:RBI O0.5",
+    "HITTER:Jes\u00fas S\u00e1nchez:TOR:TB O1.5",
+    "HITTER:Joc Pederson:TEX:Hits O1.5",
+    "HITTER:Joc Pederson:TEX:TB O1.5",
+    "HITTER:Justin Foscue:TEX:Hits O1.5",
+    "HITTER:Justin Foscue:TEX:RBI O0.5",
+    "HITTER:Justin Foscue:TEX:SO O0.5",
+    "HITTER:Justin Foscue:TEX:TB O1.5",
+    "HITTER:Kazuma Okamoto:TOR:SO O0.5",
+    "HITTER:Kyle Stowers:MIA:SO O0.5",
+    "HITTER:Kyle Tucker:LAD:RBI O0.5",
+    "HITTER:Kyle Tucker:LAD:TB O1.5",
+    "HITTER:Liam Hicks:MIA:RBI O0.5",
+    "HITTER:Mookie Betts:LAD:TB O1.5",
+    "HITTER:Nick Kurtz:ATH:Hits O1.5",
+    "HITTER:Nick Kurtz:ATH:RBI O0.5",
+    "HITTER:Nick Kurtz:ATH:SO O0.5",
+    "HITTER:Nick Kurtz:ATH:TB O1.5",
+    "HITTER:Randy Arozarena:SEA:RBI O0.5",
+    "HITTER:Shea Langeliers:ATH:TB O1.5",
+    "HITTER:Shohei Ohtani:LAD:Hits O1.5",
+    "HITTER:Shohei Ohtani:LAD:RBI O0.5",
+    "HITTER:Shohei Ohtani:LAD:SO O0.5",
+    "HITTER:Shohei Ohtani:LAD:TB O1.5",
+    "HITTER:TJ Rumfield:COL:TB O1.5",
+    "HITTER:Teoscar Hern\u00e1ndez:LAD:Hits O1.5",
+    "HITTER:Teoscar Hern\u00e1ndez:LAD:RBI O0.5",
+    "HITTER:Teoscar Hern\u00e1ndez:LAD:SO O0.5",
+    "HITTER:Teoscar Hern\u00e1ndez:LAD:TB O1.5",
+    "HITTER:Yohendrick Pi\u00f1ango:TOR:TB O1.5",
+    "HITTER:Yordan Alvarez:HOU:TB O1.5",
+    "KPROP:Emmet Sheehan:5.6",
+    "KPROP:Janson Junk:3.6",
+    "KPROP:Tanner Gordon:5.5",
+    "ML:Colorado Rockies:270",
+    "NRFI:Houston Astros @ Texas Rangers:YRFI",
+    "NRFI:Seattle Mariners @ Athletics:YRFI",
+    "TOT:Houston Astros @ Texas Rangers:OVER:8.0",
+    "TOT:Seattle Mariners @ Athletics:UNDER:10.5"
+  ],
+  "slip_quality": "good"
 }
