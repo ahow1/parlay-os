@@ -600,12 +600,18 @@ def api_update():
 def api_resolve():
     data = request.get_json(silent=True) or {}
     date = data.get("date") or datetime.now(ET).strftime("%Y-%m-%d")
+    # Normalize loose result strings to canonical W/L/P
+    _result_map = {"win": "W", "won": "W", "w": "W",
+                   "loss": "L", "lost": "L", "lose": "L", "l": "L",
+                   "push": "P", "tie": "P", "p": "P"}
+    raw_result = data.get("result", "")
+    result = _result_map.get(str(raw_result).lower(), str(raw_result).upper())
     try:
         _db.resolve_bet(
             bet=data.get("bet", ""),
             date=date,
             closing_odds=data.get("closing_odds", ""),
-            result=data.get("result", ""),
+            result=result,
             game_score=data.get("game_score", ""),
             notes=data.get("notes", ""),
         )
@@ -622,8 +628,8 @@ def api_seed():
         with _db._conn() as conn:
             conn.execute("""
                 UPDATE bets SET profit = CASE
-                    WHEN result='win'  THEN stake
-                    WHEN result='loss' THEN -stake
+                    WHEN result='W' THEN stake
+                    WHEN result='L' THEN -stake
                     ELSE 0
                 END WHERE profit IS NULL OR profit = 0
             """)
@@ -643,8 +649,8 @@ def api_reset_bets():
         with _db._conn() as conn:
             conn.execute("""
                 UPDATE bets SET profit = CASE
-                    WHEN result='win'  THEN stake
-                    WHEN result='loss' THEN -stake
+                    WHEN result='W' THEN stake
+                    WHEN result='L' THEN -stake
                     ELSE 0
                 END WHERE profit IS NULL OR profit = 0
             """)

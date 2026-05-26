@@ -121,6 +121,21 @@ def run_pattern_report_task(send_telegram_fn=None):
         log.error(f"[scheduler] Pattern report failed: {e}", exc_info=True)
 
 
+def run_auto_settlement_task():
+    """Run MLB score-based auto-settlement for all pending bets."""
+    try:
+        from telegram_handler import run_settlement_check
+        settled = run_settlement_check()
+        if settled:
+            log.info(f"[scheduler] Auto-settlement: settled {len(settled)} bet(s)")
+            for s in settled:
+                log.info(f"[scheduler]   {s['bet']} {s['outcome']} {s.get('score','')}")
+        else:
+            log.info("[scheduler] Auto-settlement: no new settlements")
+    except Exception as e:
+        log.error(f"[scheduler] Auto-settlement failed: {e}", exc_info=True)
+
+
 def run_prop_settlement_task():
     """
     Nightly: auto-settle unsettled prop_results rows that are >= 1 day old.
@@ -167,6 +182,7 @@ def schedule_loop(stop_event=None):
     last_monday       = ""   # YYYY-MM-DD — for Monday umpire refresh + pattern report
     last_prop_settle  = ""   # YYYY-MM-DD
     last_conf_retrain = ""   # YYYY-WW — Sunday confidence retrain
+    last_auto_settle  = 0.0  # unix timestamp of last settlement run
 
     while True:
         if stop_event and stop_event.is_set():
@@ -191,6 +207,12 @@ def schedule_loop(stop_event=None):
             run_improvement_check_task()
             last_daily = today
             log.info(f"[scheduler] Daily tasks fired for {today}")
+
+        # Auto-settlement: every 30 min from 9pm–1am ET
+        _in_settle_window = (now_et.hour >= 21 or now_et.hour < 1)
+        if _in_settle_window and (time.time() - last_auto_settle) >= 1800:
+            run_auto_settlement_task()
+            last_auto_settle = time.time()
 
         # Nightly 1am prop settlement (run once per day after midnight tasks)
         if today != last_prop_settle and now_et.hour == 1 and now_et.minute < 5:
