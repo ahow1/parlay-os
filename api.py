@@ -50,11 +50,22 @@ def _utc_today() -> str:
     return _dt.datetime.utcnow().date().isoformat()
 
 
+def _bet_pnl(b) -> float:
+    """Compute P&L for one settled bet using actual odds — never trust the stored profit column."""
+    stake = float(b.get("stake") or 0)
+    result = (b.get("result") or "").upper()
+    if result == "W":
+        dec = american_to_decimal(str(b.get("bet_odds") or ""))
+        return round((dec - 1) * stake, 2) if (dec and dec > 1) else 0.0
+    if result == "L":
+        return round(-stake, 2)
+    return 0.0
+
+
 def _today_pnl(bets):
     today = _utc_today()
     today_settled = [b for b in bets if b.get("date") == today and b.get("result") in ("W", "L", "P")]
-    print(f"[today_pnl] utc_today={today} settled_count={len(today_settled)}")
-    pnl = sum(float(b.get("profit") or 0) for b in today_settled)
+    pnl = sum(_bet_pnl(b) for b in today_settled)
     return round(pnl, 2)
 
 
@@ -175,9 +186,8 @@ def api_bankroll():
     wins          = sum(1 for b in resolved if b["result"] == "W")
     losses        = sum(1 for b in resolved if b["result"] == "L")
     pending_today = [b for b in today_bets if not b.get("result")]
-    starting      = STARTING_BANKROLL
-    bankroll      = float(os.environ.get("BANKROLL_OVERRIDE", starting))
-    roi           = round((bankroll - starting) / starting * 100, 2)
+    starting = STARTING_BANKROLL
+    roi      = round((current - starting) / starting * 100, 2)
     return jsonify({
         "starting":      STARTING_BANKROLL,
         "current":       current,
@@ -202,9 +212,10 @@ def api_stats():
         losses = conn.execute("SELECT COUNT(*) FROM bets WHERE result='L'").fetchone()[0]
         pushes = conn.execute("SELECT COUNT(*) FROM bets WHERE result='P'").fetchone()[0]
 
+    from bankroll_engine import sizing_bankroll as _sbr
     starting     = STARTING_BANKROLL
-    bankroll     = float(os.environ.get("BANKROLL_OVERRIDE", starting))
-    total_profit = bankroll - starting
+    current      = _sbr()
+    total_profit = round(current - starting, 2)
     roi          = round(total_profit / starting * 100, 2)
 
     return jsonify({
@@ -212,7 +223,7 @@ def api_stats():
         "wins":         wins,
         "losses":       losses,
         "pushes":       pushes,
-        "total_profit": round(total_profit, 2),
+        "total_profit": total_profit,
         "win_rate":     round(wins / (wins + losses) * 100, 1) if (wins + losses) > 0 else None,
         "roi":          roi,
         "starting":     STARTING_BANKROLL,
@@ -263,7 +274,8 @@ def api_summary():
     wins     = sum(1 for b in resolved if b["result"] == "W")
     losses   = sum(1 for b in resolved if b["result"] == "L")
 
-    bankroll      = float(os.environ.get("BANKROLL_OVERRIDE", STARTING_BANKROLL))
+    from bankroll_engine import sizing_bankroll as _sbr
+    bankroll      = _sbr()
     total_pnl     = bankroll - STARTING_BANKROLL
     roi           = total_pnl / STARTING_BANKROLL * 100
     total_wagered = sum(float(b.get("stake") or 0) for b in resolved if b["result"] != "P")
@@ -299,10 +311,11 @@ def api_record():
     losses   = sum(1 for b in resolved if b["result"] == "L")
     pushes   = sum(1 for b in resolved if b["result"] == "P")
 
-    starting     = STARTING_BANKROLL
-    bankroll     = float(os.environ.get("BANKROLL_OVERRIDE", starting))
-    total_pnl    = bankroll - starting
-    roi          = total_pnl / starting * 100
+    from bankroll_engine import sizing_bankroll as _sbr
+    starting  = STARTING_BANKROLL
+    bankroll  = _sbr()
+    total_pnl = bankroll - starting
+    roi       = total_pnl / starting * 100
 
     clv_log   = _load_json("clv_log.json") or []
     clv_stats = clv_stats_summary(clv_log)
@@ -336,8 +349,7 @@ def api_record():
         t = rec["total"]
         rec["win_rate"] = round(rec["wins"] / t * 100, 1) if t > 0 else None
 
-    # Monthly breakdown — P&L derived from bankroll, not SUM(profit), to avoid
-    # stake-inflation from the seed data. Formula: (current_bankroll - starting) / months.
+    # Monthly breakdown — P&L computed per-month from actual bet results + odds.
     by_month: dict = {}
     with _db._conn() as conn:
         month_rows = conn.execute("""
@@ -351,20 +363,37 @@ def api_record():
             GROUP BY month
             ORDER BY month
         """).fetchall()
+        all_settled_for_months = conn.execute(
+            "SELECT strftime('%Y-%m', date) AS month, stake, bet_odds, result "
+            "FROM bets WHERE result IN ('W','L') AND bet_odds IS NOT NULL AND bet_odds != ''"
+        ).fetchall()
     valid_months = [r for r in month_rows if r["month"]]
-    num_months   = max(len(valid_months), 1)
-    month_pnl    = round((bankroll - starting) / num_months, 2)
-    month_roi    = round(month_pnl / starting * 100, 1)
+    # Build per-month P&L map from actual stake × odds
+    _month_pnl_map: dict[str, float] = {}
+    _month_staked_map: dict[str, float] = {}
+    for b in all_settled_for_months:
+        m = b["month"]
+        s = float(b["stake"] or 0)
+        _month_staked_map[m] = _month_staked_map.get(m, 0.0) + s
+        if b["result"] == "W":
+            dec = american_to_decimal(str(b["bet_odds"] or ""))
+            if dec and dec > 1:
+                _month_pnl_map[m] = _month_pnl_map.get(m, 0.0) + (dec - 1) * s
+        elif b["result"] == "L":
+            _month_pnl_map[m] = _month_pnl_map.get(m, 0.0) - s
     for row in valid_months:
-        month = row["month"]
-        wl    = (row["wins"] or 0) + (row["losses"] or 0)
+        month  = row["month"]
+        wl     = (row["wins"] or 0) + (row["losses"] or 0)
+        m_pnl  = round(_month_pnl_map.get(month, 0.0), 2)
+        staked = _month_staked_map.get(month, 0.0)
+        m_roi  = round(m_pnl / staked * 100, 1) if staked > 0 else 0.0
         by_month[month] = {
             "wins":     row["wins"] or 0,
             "losses":   row["losses"] or 0,
             "pushes":   row["pushes"] or 0,
             "total":    row["total"] or 0,
-            "pnl":      month_pnl,
-            "roi":      month_roi,
+            "pnl":      m_pnl,
+            "roi":      m_roi,
             "win_rate": round((row["wins"] or 0) / wl * 100, 1) if wl > 0 else None,
         }
 
@@ -389,8 +418,14 @@ def api_record():
         best_month, best_month_roi = bm[0], bm[1]["roi"]
 
     with _db._conn() as conn:
-        _best  = conn.execute("SELECT bet, game, profit, date, bet_odds FROM bets WHERE profit IS NOT NULL ORDER BY profit DESC LIMIT 1").fetchone()
-        _worst = conn.execute("SELECT bet, game, profit, date, bet_odds FROM bets WHERE profit IS NOT NULL ORDER BY profit ASC LIMIT 1").fetchone()
+        _best  = conn.execute(
+            "SELECT bet, game, profit, date, bet_odds FROM bets "
+            "WHERE result='W' AND profit IS NOT NULL AND profit > 0 ORDER BY profit DESC LIMIT 1"
+        ).fetchone()
+        _worst = conn.execute(
+            "SELECT bet, game, profit, date, bet_odds FROM bets "
+            "WHERE result='L' AND profit IS NOT NULL ORDER BY profit ASC LIMIT 1"
+        ).fetchone()
     best_bet  = dict(_best)  if _best  else None
     worst_bet = dict(_worst) if _worst else None
 
