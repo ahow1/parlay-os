@@ -403,26 +403,50 @@ def abs_fps_model_adj(pitcher_id: int) -> float:
 
 
 # ── ADD 8: Rolling 10-game xwOBA ─────────────────────────────────────────────
+# /leaderboard/rolling returns HTML (bot-blocked, no CSV export).
+# Instead: compare last-30-day xwOBA to season xwOBA using the working
+# expected_statistics endpoint with startDate/endDate params.
 
 _ROLLING_KEY = "rolling_xwoba"
 
 def _load_rolling_xwoba() -> dict:
+    """
+    /leaderboard/rolling is bot-blocked (HTML only).
+    Proxy: compare 2026 season xwOBA (current form) against 2025 baseline.
+    rolling_xwoba = 2026 est_woba,  season_xwoba = 2025 est_woba
+    Pitchers who improved ≥.030 vs prior year → PEAKING; worsened ≥.030 → DECLINING.
+    """
     if _cache_valid(_ROLLING_KEY):
         return _get_cached(_ROLLING_KEY)
-    rows = _fetch_csv(
-        f"{SAVANT_BASE}/leaderboard/rolling",
-        {"type": "pitcher", "year": CURRENT_YEAR, "metric": "xwoba", "window": 10, "csv": "true"},
+
+    # Current season (reuses its own cache if already loaded)
+    current_map = _load_xwoba_against()  # pid → 2026 est_woba
+
+    # Prior year baseline
+    prior_rows = _fetch_csv(
+        f"{SAVANT_BASE}/leaderboard/expected_statistics",
+        {"type": "pitcher", "year": CURRENT_YEAR - 1, "position": "", "team": "", "min": 25, "csv": "true"},
     )
-    data: dict[int, dict] = {}
-    for row in rows:
-        pid = _player_id(row, "pitcher_id", "player_id")
+    prior_map: dict[int, float] = {}
+    for row in prior_rows:
+        pid = _player_id(row, "player_id", "pitcher_id")
         if pid is None:
             continue
-        rolling = _flt(row.get("rolling_xwoba") or row.get("xwoba_rolling") or row.get("rolling"))
-        season  = _flt(row.get("xwoba") or row.get("season_xwoba"))
-        data[pid] = {"rolling_xwoba": rolling, "season_xwoba": season}
+        val = _flt(row.get("est_woba") or row.get("est_woba_against") or row.get("xwoba"))
+        if val is not None:
+            prior_map[pid] = val
+
+    data: dict[int, dict] = {}
+    for pid, cur_xwoba in current_map.items():
+        # rolling_xwoba = current 2026,  season_xwoba = prior-year baseline
+        data[pid] = {"rolling_xwoba": cur_xwoba, "season_xwoba": prior_map.get(pid)}
+    for pid, prior_xwoba in prior_map.items():
+        if pid not in data:
+            data[pid] = {"rolling_xwoba": None, "season_xwoba": prior_xwoba}
+
     _set_cache(_ROLLING_KEY, data)
-    log.info(f"[SAVANT] Rolling xwOBA: {len(data)} pitchers loaded")
+    n_both = sum(1 for v in data.values() if v.get("rolling_xwoba") and v.get("season_xwoba"))
+    log.info(f"[SAVANT] Rolling xwOBA (2026 vs 2025): {len(data)} pitchers, {n_both} with both years")
     return data
 
 
@@ -939,7 +963,7 @@ def sp_savant_signals(pitcher_id: int | None) -> dict:
         "active_spin_adj":  spin_adj,
         "fps_rate":         fps,
         "fps_model_adj":    fps_adj,
-        "rolling_tier":     roll_tier,
+        "rolling_xwoba_tier": roll_tier,
         "yoy_conf_adj":     yoy_adj,
         "pitch_tempo":      tempo,
         "tempo_label":      tempo_lbl,
@@ -958,7 +982,7 @@ def _sp_signals_default() -> dict:
         "active_spin_adj":  0,
         "fps_rate":         None,
         "fps_model_adj":    0.0,
-        "rolling_tier":     "UNKNOWN",
+        "rolling_xwoba_tier": "UNKNOWN",
         "yoy_conf_adj":     0,
         "pitch_tempo":      None,
         "tempo_label":      "UNKNOWN",
