@@ -2932,8 +2932,8 @@ def run_daily_scout(window: str = "all"):
     except Exception as _ump_e:
         print(f"[UMP] startup populate failed: {_ump_e}")
 
-    today     = date.today().isoformat()
-    print(f"Date: {today} — fetching events from Odds API...")
+    today     = datetime.now(ET).strftime("%Y-%m-%d")
+    print(f"Date: {today} ET — fetching events from Odds API...")
     events    = get_mlb_events()
     print(f"Games from Odds API: {len(events)}")
     if not events:
@@ -4047,7 +4047,8 @@ def _format_props_message(
 
 def _run_debrief():
     """Pull today's settled bets, compute day results, send formatted Telegram."""
-    today  = date.today().isoformat()
+    import pytz as _pytz
+    today  = datetime.now(_pytz.timezone("America/New_York")).strftime("%Y-%m-%d")
     bets   = _db.get_bets(date=today)
     all_bets = _db.get_bets()
 
