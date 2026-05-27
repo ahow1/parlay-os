@@ -87,6 +87,22 @@ def backup_database() -> str | None:
         return None
 
 
+def _repair_win_profit():
+    """Recalculate profit for all W bets using correct formula: (dec-1)*stake."""
+    from math_engine import american_to_decimal
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT id, stake, bet_odds FROM bets WHERE result='W'"
+        ).fetchall()
+        updates = []
+        for r in rows:
+            dec = american_to_decimal(str(r["bet_odds"] or ""))
+            if dec and dec > 1:
+                updates.append((round((dec - 1) * float(r["stake"] or 0), 2), r["id"]))
+        if updates:
+            conn.executemany("UPDATE bets SET profit=? WHERE id=?", updates)
+
+
 def _ensure_bets_unique_index():
     """Remove duplicate bets (keep earliest id per date+game+bet+type) then create unique index."""
     with _conn() as conn:
@@ -312,15 +328,18 @@ def init_db():
                 conn.execute(ddl)
             except sqlite3.OperationalError:
                 pass  # column already exists
+        # Zero out pending bets' profit placeholder only — wins are repaired below
         conn.execute("""
-            UPDATE bets
-            SET profit = CASE
-                WHEN result='W' THEN stake
-                WHEN result='L' THEN -stake
-                ELSE 0
-            END
-            WHERE profit IS NULL OR profit = 0
+            UPDATE bets SET profit = 0
+            WHERE (profit IS NULL OR profit = 0) AND result IS NULL
         """)
+        # L bets: profit = -stake (correct formula, idempotent)
+        conn.execute("""
+            UPDATE bets SET profit = -stake
+            WHERE result = 'L' AND (profit IS NULL OR profit = 0)
+        """)
+    # W bets require decimal conversion — must be done in Python
+    _repair_win_profit()
     _ensure_bets_unique_index()
 
 
@@ -392,44 +411,60 @@ def update_bet_stake(bet_id: int, new_stake: float):
         )
 
 
+def _calc_profit(result: str, stake: float, bet_odds: str) -> float:
+    """Compute settled profit: (dec-1)*stake for W, -stake for L, 0 for P."""
+    from math_engine import american_to_decimal
+    s = float(stake or 0)
+    if result == "W":
+        dec = american_to_decimal(str(bet_odds or ""))
+        return round((dec - 1) * s, 2) if (dec and dec > 1) else 0.0
+    if result == "L":
+        return round(-s, 2)
+    return 0.0
+
+
 def resolve_bet_by_id(bet_id: int, closing_odds: str, result: str,
                        game_score: str, notes: str = ""):
     """Settle a specific bet by primary key — used by auto-settler."""
     clv = None
-    if closing_odds:
-        try:
-            from math_engine import calc_clv
-            with _conn() as c:
-                row = c.execute("SELECT bet_odds FROM bets WHERE id=?", (bet_id,)).fetchone()
-            if row:
+    profit = None
+    with _conn() as c:
+        row = c.execute("SELECT bet_odds, stake FROM bets WHERE id=?", (bet_id,)).fetchone()
+    if row:
+        if closing_odds:
+            try:
+                from math_engine import calc_clv
                 clv = calc_clv(row["bet_odds"], closing_odds).get("clv_pct")
-        except Exception:
-            pass
+            except Exception:
+                pass
+        profit = _calc_profit(result, row["stake"], row["bet_odds"])
     with _conn() as conn:
         conn.execute("""
-            UPDATE bets SET closing_odds=?, clv_pct=?, result=?, game_score=?, notes=?
+            UPDATE bets SET closing_odds=?, clv_pct=?, result=?, game_score=?, notes=?, profit=?
             WHERE id=? AND result IS NULL
-        """, (closing_odds, clv, result, game_score, notes, bet_id))
+        """, (closing_odds, clv, result, game_score, notes, profit, bet_id))
 
 
 def resolve_bet(bet, date, closing_odds, result, game_score, notes=""):
     clv = None
-    if closing_odds:
-        try:
-            from math_engine import calc_clv
-            with _conn() as c:
-                row = c.execute(
-                    "SELECT bet_odds FROM bets WHERE bet=? AND date=? LIMIT 1",
-                    (bet, date)).fetchone()
-            if row:
+    profit = None
+    with _conn() as c:
+        row = c.execute(
+            "SELECT bet_odds, stake FROM bets WHERE bet=? AND date=? AND result IS NULL LIMIT 1",
+            (bet, date)).fetchone()
+    if row:
+        if closing_odds:
+            try:
+                from math_engine import calc_clv
                 clv = calc_clv(row["bet_odds"], closing_odds).get("clv_pct")
-        except Exception:
-            pass
+            except Exception:
+                pass
+        profit = _calc_profit(result, row["stake"], row["bet_odds"])
     with _conn() as conn:
         conn.execute("""
-            UPDATE bets SET closing_odds=?, clv_pct=?, result=?, game_score=?, notes=?
+            UPDATE bets SET closing_odds=?, clv_pct=?, result=?, game_score=?, notes=?, profit=?
             WHERE bet=? AND date=? AND result IS NULL
-        """, (closing_odds, clv, result, game_score, notes, bet, date))
+        """, (closing_odds, clv, result, game_score, notes, profit, bet, date))
 
 
 def get_bets(date=None, unresolved_only=False):
