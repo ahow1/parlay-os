@@ -105,6 +105,11 @@ def sizing_bankroll() -> float:
     override = os.getenv("BANKROLL_OVERRIDE")
     if override:
         return round(float(override), 2)
+    return real_sizing_bankroll()
+
+
+def real_sizing_bankroll() -> float:
+    """Settled P&L bankroll — never uses BANKROLL_OVERRIDE. Used for drawdown calculations."""
     bets = _db.get_bets()
     current = float(STARTING_BANKROLL)
     for b in bets:
@@ -117,6 +122,55 @@ def sizing_bankroll() -> float:
         elif result == "L":
             current -= stake
     return round(current, 2)
+
+
+def real_peak_bankroll() -> float:
+    """Peak settled P&L — never uses BANKROLL_OVERRIDE. Used for drawdown calculations."""
+    bets = _db.get_bets()
+    current = float(STARTING_BANKROLL)
+    peak    = float(STARTING_BANKROLL)
+    for b in bets:
+        result = b.get("result")
+        stake  = float(b.get("stake") or 0)
+        if result == "W":
+            dec = american_to_decimal(str(b.get("bet_odds", "")))
+            if dec:
+                current += (dec - 1) * stake
+            peak = max(peak, current)
+        elif result == "L":
+            current -= stake
+    return round(peak, 2)
+
+
+def daily_pnl() -> float:
+    """Today's settled P&L in dollars (ET date). Positive = profit, negative = loss."""
+    import pytz
+    from datetime import datetime
+    ET_tz = pytz.timezone("America/New_York")
+    today = datetime.now(ET_tz).strftime("%Y-%m-%d")
+    bets  = _db.get_bets(date=today)
+    pnl   = 0.0
+    for b in bets:
+        result = b.get("result")
+        stake  = float(b.get("stake") or 0)
+        if result == "W":
+            dec = american_to_decimal(str(b.get("bet_odds", "")))
+            if dec:
+                pnl += (dec - 1) * stake
+        elif result == "L":
+            pnl -= stake
+    return round(pnl, 2)
+
+
+def is_daily_stop_loss_active() -> bool:
+    """Return True if today's loss has hit -3% of sizing bankroll."""
+    pnl = daily_pnl()
+    if pnl >= 0:
+        return False
+    br = sizing_bankroll()
+    if br <= 0:
+        return False
+    return abs(pnl) / br >= 0.03
 
 
 # ── Tiered daily budget ────────────────────────────────────────────────────────
@@ -195,9 +249,9 @@ def drawdown_tier(br: float | None = None, pk: float | None = None) -> dict:
     tier 3: ≥20%  → scale 0.00, full pause + alert
     """
     if br is None:
-        br = sizing_bankroll()
+        br = real_sizing_bankroll()
     if pk is None:
-        pk = peak_bankroll()
+        pk = real_peak_bankroll()
     if pk <= 0:
         return {"tier": 0, "pct": 0.0, "scale": 1.0, "props_only": False, "pause": False}
     dd = max(0.0, (pk - br) / pk)
