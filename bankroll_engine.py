@@ -400,6 +400,67 @@ def growth_tracker() -> dict:
     }
 
 
+def capture_pre_game_clv() -> int:
+    """
+    Fetch closing odds for today's pending bets and write to clv_log.
+    Called ~1 hour before first pitch. Returns number of rows written.
+    """
+    import pytz
+    from datetime import datetime
+    ET_tz = pytz.timezone("America/New_York")
+    today  = datetime.now(ET_tz).strftime("%Y-%m-%d")
+    bets   = _db.get_bets(date=today, unresolved_only=True)
+    if not bets:
+        return 0
+
+    try:
+        from telegram_handler import _fetch_closing_odds
+    except Exception:
+        return 0
+
+    try:
+        from math_engine import calc_clv as _calc_clv
+    except Exception:
+        _calc_clv = None
+
+    written = 0
+    for b in bets:
+        team     = b.get("bet") or ""
+        bet_type = b.get("type") or b.get("bet_type") or "ML"
+        bet_odds = str(b.get("bet_odds") or "")
+        if not team or not bet_odds:
+            continue
+        closing = _fetch_closing_odds(team, bet_type)
+        if not closing:
+            continue
+        clv_pct = None
+        if _calc_clv:
+            try:
+                clv_pct = _calc_clv(bet_odds, closing).get("clv_pct")
+            except Exception:
+                pass
+        try:
+            _db.log_clv(
+                date=today,
+                bet=team,
+                bet_type=bet_type,
+                game=b.get("game") or "",
+                sp=b.get("sp") or "",
+                park=b.get("park") or "",
+                umpire=b.get("umpire") or "",
+                bet_odds=bet_odds,
+                closing_odds=closing,
+                clv_pct=clv_pct,
+                result=None,
+                model=b.get("model") or "12-factor",
+                edge_pct=b.get("edge_pct"),
+            )
+            written += 1
+        except Exception:
+            pass
+    return written
+
+
 if __name__ == "__main__":
     br     = sizing_bankroll()
     pk     = peak_bankroll()

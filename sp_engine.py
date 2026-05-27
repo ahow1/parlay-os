@@ -596,7 +596,10 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "",
         "fp_strike_rate":    fp_strike_rate,
         # Savant leaderboard signals (ADDs 1-10)
         "savant":            savant_signals,
-        "xwoba_against":     savant_signals.get("xwoba_against"),
+        "xwoba_against":     blend_xwoba(
+                                 savant_signals.get("xwoba_against"),
+                                 (savant_signals.get("savant_rolling") or {}).get("rolling_xwoba"),
+                             ),
         "xwoba_tier":        savant_signals.get("xwoba_tier", "UNKNOWN"),
         "rolling_xwoba_tier":savant_signals.get("rolling_xwoba_tier", "UNKNOWN"),
         "pitch_tempo":       savant_signals.get("pitch_tempo"),
@@ -677,6 +680,18 @@ def get_game_sps(game_pk: int, away_team: str, home_team: str, umpire: str = "")
     home_sp["name"] = home_name
 
     return {"away": away_sp, "home": home_sp}
+
+
+def blend_xwoba(season_xwoba: float | None, rolling_30d_xwoba: float | None) -> float | None:
+    """
+    Blend season and 30-day rolling xwOBA against: 70% recent, 30% season.
+    Falls back to season if rolling is None; returns None if both are None.
+    """
+    if rolling_30d_xwoba is None:
+        return season_xwoba
+    if season_xwoba is None:
+        return rolling_30d_xwoba
+    return round(0.70 * rolling_30d_xwoba + 0.30 * season_xwoba, 4)
 
 
 if __name__ == "__main__":

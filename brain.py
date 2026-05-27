@@ -4289,6 +4289,17 @@ def _feed_brain_from_settled(resolved: list):
                 actual_runs=0.0,
             )
 
+        # Calibration bucket: track model accuracy by probability range
+        if mp:
+            _mp_f = float(mp)
+            _lo   = round(int(_mp_f * 20) * 0.05, 2)  # e.g. 0.57 → 0.55
+            _hi   = round(_lo + 0.05, 2)               # e.g. 0.55 → 0.60
+            _bucket = f"{_lo:.2f}-{_hi:.2f}"
+            try:
+                _db.update_calibration(_bucket, win=(result == "W"))
+            except Exception as _cal_e:
+                print(f"[BRAIN] calibration update failed: {_cal_e}")
+
     # Trigger weight recalibration every 20 new bets logged
     if new_count > 0:
         try:
