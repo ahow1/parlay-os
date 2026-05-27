@@ -545,13 +545,13 @@ function decOdds(odds){
   return n>0?(n/100+1):(100/Math.abs(n)+1);
 }
 function calcPnl(b){
-  if(b.profit!=null) return b.profit;
+  // Always compute from stake × odds — never trust stored profit column (may be stale)
   const stake=parseFloat(b.stake||0);
   const odds=b.bet_odds||b.odds;
-  const r=(b.result||'').toLowerCase();
+  const r=(b.result||'').toUpperCase();
   if(!r) return null;
-  if(r==='win'||r==='w') return Math.round((decOdds(odds)-1)*stake*100)/100;
-  if(r==='loss'||r==='l') return -stake;
+  if(r==='WIN'||r==='W') return Math.round((decOdds(odds)-1)*stake*100)/100;
+  if(r==='LOSS'||r==='L') return -stake;
   return 0;
 }
 function buildReason(b){
