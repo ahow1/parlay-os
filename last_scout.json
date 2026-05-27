@@ -1,47 +1,12 @@
 {
-  "timestamp": "2026-05-27T12:02:35Z",
+  "timestamp": "2026-05-27T21:28:15Z",
   "date": "2026-05-27",
-  "window": "west",
+  "window": "day",
   "bankroll": -52.0,
-  "games": [
-    {
-      "away": "HOU",
-      "home": "TEX",
-      "away_model": 0.5175,
-      "home_model": 0.4824,
-      "away_edge": 10.92,
-      "home_edge": -10.93,
-      "away_xr": 4.423,
-      "home_xr": 4.923
-    },
-    {
-      "away": "COL",
-      "home": "LAD",
-      "away_model": 0.4225,
-      "home_model": 0.5775,
-      "away_edge": 19.96,
-      "home_edge": -19.96,
-      "away_xr": 3.54,
-      "home_xr": 5.517
-    }
-  ],
+  "games": [],
   "bets": [],
-  "passes": [
-    {
-      "game": "Houston Astros @ Texas Rangers",
-      "edges": {
-        "away": 10.92,
-        "home": -10.93
-      }
-    },
-    {
-      "game": "Colorado Rockies @ Los Angeles Dodgers",
-      "edges": {
-        "away": 19.96,
-        "home": -19.96
-      }
-    }
-  ],
+  "passes": [],
   "slip_sent": false,
-  "sent_pick_ids": []
+  "sent_pick_ids": [],
+  "slip_quality": "bad"
 }
