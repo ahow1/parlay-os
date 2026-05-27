@@ -136,6 +136,36 @@ def run_auto_settlement_task():
         log.error(f"[scheduler] Auto-settlement failed: {e}", exc_info=True)
 
 
+def _get_brain():
+    """Lazy import of brain module, cached at module level so tests can patch scheduler.brain."""
+    global brain
+    if brain is None:
+        import brain as _brain_mod
+        brain = _brain_mod
+    return brain
+
+
+brain = None  # module-level ref; populated lazily by _get_brain()
+
+
+def run_debrief_task(send_fn=None):
+    """11pm ET: send nightly debrief via brain._run_debrief."""
+    try:
+        _get_brain()._run_debrief(send_fn=send_fn)
+        log.info("[scheduler] Nightly debrief sent")
+    except Exception as e:
+        log.error(f"[scheduler] Nightly debrief failed: {e}", exc_info=True)
+
+
+def run_daily_summary_task(send_fn=None):
+    """8pm ET: send full-day pick summary via brain._send_daily_summary."""
+    try:
+        _get_brain()._send_daily_summary(send_fn=send_fn)
+        log.info("[scheduler] Daily summary sent")
+    except Exception as e:
+        log.error(f"[scheduler] Daily summary failed: {e}", exc_info=True)
+
+
 def run_prop_settlement_task():
     """
     Nightly: auto-settle unsettled prop_results rows that are >= 1 day old.
@@ -183,6 +213,8 @@ def schedule_loop(stop_event=None):
     last_prop_settle  = ""   # YYYY-MM-DD
     last_conf_retrain = ""   # YYYY-WW — Sunday confidence retrain
     last_auto_settle  = 0.0  # unix timestamp of last settlement run
+    last_summary      = ""   # YYYY-MM-DD — 8pm daily summary
+    last_debrief      = ""   # YYYY-MM-DD — 11pm nightly debrief
 
     while True:
         if stop_event and stop_event.is_set():
@@ -250,6 +282,34 @@ def schedule_loop(stop_event=None):
                 log.error(f"[scheduler] Weekly team updates failed: {e}", exc_info=True)
             last_weekly = week
             log.info(f"[scheduler] Weekly tasks (maintenance + conf_retrain) fired for week {week}")
+
+        # 8pm ET: daily pick summary
+        if (today != last_summary
+                and now_et.hour == 20
+                and now_et.minute < 5):
+            _send_fn = None
+            try:
+                import brain as _brain_mod
+                _send_fn = _brain_mod._send_telegram
+            except Exception:
+                pass
+            run_daily_summary_task(send_fn=_send_fn)
+            last_summary = today
+            log.info(f"[scheduler] 8pm daily summary fired for {today}")
+
+        # 11pm ET: nightly debrief
+        if (today != last_debrief
+                and now_et.hour == 23
+                and now_et.minute < 5):
+            _send_fn = None
+            try:
+                import brain as _brain_mod
+                _send_fn = _brain_mod._send_telegram
+            except Exception:
+                pass
+            run_debrief_task(send_fn=_send_fn)
+            last_debrief = today
+            log.info(f"[scheduler] 11pm debrief fired for {today}")
 
         time.sleep(_POLL_INTERVAL)
 

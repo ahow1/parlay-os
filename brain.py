@@ -3001,6 +3001,18 @@ def run_daily_scout(window: str = "all"):
     elif _dd_status["tier"] == 1:
         print(f"[DRAWDOWN] {_dd_status['pct']:.1f}% — minor drawdown, stakes at 75%")
 
+    # Stop-loss circuit breaker: halt picks if today's loss exceeds 3% of bankroll
+    from bankroll_engine import is_daily_stop_loss_active as _stop_loss_active, daily_pnl as _daily_pnl
+    if _stop_loss_active():
+        _sl_pnl = _daily_pnl()
+        _sl_msg = (
+            f"🛑 STOP LOSS ACTIVE — daily P&L: ${_sl_pnl:.2f} (>{br * 0.03:.2f} loss threshold)\n"
+            f"No new picks for the rest of today. System resumes tomorrow."
+        )
+        print(_sl_msg)
+        _send_telegram(_sl_msg)
+        return
+
     if not _override_cap and accumulated_risk >= _cap:
         _warn = (
             f"⚠️ DAILY BUDGET ALREADY HIT — ${accumulated_risk:.2f} >= ${_cap:.2f} ({_cap_pct:.0f}% tier)\n"
@@ -4045,7 +4057,50 @@ def _format_props_message(
 
 # ── NIGHTLY DEBRIEF ───────────────────────────────────────────────────────────
 
-def _run_debrief():
+def _send_daily_summary(send_fn=None):
+    """8pm ET: send a summary of all picks sent today (settled or pending)."""
+    import pytz as _pytz
+    _tg = send_fn or _send_telegram
+    today = datetime.now(_pytz.timezone("America/New_York")).strftime("%Y-%m-%d")
+    bets  = _db.get_bets(date=today)
+    if not bets:
+        _tg(f"📋 Daily Summary ({today}): No picks logged today.")
+        return
+
+    resolved = [b for b in bets if b.get("result") in ("W", "L", "P")]
+    pending  = [b for b in bets if not b.get("result")]
+    wins     = sum(1 for b in resolved if b["result"] == "W")
+    losses   = sum(1 for b in resolved if b["result"] == "L")
+
+    day_pnl = 0.0
+    for b in resolved:
+        stake = float(b.get("stake") or 0)
+        if b["result"] == "W":
+            dec = american_to_decimal(str(b.get("bet_odds", "")))
+            if dec:
+                day_pnl += (dec - 1) * stake
+        elif b["result"] == "L":
+            day_pnl -= stake
+    day_pnl = round(day_pnl, 2)
+
+    br   = current_bankroll()
+    sign = "+" if day_pnl >= 0 else ""
+    lines = [f"📋 DAILY SUMMARY — {today}"]
+    lines.append(f"Picks sent: {len(bets)} | Settled: {wins}W-{losses}L | Pending: {len(pending)}")
+    if resolved:
+        lines.append(f"P&L so far: {sign}${day_pnl:.2f}")
+    lines.append(f"Bankroll: ${br:.2f}")
+
+    for b in bets:
+        res = b.get("result") or "⏳"
+        lines.append(
+            f"  {res} {b.get('bet','')} {b.get('type','ML')} {b.get('bet_odds','')} "
+            f"stake=${float(b.get('stake') or 0):.2f}"
+        )
+    _tg("\n".join(lines))
+
+
+def _run_debrief(send_fn=None):
     """Pull today's settled bets, compute day results, send formatted Telegram."""
     import pytz as _pytz
     today  = datetime.now(_pytz.timezone("America/New_York")).strftime("%Y-%m-%d")
@@ -4167,7 +4222,8 @@ def _run_debrief():
 
     msg = "\n".join(lines)
     print(msg)
-    _send_telegram(msg)
+    _tg = send_fn or _send_telegram
+    _tg(msg)
 
     # ── Feed today's settled bets into the brain learning system ─────────────
     try:
