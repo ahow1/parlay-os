@@ -1,12 +1,30 @@
 {
-  "timestamp": "2026-05-27T23:48:23Z",
-  "date": "2026-05-27",
-  "window": "evening",
+  "timestamp": "2026-05-28T12:48:05Z",
+  "date": "2026-05-28",
+  "window": "west",
   "bankroll": -52.0,
-  "games": [],
+  "games": [
+    {
+      "away": "HOU",
+      "home": "TEX",
+      "away_model": 0.53,
+      "home_model": 0.47,
+      "away_edge": 10.51,
+      "home_edge": -10.51,
+      "away_xr": 4.426,
+      "home_xr": 3.756
+    }
+  ],
   "bets": [],
-  "passes": [],
+  "passes": [
+    {
+      "game": "Houston Astros @ Texas Rangers",
+      "edges": {
+        "away": 10.51,
+        "home": -10.51
+      }
+    }
+  ],
   "slip_sent": false,
-  "sent_pick_ids": [],
-  "slip_quality": "bad"
+  "sent_pick_ids": []
 }
