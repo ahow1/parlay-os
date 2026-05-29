@@ -1,12 +1,115 @@
 {
-  "timestamp": "2026-05-28T23:58:53Z",
-  "date": "2026-05-28",
-  "window": "evening",
+  "timestamp": "2026-05-29T11:57:03Z",
+  "date": "2026-05-29",
+  "window": "west",
   "bankroll": -52.0,
-  "games": [],
+  "games": [
+    {
+      "away": "KC",
+      "home": "TEX",
+      "away_model": 0.5013,
+      "home_model": 0.4986,
+      "away_edge": 4.03,
+      "home_edge": -4.04,
+      "away_xr": 3.621,
+      "home_xr": 4.247
+    },
+    {
+      "away": "MIL",
+      "home": "HOU",
+      "away_model": 0.5093,
+      "home_model": 0.4906,
+      "away_edge": -1.25,
+      "home_edge": 1.24,
+      "away_xr": 3.583,
+      "home_xr": 3.5
+    },
+    {
+      "away": "SF",
+      "home": "COL",
+      "away_model": 0.5475,
+      "home_model": 0.4525,
+      "away_edge": -5.74,
+      "home_edge": 5.74,
+      "away_xr": 5.294,
+      "home_xr": 4.037
+    },
+    {
+      "away": "NYY",
+      "home": "ATH",
+      "away_model": 0.5283,
+      "home_model": 0.4717,
+      "away_edge": -5.78,
+      "home_edge": 5.78,
+      "away_xr": 4.581,
+      "home_xr": 3.5
+    },
+    {
+      "away": "AZ",
+      "home": "SEA",
+      "away_model": 0.5033,
+      "home_model": 0.4967,
+      "away_edge": 8.08,
+      "home_edge": -8.08,
+      "away_xr": 3.567,
+      "home_xr": 4.449
+    },
+    {
+      "away": "PHI",
+      "home": "LAD",
+      "away_model": 0.5159,
+      "home_model": 0.4841,
+      "away_edge": 3.22,
+      "home_edge": -3.22,
+      "away_xr": 3.5,
+      "home_xr": 3.5
+    }
+  ],
   "bets": [],
-  "passes": [],
+  "passes": [
+    {
+      "game": "Kansas City Royals @ Texas Rangers",
+      "edges": {
+        "away": 4.03,
+        "home": -4.04
+      }
+    },
+    {
+      "game": "Milwaukee Brewers @ Houston Astros",
+      "edges": {
+        "away": -1.25,
+        "home": 1.24
+      }
+    },
+    {
+      "game": "San Francisco Giants @ Colorado Rockies",
+      "edges": {
+        "away": -5.74,
+        "home": 5.74
+      }
+    },
+    {
+      "game": "New York Yankees @ Athletics",
+      "edges": {
+        "away": -5.78,
+        "home": 5.78
+      }
+    },
+    {
+      "game": "Arizona Diamondbacks @ Seattle Mariners",
+      "edges": {
+        "away": 8.08,
+        "home": -8.08
+      }
+    },
+    {
+      "game": "Philadelphia Phillies @ Los Angeles Dodgers",
+      "edges": {
+        "away": 3.22,
+        "home": -3.22
+      }
+    }
+  ],
   "slip_sent": false,
-  "sent_pick_ids": [],
-  "slip_quality": "bad"
+  "sent_pick_ids": []
 }
