@@ -1561,6 +1561,8 @@ def _daily_bet_slip(
     for a, s in locks:
         if a.get(f"best_{s}_odds") is None:
             continue
+        if a.get(f"{s}_confidence_score", 0) < 65:
+            continue  # lineup penalty dropped confidence below parlay threshold
         odds_val = a.get(f"best_{s}_odds")
         try:
             if int(str(odds_val).replace("+", "")) < -180:
@@ -1583,6 +1585,8 @@ def _daily_bet_slip(
             _odds_v = _a.get(f"best_{_s}_odds")
             if _odds_v is None:
                 continue
+            if _a.get(f"{_s}_confidence_score", 0) < 65:
+                continue  # lineup penalty dropped confidence below parlay threshold
             try:
                 if int(str(_odds_v).replace("+", "")) < -180:
                     continue
@@ -1718,7 +1722,9 @@ def _daily_bet_slip(
             game   = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
             odds_s = (f"+{odds}" if isinstance(odds, int) and odds > 0 else str(odds or ""))
             conf = analysis.get(f"{side}_confidence_score", 0)
-            p1.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}% — CONF: {conf}/100")
+            _lu_warn = not (analysis.get("away_lineup_confirmed", True) and analysis.get("home_lineup_confirmed", True))
+            p1.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}% — CONF: {conf}/100"
+                      + (" ⚠️ Lineup unconfirmed — verify before betting" if _lu_warn else ""))
     else:
         p1.append("  None today")
     p1.append("")
@@ -1733,7 +1739,9 @@ def _daily_bet_slip(
             game   = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
             odds_s = (f"+{odds}" if isinstance(odds, int) and odds > 0 else str(odds or ""))
             conf = analysis.get(f"{side}_confidence_score", 0)
-            p1.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}% — CONF: {conf}/100")
+            _lu_warn = not (analysis.get("away_lineup_confirmed", True) and analysis.get("home_lineup_confirmed", True))
+            p1.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}% — CONF: {conf}/100"
+                      + (" ⚠️ Lineup unconfirmed — verify before betting" if _lu_warn else ""))
     else:
         p1.append("  None today")
     p1.append("")
@@ -3650,28 +3658,6 @@ def run_daily_scout(window: str = "all"):
     # blocking legitimate retries on the next run (Bug 3 fix).
     scout_out["slip_sent"]     = False
     scout_out["sent_pick_ids"] = sorted(prev_pick_ids)   # keep old IDs until confirmed sent
-
-    # ── Guard: don't send RED day if lineups are broadly unconfirmed ─────────
-    # If >60% of today's games have unconfirmed lineups and we have zero locks,
-    # lineups haven't posted yet — send a holding message instead of RED.
-    _all_analyses = list(game_key_map.values())
-    _n_games_total = len(_all_analyses)
-    if _n_games_total > 0 and len(all_locks) == 0:
-        _unconf_count = sum(
-            1 for _a in _all_analyses
-            if not _a.get("away_lineup_confirmed") or not _a.get("home_lineup_confirmed")
-        )
-        if _unconf_count / _n_games_total > 0.60:
-            _msg = (
-                f"⏳ PARLAY OS — {today}\n"
-                f"Lineups unconfirmed for {_unconf_count}/{_n_games_total} games — "
-                f"picks pending.\nRe-running when lineups post (typically 11–11:30am ET)."
-            )
-            print(f"[SLIP] Lineup hold — {_unconf_count}/{_n_games_total} unconfirmed, skipping RED slip")
-            _send_telegram(_msg)
-            with open("last_scout.json", "w") as _sf:
-                json.dump(scout_out, _sf, indent=2, default=str)
-            return
 
     # ── Dedup: remove fades that contradict an active bet on the same team ──────
     _bet_teams = {a.get(f"{s}_name") for a, s in all_locks + all_flips}

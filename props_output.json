@@ -1,5 +1,216 @@
 {
   "date": "2026-05-28",
-  "timestamp": "2026-05-28T19:58:55.394473-04:00",
-  "games": []
+  "timestamp": "2026-05-28T13:10:50.536800-04:00",
+  "games": [
+    {
+      "away": "MIN",
+      "home": "CWS",
+      "away_name": "Minnesota Twins",
+      "home_name": "Chicago White Sox",
+      "time": "2:10 PM ET",
+      "asp": "Kendry Rojas",
+      "hsp": "Davis Martin",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Kendry Rojas",
+          "sp_side": "away",
+          "model_line": 4.9,
+          "p_over": 0.8116,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Davis Martin",
+          "sp_side": "home",
+          "model_line": 5.4,
+          "p_over": 0.6456,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.5235,
+          "p_yrfi": 0.4765,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.49,
+          "market_line": 7.5,
+          "p_over": 0.4742,
+          "p_under": 0.5258,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "ATL",
+      "home": "BOS",
+      "away_name": "Atlanta Braves",
+      "home_name": "Boston Red Sox",
+      "time": "4:10 PM ET",
+      "asp": "Chris Sale",
+      "hsp": "Payton Tolle",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Chris Sale",
+          "sp_side": "away",
+          "model_line": 5.8,
+          "p_over": 0.724,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Payton Tolle",
+          "sp_side": "home",
+          "model_line": 5.3,
+          "p_over": 0.6315,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.5139,
+          "p_yrfi": 0.4861,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.6,
+          "market_line": 7.0,
+          "p_over": 0.4895,
+          "p_under": 0.5105,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "TOR",
+      "home": "BAL",
+      "away_name": "Toronto Blue Jays",
+      "home_name": "Baltimore Orioles",
+      "time": "6:36 PM ET",
+      "asp": "Patrick Corbin",
+      "hsp": "Chris Bassitt",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Patrick Corbin",
+          "sp_side": "away",
+          "model_line": 3.6,
+          "p_over": 0.4752,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Chris Bassitt",
+          "sp_side": "home",
+          "model_line": 3.6,
+          "p_over": 0.6127,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4484,
+          "p_yrfi": 0.5516,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.83,
+          "market_line": 8.5,
+          "p_over": 0.3836,
+          "p_under": 0.6164,
+          "recommendation": "UNDER 8.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "CHC",
+      "home": "PIT",
+      "away_name": "Chicago Cubs",
+      "home_name": "Pittsburgh Pirates",
+      "time": "6:41 PM ET",
+      "asp": "Colin Rea",
+      "hsp": "Paul Skenes",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Colin Rea",
+          "sp_side": "away",
+          "model_line": 4.1,
+          "p_over": 0.642,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Paul Skenes",
+          "sp_side": "home",
+          "model_line": 5.4,
+          "p_over": 0.5396,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4753,
+          "p_yrfi": 0.5247,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.72,
+          "market_line": 7.5,
+          "p_over": 0.5072,
+          "p_under": 0.4928,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "HOU",
+      "home": "TEX",
+      "away_name": "Houston Astros",
+      "home_name": "Texas Rangers",
+      "time": "8:06 PM ET",
+      "asp": "Spencer Arrighetti",
+      "hsp": "Nathan Eovaldi",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Spencer Arrighetti",
+          "sp_side": "away",
+          "model_line": 4.9,
+          "p_over": 0.6748,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Nathan Eovaldi",
+          "sp_side": "home",
+          "model_line": 4.9,
+          "p_over": 0.7282,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4508,
+          "p_yrfi": 0.5492,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.01,
+          "market_line": 7.5,
+          "p_over": 0.5482,
+          "p_under": 0.4518,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": []
+    }
+  ]
 }
