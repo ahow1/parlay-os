@@ -54,9 +54,10 @@ jobs:
 
       - name: Run day scout (games before 3pm ET)
         env:
-          ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          ODDS_API_KEY:         ${{ secrets.ODDS_API_KEY }}
+          TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
+          BANKROLL_OVERRIDE:    ${{ secrets.BANKROLL_OVERRIDE }}
         run: python brain.py --window day
 
       - name: Commit scout outputs
@@ -86,9 +87,10 @@ jobs:
 
       - name: Run evening scout (games 3–8pm ET)
         env:
-          ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          ODDS_API_KEY:         ${{ secrets.ODDS_API_KEY }}
+          TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
+          BANKROLL_OVERRIDE:    ${{ secrets.BANKROLL_OVERRIDE }}
         run: python brain.py --window evening
 
       - name: Commit scout outputs
@@ -118,9 +120,10 @@ jobs:
 
       - name: Run west coast scout (games after 8pm ET)
         env:
-          ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          ODDS_API_KEY:         ${{ secrets.ODDS_API_KEY }}
+          TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
+          BANKROLL_OVERRIDE:    ${{ secrets.BANKROLL_OVERRIDE }}
         run: python brain.py --window west
 
       - name: Commit scout outputs
@@ -149,9 +152,10 @@ jobs:
 
       - name: Run full scout (all games, window=all)
         env:
-          ODDS_API_KEY:       ${{ secrets.ODDS_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          ODDS_API_KEY:         ${{ secrets.ODDS_API_KEY }}
+          TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
+          BANKROLL_OVERRIDE:    ${{ secrets.BANKROLL_OVERRIDE }}
         run: python brain.py --window all
 
       - name: Commit scout outputs

@@ -37,7 +37,7 @@ from bullpen_engine import analyze_bullpen, bullpen_run_factor
 from offense_engine import analyze_offense
 from market_engine  import get_mlb_events, full_market_snapshot
 from bankroll_engine import (
-    kelly_stake, sizing_summary, current_bankroll, peak_bankroll, is_drawdown_pause,
+    kelly_stake, sizing_summary, current_bankroll, sizing_bankroll, peak_bankroll, is_drawdown_pause,
     daily_budget, daily_budget_pct, pool_budget, pool_exposure, pool_remaining,
     drawdown_tier, growth_tracker, MIN_STAKE,
 )
@@ -2946,7 +2946,11 @@ def run_daily_scout(window: str = "all"):
         except Exception as _lp_e:
             print(f"[LME] Line polling start failed: {_lp_e}")
 
-    br        = current_bankroll()
+    # sizing_bankroll() = BANKROLL_OVERRIDE if set, else settled P&L only (no pending deduction).
+    # Keeps daily_budget/_cap consistent with kelly_stake() which also uses sizing_bankroll().
+    # current_bankroll() subtracts pending bets and collapses to ~$27 when BANKROLL_OVERRIDE
+    # is missing (e.g. GitHub Actions), making the daily cap $3.32 and blocking every bet.
+    br        = sizing_bankroll()
     mem       = memory_report()
     print(f"Bankroll: ${br:.2f} | Memory cal ready: {mem['ready_to_recalibrate']}")
     _ml_bgt  = pool_budget("ML", br)
@@ -2974,6 +2978,7 @@ def run_daily_scout(window: str = "all"):
     game_key_map:     dict = {}   # (away_code, home_code) → analysis
     props_games:      list = []   # per-game props data for props_output.json
     _faded_games:     set  = set()  # game keys already represented in fades
+    _cap_blocked_teams: list = []   # teams with edge that were blocked by daily cap
 
     # Seed accumulated_risk from today's already-pending bets (stale or earlier scout)
     _prior_pending = [b for b in _db.get_bets()
@@ -3241,6 +3246,7 @@ def run_daily_scout(window: str = "all"):
                         f"  BLOCK {_team}: daily cap ${_cap:.2f} would be exceeded "
                         f"(accumulated ${accumulated_risk:.2f} + ${proposed_stake:.2f})"
                     )
+                    _cap_blocked_teams.append(_team)
                     continue
 
                 accumulated_risk = round(accumulated_risk + proposed_stake, 2)
@@ -3739,6 +3745,18 @@ def run_daily_scout(window: str = "all"):
         print(_sanity_msg)
         if not DRY_RUN:
             _send_telegram(_sanity_msg)
+
+    # ── Sanity check: daily cap blocked bets that had real edge ───────────────
+    if _cap_blocked_teams and not slip_already_sent:
+        _block_msg = (
+            f"⚠️ [CAP BLOCK] {len(_cap_blocked_teams)} bet(s) had edge but were blocked "
+            f"by the daily cap (${_cap:.2f}): {', '.join(_cap_blocked_teams)}\n"
+            f"Bankroll: ${br:.2f} | Cap: ${_cap:.2f} | BANKROLL_OVERRIDE: "
+            + (os.getenv('BANKROLL_OVERRIDE') or 'NOT SET — fix this!')
+        )
+        print(_block_msg)
+        if not DRY_RUN:
+            _send_telegram(_block_msg)
 
     # ── Public channel post ───────────────────────────────────────────────────
     if PUBLIC_CHANNEL_ID:

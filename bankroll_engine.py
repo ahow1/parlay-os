@@ -14,7 +14,7 @@ DRAWDOWN_PROPS_ONLY = 0.15   # -15%: reduce stakes 50%, ML bets blocked
 DRAWDOWN_PAUSE      = 0.20   # -20%: full pause + Telegram alert
 
 # Pool split — daily budget by category
-POOL_ML     = 0.60
+POOL_ML     = 2.00
 POOL_PROPS  = 0.25
 POOL_PARLAY = 0.15
 
