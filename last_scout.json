@@ -1,23 +1,12 @@
 {
-  "timestamp": "2026-05-30T18:16:46Z",
+  "timestamp": "2026-05-30T23:38:02Z",
   "date": "2026-05-30",
-  "window": "day",
+  "window": "evening",
   "bankroll": 150.0,
   "games": [],
   "bets": [],
   "passes": [],
   "slip_sent": false,
-  "sent_pick_ids": [
-    "KPROP:Adrian Houser:2.9",
-    "KPROP:Bryan Woo:4.6",
-    "KPROP:J.T. Ginn:4.5",
-    "KPROP:Jes\u00fas Luzardo:5.8",
-    "KPROP:Ryan Weathers:5.7",
-    "ML:Philadelphia Phillies:114",
-    "NRFI:San Francisco Giants @ Colorado Rockies:YRFI",
-    "TOT:Arizona Diamondbacks @ Seattle Mariners:OVER:7.0",
-    "TOT:New York Yankees @ Athletics:UNDER:9.5",
-    "TOT:Philadelphia Phillies @ Los Angeles Dodgers:UNDER:8.5"
-  ],
+  "sent_pick_ids": [],
   "slip_quality": "bad"
 }
