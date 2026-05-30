@@ -1,5 +1,174 @@
 {
-  "date": "2026-05-29",
-  "timestamp": "2026-05-29T19:59:23.520485-04:00",
-  "games": []
+  "date": "2026-05-30",
+  "timestamp": "2026-05-30T04:47:35.953776-04:00",
+  "games": [
+    {
+      "away": "SF",
+      "home": "COL",
+      "away_name": "San Francisco Giants",
+      "home_name": "Colorado Rockies",
+      "time": "9:11 PM ET",
+      "asp": "Adrian Houser",
+      "hsp": "Ryan Feltner",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Adrian Houser",
+          "sp_side": "away",
+          "model_line": 2.9,
+          "p_over": 0.5995,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Ryan Feltner",
+          "sp_side": "home",
+          "model_line": 4.2,
+          "p_over": 0.2558,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.2596,
+          "p_yrfi": 0.7404,
+          "recommendation": "YRFI"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 11.49,
+          "market_line": 11.0,
+          "p_over": 0.4787,
+          "p_under": 0.5213,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "NYY",
+      "home": "ATH",
+      "away_name": "New York Yankees",
+      "home_name": "Athletics",
+      "time": "10:06 PM ET",
+      "asp": "Ryan Weathers",
+      "hsp": "J.T. Ginn",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Ryan Weathers",
+          "sp_side": "away",
+          "model_line": 5.7,
+          "p_over": 0.6301,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "J.T. Ginn",
+          "sp_side": "home",
+          "model_line": 4.5,
+          "p_over": 0.6165,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4601,
+          "p_yrfi": 0.5399,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.99,
+          "market_line": 9.5,
+          "p_over": 0.2819,
+          "p_under": 0.7181,
+          "recommendation": "UNDER 9.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "AZ",
+      "home": "SEA",
+      "away_name": "Arizona Diamondbacks",
+      "home_name": "Seattle Mariners",
+      "time": "10:11 PM ET",
+      "asp": "Ryne Nelson",
+      "hsp": "Bryan Woo",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Ryne Nelson",
+          "sp_side": "away",
+          "model_line": 4.1,
+          "p_over": 0.4593,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Bryan Woo",
+          "sp_side": "home",
+          "model_line": 4.6,
+          "p_over": 0.6212,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4047,
+          "p_yrfi": 0.5953,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.92,
+          "market_line": 7.0,
+          "p_over": 0.6662,
+          "p_under": 0.3338,
+          "recommendation": "OVER 7.0"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "PHI",
+      "home": "LAD",
+      "away_name": "Philadelphia Phillies",
+      "home_name": "Los Angeles Dodgers",
+      "time": "10:11 PM ET",
+      "asp": "Jes\u00fas Luzardo",
+      "hsp": "Roki Sasaki",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Jes\u00fas Luzardo",
+          "sp_side": "away",
+          "model_line": 5.8,
+          "p_over": 0.6382,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Roki Sasaki",
+          "sp_side": "home",
+          "model_line": 4.7,
+          "p_over": 0.5199,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4436,
+          "p_yrfi": 0.5564,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.21,
+          "market_line": 8.5,
+          "p_over": 0.4372,
+          "p_under": 0.5628,
+          "recommendation": "UNDER 8.5"
+        }
+      ],
+      "sgp": []
+    }
+  ]
 }

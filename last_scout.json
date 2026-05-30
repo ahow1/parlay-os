@@ -1,12 +1,136 @@
 {
-  "timestamp": "2026-05-29T23:59:20Z",
-  "date": "2026-05-29",
-  "window": "evening",
+  "timestamp": "2026-05-30T08:41:43Z",
+  "date": "2026-05-30",
+  "window": "west",
   "bankroll": 150.0,
-  "games": [],
-  "bets": [],
-  "passes": [],
-  "slip_sent": false,
-  "sent_pick_ids": [],
-  "slip_quality": "bad"
+  "games": [
+    {
+      "away": "SF",
+      "home": "COL",
+      "away_model": 0.5339,
+      "home_model": 0.4661,
+      "away_edge": 0.12,
+      "home_edge": -0.12,
+      "away_xr": 5.985,
+      "home_xr": 5.502
+    },
+    {
+      "away": "NYY",
+      "home": "ATH",
+      "away_model": 0.5352,
+      "home_model": 0.4648,
+      "away_edge": -4.92,
+      "home_edge": 4.92,
+      "away_xr": 4.488,
+      "home_xr": 3.5
+    },
+    {
+      "away": "AZ",
+      "home": "SEA",
+      "away_model": 0.4955,
+      "home_model": 0.5045,
+      "away_edge": 8.49,
+      "home_edge": -8.49,
+      "away_xr": 4.132,
+      "home_xr": 4.784
+    },
+    {
+      "away": "PHI",
+      "home": "LAD",
+      "away_model": 0.5139,
+      "home_model": 0.4861,
+      "away_edge": 5.59,
+      "home_edge": -5.59,
+      "away_xr": 4.289,
+      "home_xr": 3.924
+    }
+  ],
+  "bets": [
+    {
+      "team": "Arizona Diamondbacks",
+      "side": "away",
+      "game": "Arizona Diamondbacks @ Seattle Mariners",
+      "odds": 138,
+      "book": "lowvig",
+      "model_prob": 0.4955,
+      "market_prob": 0.4106,
+      "edge_pct": 8.49,
+      "stake": 4.9,
+      "conviction": "MEDIUM",
+      "confidence_score": 66,
+      "sp": "Ryne Nelson",
+      "sp_era": 4.65,
+      "sp_xfip": 4.51,
+      "sp_yrfi_lean": true,
+      "bullpen_tier": null,
+      "weather_adj": null,
+      "platoon_edge": -14.1,
+      "h2h": {
+        "h2h_available": true,
+        "n_games": 7,
+        "away_win_rate": 0.571,
+        "home_win_rate": 0.429,
+        "avg_total": 8.71,
+        "over_rate": 0.429
+      }
+    },
+    {
+      "team": "Philadelphia Phillies",
+      "side": "away",
+      "game": "Philadelphia Phillies @ Los Angeles Dodgers",
+      "odds": 114,
+      "book": "betus",
+      "model_prob": 0.5139,
+      "market_prob": 0.458,
+      "edge_pct": 5.59,
+      "stake": 3.3,
+      "conviction": "MEDIUM",
+      "confidence_score": 64,
+      "sp": "Jes\u00fas Luzardo",
+      "sp_era": 4.38,
+      "sp_xfip": 2.75,
+      "sp_yrfi_lean": false,
+      "bullpen_tier": null,
+      "weather_adj": null,
+      "platoon_edge": 4.8,
+      "h2h": {
+        "h2h_available": true,
+        "n_games": 10,
+        "away_win_rate": 0.6,
+        "home_win_rate": 0.4,
+        "avg_total": 9.0,
+        "over_rate": 0.4
+      }
+    }
+  ],
+  "passes": [
+    {
+      "game": "San Francisco Giants @ Colorado Rockies",
+      "edges": {
+        "away": 0.12,
+        "home": -0.12
+      }
+    },
+    {
+      "game": "New York Yankees @ Athletics",
+      "edges": {
+        "away": -4.92,
+        "home": 4.92
+      }
+    }
+  ],
+  "slip_sent": true,
+  "sent_pick_ids": [
+    "KPROP:Adrian Houser:2.9",
+    "KPROP:Bryan Woo:4.6",
+    "KPROP:J.T. Ginn:4.5",
+    "KPROP:Jes\u00fas Luzardo:5.8",
+    "KPROP:Ryan Weathers:5.7",
+    "ML:Philadelphia Phillies:114",
+    "NRFI:San Francisco Giants @ Colorado Rockies:YRFI",
+    "TOT:Arizona Diamondbacks @ Seattle Mariners:OVER:7.0",
+    "TOT:New York Yankees @ Athletics:UNDER:9.5",
+    "TOT:Philadelphia Phillies @ Los Angeles Dodgers:UNDER:8.5"
+  ],
+  "slip_quality": "good"
 }
