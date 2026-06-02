@@ -1,98 +1,11 @@
 {
-  "timestamp": "2026-06-01T22:31:50Z",
+  "timestamp": "2026-06-02T01:59:38Z",
   "date": "2026-06-01",
-  "window": "evening",
+  "window": "west",
   "bankroll": 163.55,
-  "games": [
-    {
-      "away": "MIA",
-      "home": "WAS",
-      "away_model": 0.4864,
-      "home_model": 0.5136,
-      "away_edge": 5.61,
-      "home_edge": -5.61,
-      "away_xr": 3.5,
-      "home_xr": 4.528
-    },
-    {
-      "away": "KC",
-      "home": "CIN",
-      "away_model": 0.5462,
-      "home_model": 0.4538,
-      "away_edge": 8.82,
-      "home_edge": -8.82,
-      "away_xr": 5.204,
-      "home_xr": 3.859
-    },
-    {
-      "away": "CWS",
-      "home": "MIN",
-      "away_model": 0.5422,
-      "home_model": 0.4578,
-      "away_edge": 10.65,
-      "home_edge": -10.65,
-      "away_xr": 4.12,
-      "home_xr": 4.035
-    },
-    {
-      "away": "SF",
-      "home": "MIL",
-      "away_model": 0.4872,
-      "home_model": 0.5128,
-      "away_edge": 6.65,
-      "home_edge": -6.65,
-      "away_xr": 3.5,
-      "home_xr": 3.5
-    },
-    {
-      "away": "TEX",
-      "home": "STL",
-      "away_model": 0.5102,
-      "home_model": 0.4898,
-      "away_edge": -2.88,
-      "home_edge": 2.88,
-      "away_xr": 4.455,
-      "home_xr": 3.856
-    }
-  ],
+  "games": [],
   "bets": [],
-  "passes": [
-    {
-      "game": "Miami Marlins @ Washington Nationals",
-      "edges": {
-        "away": 5.61,
-        "home": -5.61
-      }
-    },
-    {
-      "game": "Kansas City Royals @ Cincinnati Reds",
-      "edges": {
-        "away": 8.82,
-        "home": -8.82
-      }
-    },
-    {
-      "game": "Chicago White Sox @ Minnesota Twins",
-      "edges": {
-        "away": 10.65,
-        "home": -10.65
-      }
-    },
-    {
-      "game": "San Francisco Giants @ Milwaukee Brewers",
-      "edges": {
-        "away": 6.65,
-        "home": -6.65
-      }
-    },
-    {
-      "game": "Texas Rangers @ St. Louis Cardinals",
-      "edges": {
-        "away": -2.88,
-        "home": 2.88
-      }
-    }
-  ],
+  "passes": [],
   "slip_sent": false,
   "sent_pick_ids": [],
   "slip_quality": "bad"
