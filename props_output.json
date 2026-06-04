@@ -1,45 +1,110 @@
 {
   "date": "2026-06-04",
-  "timestamp": "2026-06-04T13:40:59.130791-04:00",
+  "timestamp": "2026-06-04T17:32:52.299967-04:00",
   "games": [
     {
-      "away": "SF",
-      "home": "MIL",
-      "away_name": "San Francisco Giants",
-      "home_name": "Milwaukee Brewers",
-      "time": "2:11 PM ET",
-      "asp": "Adrian Houser",
-      "hsp": "Coleman Crow",
+      "away": "TOR",
+      "home": "ATL",
+      "away_name": "Toronto Blue Jays",
+      "home_name": "Atlanta Braves",
+      "time": "7:15 PM ET",
+      "asp": "Mason Fluharty",
+      "hsp": "Chris Sale",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Adrian Houser",
+          "sp": "Mason Fluharty",
           "sp_side": "away",
-          "model_line": 3.1,
-          "p_over": 0.3928,
-          "recommendation": "PASS"
+          "model_line": 6.6,
+          "p_over": 0.8161,
+          "recommendation": "BET"
         },
         {
           "type": "K_PROP",
-          "sp": "Coleman Crow",
+          "sp": "Chris Sale",
           "sp_side": "home",
-          "model_line": 2.8,
-          "p_over": 0.4963,
-          "recommendation": "PASS"
+          "model_line": 6.0,
+          "p_over": 0.5904,
+          "recommendation": "BET"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.3871,
-          "p_yrfi": 0.6129,
+          "p_nrfi": 0.6,
+          "p_yrfi": 0.4,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 9.47,
-          "market_line": 9.0,
-          "p_over": 0.4749,
-          "p_under": 0.5251,
+          "model_total": 7.0,
+          "market_line": 7.5,
+          "p_over": 0.4013,
+          "p_under": 0.5987,
+          "recommendation": "UNDER 7.5"
+        }
+      ],
+      "sgp": [
+        {
+          "type": "SP_DOMINANCE",
+          "legs": [
+            "Mason Fluharty OVER 6.6 Ks (81.6%)",
+            "NRFI (60.0%)",
+            "Game UNDER 7.5 (59.9%)"
+          ],
+          "joint_prob": 0.4047,
+          "kelly_stake": 0.0,
+          "ev": -0.15
+        },
+        {
+          "type": "SP_DOMINANCE",
+          "legs": [
+            "Chris Sale OVER 6.0 Ks (59.0%)",
+            "NRFI (60.0%)",
+            "Game UNDER 7.5 (59.9%)"
+          ],
+          "joint_prob": 0.3421,
+          "kelly_stake": 0.0,
+          "ev": -0.15
+        }
+      ]
+    },
+    {
+      "away": "KC",
+      "home": "MIN",
+      "away_name": "Kansas City Royals",
+      "home_name": "Minnesota Twins",
+      "time": "7:41 PM ET",
+      "asp": "Seth Lugo",
+      "hsp": "Andrew Morris",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Seth Lugo",
+          "sp_side": "away",
+          "model_line": 4.2,
+          "p_over": 0.56,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Andrew Morris",
+          "sp_side": "home",
+          "model_line": 4.5,
+          "p_over": 0.7568,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.5094,
+          "p_yrfi": 0.4906,
           "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.11,
+          "market_line": 9.0,
+          "p_over": 0.1806,
+          "p_under": 0.8194,
+          "recommendation": "UNDER 9.0"
         }
       ],
       "sgp": []

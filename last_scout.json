@@ -1,27 +1,44 @@
 {
-  "timestamp": "2026-06-04T17:39:08Z",
+  "timestamp": "2026-06-04T21:28:29Z",
   "date": "2026-06-04",
-  "window": "day",
+  "window": "evening",
   "bankroll": 163.55,
   "games": [
     {
-      "away": "SF",
-      "home": "MIL",
-      "away_model": 0.503,
-      "home_model": 0.497,
-      "away_edge": 13.44,
-      "home_edge": -13.44,
-      "away_xr": 4.467,
-      "home_xr": 5.008
+      "away": "TOR",
+      "home": "ATL",
+      "away_model": 0.501,
+      "home_model": 0.499,
+      "away_edge": 20.32,
+      "home_edge": -20.32,
+      "away_xr": 3.5,
+      "home_xr": 3.5
+    },
+    {
+      "away": "KC",
+      "home": "MIN",
+      "away_model": 0.5042,
+      "home_model": 0.4958,
+      "away_edge": -0.27,
+      "home_edge": 0.27,
+      "away_xr": 3.5,
+      "home_xr": 3.608
     }
   ],
   "bets": [],
   "passes": [
     {
-      "game": "San Francisco Giants @ Milwaukee Brewers",
+      "game": "Toronto Blue Jays @ Atlanta Braves",
       "edges": {
-        "away": 13.44,
-        "home": -13.44
+        "away": 20.32,
+        "home": -20.32
+      }
+    },
+    {
+      "game": "Kansas City Royals @ Minnesota Twins",
+      "edges": {
+        "away": -0.27,
+        "home": 0.27
       }
     }
   ],
