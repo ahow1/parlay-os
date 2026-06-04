@@ -1,5 +1,48 @@
 {
-  "date": "2026-06-03",
-  "timestamp": "2026-06-03T22:06:34.621443-04:00",
-  "games": []
+  "date": "2026-06-04",
+  "timestamp": "2026-06-04T13:40:59.130791-04:00",
+  "games": [
+    {
+      "away": "SF",
+      "home": "MIL",
+      "away_name": "San Francisco Giants",
+      "home_name": "Milwaukee Brewers",
+      "time": "2:11 PM ET",
+      "asp": "Adrian Houser",
+      "hsp": "Coleman Crow",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Adrian Houser",
+          "sp_side": "away",
+          "model_line": 3.1,
+          "p_over": 0.3928,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Coleman Crow",
+          "sp_side": "home",
+          "model_line": 2.8,
+          "p_over": 0.4963,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3871,
+          "p_yrfi": 0.6129,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.47,
+          "market_line": 9.0,
+          "p_over": 0.4749,
+          "p_under": 0.5251,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": []
+    }
+  ]
 }

@@ -1,11 +1,30 @@
 {
-  "timestamp": "2026-06-04T02:06:32Z",
-  "date": "2026-06-03",
-  "window": "west",
+  "timestamp": "2026-06-04T17:39:08Z",
+  "date": "2026-06-04",
+  "window": "day",
   "bankroll": 163.55,
-  "games": [],
+  "games": [
+    {
+      "away": "SF",
+      "home": "MIL",
+      "away_model": 0.503,
+      "home_model": 0.497,
+      "away_edge": 13.44,
+      "home_edge": -13.44,
+      "away_xr": 4.467,
+      "home_xr": 5.008
+    }
+  ],
   "bets": [],
-  "passes": [],
+  "passes": [
+    {
+      "game": "San Francisco Giants @ Milwaukee Brewers",
+      "edges": {
+        "away": 13.44,
+        "home": -13.44
+      }
+    }
+  ],
   "slip_sent": false,
   "sent_pick_ids": [],
   "slip_quality": "bad"
