@@ -1,11 +1,30 @@
 {
-  "timestamp": "2026-06-05T01:37:42Z",
-  "date": "2026-06-04",
-  "window": "west",
+  "timestamp": "2026-06-05T17:08:13Z",
+  "date": "2026-06-05",
+  "window": "day",
   "bankroll": 163.55,
-  "games": [],
+  "games": [
+    {
+      "away": "SF",
+      "home": "CHC",
+      "away_model": 0.5191,
+      "home_model": 0.4809,
+      "away_edge": 14.34,
+      "home_edge": -14.34,
+      "away_xr": 4.914,
+      "home_xr": 4.944
+    }
+  ],
   "bets": [],
-  "passes": [],
+  "passes": [
+    {
+      "game": "San Francisco Giants @ Chicago Cubs",
+      "edges": {
+        "away": 14.34,
+        "home": -14.34
+      }
+    }
+  ],
   "slip_sent": false,
   "sent_pick_ids": [],
   "slip_quality": "bad"

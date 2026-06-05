@@ -1,5 +1,48 @@
 {
-  "date": "2026-06-04",
-  "timestamp": "2026-06-04T21:37:44.959661-04:00",
-  "games": []
+  "date": "2026-06-05",
+  "timestamp": "2026-06-05T13:10:50.681297-04:00",
+  "games": [
+    {
+      "away": "SF",
+      "home": "CHC",
+      "away_name": "San Francisco Giants",
+      "home_name": "Chicago Cubs",
+      "time": "2:21 PM ET",
+      "asp": "Robbie Ray",
+      "hsp": "Edward Cabrera",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Robbie Ray",
+          "sp_side": "away",
+          "model_line": 4.7,
+          "p_over": 0.5448,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Edward Cabrera",
+          "sp_side": "home",
+          "model_line": 4.3,
+          "p_over": 0.505,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3473,
+          "p_yrfi": 0.6527,
+          "recommendation": "YRFI"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.86,
+          "market_line": 11.0,
+          "p_over": 0.2872,
+          "p_under": 0.7128,
+          "recommendation": "UNDER 11.0"
+        }
+      ],
+      "sgp": []
+    }
+  ]
 }
