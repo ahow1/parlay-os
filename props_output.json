@@ -1,45 +1,267 @@
 {
   "date": "2026-06-05",
-  "timestamp": "2026-06-05T13:10:50.681297-04:00",
+  "timestamp": "2026-06-05T17:35:22.007323-04:00",
   "games": [
     {
-      "away": "SF",
-      "home": "CHC",
-      "away_name": "San Francisco Giants",
-      "home_name": "Chicago Cubs",
-      "time": "2:21 PM ET",
-      "asp": "Robbie Ray",
-      "hsp": "Edward Cabrera",
+      "away": "CWS",
+      "home": "PHI",
+      "away_name": "Chicago White Sox",
+      "home_name": "Philadelphia Phillies",
+      "time": "6:41 PM ET",
+      "asp": "Anthony Kay",
+      "hsp": "Jes\u00fas Luzardo",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Robbie Ray",
+          "sp": "Anthony Kay",
           "sp_side": "away",
-          "model_line": 4.7,
-          "p_over": 0.5448,
-          "recommendation": "PASS"
+          "model_line": 3.7,
+          "p_over": 0.6039,
+          "recommendation": "BET"
         },
         {
           "type": "K_PROP",
-          "sp": "Edward Cabrera",
+          "sp": "Jes\u00fas Luzardo",
           "sp_side": "home",
-          "model_line": 4.3,
-          "p_over": 0.505,
+          "model_line": 5.8,
+          "p_over": 0.6311,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4268,
+          "p_yrfi": 0.5732,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.35,
+          "market_line": 8.5,
+          "p_over": 0.4567,
+          "p_under": 0.5433,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "SEA",
+      "home": "DET",
+      "away_name": "Seattle Mariners",
+      "home_name": "Detroit Tigers",
+      "time": "6:41 PM ET",
+      "asp": "Bryan Woo",
+      "hsp": "Framber Valdez",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Bryan Woo",
+          "sp_side": "away",
+          "model_line": 4.8,
+          "p_over": 0.6682,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Framber Valdez",
+          "sp_side": "home",
+          "model_line": 4.0,
+          "p_over": 0.4681,
           "recommendation": "PASS"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.3473,
-          "p_yrfi": 0.6527,
-          "recommendation": "YRFI"
+          "p_nrfi": 0.4374,
+          "p_yrfi": 0.5626,
+          "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 9.86,
-          "market_line": 11.0,
-          "p_over": 0.2872,
-          "p_under": 0.7128,
-          "recommendation": "UNDER 11.0"
+          "model_total": 7.58,
+          "market_line": 7.5,
+          "p_over": 0.4865,
+          "p_under": 0.5135,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "BOS",
+      "home": "NYY",
+      "away_name": "Boston Red Sox",
+      "home_name": "New York Yankees",
+      "time": "7:06 PM ET",
+      "asp": "Sonny Gray",
+      "hsp": "Ryan Weathers",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Sonny Gray",
+          "sp_side": "away",
+          "model_line": 4.1,
+          "p_over": 0.3907,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Ryan Weathers",
+          "sp_side": "home",
+          "model_line": 5.9,
+          "p_over": 0.6757,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4626,
+          "p_yrfi": 0.5374,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.49,
+          "market_line": 8.0,
+          "p_over": 0.4752,
+          "p_under": 0.5248,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "BAL",
+      "home": "TOR",
+      "away_name": "Baltimore Orioles",
+      "home_name": "Toronto Blue Jays",
+      "time": "7:08 PM ET",
+      "asp": "Brandon Young",
+      "hsp": "Trey Yesavage",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Brandon Young",
+          "sp_side": "away",
+          "model_line": 3.8,
+          "p_over": 0.5909,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Trey Yesavage",
+          "sp_side": "home",
+          "model_line": 5.3,
+          "p_over": 0.4836,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.468,
+          "p_yrfi": 0.532,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.23,
+          "market_line": 8.5,
+          "p_over": 0.4398,
+          "p_under": 0.5602,
+          "recommendation": "UNDER 8.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "TB",
+      "home": "MIA",
+      "away_name": "Tampa Bay Rays",
+      "home_name": "Miami Marlins",
+      "time": "7:11 PM ET",
+      "asp": "Drew Rasmussen",
+      "hsp": "Ryan Gusto",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Drew Rasmussen",
+          "sp_side": "away",
+          "model_line": 4.7,
+          "p_over": 0.5595,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Ryan Gusto",
+          "sp_side": "home",
+          "model_line": 6.7,
+          "p_over": 0.1107,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.6531,
+          "p_yrfi": 0.3469,
+          "recommendation": "NRFI"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.35,
+          "market_line": 7.5,
+          "p_over": 0.4537,
+          "p_under": 0.5463,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": [
+        {
+          "type": "SP_DOMINANCE",
+          "legs": [
+            "Drew Rasmussen OVER 4.7 Ks (56.0%)",
+            "NRFI (65.3%)",
+            "Game UNDER 7.5 (54.6%)"
+          ],
+          "joint_prob": 0.3293,
+          "kelly_stake": 0.0,
+          "ev": -0.15
+        }
+      ]
+    },
+    {
+      "away": "PIT",
+      "home": "ATL",
+      "away_name": "Pittsburgh Pirates",
+      "home_name": "Atlanta Braves",
+      "time": "7:16 PM ET",
+      "asp": "Mitch Keller",
+      "hsp": "Mart\u00edn P\u00e9rez",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Mitch Keller",
+          "sp_side": "away",
+          "model_line": 3.7,
+          "p_over": 0.6138,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Mart\u00edn P\u00e9rez",
+          "sp_side": "home",
+          "model_line": 4.1,
+          "p_over": 0.6032,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4662,
+          "p_yrfi": 0.5338,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.95,
+          "market_line": 8.5,
+          "p_over": 0.4008,
+          "p_under": 0.5992,
+          "recommendation": "UNDER 8.5"
         }
       ],
       "sgp": []
