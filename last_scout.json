@@ -1,61 +1,78 @@
 {
-  "timestamp": "2026-06-06T01:29:30Z",
-  "date": "2026-06-05",
-  "window": "west",
+  "timestamp": "2026-06-06T16:01:40Z",
+  "date": "2026-06-06",
+  "window": "day",
   "bankroll": 163.55,
   "games": [
     {
-      "away": "WAS",
-      "home": "AZ",
-      "away_model": 0.4919,
-      "home_model": 0.5081,
-      "away_edge": 3.09,
-      "home_edge": -3.09,
-      "away_xr": 5.053,
-      "home_xr": 4.723
-    },
-    {
-      "away": "NYM",
-      "home": "SD",
-      "away_model": 0.515,
-      "home_model": 0.485,
-      "away_edge": 4.98,
-      "home_edge": -4.98,
-      "away_xr": 3.576,
+      "away": "SEA",
+      "home": "DET",
+      "away_model": 0.5152,
+      "home_model": 0.4848,
+      "away_edge": -1.96,
+      "home_edge": 1.96,
+      "away_xr": 4.27,
       "home_xr": 3.5
     },
     {
-      "away": "LAA",
-      "home": "LAD",
-      "away_model": 0.5377,
-      "home_model": 0.4623,
-      "away_edge": 17.87,
-      "home_edge": -17.87,
-      "away_xr": 4.714,
-      "home_xr": 4.146
+      "away": "KC",
+      "home": "MIN",
+      "away_model": 0.5127,
+      "home_model": 0.4873,
+      "away_edge": 8.43,
+      "home_edge": -8.43,
+      "away_xr": 4.027,
+      "home_xr": 4.191
+    },
+    {
+      "away": "CIN",
+      "home": "STL",
+      "away_model": 0.4669,
+      "home_model": 0.5331,
+      "away_edge": 0.38,
+      "home_edge": -0.38,
+      "away_xr": 4.635,
+      "home_xr": 5.35
+    },
+    {
+      "away": "SF",
+      "home": "CHC",
+      "away_model": 0.5242,
+      "home_model": 0.4758,
+      "away_edge": 11.03,
+      "home_edge": -11.03,
+      "away_xr": 4.066,
+      "home_xr": 3.872
     }
   ],
   "bets": [],
   "passes": [
     {
-      "game": "Washington Nationals @ Arizona Diamondbacks",
+      "game": "Seattle Mariners @ Detroit Tigers",
       "edges": {
-        "away": 3.09,
-        "home": -3.09
+        "away": -1.96,
+        "home": 1.96
       }
     },
     {
-      "game": "New York Mets @ San Diego Padres",
+      "game": "Kansas City Royals @ Minnesota Twins",
       "edges": {
-        "away": 4.98,
-        "home": -4.98
+        "away": 8.43,
+        "home": -8.43
       }
     },
     {
-      "game": "Los Angeles Angels @ Los Angeles Dodgers",
+      "game": "Cincinnati Reds @ St. Louis Cardinals",
       "edges": {
-        "away": 17.87,
-        "home": -17.87
+        "away": 0.38,
+        "home": -0.38
+      }
+    },
+    {
+      "game": "San Francisco Giants @ Chicago Cubs",
+      "edges": {
+        "away": 11.03,
+        "home": -11.03
       }
     }
   ],
