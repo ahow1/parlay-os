@@ -1,78 +1,44 @@
 {
-  "timestamp": "2026-06-06T16:01:40Z",
+  "timestamp": "2026-06-06T21:00:04Z",
   "date": "2026-06-06",
-  "window": "day",
+  "window": "evening",
   "bankroll": 163.55,
   "games": [
     {
-      "away": "SEA",
-      "home": "DET",
-      "away_model": 0.5152,
-      "home_model": 0.4848,
-      "away_edge": -1.96,
-      "home_edge": 1.96,
-      "away_xr": 4.27,
-      "home_xr": 3.5
+      "away": "BOS",
+      "home": "NYY",
+      "away_model": 0.476,
+      "home_model": 0.524,
+      "away_edge": -1.47,
+      "home_edge": 1.47,
+      "away_xr": 3.749,
+      "home_xr": 4.098
     },
     {
-      "away": "KC",
-      "home": "MIN",
-      "away_model": 0.5127,
-      "home_model": 0.4873,
-      "away_edge": 8.43,
-      "home_edge": -8.43,
-      "away_xr": 4.027,
-      "home_xr": 4.191
-    },
-    {
-      "away": "CIN",
-      "home": "STL",
-      "away_model": 0.4669,
-      "home_model": 0.5331,
-      "away_edge": 0.38,
-      "home_edge": -0.38,
-      "away_xr": 4.635,
-      "home_xr": 5.35
-    },
-    {
-      "away": "SF",
-      "home": "CHC",
-      "away_model": 0.5242,
-      "home_model": 0.4758,
-      "away_edge": 11.03,
-      "home_edge": -11.03,
-      "away_xr": 4.066,
-      "home_xr": 3.872
+      "away": "CLE",
+      "home": "TEX",
+      "away_model": 0.4882,
+      "home_model": 0.5118,
+      "away_edge": 1.66,
+      "home_edge": -1.66,
+      "away_xr": 3.82,
+      "home_xr": 4.6
     }
   ],
   "bets": [],
   "passes": [
     {
-      "game": "Seattle Mariners @ Detroit Tigers",
+      "game": "Boston Red Sox @ New York Yankees",
       "edges": {
-        "away": -1.96,
-        "home": 1.96
+        "away": -1.47,
+        "home": 1.47
       }
     },
     {
-      "game": "Kansas City Royals @ Minnesota Twins",
+      "game": "Cleveland Guardians @ Texas Rangers",
       "edges": {
-        "away": 8.43,
-        "home": -8.43
-      }
-    },
-    {
-      "game": "Cincinnati Reds @ St. Louis Cardinals",
-      "edges": {
-        "away": 0.38,
-        "home": -0.38
-      }
-    },
-    {
-      "game": "San Francisco Giants @ Chicago Cubs",
-      "edges": {
-        "away": 11.03,
-        "home": -11.03
+        "away": 1.66,
+        "home": -1.66
       }
     }
   ],

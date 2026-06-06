@@ -1,171 +1,87 @@
 {
   "date": "2026-06-06",
-  "timestamp": "2026-06-06T12:08:02.678910-04:00",
+  "timestamp": "2026-06-06T17:03:27.610571-04:00",
   "games": [
     {
-      "away": "SEA",
-      "home": "DET",
-      "away_name": "Seattle Mariners",
-      "home_name": "Detroit Tigers",
-      "time": "1:11 PM ET",
-      "asp": "Bryce Miller",
-      "hsp": "Keider Montero",
+      "away": "BOS",
+      "home": "NYY",
+      "away_name": "Boston Red Sox",
+      "home_name": "New York Yankees",
+      "time": "7:36 PM ET",
+      "asp": "Ranger Suarez",
+      "hsp": "Will Warren",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Bryce Miller",
+          "sp": "Ranger Suarez",
           "sp_side": "away",
-          "model_line": 4.8,
-          "p_over": 0.7943,
+          "model_line": 4.9,
+          "p_over": 0.5908,
           "recommendation": "BET"
         },
         {
           "type": "K_PROP",
-          "sp": "Keider Montero",
+          "sp": "Will Warren",
           "sp_side": "home",
-          "model_line": 3.5,
-          "p_over": 0.548,
+          "model_line": 5.4,
+          "p_over": 0.5265,
           "recommendation": "PASS"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4958,
-          "p_yrfi": 0.5042,
+          "p_nrfi": 0.5046,
+          "p_yrfi": 0.4954,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.77,
-          "market_line": 9.0,
-          "p_over": 0.2553,
-          "p_under": 0.7447,
-          "recommendation": "UNDER 9.0"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "KC",
-      "home": "MIN",
-      "away_name": "Kansas City Royals",
-      "home_name": "Minnesota Twins",
-      "time": "2:10 PM ET",
-      "asp": "Luinder Avila",
-      "hsp": "Joe Ryan",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Luinder Avila",
-          "sp_side": "away",
-          "model_line": 4.7,
-          "p_over": 0.7918,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Joe Ryan",
-          "sp_side": "home",
-          "model_line": 5.6,
-          "p_over": 0.5663,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4388,
-          "p_yrfi": 0.5612,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.22,
+          "model_total": 7.85,
           "market_line": 8.5,
-          "p_over": 0.4379,
-          "p_under": 0.5621,
+          "p_over": 0.3861,
+          "p_under": 0.6139,
           "recommendation": "UNDER 8.5"
         }
       ],
       "sgp": []
     },
     {
-      "away": "CIN",
-      "home": "STL",
-      "away_name": "Cincinnati Reds",
-      "home_name": "St. Louis Cardinals",
-      "time": "2:16 PM ET",
-      "asp": "Nick Lodolo",
-      "hsp": "Matthew Liberatore",
+      "away": "CLE",
+      "home": "TEX",
+      "away_name": "Cleveland Guardians",
+      "home_name": "Texas Rangers",
+      "time": "7:36 PM ET",
+      "asp": "Tanner Bibee",
+      "hsp": "Jack Leiter",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Nick Lodolo",
+          "sp": "Tanner Bibee",
           "sp_side": "away",
-          "model_line": 4.0,
-          "p_over": 0.4502,
+          "model_line": 4.3,
+          "p_over": 0.4901,
           "recommendation": "PASS"
         },
         {
           "type": "K_PROP",
-          "sp": "Matthew Liberatore",
+          "sp": "Jack Leiter",
           "sp_side": "home",
-          "model_line": 4.6,
-          "p_over": 0.5142,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3167,
-          "p_yrfi": 0.6833,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 9.98,
-          "market_line": 9.0,
-          "p_over": 0.5402,
-          "p_under": 0.4598,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "SF",
-      "home": "CHC",
-      "away_name": "San Francisco Giants",
-      "home_name": "Chicago Cubs",
-      "time": "2:21 PM ET",
-      "asp": "Landen Roupp",
-      "hsp": "Ben Brown",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Landen Roupp",
-          "sp_side": "away",
           "model_line": 5.6,
-          "p_over": 0.5548,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Ben Brown",
-          "sp_side": "home",
-          "model_line": 5.1,
-          "p_over": 0.7216,
+          "p_over": 0.5801,
           "recommendation": "BET"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.484,
-          "p_yrfi": 0.516,
+          "p_nrfi": 0.4034,
+          "p_yrfi": 0.5966,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.94,
+          "model_total": 8.42,
           "market_line": 7.5,
-          "p_over": 0.5384,
-          "p_under": 0.4616,
-          "recommendation": "PASS"
+          "p_over": 0.604,
+          "p_under": 0.396,
+          "recommendation": "OVER 7.5"
         }
       ],
       "sgp": []
