@@ -1,44 +1,44 @@
 {
-  "timestamp": "2026-06-06T21:00:04Z",
+  "timestamp": "2026-06-07T01:37:48Z",
   "date": "2026-06-06",
-  "window": "evening",
+  "window": "west",
   "bankroll": 163.55,
   "games": [
     {
-      "away": "BOS",
-      "home": "NYY",
-      "away_model": 0.476,
-      "home_model": 0.524,
-      "away_edge": -1.47,
-      "home_edge": 1.47,
-      "away_xr": 3.749,
-      "home_xr": 4.098
+      "away": "LAA",
+      "home": "LAD",
+      "away_model": 0.4934,
+      "home_model": 0.5066,
+      "away_edge": 25.05,
+      "home_edge": -25.05,
+      "away_xr": 3.809,
+      "home_xr": 5.036
     },
     {
-      "away": "CLE",
-      "home": "TEX",
-      "away_model": 0.4882,
-      "home_model": 0.5118,
-      "away_edge": 1.66,
-      "home_edge": -1.66,
-      "away_xr": 3.82,
-      "home_xr": 4.6
+      "away": "NYM",
+      "home": "SD",
+      "away_model": 0.5202,
+      "home_model": 0.4799,
+      "away_edge": -2.09,
+      "home_edge": 2.1,
+      "away_xr": 4.466,
+      "home_xr": 3.5
     }
   ],
   "bets": [],
   "passes": [
     {
-      "game": "Boston Red Sox @ New York Yankees",
+      "game": "Los Angeles Angels @ Los Angeles Dodgers",
       "edges": {
-        "away": -1.47,
-        "home": 1.47
+        "away": 25.05,
+        "home": -25.05
       }
     },
     {
-      "game": "Cleveland Guardians @ Texas Rangers",
+      "game": "New York Mets @ San Diego Padres",
       "edges": {
-        "away": 1.66,
-        "home": -1.66
+        "away": -2.09,
+        "home": 2.1
       }
     }
   ],

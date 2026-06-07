@@ -1,87 +1,87 @@
 {
   "date": "2026-06-06",
-  "timestamp": "2026-06-06T17:03:27.610571-04:00",
+  "timestamp": "2026-06-06T21:41:12.814010-04:00",
   "games": [
     {
-      "away": "BOS",
-      "home": "NYY",
-      "away_name": "Boston Red Sox",
-      "home_name": "New York Yankees",
-      "time": "7:36 PM ET",
-      "asp": "Ranger Suarez",
-      "hsp": "Will Warren",
+      "away": "LAA",
+      "home": "LAD",
+      "away_name": "Los Angeles Angels",
+      "home_name": "Los Angeles Dodgers",
+      "time": "10:11 PM ET",
+      "asp": "Jack Kochanowicz",
+      "hsp": "Yoshinobu Yamamoto",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Ranger Suarez",
+          "sp": "Jack Kochanowicz",
           "sp_side": "away",
-          "model_line": 4.9,
-          "p_over": 0.5908,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Will Warren",
-          "sp_side": "home",
-          "model_line": 5.4,
-          "p_over": 0.5265,
+          "model_line": 3.6,
+          "p_over": 0.5334,
           "recommendation": "PASS"
         },
         {
+          "type": "K_PROP",
+          "sp": "Yoshinobu Yamamoto",
+          "sp_side": "home",
+          "model_line": 5.0,
+          "p_over": 0.597,
+          "recommendation": "BET"
+        },
+        {
           "type": "NRFI",
-          "p_nrfi": 0.5046,
-          "p_yrfi": 0.4954,
+          "p_nrfi": 0.4137,
+          "p_yrfi": 0.5863,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.85,
+          "model_total": 8.84,
           "market_line": 8.5,
-          "p_over": 0.3861,
-          "p_under": 0.6139,
-          "recommendation": "UNDER 8.5"
+          "p_over": 0.5238,
+          "p_under": 0.4762,
+          "recommendation": "PASS"
         }
       ],
       "sgp": []
     },
     {
-      "away": "CLE",
-      "home": "TEX",
-      "away_name": "Cleveland Guardians",
-      "home_name": "Texas Rangers",
-      "time": "7:36 PM ET",
-      "asp": "Tanner Bibee",
-      "hsp": "Jack Leiter",
+      "away": "NYM",
+      "home": "SD",
+      "away_name": "New York Mets",
+      "home_name": "San Diego Padres",
+      "time": "10:11 PM ET",
+      "asp": "Nolan McLean",
+      "hsp": "Griffin Canning",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Tanner Bibee",
+          "sp": "Nolan McLean",
           "sp_side": "away",
-          "model_line": 4.3,
-          "p_over": 0.4901,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Jack Leiter",
-          "sp_side": "home",
-          "model_line": 5.6,
-          "p_over": 0.5801,
+          "model_line": 5.8,
+          "p_over": 0.6185,
           "recommendation": "BET"
         },
         {
+          "type": "K_PROP",
+          "sp": "Griffin Canning",
+          "sp_side": "home",
+          "model_line": 4.9,
+          "p_over": 0.4687,
+          "recommendation": "PASS"
+        },
+        {
           "type": "NRFI",
-          "p_nrfi": 0.4034,
-          "p_yrfi": 0.5966,
+          "p_nrfi": 0.4073,
+          "p_yrfi": 0.5927,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.42,
+          "model_total": 7.97,
           "market_line": 7.5,
-          "p_over": 0.604,
-          "p_under": 0.396,
-          "recommendation": "OVER 7.5"
+          "p_over": 0.5423,
+          "p_under": 0.4577,
+          "recommendation": "PASS"
         }
       ],
       "sgp": []
