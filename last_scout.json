@@ -1,44 +1,180 @@
 {
-  "timestamp": "2026-06-07T01:37:48Z",
-  "date": "2026-06-06",
-  "window": "west",
+  "timestamp": "2026-06-07T16:07:19Z",
+  "date": "2026-06-07",
+  "window": "day",
   "bankroll": 163.55,
   "games": [
     {
-      "away": "LAA",
-      "home": "LAD",
-      "away_model": 0.4934,
-      "home_model": 0.5066,
-      "away_edge": 25.05,
-      "home_edge": -25.05,
-      "away_xr": 3.809,
-      "home_xr": 5.036
+      "away": "PIT",
+      "home": "ATL",
+      "away_model": 0.5178,
+      "home_model": 0.4822,
+      "away_edge": 9.88,
+      "home_edge": -9.88,
+      "away_xr": 3.977,
+      "home_xr": 3.592
     },
     {
-      "away": "NYM",
-      "home": "SD",
-      "away_model": 0.5202,
-      "home_model": 0.4799,
-      "away_edge": -2.09,
-      "home_edge": 2.1,
-      "away_xr": 4.466,
+      "away": "BOS",
+      "home": "NYY",
+      "away_model": 0.4749,
+      "home_model": 0.5251,
+      "away_edge": 5.42,
+      "home_edge": -5.42,
+      "away_xr": 3.5,
+      "home_xr": 4.103
+    },
+    {
+      "away": "CWS",
+      "home": "PHI",
+      "away_model": 0.4519,
+      "home_model": 0.5481,
+      "away_edge": 5.83,
+      "home_edge": -5.83,
+      "away_xr": 4.599,
+      "home_xr": 7.007
+    },
+    {
+      "away": "BAL",
+      "home": "TOR",
+      "away_model": 0.4973,
+      "home_model": 0.5027,
+      "away_edge": 4.73,
+      "home_edge": -4.73,
+      "away_xr": 3.857,
+      "home_xr": 4.116
+    },
+    {
+      "away": "SEA",
+      "home": "DET",
+      "away_model": 0.5069,
+      "home_model": 0.4931,
+      "away_edge": 2.32,
+      "home_edge": -2.32,
+      "away_xr": 4.19,
+      "home_xr": 3.816
+    },
+    {
+      "away": "TB",
+      "home": "MIA",
+      "away_model": 0.5356,
+      "home_model": 0.4644,
+      "away_edge": 3.1,
+      "home_edge": -3.1,
+      "away_xr": 4.402,
+      "home_xr": 4.54
+    },
+    {
+      "away": "ATH",
+      "home": "HOU",
+      "away_model": 0.5103,
+      "home_model": 0.4897,
+      "away_edge": 1.96,
+      "home_edge": -1.96,
+      "away_xr": 5.06,
       "home_xr": 3.5
+    },
+    {
+      "away": "KC",
+      "home": "MIN",
+      "away_model": 0.496,
+      "home_model": 0.504,
+      "away_edge": -2.25,
+      "home_edge": 2.25,
+      "away_xr": 4.08,
+      "home_xr": 3.898
+    },
+    {
+      "away": "CIN",
+      "home": "STL",
+      "away_model": 0.4913,
+      "home_model": 0.5087,
+      "away_edge": 7.06,
+      "home_edge": -7.06,
+      "away_xr": 4.311,
+      "home_xr": 4.253
+    },
+    {
+      "away": "CLE",
+      "home": "TEX",
+      "away_model": 0.5251,
+      "home_model": 0.4749,
+      "away_edge": 9.48,
+      "home_edge": -9.48,
+      "away_xr": 4.17,
+      "home_xr": 4.22
     }
   ],
   "bets": [],
   "passes": [
     {
-      "game": "Los Angeles Angels @ Los Angeles Dodgers",
+      "game": "Pittsburgh Pirates @ Atlanta Braves",
       "edges": {
-        "away": 25.05,
-        "home": -25.05
+        "away": 9.88,
+        "home": -9.88
       }
     },
     {
-      "game": "New York Mets @ San Diego Padres",
+      "game": "Boston Red Sox @ New York Yankees",
       "edges": {
-        "away": -2.09,
-        "home": 2.1
+        "away": 5.42,
+        "home": -5.42
+      }
+    },
+    {
+      "game": "Chicago White Sox @ Philadelphia Phillies",
+      "edges": {
+        "away": 5.83,
+        "home": -5.83
+      }
+    },
+    {
+      "game": "Baltimore Orioles @ Toronto Blue Jays",
+      "edges": {
+        "away": 4.73,
+        "home": -4.73
+      }
+    },
+    {
+      "game": "Seattle Mariners @ Detroit Tigers",
+      "edges": {
+        "away": 2.32,
+        "home": -2.32
+      }
+    },
+    {
+      "game": "Tampa Bay Rays @ Miami Marlins",
+      "edges": {
+        "away": 3.1,
+        "home": -3.1
+      }
+    },
+    {
+      "game": "Athletics @ Houston Astros",
+      "edges": {
+        "away": 1.96,
+        "home": -1.96
+      }
+    },
+    {
+      "game": "Kansas City Royals @ Minnesota Twins",
+      "edges": {
+        "away": -2.25,
+        "home": 2.25
+      }
+    },
+    {
+      "game": "Cincinnati Reds @ St. Louis Cardinals",
+      "edges": {
+        "away": 7.06,
+        "home": -7.06
+      }
+    },
+    {
+      "game": "Cleveland Guardians @ Texas Rangers",
+      "edges": {
+        "away": 9.48,
+        "home": -9.48
       }
     }
   ],
