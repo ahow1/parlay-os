@@ -1,5 +1,174 @@
 {
   "date": "2026-06-08",
-  "timestamp": "2026-06-08T13:44:38.100715-04:00",
-  "games": []
+  "timestamp": "2026-06-08T17:56:55.158125-04:00",
+  "games": [
+    {
+      "away": "SEA",
+      "home": "BAL",
+      "away_name": "Seattle Mariners",
+      "home_name": "Baltimore Orioles",
+      "time": "6:36 PM ET",
+      "asp": "Emerson Hancock",
+      "hsp": "Trey Gibson",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Emerson Hancock",
+          "sp_side": "away",
+          "model_line": 5.0,
+          "p_over": 0.5281,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Trey Gibson",
+          "sp_side": "home",
+          "model_line": 2.0,
+          "p_over": 0.4546,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3549,
+          "p_yrfi": 0.6451,
+          "recommendation": "YRFI"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 10.07,
+          "market_line": 9.5,
+          "p_over": 0.5505,
+          "p_under": 0.4495,
+          "recommendation": "OVER 9.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "BOS",
+      "home": "TB",
+      "away_name": "Boston Red Sox",
+      "home_name": "Tampa Bay Rays",
+      "time": "6:41 PM ET",
+      "asp": "Connelly Early",
+      "hsp": "Ian Seymour",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Connelly Early",
+          "sp_side": "away",
+          "model_line": 4.8,
+          "p_over": 0.6021,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Ian Seymour",
+          "sp_side": "home",
+          "model_line": 5.3,
+          "p_over": 0.7532,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4271,
+          "p_yrfi": 0.5729,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.86,
+          "market_line": 8.0,
+          "p_over": 0.3879,
+          "p_under": 0.6121,
+          "recommendation": "UNDER 8.0"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "NYY",
+      "home": "CLE",
+      "away_name": "New York Yankees",
+      "home_name": "Cleveland Guardians",
+      "time": "6:41 PM ET",
+      "asp": "Will Warren",
+      "hsp": "Gavin Williams",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Will Warren",
+          "sp_side": "away",
+          "model_line": 5.4,
+          "p_over": 0.5265,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Gavin Williams",
+          "sp_side": "home",
+          "model_line": 5.8,
+          "p_over": 0.7282,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.5009,
+          "p_yrfi": 0.4991,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.17,
+          "market_line": 8.0,
+          "p_over": 0.2939,
+          "p_under": 0.7061,
+          "recommendation": "UNDER 8.0"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "PHI",
+      "home": "TOR",
+      "away_name": "Philadelphia Phillies",
+      "home_name": "Toronto Blue Jays",
+      "time": "7:08 PM ET",
+      "asp": "Cristopher S\u00e1nchez",
+      "hsp": "Patrick Corbin",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Cristopher S\u00e1nchez",
+          "sp_side": "away",
+          "model_line": 6.0,
+          "p_over": 0.677,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Patrick Corbin",
+          "sp_side": "home",
+          "model_line": 3.4,
+          "p_over": 0.4333,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4999,
+          "p_yrfi": 0.5001,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.7,
+          "market_line": 7.5,
+          "p_over": 0.5037,
+          "p_under": 0.4963,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": []
+    }
+  ]
 }

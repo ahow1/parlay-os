@@ -1,11 +1,81 @@
 {
-  "timestamp": "2026-06-08T17:44:36Z",
+  "timestamp": "2026-06-08T21:47:26Z",
   "date": "2026-06-08",
-  "window": "day",
+  "window": "evening",
   "bankroll": 163.55,
-  "games": [],
+  "games": [
+    {
+      "away": "SEA",
+      "home": "BAL",
+      "away_model": 0.481,
+      "home_model": 0.519,
+      "away_edge": -4.74,
+      "home_edge": 4.74,
+      "away_xr": 5.823,
+      "home_xr": 4.245
+    },
+    {
+      "away": "BOS",
+      "home": "TB",
+      "away_model": 0.5479,
+      "home_model": 0.4521,
+      "away_edge": 4.79,
+      "home_edge": -4.79,
+      "away_xr": 4.025,
+      "home_xr": 3.835
+    },
+    {
+      "away": "NYY",
+      "home": "CLE",
+      "away_model": 0.5131,
+      "home_model": 0.4869,
+      "away_edge": 6.11,
+      "home_edge": -6.11,
+      "away_xr": 3.674,
+      "home_xr": 3.5
+    },
+    {
+      "away": "PHI",
+      "home": "TOR",
+      "away_model": 0.5399,
+      "home_model": 0.4601,
+      "away_edge": -6.95,
+      "home_edge": 6.95,
+      "away_xr": 4.195,
+      "home_xr": 3.5
+    }
+  ],
   "bets": [],
-  "passes": [],
+  "passes": [
+    {
+      "game": "Seattle Mariners @ Baltimore Orioles",
+      "edges": {
+        "away": -4.74,
+        "home": 4.74
+      }
+    },
+    {
+      "game": "Boston Red Sox @ Tampa Bay Rays",
+      "edges": {
+        "away": 4.79,
+        "home": -4.79
+      }
+    },
+    {
+      "game": "New York Yankees @ Cleveland Guardians",
+      "edges": {
+        "away": 6.11,
+        "home": -6.11
+      }
+    },
+    {
+      "game": "Philadelphia Phillies @ Toronto Blue Jays",
+      "edges": {
+        "away": -6.95,
+        "home": 6.95
+      }
+    }
+  ],
   "slip_sent": false,
   "sent_pick_ids": [],
   "slip_quality": "bad"
