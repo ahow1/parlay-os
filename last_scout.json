@@ -1,78 +1,78 @@
 {
-  "timestamp": "2026-06-08T21:47:26Z",
+  "timestamp": "2026-06-09T01:27:58Z",
   "date": "2026-06-08",
-  "window": "evening",
+  "window": "west",
   "bankroll": 163.55,
   "games": [
     {
-      "away": "SEA",
-      "home": "BAL",
-      "away_model": 0.481,
-      "home_model": 0.519,
-      "away_edge": -4.74,
-      "home_edge": 4.74,
-      "away_xr": 5.823,
-      "home_xr": 4.245
+      "away": "HOU",
+      "home": "LAA",
+      "away_model": 0.5212,
+      "home_model": 0.4788,
+      "away_edge": -1.57,
+      "home_edge": 1.57,
+      "away_xr": 5.158,
+      "home_xr": 3.931
     },
     {
-      "away": "BOS",
-      "home": "TB",
-      "away_model": 0.5479,
-      "home_model": 0.4521,
-      "away_edge": 4.79,
-      "home_edge": -4.79,
-      "away_xr": 4.025,
-      "home_xr": 3.835
+      "away": "CIN",
+      "home": "SD",
+      "away_model": 0.5096,
+      "home_model": 0.4904,
+      "away_edge": 6.74,
+      "home_edge": -6.74,
+      "away_xr": 3.578,
+      "home_xr": 3.61
     },
     {
-      "away": "NYY",
-      "home": "CLE",
-      "away_model": 0.5131,
-      "home_model": 0.4869,
-      "away_edge": 6.11,
-      "home_edge": -6.11,
-      "away_xr": 3.674,
-      "home_xr": 3.5
+      "away": "WAS",
+      "home": "SF",
+      "away_model": 0.494,
+      "home_model": 0.506,
+      "away_edge": 7.15,
+      "home_edge": -7.15,
+      "away_xr": 3.549,
+      "home_xr": 4.868
     },
     {
-      "away": "PHI",
-      "home": "TOR",
-      "away_model": 0.5399,
-      "home_model": 0.4601,
-      "away_edge": -6.95,
-      "home_edge": 6.95,
-      "away_xr": 4.195,
+      "away": "MIL",
+      "home": "ATH",
+      "away_model": 0.5183,
+      "home_model": 0.4817,
+      "away_edge": -7.11,
+      "home_edge": 7.11,
+      "away_xr": 4.252,
       "home_xr": 3.5
     }
   ],
   "bets": [],
   "passes": [
     {
-      "game": "Seattle Mariners @ Baltimore Orioles",
+      "game": "Houston Astros @ Los Angeles Angels",
       "edges": {
-        "away": -4.74,
-        "home": 4.74
+        "away": -1.57,
+        "home": 1.57
       }
     },
     {
-      "game": "Boston Red Sox @ Tampa Bay Rays",
+      "game": "Cincinnati Reds @ San Diego Padres",
       "edges": {
-        "away": 4.79,
-        "home": -4.79
+        "away": 6.74,
+        "home": -6.74
       }
     },
     {
-      "game": "New York Yankees @ Cleveland Guardians",
+      "game": "Washington Nationals @ San Francisco Giants",
       "edges": {
-        "away": 6.11,
-        "home": -6.11
+        "away": 7.15,
+        "home": -7.15
       }
     },
     {
-      "game": "Philadelphia Phillies @ Toronto Blue Jays",
+      "game": "Milwaukee Brewers @ Athletics",
       "edges": {
-        "away": -6.95,
-        "home": 6.95
+        "away": -7.11,
+        "home": 7.11
       }
     }
   ],
