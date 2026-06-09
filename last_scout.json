@@ -1,11 +1,183 @@
 {
-  "timestamp": "2026-06-09T17:21:47Z",
+  "timestamp": "2026-06-09T21:44:32Z",
   "date": "2026-06-09",
-  "window": "day",
+  "window": "evening",
   "bankroll": 163.55,
-  "games": [],
+  "games": [
+    {
+      "away": "SEA",
+      "home": "BAL",
+      "away_model": 0.4721,
+      "home_model": 0.5279,
+      "away_edge": -5.85,
+      "home_edge": 5.85,
+      "away_xr": 3.967,
+      "home_xr": 4.394
+    },
+    {
+      "away": "AZ",
+      "home": "MIA",
+      "away_model": 0.5039,
+      "home_model": 0.4961,
+      "away_edge": 6.44,
+      "home_edge": -6.44,
+      "away_xr": 3.5,
+      "home_xr": 4.366
+    },
+    {
+      "away": "BOS",
+      "home": "TB",
+      "away_model": 0.548,
+      "home_model": 0.452,
+      "away_edge": 1.53,
+      "home_edge": -1.53,
+      "away_xr": 3.541,
+      "home_xr": 3.5
+    },
+    {
+      "away": "NYY",
+      "home": "CLE",
+      "away_model": 0.5039,
+      "home_model": 0.4961,
+      "away_edge": -2.24,
+      "home_edge": 2.24,
+      "away_xr": 4.524,
+      "home_xr": 4.302
+    },
+    {
+      "away": "MIN",
+      "home": "DET",
+      "away_model": 0.527,
+      "home_model": 0.473,
+      "away_edge": 7.1,
+      "home_edge": -7.1,
+      "away_xr": 4.05,
+      "home_xr": 3.841
+    },
+    {
+      "away": "LAD",
+      "home": "PIT",
+      "away_model": 0.4841,
+      "home_model": 0.5159,
+      "away_edge": 0.26,
+      "home_edge": -0.26,
+      "away_xr": 4.179,
+      "home_xr": 5.492
+    },
+    {
+      "away": "PHI",
+      "home": "TOR",
+      "away_model": 0.507,
+      "home_model": 0.493,
+      "away_edge": 0.7,
+      "home_edge": -0.7,
+      "away_xr": 3.5,
+      "home_xr": 3.848
+    },
+    {
+      "away": "STL",
+      "home": "NYM",
+      "away_model": 0.4953,
+      "home_model": 0.5047,
+      "away_edge": 4.14,
+      "home_edge": -4.14,
+      "away_xr": 4.212,
+      "home_xr": 3.577
+    },
+    {
+      "away": "ATL",
+      "home": "CWS",
+      "away_model": 0.478,
+      "home_model": 0.522,
+      "away_edge": -10.81,
+      "home_edge": 10.81,
+      "away_xr": 3.5,
+      "home_xr": 4.884
+    },
+    {
+      "away": "TEX",
+      "home": "KC",
+      "away_model": 0.4942,
+      "home_model": 0.5058,
+      "away_edge": -4.06,
+      "home_edge": 4.06,
+      "away_xr": 4.58,
+      "home_xr": 4.564
+    }
+  ],
   "bets": [],
-  "passes": [],
+  "passes": [
+    {
+      "game": "Seattle Mariners @ Baltimore Orioles",
+      "edges": {
+        "away": -5.85,
+        "home": 5.85
+      }
+    },
+    {
+      "game": "Arizona Diamondbacks @ Miami Marlins",
+      "edges": {
+        "away": 6.44,
+        "home": -6.44
+      }
+    },
+    {
+      "game": "Boston Red Sox @ Tampa Bay Rays",
+      "edges": {
+        "away": 1.53,
+        "home": -1.53
+      }
+    },
+    {
+      "game": "New York Yankees @ Cleveland Guardians",
+      "edges": {
+        "away": -2.24,
+        "home": 2.24
+      }
+    },
+    {
+      "game": "Minnesota Twins @ Detroit Tigers",
+      "edges": {
+        "away": 7.1,
+        "home": -7.1
+      }
+    },
+    {
+      "game": "Los Angeles Dodgers @ Pittsburgh Pirates",
+      "edges": {
+        "away": 0.26,
+        "home": -0.26
+      }
+    },
+    {
+      "game": "Philadelphia Phillies @ Toronto Blue Jays",
+      "edges": {
+        "away": 0.7,
+        "home": -0.7
+      }
+    },
+    {
+      "game": "St. Louis Cardinals @ New York Mets",
+      "edges": {
+        "away": 4.14,
+        "home": -4.14
+      }
+    },
+    {
+      "game": "Atlanta Braves @ Chicago White Sox",
+      "edges": {
+        "away": -10.81,
+        "home": 10.81
+      }
+    },
+    {
+      "game": "Texas Rangers @ Kansas City Royals",
+      "edges": {
+        "away": -4.06,
+        "home": 4.06
+      }
+    }
+  ],
   "slip_sent": false,
   "sent_pick_ids": [],
   "slip_quality": "bad"
