@@ -1,30 +1,11 @@
 {
-  "timestamp": "2026-06-10T01:36:44Z",
-  "date": "2026-06-09",
-  "window": "west",
+  "timestamp": "2026-06-10T17:52:35Z",
+  "date": "2026-06-10",
+  "window": "day",
   "bankroll": 163.55,
-  "games": [
-    {
-      "away": "MIL",
-      "home": "ATH",
-      "away_model": 0.5063,
-      "home_model": 0.4937,
-      "away_edge": 0.63,
-      "home_edge": -0.63,
-      "away_xr": 4.342,
-      "home_xr": 4.678
-    }
-  ],
+  "games": [],
   "bets": [],
-  "passes": [
-    {
-      "game": "Milwaukee Brewers @ Athletics",
-      "edges": {
-        "away": 0.63,
-        "home": -0.63
-      }
-    }
-  ],
+  "passes": [],
   "slip_sent": false,
   "sent_pick_ids": [],
   "slip_quality": "bad"

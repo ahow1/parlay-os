@@ -1,48 +1,5 @@
 {
-  "date": "2026-06-09",
-  "timestamp": "2026-06-09T21:38:39.505579-04:00",
-  "games": [
-    {
-      "away": "MIL",
-      "home": "ATH",
-      "away_name": "Milwaukee Brewers",
-      "home_name": "Athletics",
-      "time": "10:06 PM ET",
-      "asp": "Robert Gasser",
-      "hsp": "J.T. Ginn",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Robert Gasser",
-          "sp_side": "away",
-          "model_line": 4.5,
-          "p_over": 0.3692,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "J.T. Ginn",
-          "sp_side": "home",
-          "model_line": 4.6,
-          "p_over": 0.6354,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4138,
-          "p_yrfi": 0.5862,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 9.02,
-          "market_line": 13.5,
-          "p_over": 0.0749,
-          "p_under": 0.9251,
-          "recommendation": "UNDER 13.5"
-        }
-      ],
-      "sgp": []
-    }
-  ]
+  "date": "2026-06-10",
+  "timestamp": "2026-06-10T13:52:37.505950-04:00",
+  "games": []
 }
