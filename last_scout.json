@@ -1,11 +1,30 @@
 {
-  "timestamp": "2026-06-11T02:01:17Z",
-  "date": "2026-06-10",
-  "window": "west",
+  "timestamp": "2026-06-11T18:07:20Z",
+  "date": "2026-06-11",
+  "window": "day",
   "bankroll": 163.55,
-  "games": [],
+  "games": [
+    {
+      "away": "TEX",
+      "home": "KC",
+      "away_model": 0.5198,
+      "home_model": 0.4802,
+      "away_edge": 3.83,
+      "home_edge": -3.83,
+      "away_xr": 4.46,
+      "home_xr": 4.512
+    }
+  ],
   "bets": [],
-  "passes": [],
+  "passes": [
+    {
+      "game": "Texas Rangers @ Kansas City Royals",
+      "edges": {
+        "away": 3.83,
+        "home": -3.83
+      }
+    }
+  ],
   "slip_sent": false,
   "sent_pick_ids": [],
   "slip_quality": "bad"

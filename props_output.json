@@ -1,5 +1,48 @@
 {
-  "date": "2026-06-10",
-  "timestamp": "2026-06-10T22:01:19.572740-04:00",
-  "games": []
+  "date": "2026-06-11",
+  "timestamp": "2026-06-11T14:09:15.814531-04:00",
+  "games": [
+    {
+      "away": "TEX",
+      "home": "KC",
+      "away_name": "Texas Rangers",
+      "home_name": "Kansas City Royals",
+      "time": "2:41 PM ET",
+      "asp": "Kumar Rocker",
+      "hsp": "Michael Wacha",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Kumar Rocker",
+          "sp_side": "away",
+          "model_line": 4.0,
+          "p_over": 0.4593,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Michael Wacha",
+          "sp_side": "home",
+          "model_line": 4.1,
+          "p_over": 0.5856,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3971,
+          "p_yrfi": 0.6029,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.97,
+          "market_line": 10.5,
+          "p_over": 0.2907,
+          "p_under": 0.7093,
+          "recommendation": "UNDER 10.5"
+        }
+      ],
+      "sgp": []
+    }
+  ]
 }
