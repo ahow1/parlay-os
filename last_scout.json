@@ -1,64 +1,11 @@
 {
-  "timestamp": "2026-06-11T21:58:59Z",
+  "timestamp": "2026-06-12T01:57:20Z",
   "date": "2026-06-11",
-  "window": "evening",
+  "window": "west",
   "bankroll": 163.55,
-  "games": [
-    {
-      "away": "LAD",
-      "home": "PIT",
-      "away_model": 0.5097,
-      "home_model": 0.4903,
-      "away_edge": -10.12,
-      "home_edge": 10.12,
-      "away_xr": 4.39,
-      "home_xr": 4.317
-    },
-    {
-      "away": "SEA",
-      "home": "BAL",
-      "away_model": 0.5044,
-      "home_model": 0.4956,
-      "away_edge": -0.25,
-      "home_edge": 0.25,
-      "away_xr": 4.517,
-      "home_xr": 4.479
-    },
-    {
-      "away": "ATL",
-      "home": "CWS",
-      "away_model": 0.4901,
-      "home_model": 0.5099,
-      "away_edge": -2.84,
-      "home_edge": 2.84,
-      "away_xr": 5.177,
-      "home_xr": 4.866
-    }
-  ],
+  "games": [],
   "bets": [],
-  "passes": [
-    {
-      "game": "Los Angeles Dodgers @ Pittsburgh Pirates",
-      "edges": {
-        "away": -10.12,
-        "home": 10.12
-      }
-    },
-    {
-      "game": "Seattle Mariners @ Baltimore Orioles",
-      "edges": {
-        "away": -0.25,
-        "home": 0.25
-      }
-    },
-    {
-      "game": "Atlanta Braves @ Chicago White Sox",
-      "edges": {
-        "away": -2.84,
-        "home": 2.84
-      }
-    }
-  ],
+  "passes": [],
   "slip_sent": false,
   "sent_pick_ids": [],
   "slip_quality": "bad"
