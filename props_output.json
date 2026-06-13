@@ -1,45 +1,87 @@
 {
   "date": "2026-06-13",
-  "timestamp": "2026-06-13T12:10:49.442491-04:00",
+  "timestamp": "2026-06-13T17:14:32.913033-04:00",
   "games": [
     {
-      "away": "STL",
-      "home": "MIN",
-      "away_name": "St. Louis Cardinals",
-      "home_name": "Minnesota Twins",
-      "time": "2:11 PM ET",
-      "asp": "Matthew Liberatore",
-      "hsp": "Connor Prielipp",
+      "away": "HOU",
+      "home": "KC",
+      "away_name": "Houston Astros",
+      "home_name": "Kansas City Royals",
+      "time": "7:11 PM ET",
+      "asp": "Mike Burrows",
+      "hsp": "Noah Cameron",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Matthew Liberatore",
+          "sp": "Mike Burrows",
           "sp_side": "away",
-          "model_line": 4.6,
-          "p_over": 0.5039,
+          "model_line": 4.1,
+          "p_over": 0.4888,
           "recommendation": "PASS"
         },
         {
           "type": "K_PROP",
-          "sp": "Connor Prielipp",
+          "sp": "Noah Cameron",
           "sp_side": "home",
-          "model_line": 5.6,
-          "p_over": 0.4623,
-          "recommendation": "PASS"
+          "model_line": 4.8,
+          "p_over": 0.6022,
+          "recommendation": "BET"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4266,
-          "p_yrfi": 0.5734,
+          "p_nrfi": 0.3902,
+          "p_yrfi": 0.6098,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.4,
-          "market_line": 9.0,
-          "p_over": 0.3336,
-          "p_under": 0.6664,
-          "recommendation": "UNDER 9.0"
+          "model_total": 9.2,
+          "market_line": 9.5,
+          "p_over": 0.4384,
+          "p_under": 0.5616,
+          "recommendation": "UNDER 9.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "PHI",
+      "home": "MIL",
+      "away_name": "Philadelphia Phillies",
+      "home_name": "Milwaukee Brewers",
+      "time": "7:11 PM ET",
+      "asp": "Aaron Nola",
+      "hsp": "Shane Drohan",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Aaron Nola",
+          "sp_side": "away",
+          "model_line": 5.1,
+          "p_over": 0.4242,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Shane Drohan",
+          "sp_side": "home",
+          "model_line": 4.9,
+          "p_over": 0.8154,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.479,
+          "p_yrfi": 0.521,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.21,
+          "market_line": 8.5,
+          "p_over": 0.4369,
+          "p_under": 0.5631,
+          "recommendation": "UNDER 8.5"
         }
       ],
       "sgp": []
