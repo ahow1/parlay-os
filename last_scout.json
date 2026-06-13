@@ -1,44 +1,27 @@
 {
-  "timestamp": "2026-06-13T01:38:14Z",
-  "date": "2026-06-12",
-  "window": "west",
+  "timestamp": "2026-06-13T16:08:55Z",
+  "date": "2026-06-13",
+  "window": "day",
   "bankroll": 163.55,
   "games": [
     {
-      "away": "COL",
-      "home": "ATH",
-      "away_model": 0.4154,
-      "home_model": 0.5846,
-      "away_edge": 7.73,
-      "home_edge": -7.73,
-      "away_xr": 3.5,
-      "home_xr": 4.404
-    },
-    {
-      "away": "CHC",
-      "home": "SF",
-      "away_model": 0.4472,
-      "home_model": 0.5528,
-      "away_edge": -0.88,
-      "home_edge": 0.88,
-      "away_xr": 3.5,
-      "home_xr": 4.356
+      "away": "STL",
+      "home": "MIN",
+      "away_model": 0.5257,
+      "home_model": 0.4743,
+      "away_edge": 0.72,
+      "home_edge": -0.72,
+      "away_xr": 4.115,
+      "home_xr": 4.281
     }
   ],
   "bets": [],
   "passes": [
     {
-      "game": "Colorado Rockies @ Athletics",
+      "game": "St. Louis Cardinals @ Minnesota Twins",
       "edges": {
-        "away": 7.73,
-        "home": -7.73
-      }
-    },
-    {
-      "game": "Chicago Cubs @ San Francisco Giants",
-      "edges": {
-        "away": -0.88,
-        "home": 0.88
+        "away": 0.72,
+        "home": -0.72
       }
     }
   ],

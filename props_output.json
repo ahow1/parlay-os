@@ -1,81 +1,45 @@
 {
-  "date": "2026-06-12",
-  "timestamp": "2026-06-12T21:43:00.854161-04:00",
+  "date": "2026-06-13",
+  "timestamp": "2026-06-13T12:10:49.442491-04:00",
   "games": [
     {
-      "away": "COL",
-      "home": "ATH",
-      "away_name": "Colorado Rockies",
-      "home_name": "Athletics",
-      "time": "10:06 PM ET",
-      "asp": "Sean Sullivan",
-      "hsp": "Gage Jump",
+      "away": "STL",
+      "home": "MIN",
+      "away_name": "St. Louis Cardinals",
+      "home_name": "Minnesota Twins",
+      "time": "2:11 PM ET",
+      "asp": "Matthew Liberatore",
+      "hsp": "Connor Prielipp",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Sean Sullivan",
+          "sp": "Matthew Liberatore",
           "sp_side": "away",
-          "model_line": 4.7,
-          "p_over": 0.0,
+          "model_line": 4.6,
+          "p_over": 0.5039,
           "recommendation": "PASS"
         },
         {
           "type": "K_PROP",
-          "sp": "Gage Jump",
+          "sp": "Connor Prielipp",
           "sp_side": "home",
-          "model_line": 3.5,
-          "p_over": 0.6271,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "recommendation": "SP_MISSING"
-        },
-        {
-          "type": "TOTAL",
-          "recommendation": "SP_MISSING"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "CHC",
-      "home": "SF",
-      "away_name": "Chicago Cubs",
-      "home_name": "San Francisco Giants",
-      "time": "10:16 PM ET",
-      "asp": "Javier Assad",
-      "hsp": "Landen Roupp",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Javier Assad",
-          "sp_side": "away",
-          "model_line": 2.9,
-          "p_over": 0.7781,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Landen Roupp",
-          "sp_side": "home",
-          "model_line": 5.5,
-          "p_over": 0.5425,
+          "model_line": 5.6,
+          "p_over": 0.4623,
           "recommendation": "PASS"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4819,
-          "p_yrfi": 0.5181,
+          "p_nrfi": 0.4266,
+          "p_yrfi": 0.5734,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.86,
-          "market_line": 8.5,
-          "p_over": 0.3874,
-          "p_under": 0.6126,
-          "recommendation": "UNDER 8.5"
+          "model_total": 8.4,
+          "market_line": 9.0,
+          "p_over": 0.3336,
+          "p_under": 0.6664,
+          "recommendation": "UNDER 9.0"
         }
       ],
       "sgp": []
