@@ -1,180 +1,44 @@
 {
-  "timestamp": "2026-06-12T21:28:35Z",
+  "timestamp": "2026-06-13T01:38:14Z",
   "date": "2026-06-12",
-  "window": "evening",
+  "window": "west",
   "bankroll": 163.55,
   "games": [
     {
-      "away": "MIA",
-      "home": "PIT",
-      "away_model": 0.4651,
-      "home_model": 0.5349,
-      "away_edge": 3.3,
-      "home_edge": -3.3,
-      "away_xr": 3.69,
-      "home_xr": 4.307
-    },
-    {
-      "away": "SEA",
-      "home": "WAS",
-      "away_model": 0.5209,
-      "home_model": 0.4791,
-      "away_edge": -4.52,
-      "home_edge": 4.52,
-      "away_xr": 5.728,
-      "home_xr": 3.5
-    },
-    {
-      "away": "SD",
-      "home": "BAL",
-      "away_model": 0.4778,
-      "home_model": 0.5222,
-      "away_edge": 1.98,
-      "home_edge": -1.98,
-      "away_xr": 3.563,
-      "home_xr": 4.836
-    },
-    {
-      "away": "TEX",
-      "home": "BOS",
-      "away_model": 0.4954,
-      "home_model": 0.5046,
-      "away_edge": 4.54,
-      "home_edge": -4.54,
-      "away_xr": 4.373,
-      "home_xr": 4.11
-    },
-    {
-      "away": "DET",
-      "home": "CLE",
-      "away_model": 0.4665,
-      "home_model": 0.5335,
-      "away_edge": -0.51,
-      "home_edge": 0.51,
-      "away_xr": 4.62,
-      "home_xr": 3.738
-    },
-    {
-      "away": "ATL",
-      "home": "NYM",
-      "away_model": 0.5212,
-      "home_model": 0.4788,
-      "away_edge": 6.02,
-      "home_edge": -6.02,
-      "away_xr": 3.836,
-      "home_xr": 3.956
-    },
-    {
-      "away": "AZ",
-      "home": "CIN",
-      "away_model": 0.5179,
-      "home_model": 0.4821,
-      "away_edge": 2.72,
-      "home_edge": -2.72,
-      "away_xr": 5.608,
-      "home_xr": 4.385
-    },
-    {
-      "away": "NYY",
-      "home": "TOR",
-      "away_model": 0.5151,
-      "home_model": 0.4849,
-      "away_edge": 2.44,
-      "home_edge": -2.44,
-      "away_xr": 3.794,
-      "home_xr": 3.795
-    },
-    {
-      "away": "LAD",
-      "home": "CWS",
-      "away_model": 0.5476,
-      "home_model": 0.4524,
-      "away_edge": -4.18,
-      "home_edge": 4.18,
-      "away_xr": 5.167,
-      "home_xr": 4.528
-    },
-    {
-      "away": "PHI",
-      "home": "MIL",
-      "away_model": 0.4812,
-      "home_model": 0.5188,
-      "away_edge": 16.62,
-      "home_edge": -16.62,
+      "away": "COL",
+      "home": "ATH",
+      "away_model": 0.4154,
+      "home_model": 0.5846,
+      "away_edge": 7.73,
+      "home_edge": -7.73,
       "away_xr": 3.5,
-      "home_xr": 3.5
+      "home_xr": 4.404
+    },
+    {
+      "away": "CHC",
+      "home": "SF",
+      "away_model": 0.4472,
+      "home_model": 0.5528,
+      "away_edge": -0.88,
+      "home_edge": 0.88,
+      "away_xr": 3.5,
+      "home_xr": 4.356
     }
   ],
   "bets": [],
   "passes": [
     {
-      "game": "Miami Marlins @ Pittsburgh Pirates",
+      "game": "Colorado Rockies @ Athletics",
       "edges": {
-        "away": 3.3,
-        "home": -3.3
+        "away": 7.73,
+        "home": -7.73
       }
     },
     {
-      "game": "Seattle Mariners @ Washington Nationals",
+      "game": "Chicago Cubs @ San Francisco Giants",
       "edges": {
-        "away": -4.52,
-        "home": 4.52
-      }
-    },
-    {
-      "game": "San Diego Padres @ Baltimore Orioles",
-      "edges": {
-        "away": 1.98,
-        "home": -1.98
-      }
-    },
-    {
-      "game": "Texas Rangers @ Boston Red Sox",
-      "edges": {
-        "away": 4.54,
-        "home": -4.54
-      }
-    },
-    {
-      "game": "Detroit Tigers @ Cleveland Guardians",
-      "edges": {
-        "away": -0.51,
-        "home": 0.51
-      }
-    },
-    {
-      "game": "Atlanta Braves @ New York Mets",
-      "edges": {
-        "away": 6.02,
-        "home": -6.02
-      }
-    },
-    {
-      "game": "Arizona Diamondbacks @ Cincinnati Reds",
-      "edges": {
-        "away": 2.72,
-        "home": -2.72
-      }
-    },
-    {
-      "game": "New York Yankees @ Toronto Blue Jays",
-      "edges": {
-        "away": 2.44,
-        "home": -2.44
-      }
-    },
-    {
-      "game": "Los Angeles Dodgers @ Chicago White Sox",
-      "edges": {
-        "away": -4.18,
-        "home": 4.18
-      }
-    },
-    {
-      "game": "Philadelphia Phillies @ Milwaukee Brewers",
-      "edges": {
-        "away": 16.62,
-        "home": -16.62
+        "away": -0.88,
+        "home": 0.88
       }
     }
   ],
