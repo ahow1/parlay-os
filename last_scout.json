@@ -1,44 +1,61 @@
 {
-  "timestamp": "2026-06-13T21:11:09Z",
+  "timestamp": "2026-06-14T01:55:20Z",
   "date": "2026-06-13",
-  "window": "evening",
+  "window": "west",
   "bankroll": 163.55,
   "games": [
     {
-      "away": "HOU",
-      "home": "KC",
-      "away_model": 0.5279,
-      "home_model": 0.4721,
-      "away_edge": 6.69,
-      "home_edge": -6.69,
-      "away_xr": 4.052,
-      "home_xr": 5.144
+      "away": "COL",
+      "home": "ATH",
+      "away_model": 0.4977,
+      "home_model": 0.5023,
+      "away_edge": 7.87,
+      "home_edge": -7.87,
+      "away_xr": 4.676,
+      "home_xr": 5.736
     },
     {
-      "away": "PHI",
-      "home": "MIL",
-      "away_model": 0.4398,
-      "home_model": 0.5602,
-      "away_edge": 4.47,
-      "home_edge": -4.47,
+      "away": "CHC",
+      "home": "SF",
+      "away_model": 0.468,
+      "home_model": 0.532,
+      "away_edge": -6.04,
+      "home_edge": 6.04,
       "away_xr": 3.5,
-      "home_xr": 4.711
+      "home_xr": 3.5
+    },
+    {
+      "away": "TB",
+      "home": "LAA",
+      "away_model": 0.5195,
+      "home_model": 0.4805,
+      "away_edge": 0.32,
+      "home_edge": -0.32,
+      "away_xr": 4.011,
+      "home_xr": 4.753
     }
   ],
   "bets": [],
   "passes": [
     {
-      "game": "Houston Astros @ Kansas City Royals",
+      "game": "Colorado Rockies @ Athletics",
       "edges": {
-        "away": 6.69,
-        "home": -6.69
+        "away": 7.87,
+        "home": -7.87
       }
     },
     {
-      "game": "Philadelphia Phillies @ Milwaukee Brewers",
+      "game": "Chicago Cubs @ San Francisco Giants",
       "edges": {
-        "away": 4.47,
-        "home": -4.47
+        "away": -6.04,
+        "home": 6.04
+      }
+    },
+    {
+      "game": "Tampa Bay Rays @ Los Angeles Angels",
+      "edges": {
+        "away": 0.32,
+        "home": -0.32
       }
     }
   ],
