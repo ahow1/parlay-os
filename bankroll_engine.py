@@ -13,20 +13,35 @@ DRAWDOWN_MINOR      = 0.10   # -10%: reduce stakes 25%
 DRAWDOWN_PROPS_ONLY = 0.15   # -15%: reduce stakes 50%, ML bets blocked
 DRAWDOWN_PAUSE      = 0.20   # -20%: full pause + Telegram alert
 
-# Pool split — daily budget by category
+# Pool split — daily budget by category. PROPS raised from 0.25 to fit the
+# $15-20/pick PROP stake band (2-3 qualifying props/NRFI per day) without the
+# pool-budget loop in _daily_bet_slip silently dropping every prop.
 POOL_ML     = 2.00
-POOL_PROPS  = 0.25
+POOL_PROPS  = 0.60
 POOL_PARLAY = 0.15
 
-MAX_STAKE_PCT = 0.06   # hard cap: 6% of bankroll per bet
+MAX_STAKE_PCT = 0.15   # absolute safety backstop: 15% of bankroll per bet (tier ceilings below stay under this)
 MIN_STAKE     = 1.00   # minimum recommended stake
 
 # Full Kelly × conviction multiplier (replaces quarter-Kelly + conviction bands)
 CONVICTION_MULTIPLIERS = {
-    "HIGH":   0.40,
-    "MEDIUM": 0.25,
+    "HIGH":   0.65,
+    "MEDIUM": 0.55,
+    "PROP":   0.40,
     "PASS":   0.10,
     "LOW":    0.10,
+}
+
+# Per-conviction stake floor/ceiling as a fraction of bankroll. Kelly (mult × full_kelly)
+# still decides where a bet lands *within* the band based on edge strength; the floor/ceiling
+# guarantee the tier lands where Aidan wants it regardless of how close to the qualifying
+# threshold the edge is. At $300 bankroll: HIGH=$30-40 (sharp), MEDIUM=$20-25 (value),
+# PROP=$15-20 (K-props/hitter props/NRFI/totals). PASS/LOW have no floor — they're the
+# below-threshold fallback tier and should stay small.
+CONVICTION_BANDS = {
+    "HIGH":   (30.0 / 300, 40.0 / 300),
+    "MEDIUM": (20.0 / 300, 25.0 / 300),
+    "PROP":   (15.0 / 300, 20.0 / 300),
 }
 
 # Which bet_type strings belong to each pool
@@ -176,14 +191,17 @@ def is_daily_stop_loss_active() -> bool:
 # ── Tiered daily budget ────────────────────────────────────────────────────────
 
 def daily_budget_pct(br: float) -> float:
-    """Daily risk budget as fraction of bankroll, scaling up as the account grows."""
+    """Daily risk budget as fraction of bankroll, scaling up as the account grows.
+    Raised from the legacy 12/15/18/20% tiers to fit the $30-40 HIGH stake band —
+    at the old 15% tier ($45 at $300), a single lock could consume the entire
+    daily cap and BLOCK every other qualifying bet for the rest of the day."""
     if br >= 1000:
-        return 0.20
+        return 0.40
     if br >= 500:
-        return 0.18
+        return 0.35
     if br >= 300:
-        return 0.15
-    return 0.12
+        return 0.30
+    return 0.25
 
 
 def daily_budget(br: float | None = None) -> float:
@@ -280,11 +298,16 @@ def kelly_stake(
     edge_pct: float = 0.0,
 ) -> float:
     """
-    Full Kelly × conviction-multiplier stake with tiered drawdown protection.
-      HIGH   × 0.40 — target range ~$9.40–$14.10 at $235
-      MEDIUM × 0.25 — target range ~$4.70–$9.40
-      PASS   × 0.10 — target range ~$1.00–$4.70
-    Hard cap: 6% of sizing_bankroll. Min stake: $1.00. Rounded to $0.10.
+    Full Kelly × conviction-multiplier stake, clamped into a per-tier band, with
+    tiered drawdown protection.
+      HIGH   (sharp / ML locks)             — $30-40 at $300 bankroll
+      MEDIUM (value / ML flips)             — $20-25 at $300 bankroll
+      PROP   (K-props/hitter props/NRFI/totals) — $15-20 at $300 bankroll
+      PASS/LOW — no floor, capped by MAX_STAKE_PCT only (below-threshold fallback)
+    Kelly still decides where a bet lands *within* its band based on edge strength;
+    the band floor/ceiling are expressed as % of bankroll (see CONVICTION_BANDS) so
+    they rescale automatically if the bankroll changes.
+    Absolute safety backstop: MAX_STAKE_PCT of sizing_bankroll. Rounded to $0.10.
     Returns 0.0 when drawdown pause is active or Kelly is negative.
     """
     dec = american_to_decimal(odds_american)
@@ -300,9 +323,15 @@ def kelly_stake(
     if full_kelly <= 0:
         return 0.0
 
-    mult = CONVICTION_MULTIPLIERS.get(conviction.upper(), 0.25)
+    conv = conviction.upper()
+    mult = CONVICTION_MULTIPLIERS.get(conv, 0.25)
     kelly_pct = full_kelly * mult
-    kelly_pct = min(kelly_pct, MAX_STAKE_PCT)
+
+    band = CONVICTION_BANDS.get(conv)
+    if band:
+        floor_pct, ceiling_pct = band
+        kelly_pct = min(max(kelly_pct, floor_pct), ceiling_pct)
+    kelly_pct = min(kelly_pct, MAX_STAKE_PCT)   # absolute safety backstop
 
     br = sizing_bankroll()
     if br <= 0:

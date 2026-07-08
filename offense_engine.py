@@ -473,6 +473,9 @@ def analyze_offense(team_code: str, game_pk: int = None, side: str = "away",
         if not lineup_confirmed:
             lineup_unconfirmed_penalty = 0.10  # 10% confidence reduction
 
+        import data_health
+        data_health.record_ok("lineups", lineup_confirmed)
+
     # ── Lineup slot quality (if lineup is confirmed) ──────────────────────────
     slot_quality = lineup_slot_quality(lineup, park_factor) if lineup else {}
 

@@ -20,15 +20,24 @@ from constants import (
 
 STATSAPI = "https://statsapi.mlb.com/api/v1"
 _DATA_CACHE_DIR = "data_cache"
+FG_SEASON = 2026
 FG_PITCHING_URL = (
     "https://www.fangraphs.com/api/leaders/major-league/data"
-    "?age=&pos=all&stats=pit&lg=all&qual=0"
-    "&season=2026&season1=2026&ind=0&team=0&rost=0&players=&type=8"
+    f"?age=&pos=all&stats=pit&lg=all&qual=0"
+    f"&season={FG_SEASON}&season1={FG_SEASON}&ind=0&team=0&rost=0&players=&type=8"
 )
 
 # Thread-safe in-process cache for FanGraphs leaderboard
 _fg_lock    = threading.Lock()
 _fg_cache: dict | None = None   # {normalized_name: xfip_float}
+
+# Thread-safe in-process cache for the pybaseball fallback leaderboard
+_pyb_lock    = threading.Lock()
+_pyb_cache: dict | None = None   # {normalized_name: xfip_float}
+
+# Which source actually served the leaderboard this process lifetime:
+# "fangraphs" | "pybaseball" | "unavailable" | None (not yet loaded)
+_xfip_source: str | None = None
 
 
 def _normalize_name(name: str) -> str:
@@ -71,13 +80,78 @@ def _load_fg_xfip() -> dict:
         return _fg_cache
 
 
+def _load_pybaseball_xfip() -> dict:
+    """Fallback FanGraphs leaderboard fetch via pybaseball, used only when the
+    direct FanGraphs request comes back empty (blocked/403/schema change)."""
+    global _pyb_cache
+    with _pyb_lock:
+        if _pyb_cache is not None:
+            return _pyb_cache
+        try:
+            import pybaseball
+            df = pybaseball.pitching_stats(FG_SEASON, qual=0)
+            result = {}
+            for _, row in df.iterrows():
+                name = row.get("Name")
+                xfip = row.get("xFIP")
+                if not name or xfip is None:
+                    continue
+                try:
+                    xfip = float(xfip)
+                except (ValueError, TypeError):
+                    continue
+                if xfip != xfip:  # NaN check without a pandas import
+                    continue
+                result[_normalize_name(name)] = round(xfip, 2)
+            _pyb_cache = result
+        except Exception:
+            _pyb_cache = {}
+        return _pyb_cache
+
+
+def _xfip_leaderboard() -> tuple[dict, str]:
+    """Returns (leaderboard, source) — tries FanGraphs direct first, falls back
+    to pybaseball if that comes back empty, and records the outcome for
+    data_health so a failed feed is never silently reported as neutral."""
+    global _xfip_source
+    import data_health
+
+    fg = _load_fg_xfip()
+    if fg:
+        _xfip_source = "fangraphs"
+        data_health.record("fangraphs_sp", "live")
+        return fg, "fangraphs"
+
+    data_health.record("fangraphs_sp", "failed")
+    pyb = _load_pybaseball_xfip()
+    if pyb:
+        _xfip_source = "pybaseball"
+        data_health.record("pybaseball_sp", "live")
+        return pyb, "pybaseball"
+
+    data_health.record("pybaseball_sp", "failed")
+    _xfip_source = "unavailable"
+    return {}, "unavailable"
+
+
 def get_real_xfip(pitcher_name: str) -> float | None:
-    """Look up real xFIP for a pitcher by name from FanGraphs. Returns None on miss."""
+    """Look up real xFIP for a pitcher by name — FanGraphs first, pybaseball
+    fallback. Returns None on miss from both sources."""
     if not pitcher_name or pitcher_name == "TBD":
         return None
-    fg = _load_fg_xfip()
+    board, _ = _xfip_leaderboard()
     key = _normalize_name(pitcher_name)
-    return fg.get(key)
+    return board.get(key)
+
+
+def get_xfip_source(pitcher_name: str) -> str:
+    """Which feed actually served this pitcher's xFIP: 'fangraphs',
+    'pybaseball', or 'estimated' (missed both, formula fallback used)."""
+    if not pitcher_name or pitcher_name == "TBD":
+        return "estimated"
+    board, source = _xfip_leaderboard()
+    key = _normalize_name(pitcher_name)
+    return source if key in board else "estimated"
 
 
 def _get_probable_pitchers(game_pk: int) -> dict:
@@ -557,7 +631,7 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "",
         "era":              era,
         "effective_era":    effective_era,
         "xfip":             xfip,
-        "xfip_source":      "fangraphs" if real_xfip is not None else "estimated",
+        "xfip_source":      get_xfip_source(pitcher_name) if pitcher_name else "estimated",
         "k9":               k9,
         "bb9":              bb9,
         "hr9":              hr9,
@@ -596,10 +670,7 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "",
         "fp_strike_rate":    fp_strike_rate,
         # Savant leaderboard signals (ADDs 1-10)
         "savant":            savant_signals,
-        "xwoba_against":     blend_xwoba(
-                                 savant_signals.get("xwoba_against"),
-                                 (savant_signals.get("savant_rolling") or {}).get("rolling_xwoba"),
-                             ),
+        "xwoba_against":     savant_signals.get("xwoba_against"),
         "xwoba_tier":        savant_signals.get("xwoba_tier", "UNKNOWN"),
         "rolling_xwoba_tier":savant_signals.get("rolling_xwoba_tier", "UNKNOWN"),
         "pitch_tempo":       savant_signals.get("pitch_tempo"),

@@ -72,7 +72,11 @@ $27 while Kelly stakes stay at $9 — the daily cap ($3.32) blocks every bet on 
 
 ## Current State
 
-- Bankroll: $741 (update with `sed` command above when it changes)
+- Bankroll: $300 (update with `sed` command above when it changes)
+- Stake tiers (banded Kelly — see `CONVICTION_BANDS` in `bankroll_engine.py`):
+  HIGH (sharp/locks) $30-40, MEDIUM (value/flips) $20-25, PROP (K-props/hitter
+  props/NRFI/totals) $15-20 — bands are % of bankroll, so they rescale automatically
+  if `BANKROLL_OVERRIDE` changes. Set 2026-07-07 with Aidan's explicit sign-off.
 - xwOBA: working — uses `est_woba` column from Savant leaderboard
 - Rolling form: fixed — uses `rolling_xwoba_tier` key
 - Auto-settlement: working
@@ -88,7 +92,8 @@ $27 while Kelly stakes stay at $9 — the daily cap ($3.32) blocks every bet on 
 - Always use UTC internally — convert to ET only for display
 - RED day only when zero BET signals exist (`len(all_locks)+len(all_flips)==0`)
 - Pool calculations only count today's UTC date — never cumulative
-- Stake minimum $1.00, maximum 6% of bankroll
+- Stake minimum $1.00, maximum 15% of bankroll (absolute safety backstop — `MAX_STAKE_PCT`
+  in `bankroll_engine.py`; tier ceilings above sit at 13.3%/8.3%/6.7% and bind first)
 - Never update bankroll via estimate — always use exact number from Aidan
 - Never clear bets table without backing up first
 - Never deploy to Railway without testing locally
@@ -107,6 +112,8 @@ $27 while Kelly stakes stay at $9 — the daily cap ($3.32) blocks every bet on 
 | Slip dedup blocking | Only mark sent if `has_bets=True` AND `avg_stake > $1` |
 | GH Actions bankroll | Add `BANKROLL_OVERRIDE` secret to GitHub — without it, daily cap collapses to ~$3 |
 | Stake mismatch | brain.py daily cap uses `sizing_bankroll()` — Kelly and cap must use same basis |
+| Telegram spam (empty/status-only sends) | `_daily_bet_slip` sent all 3 parts unconditionally, checked `has_bets` only after sending; near-miss "no qualifying bets" message also fired every empty run. Fixed 2026-07-07: gated all sends behind a real `_has_any_pick` check (locks/flips/parlay/nrfi/totals/props), near-miss message now log-only, never sent to Telegram |
+| Daily cap / props pool too small for new stake bands | Raising stake bands without raising `daily_budget_pct` and `POOL_PROPS` reintroduces the "cap blocks everything" bug — the two must move together |
 
 ---
 

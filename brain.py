@@ -26,6 +26,7 @@ sys.stdout.reconfigure(line_buffering=True)
 
 # ── Engine imports ────────────────────────────────────────────────────────────
 import db as _db
+import data_health
 from constants      import MLB_TEAM_MAP, MLB_TEAM_IDS, TEAM_SLUGS, PARK_FACTORS, UMPIRE_TENDENCIES
 from math_engine    import (
     american_to_decimal, decimal_to_american, implied_prob,
@@ -226,6 +227,21 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     away_nv = nv.get("away", 0.5)
     home_nv = nv.get("home", 0.5)
 
+    # ── Odds history — append-only snapshot, never overwrites prior runs ──────
+    try:
+        _game_label = f"{away_name} @ {home_name}"
+        for _book_key, _book in (market.get("ml_books") or {}).items():
+            _book_name = _book.get("name", _book_key)
+            for _side in ("away", "home"):
+                _price = _book.get(_side)
+                if _price is not None:
+                    _db.save_odds_snapshot(
+                        date=game_date, game_id=event["id"], game=_game_label,
+                        sportsbook=_book_name, market="h2h", side=_side, price=float(_price),
+                    )
+    except Exception as _oh_e:
+        print(f"[ODDS HISTORY] snapshot write error for {away_name} @ {home_name}: {_oh_e}")
+
     # ── Weather (home park) ───────────────────────────────────────────────────
     weather = get_weather(home_code)
     wx_rf   = weather.get("run_factor", 1.0)
@@ -311,11 +327,19 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     home_momentum = weighted_momentum(home_tid, home_code)
 
     # ── Home dog structural edge check ────────────────────────────────────────
+    # home_dog_engine.check_home_dog_value() does `home_bp.get("avg_fatigue", 5.0)`
+    # then `home_fatigue < 4.0` — that .get() default never fires when the key
+    # exists-but-is-None (bullpen data_ok=False), which would raise TypeError.
+    # Substitute a safe, conservative fallback (>=4.0 so the "fresh bullpen"
+    # condition fails rather than falsely passing) when data is unavailable.
+    _hd_home_bp = home_bp
+    if not home_bp.get("data_ok", True):
+        _hd_home_bp = {**home_bp, "avg_fatigue": 5.0}
     _hd_partial = {
         "best_home_odds": market.get("best_home_odds"),
         "home_sp":  home_sp,
         "away_sp":  away_sp,
-        "home_bp":  home_bp,
+        "home_bp":  _hd_home_bp,
         "home_off": home_off,
     }
     home_dog_result = check_home_dog_value(_hd_partial)
@@ -339,8 +363,17 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     _pt_home_adj = home_pitch_trap.get("prob_add", 0.0)   # home lineup exploits away SP
 
     # ── Factor 10: Key reliever availability (from bullpen engine) ────────────
-    away_key_rel_avail = away_bp.get("key_reliever_available", True)
-    home_key_rel_avail = home_bp.get("key_reliever_available", True)
+    # bullpen data can be unavailable (data_ok=False from analyze_bullpen()), in
+    # which case key_reliever_available is explicitly None — NOT missing — so a
+    # plain .get(key, True) default never fires. Treat unknown as "available"
+    # (no flag) explicitly: we have no signal either way, and we must not assert
+    # an unavailability risk we can't back up.
+    away_key_rel_avail = away_bp.get("key_reliever_available")
+    home_key_rel_avail = home_bp.get("key_reliever_available")
+    if away_key_rel_avail is None:
+        away_key_rel_avail = True
+    if home_key_rel_avail is None:
+        home_key_rel_avail = True
 
     # ── Factor 11: Catcher framing ────────────────────────────────────────────
     away_framing_runs = get_team_framing(away_code)
@@ -459,11 +492,23 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     except Exception:
         pass
 
+    # Bullpen data may be unavailable (data_ok=False) — avg_fatigue is explicitly
+    # None in that case, so a plain .get(key, 4.0) default never fires (the key
+    # exists). Fall back to the neutral 4.0 for the numeric arg (harmless, since
+    # away_bp_data_ok/home_bp_data_ok below tell _weighted_win_prob to exclude
+    # the bullpen factor from the blend entirely rather than trust this number).
+    away_bp_data_ok  = away_bp.get("data_ok", True)
+    home_bp_data_ok  = home_bp.get("data_ok", True)
+    away_bp_fatigue_safe = away_bp.get("avg_fatigue") if away_bp_data_ok else 4.0
+    home_bp_fatigue_safe = home_bp.get("avg_fatigue") if home_bp_data_ok else 4.0
+
     away_model_p, home_model_p = _weighted_win_prob(
         away_xfip              = away_sp.get("xfip", 4.35),
         home_xfip              = home_sp.get("xfip", 4.35),
-        away_bp_fatigue        = away_bp.get("avg_fatigue", 4.0),
-        home_bp_fatigue        = home_bp.get("avg_fatigue", 4.0),
+        away_bp_fatigue        = away_bp_fatigue_safe,
+        home_bp_fatigue        = home_bp_fatigue_safe,
+        away_bp_data_ok        = away_bp_data_ok,
+        home_bp_data_ok        = home_bp_data_ok,
         away_wrc               = away_wrc_v,
         home_wrc               = home_wrc_v,
         home_dog_add           = home_dog_add,
@@ -507,11 +552,16 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     )
     _a_tier, _ = _sp_tier(away_sp.get("xfip", 4.35))
     _h_tier, _ = _sp_tier(home_sp.get("xfip", 4.35))
+    # avg_fatigue is explicitly None when bullpen data_ok=False — format defensively.
+    _away_bp_fat_disp = away_bp.get("avg_fatigue")
+    _home_bp_fat_disp = home_bp.get("avg_fatigue")
+    _away_bp_fat_s = f"{_away_bp_fat_disp:.1f}" if _away_bp_fat_disp is not None else "UNK"
+    _home_bp_fat_s = f"{_home_bp_fat_disp:.1f}" if _home_bp_fat_disp is not None else "UNK"
     print(f"  12-factor: away={away_model_p:.3f} home={home_model_p:.3f} "
           f"SP:{away_sp.get('xfip',4.35):.2f}({_a_tier}) vs {home_sp.get('xfip',4.35):.2f}({_h_tier}) "
           f"xwOBA:{_away_xwoba or '?'}/{_home_xwoba or '?'} "
           f"roll:{_away_roll_tier}/{_home_roll_tier} "
-          f"BP:{away_bp.get('avg_fatigue',4.0):.1f}/{home_bp.get('avg_fatigue',4.0):.1f} "
+          f"BP:{_away_bp_fat_s}/{_home_bp_fat_s} "
           f"Pyth={pyth_away_p:.3f} UMP_HWA:{ump_home_win_adj:+.3f}")
 
     # ── H2H historical matchup (10% weight) ─────────────────────────────────
@@ -702,9 +752,14 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     if _fi_parts:
         print(f"  1st-inning: {' | '.join(_fi_parts)}")
 
-    # Bullpen fatigue
-    away_bp_str = f"{away_bp['fatigue_tier']}({away_bp['avg_fatigue']:.1f})"
-    home_bp_str = f"{home_bp['fatigue_tier']}({home_bp['avg_fatigue']:.1f})"
+    # Bullpen fatigue — avg_fatigue is explicitly None when data_ok=False
+    # (bullpen fetch failed); never format/claim a fabricated fatigue number.
+    def _bp_disp_str(bp: dict) -> str:
+        fat  = bp.get("avg_fatigue")
+        tier = bp.get("fatigue_tier", "?")
+        return f"{tier}({fat:.1f})" if fat is not None else f"{tier}"
+    away_bp_str = _bp_disp_str(away_bp)
+    home_bp_str = _bp_disp_str(home_bp)
     hi_str = ""
     if away_hi_arms:
         hi_str += f" ⚠ {away_code} HI-FAT: {', '.join(away_hi_arms)}"
@@ -798,6 +853,7 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
             "closer":           away_bp["closer_name"],
             "closer_available": away_bp["closer_available"],
             "high_fatigue_arms": away_hi_arms,
+            "data_ok":          away_bp.get("data_ok", True),
         },
         "home_bp":    {
             "fatigue_tier":     home_bp["fatigue_tier"],
@@ -805,6 +861,7 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
             "closer":           home_bp["closer_name"],
             "closer_available": home_bp["closer_available"],
             "high_fatigue_arms": home_hi_arms,
+            "data_ok":          home_bp.get("data_ok", True),
         },
         "away_xr":    away_xr,
         "home_xr":    home_xr,
@@ -1102,6 +1159,8 @@ def _weighted_win_prob(
     home_framing_adj: float = 0.0,
     away_key_reliever_avail: bool = True,
     home_key_reliever_avail: bool = True,
+    away_bp_data_ok: bool = True,   # False → bullpen fetch failed; exclude Factor 4
+    home_bp_data_ok: bool = True,
     ump_home_win_adj: float = 0.0,
     # New Savant-powered factors
     away_xwoba_against: float | None = None,  # SP xwOBA against (ADD 1)
@@ -1172,10 +1231,15 @@ def _weighted_win_prob(
     roll_away_p = roll_away_q / roll_denom if roll_denom > 0 else 0.5
 
     # Factor 4 — Bullpen (xFIP fatigue + stuff_plus) (15%)
-    away_bp_q  = 1.0 / (1.0 + max(away_bp_fatigue, 0)) + away_bp_stuff_adj
-    home_bp_q  = 1.0 / (1.0 + max(home_bp_fatigue, 0)) + home_bp_stuff_adj
-    bp_denom   = away_bp_q + home_bp_q
-    bp_away_p  = away_bp_q / bp_denom if bp_denom > 0 else 0.5
+    if not away_bp_data_ok or not home_bp_data_ok:
+        # Bullpen fetch failed for one/both sides — exclude the fatigue signal
+        # entirely (neutral 0.5) rather than trust a fabricated "rested" default.
+        bp_away_p = 0.5
+    else:
+        away_bp_q  = 1.0 / (1.0 + max(away_bp_fatigue, 0)) + away_bp_stuff_adj
+        home_bp_q  = 1.0 / (1.0 + max(home_bp_fatigue, 0)) + home_bp_stuff_adj
+        bp_denom   = away_bp_q + home_bp_q
+        bp_away_p  = away_bp_q / bp_denom if bp_denom > 0 else 0.5
 
     # Factor 5 — Offense (wRC+ + bat tracking) (13%)
     away_off_q = max(away_wrc, 50.0) + away_bat_tracking_adj * 10
@@ -1769,13 +1833,7 @@ def _daily_bet_slip(
     elif day_cls["color"] == "RED":
         p1.append("🔴 RED day — no picks of any kind qualified today")
 
-    _has_bets = bool(locks or flips)
-    print(
-        f"[SLIP] Part 1 pre-send — {len(p1)} lines | "
-        f"locks={len(locks)} flips={len(flips)} has_bets={_has_bets}"
-    )
-    print(f"[SLIP] Sending PART 1/3 ({len(p1)} lines)...")
-    _p1_ok = _send_telegram("\n".join(p1))
+    print(f"[SLIP] Part 1 built — {len(p1)} lines | locks={len(locks)} flips={len(flips)}")
 
     # ── PART 2: PLAYER PROPS + NRFI/YRFI ─────────────────────────────────────
     # Normalise k_bets and hitter_bets into a unified list, sorted by edge desc.
@@ -1915,9 +1973,6 @@ def _daily_bet_slip(
     if not has_p2:
         p2.append("No props with edge today.")
 
-    print(f"[SLIP] Sending PART 2/3 ({len(p2)} lines)...")
-    _send_telegram("\n".join(p2))
-
     # ── PART 3: TOTALS + FADES + RISK SUMMARY ────────────────────────────────
     p3 = [
         f"PARLAY OS — {today}",
@@ -1973,15 +2028,34 @@ def _daily_bet_slip(
     else:
         p3.append(f"✅ Within daily budget (${cap:.2f})")
 
+    # ── Gate: never send an empty or status-only slip ─────────────────────────
+    # A "qualified pick" is any ML lock/flip/parlay, prop lock/flip, SGP, or
+    # totals/NRFI bet actually present in the built parts above. If none exist,
+    # skip Telegram entirely — no "RED day" / "no edges" / empty-pool spam.
+    _has_any_pick = bool(
+        locks or flips or prl_valid
+        or nrfi_bets or totals_bets
+        or prop_locks or prop_flips or all_props
+    )
+    if not _has_any_pick:
+        print(
+            f"[SLIP] No qualified picks today (day={day_cls['color']}) — "
+            f"skipping Telegram send entirely (no locks/flips/props/totals/nrfi)."
+        )
+        return False
+
+    print(f"[SLIP] Sending PART 1/3 ({len(p1)} lines)...")
+    _p1_ok = _send_telegram("\n".join(p1))
+    print(f"[SLIP] Sending PART 2/3 ({len(p2)} lines)...")
+    _send_telegram("\n".join(p2))
     print(f"[SLIP] Sending PART 3/3 ({len(p3)} lines)...")
     _send_telegram("\n".join(p3))
-    if _p1_ok and _has_bets:
-        print("[SLIP] All 3 parts sent — Part 1 confirmed OK with bets.")
-    elif not _p1_ok:
-        print("[SLIP] WARNING: Part 1 send failed (non-200 or exception) — slip will NOT be marked as sent.")
+
+    if _p1_ok:
+        print("[SLIP] All 3 parts sent — qualified picks confirmed.")
     else:
-        print("[SLIP] All 3 parts sent — Part 1 was empty (no locks or flips).")
-    return _p1_ok and _has_bets
+        print("[SLIP] WARNING: Part 1 send failed (non-200 or exception) — slip will NOT be marked as sent.")
+    return _p1_ok
 
 
 def _send_slip_update(
@@ -2360,16 +2434,22 @@ def _format_bet_message(game: dict, side: str) -> str:
     lines.append(f"           Opp: {opp_sp_s}")
 
     # ── BULLPEN ───────────────────────────────────────────────────────────────
+    # avg_fatigue is explicitly None when bullpen data_ok=False (fetch failed) —
+    # never format/compare it as a real number, and never claim FRESH/tier text
+    # implies a known-good result when the data is actually unavailable.
     our_bp_tier = our_bp.get("fatigue_tier", "?")
-    our_bp_fat  = our_bp.get("avg_fatigue", 0)
+    our_bp_fat  = our_bp.get("avg_fatigue")
     opp_bp_tier = opp_bp.get("fatigue_tier", "?")
-    opp_bp_fat  = opp_bp.get("avg_fatigue", 0)
+    opp_bp_fat  = opp_bp.get("avg_fatigue")
     bp_adv = ""
-    if our_bp_fat < opp_bp_fat - 0.5:
-        bp_adv = f" ← {our_code} advantage"
-    elif opp_bp_fat < our_bp_fat - 0.5:
-        bp_adv = f" ← {opp_code} advantage (risk)"
-    lines.append(f"BULLPEN    {our_code}: {our_bp_tier} ({our_bp_fat:.1f}) vs {opp_code}: {opp_bp_tier} ({opp_bp_fat:.1f}){bp_adv}")
+    if our_bp_fat is not None and opp_bp_fat is not None:
+        if our_bp_fat < opp_bp_fat - 0.5:
+            bp_adv = f" ← {our_code} advantage"
+        elif opp_bp_fat < our_bp_fat - 0.5:
+            bp_adv = f" ← {opp_code} advantage (risk)"
+    our_bp_fat_s = f"{our_bp_fat:.1f}" if our_bp_fat is not None else "?"
+    opp_bp_fat_s = f"{opp_bp_fat:.1f}" if opp_bp_fat is not None else "?"
+    lines.append(f"BULLPEN    {our_code}: {our_bp_tier} ({our_bp_fat_s}) vs {opp_code}: {opp_bp_tier} ({opp_bp_fat_s}){bp_adv}")
 
     # ── KEY STAT ──────────────────────────────────────────────────────────────
     key_parts = []
@@ -2501,6 +2581,8 @@ def _format_bet_message(game: dict, side: str) -> str:
         flag_parts.append(f"TEMPO_{_tempo_lbl}")
     if flag_parts:
         lines.append(f"FLAGS      {' | '.join(flag_parts)}")
+
+    lines.append(f"Data: {data_health.summary()}")
 
     return "\n".join(lines)
 
@@ -2848,8 +2930,7 @@ def _scan_hitter_props(
             _odds_str = f"-{round(_mp / (1.0 - _mp) * 100)}"
         else:
             _odds_str = f"+{round((1.0 - _mp) / _mp * 100)}"
-        stake = kelly_stake(model_p, _odds_str, "MEDIUM")
-        stake = min(stake, round(br * 0.015, 2))   # hard cap: 1.5% of bankroll per prop
+        stake = kelly_stake(model_p, _odds_str, "PROP")
         recs.append({
             "player":     player_name,
             "team":       team,
@@ -2931,6 +3012,7 @@ def run_daily_scout(window: str = "all"):
     _window_label = _WINDOW_LABELS.get(window, "ALL GAMES")
     print("=" * 60)
     print(f"Brain starting — daily scout [{_window_label}]")
+    data_health.reset()
     init_memory_tables()
     init_brain_tables()
 
@@ -2973,6 +3055,7 @@ def run_daily_scout(window: str = "all"):
 
     all_bets  = []
     all_pass  = []
+    _sp_missing_suppressed = []  # [team_name, ...] — picks dropped: probable pitcher unknown
     # Daily slip collections
     all_locks:    list = []   # (analysis, side) — HIGH conviction, edge ≥ 7%
     all_flips:    list = []   # (analysis, side) — MEDIUM conviction, edge 4-7%
@@ -3165,7 +3248,7 @@ def run_daily_scout(window: str = "all"):
                 except Exception:
                     _akp = None
             if _akp:
-                _k_stake = kelly_stake(_akp["model_p"] if "model_p" in _akp else 0.55, "-110", "MEDIUM")
+                _k_stake = kelly_stake(_akp["model_p"] if "model_p" in _akp else 0.55, "-110", "PROP")
                 all_k_props.append({
                     "sp":         _sp.get("name"),
                     "team":       analysis.get(_kside, ""),
@@ -3186,7 +3269,7 @@ def run_daily_scout(window: str = "all"):
                 _k_r = k_prop(_sp, _k_line)
                 _p_k = _k_r.get("p_over", 0)
                 if _p_k >= 0.55:
-                    _k_stake = kelly_stake(_p_k, "-110", "MEDIUM")
+                    _k_stake = kelly_stake(_p_k, "-110", "PROP")
                     _sp_sc = {}
                     if _STATCAST_AVAILABLE and _sp.get("pitcher_id"):
                         try:
@@ -3242,8 +3325,16 @@ def run_daily_scout(window: str = "all"):
             print(f"  Props entry error: {pe}")
 
         bet_found = False
+        _sp_missing_game = bool((analysis.get("away_sp") or {}).get("sp_missing")) or \
+                            bool((analysis.get("home_sp") or {}).get("sp_missing"))
         for side in ("away", "home"):
             if _should_recommend(analysis, side, bet_type="ML"):
+                if _sp_missing_game:
+                    _team = analysis.get(f"{side}_name", side)
+                    print(f"  SUPPRESS {_team}: probable pitcher unknown for this game — insufficient confidence, pick not sent")
+                    _sp_missing_suppressed.append(_team)
+                    continue
+
                 proposed_stake = float(analysis.get(f"{side}_stake", 0))
                 proposed_stake = max(proposed_stake, MIN_STAKE)   # enforce $1.00 floor
 
@@ -3366,7 +3457,7 @@ def run_daily_scout(window: str = "all"):
             if nrfi_note in ("nrfi", "yrfi"):
                 direction = "NRFI" if nrfi_note == "nrfi" else "YRFI"
                 prob  = nrfi_r_g["p_nrfi"] if direction == "NRFI" else nrfi_r_g["p_yrfi"]
-                stake = round(min(br * 0.010, 5.0), 2)
+                stake = kelly_stake(prob, "-110", "PROP")
                 all_nrfi.append({"game": game_lbl, "direction": direction, "prob": prob, "stake": stake})
 
             line       = analysis.get("totals_line")
@@ -3406,7 +3497,7 @@ def run_daily_scout(window: str = "all"):
                             "prob":      round(model_p, 4),
                             "market_p":  round(mkt_p, 4),
                             "edge_pct":  round(edge * 100, 1),
-                            "stake":     round(min(br * 0.0075, 4.0), 2),
+                            "stake":     kelly_stake(model_p, str(mkt_odds), "PROP"),
                         }
                 if best_total_bet and best_total_bet["stake"] > 0:
                     all_totals.append(best_total_bet)
@@ -3471,11 +3562,12 @@ def run_daily_scout(window: str = "all"):
                     f" — edge {_nm['edge']:+.1f}% | {_why}"
                 )
             _nm_msg = "\n".join(_nm_lines)
-            # Strip HTML tags — near-miss sent as plain text to avoid Telegram 400
+            # Strip HTML tags for the runlog (kept for debugging only).
             import re as _re
             _nm_msg_clean = _re.sub(r"<[^>]+>", "", _nm_msg)
             print(_nm_msg_clean)
-            _send_telegram(_nm_msg_clean)
+            # Near-misses are not qualified picks — log only, never send to Telegram.
+            # (Sending this every run when no bets qualify was the "no edges found" spam.)
 
     # ── Top 3 props — always send, regardless of ML pick count ───────────────
     # Collect best props (K + hitter) by edge, lowered threshold to 3% for this section
@@ -3788,6 +3880,11 @@ def run_daily_scout(window: str = "all"):
                 print(f"[TRACKER] write error for {analysis.get('away_name')} @ {analysis.get('home_name')}: {_te}")
 
     # Save scout output
+    scout_out["data_health"] = data_health.as_dict()
+    scout_out["sp_missing_suppressed"] = _sp_missing_suppressed
+    print(f"[DATA HEALTH] {data_health.summary()} — {scout_out['data_health']}")
+    if _sp_missing_suppressed:
+        print(f"[SUPPRESSED] {len(_sp_missing_suppressed)} pick(s) dropped — probable pitcher unknown: {_sp_missing_suppressed}")
     if not DRY_RUN:
         with open("last_scout.json", "w") as f:
             json.dump(scout_out, f, indent=2)

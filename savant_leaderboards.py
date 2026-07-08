@@ -57,6 +57,7 @@ _SAVANT_HEADERS = {
 
 def _fetch_csv(url: str, params: dict | None = None, debug: bool = False) -> list[dict]:
     """Fetch a CSV from Savant; return list of row dicts. Returns [] on error."""
+    import data_health
     try:
         r = _http_get(
             url,
@@ -71,6 +72,7 @@ def _fetch_csv(url: str, params: dict | None = None, debug: bool = False) -> lis
             print(f"[SAVANT DEBUG] Status: {r.status_code}")
             print(f"[SAVANT DEBUG] First 500 chars: {r.text[:500]!r}")
         if r.status_code != 200 or not r.text.strip():
+            data_health.record_ok("savant", False)
             return []
         # Block HTML responses (Savant bot-detection redirect)
         text = r.text.lstrip("﻿").strip()
@@ -78,12 +80,15 @@ def _fetch_csv(url: str, params: dict | None = None, debug: bool = False) -> lis
             log.warning(f"[SAVANT] HTML response (blocked) from {url}")
             if debug:
                 print(f"[SAVANT DEBUG] Got HTML — request is being blocked")
+            data_health.record_ok("savant", False)
             return []
         reader = csv.DictReader(io.StringIO(text))
         rows = list(reader)
+        data_health.record_ok("savant", bool(rows))
         return rows
     except Exception as e:
         log.debug(f"[SAVANT] fetch_csv {url}: {e}")
+        data_health.record_ok("savant", False)
         return []
 
 

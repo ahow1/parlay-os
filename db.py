@@ -217,6 +217,18 @@ def init_db():
             game_date  TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS odds_history (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            date        TEXT NOT NULL,
+            timestamp   TEXT NOT NULL,
+            game_id     TEXT NOT NULL,
+            game        TEXT,
+            sportsbook  TEXT,
+            market      TEXT,
+            side        TEXT,
+            price       REAL
+        );
+
         CREATE TABLE IF NOT EXISTS prop_results (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             date         TEXT NOT NULL,
@@ -681,6 +693,35 @@ def get_line_history(game_id: str, hours_back: int = 4) -> list:
             WHERE game_id=? AND timestamp >= ?
             ORDER BY timestamp DESC
         """, (game_id, cutoff)).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ─── ODDS HISTORY ─────────────────────────────────────────────────────────────
+# Full per-run odds snapshots (game/sportsbook/market/side/price/timestamp).
+# Append-only — never overwrite a prior snapshot. Distinct from line_history
+# (ML-only, consumed by line_movement_engine) so that existing consumer is
+# untouched; this table is for CLV/market-analysis work that needs full
+# market+sportsbook granularity.
+
+def save_odds_snapshot(date: str, game_id: str, game: str, sportsbook: str,
+                       market: str, side: str, price: float) -> None:
+    now = datetime.now(ET).isoformat()
+    with _conn() as conn:
+        conn.execute("""
+            INSERT INTO odds_history
+              (date, timestamp, game_id, game, sportsbook, market, side, price)
+            VALUES (?,?,?,?,?,?,?,?)
+        """, (date, now, game_id, game, sportsbook, market, side, price))
+
+
+def get_odds_history(game_id: str) -> list:
+    """Return all odds snapshots for a game, oldest first."""
+    with _conn() as conn:
+        rows = conn.execute("""
+            SELECT * FROM odds_history
+            WHERE game_id=?
+            ORDER BY timestamp ASC
+        """, (game_id,)).fetchall()
     return [dict(r) for r in rows]
 
 

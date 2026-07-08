@@ -69,6 +69,7 @@ def _team_roster(team_id: int, game_date: str) -> list:
             result.append({"id": pid, "name": name, "position": position})
         return result
     except Exception as e:
+        print(f"[BULLPEN] _team_roster({team_id}) FAILED: {e}")
         return []
 
 
@@ -106,7 +107,8 @@ def _pitcher_game_log(pitcher_id: int, days: int = 3) -> list:
                 "er":   int(st.get("earnedRuns", 0) or 0),
             })
         return games
-    except Exception:
+    except Exception as e:
+        print(f"[BULLPEN] _pitcher_game_log({pitcher_id}) FAILED: {e}")
         return []
 
 
@@ -161,6 +163,34 @@ def analyze_bullpen(team_id: int, game_date: str, label: str = "") -> dict:
     Key reliever = unavailable if 25+ pitches yesterday.
     """
     roster  = _team_roster(team_id, game_date)
+
+    if not roster:
+        # Genuine fetch failure (Stats API down, roster endpoint failed, timeout,
+        # etc. — _team_roster() already logged the underlying exception). Do NOT
+        # fall through to the normal computation: with an empty rp_list below,
+        # total_fatigue/n would silently produce fatigue_tier="FRESH",
+        # closer_available=True — a fully-formed but fabricated "rested bullpen"
+        # result indistinguishable from a real one. Surface an explicit unknown
+        # state instead so callers can exclude this factor.
+        print(f"[BULLPEN] {label or team_id}: roster fetch failed/empty — "
+              f"bullpen data UNAVAILABLE, returning UNKNOWN (not FRESH)")
+        return {
+            "team":                    label,
+            "team_id":                 team_id,
+            "avg_fatigue":             None,
+            "fatigue_tier":            "UNKNOWN",
+            "fatigued_arms":           0,
+            "high_fatigue_arms":       [],
+            "total_rp":                0,
+            "closer_available":        None,
+            "closer_name":             "",
+            "heavy_usage":             [],
+            "arms":                    [],
+            "key_reliever_available":  None,
+            "key_relievers_flagged":   [],
+            "data_ok":                 False,
+        }
+
     rp_list = [p for p in roster if p["position"] in ("RP", "CL")]
 
     total_fatigue     = 0.0
@@ -245,6 +275,7 @@ def analyze_bullpen(team_id: int, game_date: str, label: str = "") -> dict:
         # Key reliever availability (new)
         "key_reliever_available": key_available,
         "key_relievers_flagged":  key_flagged,
+        "data_ok":                True,
     }
 
 
