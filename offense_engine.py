@@ -436,11 +436,6 @@ def analyze_offense(team_code: str, game_pk: int = None, side: str = "away",
     splits       = _platoon_splits_real(team_id)
     adj_wrc_plus, platoon_delta = _platoon_adjustment_real(splits, opp_sp_hand)
 
-    # Blend rolling wRC+ with platoon adjustment
-    # Use rolling wRC+ as base, then apply platoon differential on top
-    wrc_plus_14d = 100  # league-average fallback; overwritten below with full blend
-    wrc_plus_adj = round(wrc_plus_14d + platoon_delta, 1)
-
     # ── Season stats (for ratio calculations) ────────────────────────────────
     hitting  = _team_hitting_stats(team_id)
     ops      = hitting.get("ops", 0.730)
@@ -449,6 +444,12 @@ def analyze_offense(team_code: str, game_pk: int = None, side: str = "away",
     # Recency-weighted wRC+ blend
     wrc_plus_14d = round(0.40 * wrc7 + 0.35 * wrc30 + 0.25 * wrc_plus_season, 1)
     rolling_rpg  = round(0.40 * rpg7 + 0.35 * rpg30 + 0.25 * (hitting.get("runs", 0) / max(hitting.get("games", 1), 1)), 2)
+
+    # Blend rolling wRC+ with platoon adjustment. Must come AFTER the real
+    # wrc_plus_14d assignment above — previously used a hardcoded 100
+    # placeholder here and was never recomputed (AUDIT.md B8), so real team
+    # offensive form barely reached run_factor / the win-prob blend.
+    wrc_plus_adj = round(wrc_plus_14d + platoon_delta, 1)
 
     # ── RISP ─────────────────────────────────────────────────────────────────
     risp     = _risp_stats(team_id)
