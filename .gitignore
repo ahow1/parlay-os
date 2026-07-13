@@ -1,1 +1,11 @@
 .worktrees/
+.env
+.env.save
+*.db-shm
+*.db-wal
+__pycache__/
+.pytest_cache/
+data_cache/
+*.log
+*.swp
+runlog.txt
