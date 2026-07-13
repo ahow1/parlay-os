@@ -292,3 +292,61 @@ class TestNeutralDefaultMasking:
             "a lopsided wRC+ gap must stop moving win prob once offense "
             "data is flagged missing on one side"
         )
+
+
+# ── M3, M4: silent factor failures not logged ─────────────────────────────────
+
+class TestSilentFactorFailuresLogged:
+    """M3/M4: five savant_leaderboards lookups plus H2H each used a bare
+    except Exception: pass with zero logging — a broken import or API
+    failure silently zeroed a win-prob blend factor with no trace anywhere.
+    Fix: log every exception and record it in the existing data_health
+    aggregate (the daily health check already surfaced in every scout run)."""
+
+    FEEDS = [
+        "savant_bullpen_stuff",
+        "savant_bat_tracking",
+        "savant_park_of_defense",
+        "savant_sprint_baserunning",
+        "savant_arm_angle",
+        "h2h",
+    ]
+
+    # Unique substrings identifying each of the 6 try/except blocks, used to
+    # scope the "no bare pass" check to the right block instead of the whole
+    # (huge) function.
+    MARKERS = {
+        "savant_bullpen_stuff":      "bullpen_stuff_lambda_adj as _bpsla",
+        "savant_bat_tracking":       "blast_tb_adj as _blastadj",
+        "savant_park_of_defense":    "team_of_lambda_adj as _ofadj",
+        "savant_sprint_baserunning": "sprint_lambda_adj as _sprintadj",
+        "savant_arm_angle":          "arm_angle_platoon_adj as _armadj",
+        "h2h":                       "get_h2h_stats(away_tid, home_tid)",
+    }
+
+    def test_every_feed_recorded_in_data_health(self):
+        import brain
+        src = inspect.getsource(brain.analyze_game)
+        for feed in self.FEEDS:
+            assert f'"{feed}"' in src, f"missing data_health tracking for {feed}"
+            assert f'data_health.record_ok("{feed}"' in src
+
+    def test_no_bare_pass_remains_around_each_block(self):
+        import brain
+        src = inspect.getsource(brain.analyze_game)
+        for feed, marker in self.MARKERS.items():
+            idx = src.index(marker)
+            window = src[idx: idx + 700]
+            assert "except Exception:\n        pass" not in window, (
+                f"{feed} block still silently swallows exceptions with no logging"
+            )
+            assert "print(" in window, f"{feed} block must print/log its exception"
+
+    def test_data_health_records_failure_on_exception(self):
+        """Behavioral check on the real mechanism these blocks now call —
+        data_health.record_ok(feed, False) must show up as non-'live'."""
+        import data_health
+        data_health.reset()
+        data_health.record_ok("savant_bullpen_stuff", False)
+        assert data_health.as_dict()["savant_bullpen_stuff"] == "failed"
+        data_health.reset()

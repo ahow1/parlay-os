@@ -422,8 +422,10 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
             _away_bp_stuff = _bpsla(_away_bp_pids) * 0.1   # scale -0.2 → 0.02 prob adj
         if _home_bp_pids:
             _home_bp_stuff = _bpsla(_home_bp_pids) * 0.1
-    except Exception:
-        pass
+        data_health.record_ok("savant_bullpen_stuff", True)
+    except Exception as _bp_stuff_err:
+        print(f"  [SAVANT] bullpen_stuff_lambda_adj error: {_bp_stuff_err}")
+        data_health.record_ok("savant_bullpen_stuff", False)
 
     # Factor 5 — Bat tracking adj (team lineup average blast)
     _away_bat_adj = 0.0
@@ -438,8 +440,10 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         if _home_lineup_ids:
             adjs = [_blastadj(pid) for pid in _home_lineup_ids]
             _home_bat_adj = sum(adjs) / len(adjs) if adjs else 0.0
-    except Exception:
-        pass
+        data_health.record_ok("savant_bat_tracking", True)
+    except Exception as _bat_adj_err:
+        print(f"  [SAVANT] blast_tb_adj error: {_bat_adj_err}")
+        data_health.record_ok("savant_bat_tracking", False)
 
     # Factor 8 — Park + OF defense combined adj
     _park_of_adj = 0.0
@@ -450,8 +454,10 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         _away_of_rv = _ofadj(_away_of_ids)
         _home_of_rv = _ofadj(_home_of_ids)
         _park_of_adj = (_away_of_rv - _home_of_rv) * 0.05
-    except Exception:
-        pass
+        data_health.record_ok("savant_park_of_defense", True)
+    except Exception as _of_adj_err:
+        print(f"  [SAVANT] team_of_lambda_adj error: {_of_adj_err}")
+        data_health.record_ok("savant_park_of_defense", False)
 
     # Factor 9 — YoY conf adj (convert -3/+3 to probability adj)
     _away_yoy_adj = away_sp.get("yoy_conf_adj", 0) / 100.0
@@ -475,8 +481,10 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         _home_lineup_ids2 = [p.get("id") for p in (home_off.get("lineup") or [])[:9] if p.get("id")]
         _away_sprint_adj = (_sprintadj(_away_lineup_ids2) + _bsadj(away_tid or 0)) * 0.05
         _home_sprint_adj = (_sprintadj(_home_lineup_ids2) + _bsadj(home_tid or 0)) * 0.05
-    except Exception:
-        pass
+        data_health.record_ok("savant_sprint_baserunning", True)
+    except Exception as _sprint_adj_err:
+        print(f"  [SAVANT] sprint_lambda_adj/baserunning_lambda_adj error: {_sprint_adj_err}")
+        data_health.record_ok("savant_sprint_baserunning", False)
 
     # Factor 7 — Arm angle platoon adj
     _away_arm_adj = 0.0
@@ -489,8 +497,10 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
             _away_arm_adj = _armadj(_away_arm_ang) * 0.5
         if _home_arm_ang is not None:
             _home_arm_adj = _armadj(_home_arm_ang) * 0.5
-    except Exception:
-        pass
+        data_health.record_ok("savant_arm_angle", True)
+    except Exception as _arm_adj_err:
+        print(f"  [SAVANT] arm_angle_platoon_adj error: {_arm_adj_err}")
+        data_health.record_ok("savant_arm_angle", False)
 
     # Bullpen data may be unavailable (data_ok=False) — avg_fatigue is explicitly
     # None in that case, so a plain .get(key, 4.0) default never fires (the key
@@ -579,8 +589,10 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
             if h2h.get("h2h_available"):
                 away_model_p = round(0.90 * away_model_p + 0.10 * h2h["away_win_rate"], 4)
                 home_model_p = round(0.90 * home_model_p + 0.10 * h2h["home_win_rate"], 4)
-    except Exception:
-        pass
+        data_health.record_ok("h2h", True)
+    except Exception as _h2h_err:
+        print(f"  [H2H] get_h2h_stats error: {_h2h_err}")
+        data_health.record_ok("h2h", False)
 
     # Memory calibration
     away_model_p = recalibrate_model_prob(away_model_p)
