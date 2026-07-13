@@ -182,3 +182,47 @@ class TestStuckPendingBankroll:
         ])
         assert "2" in msg
         assert "75.00" in msg
+
+
+# ── B3: blanket try/except silently drops whole games ────────────────────────
+
+class TestGameAnalysisFailuresSurfaced:
+    """B3: a truly fatal analyze_game() exception must be distinguishable
+    from a routine skip — not just `print(...); continue` with no trace
+    outside runlog.txt."""
+
+    def test_failure_message_empty_when_no_failures(self):
+        from brain import _game_analysis_failure_message
+        assert _game_analysis_failure_message([]) == ""
+
+    def test_failure_message_names_the_dropped_games(self):
+        from brain import _game_analysis_failure_message
+        msg = _game_analysis_failure_message([
+            {"game": "SF @ LAD", "error": "KeyError: 'xfip'"},
+            {"game": "NYY @ BOS", "error": "TypeError: bad odds"},
+        ])
+        assert "SF @ LAD" in msg
+        assert "NYY @ BOS" in msg
+        assert "2" in msg
+
+    def test_analyze_game_call_site_tags_failures_distinctly_from_skip(self):
+        """The call site around analyze_game() must no longer be a bare
+        print+continue — it must append to a distinct failures list and not
+        reuse the generic 'SKIP' wording routine skips use."""
+        import inspect
+        import brain
+        src = inspect.getsource(brain)
+        call_site_start = src.index("analysis = analyze_game(event, today)")
+        call_site = src[call_site_start:call_site_start + 500]
+        assert "_game_analysis_failures.append" in call_site, (
+            "analyze_game() exceptions must be collected into a distinct "
+            "failures list, not just printed and silently continued past"
+        )
+
+    def test_scout_out_records_analysis_failures(self):
+        """scout_out must carry the analysis_failures list so it's visible
+        in last_scout.json / the dashboard, not just runlog.txt."""
+        import inspect
+        import brain
+        src = inspect.getsource(brain)
+        assert 'scout_out["analysis_failures"]' in src

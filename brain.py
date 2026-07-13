@@ -2657,6 +2657,19 @@ def _stuck_pending_alert_message(stuck_bets: list) -> str:
     )
 
 
+def _game_analysis_failure_message(failures: list) -> str:
+    """Distinct alert for games that crashed analyze_game() outright (AUDIT.md
+    B3) — a real exception, not a routine skip (bad market data, unrecognised
+    team code). Returns "" if there are none — caller should skip sending."""
+    if not failures:
+        return ""
+    games = ", ".join(f["game"] for f in failures)
+    return (
+        f"🔥 [GAME ANALYSIS FAILED] {len(failures)} game(s) crashed analyze_game() "
+        f"and were dropped for today — not a routine skip: {games}"
+    )
+
+
 def _generate_pick_narrative(analysis: dict, side: str) -> str:
     """One-line narrative bullet for a pick — why the model likes it."""
     sp_key   = f"{side}_sp"
@@ -3083,6 +3096,7 @@ def run_daily_scout(window: str = "all"):
     props_games:      list = []   # per-game props data for props_output.json
     _faded_games:     set  = set()  # game keys already represented in fades
     _cap_blocked_teams: list = []   # teams with edge that were blocked by daily cap
+    _game_analysis_failures: list = []   # {game, error} — analyze_game() crashed outright, not a routine skip
 
     # Seed accumulated_risk from today's already-pending bets (stale or earlier scout)
     _prior_pending = [b for b in _db.get_bets()
@@ -3170,8 +3184,9 @@ def run_daily_scout(window: str = "all"):
         try:
             analysis = analyze_game(event, today)
         except Exception as e:
-            print(f"  ERROR in analyze_game: {e}")
+            print(f"  FATAL — analyze_game crashed for {away_n} @ {home_n} (not a routine skip): {e}")
             traceback.print_exc()
+            _game_analysis_failures.append({"game": f"{away_n} @ {home_n}", "error": str(e)})
             continue
 
         if analysis is None:
@@ -3856,6 +3871,13 @@ def run_daily_scout(window: str = "all"):
         if not DRY_RUN:
             _send_telegram(_block_msg)
 
+    # ── Sanity check: games that crashed analyze_game() outright ──────────────
+    _fail_msg = _game_analysis_failure_message(_game_analysis_failures)
+    if _fail_msg:
+        print(_fail_msg)
+        if not DRY_RUN:
+            _send_telegram(_fail_msg)
+
     # ── Public channel post ───────────────────────────────────────────────────
     if PUBLIC_CHANNEL_ID:
         try:
@@ -3902,6 +3924,7 @@ def run_daily_scout(window: str = "all"):
     # Save scout output
     scout_out["data_health"] = data_health.as_dict()
     scout_out["sp_missing_suppressed"] = _sp_missing_suppressed
+    scout_out["analysis_failures"] = _game_analysis_failures
     print(f"[DATA HEALTH] {data_health.summary()} — {scout_out['data_health']}")
     if _sp_missing_suppressed:
         print(f"[SUPPRESSED] {len(_sp_missing_suppressed)} pick(s) dropped — probable pitcher unknown: {_sp_missing_suppressed}")
