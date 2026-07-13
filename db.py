@@ -570,6 +570,18 @@ def get_clv_log(days=30):
         return [dict(r) for r in rows]
 
 
+def clv_log_exists(date: str, bet: str, bet_type: str) -> bool:
+    """True if a pre-game line has already been captured for this bet today
+    — lets a recurring capture timer skip bets it's already snapshotted
+    (TIER 3 WIRE-IN 4) instead of writing a duplicate row every tick."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM clv_log WHERE date=? AND bet=? AND type=? LIMIT 1",
+            (date, bet, bet_type),
+        ).fetchone()
+    return row is not None
+
+
 # ─── CALIBRATION ──────────────────────────────────────────────────────────────
 
 def update_calibration(bucket, win):

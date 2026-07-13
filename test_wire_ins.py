@@ -307,3 +307,76 @@ class TestWireIn3AllBetTypesLogged:
         assert "LOCKS (2" in out
         assert "NRFI/YRFI (1 bets):" in out
         assert "TOTALS (1 bets):" in out
+
+
+# ── TIER 3 WIRE-IN 4: pre-game CLV capture ───────────────────────────────────
+
+class TestWireIn4PreGameClvCapture:
+    """AUDIT.md M6: capture_pre_game_clv() was fully built but had zero
+    callers anywhere except test_fixes.py — CLAUDE.md's "CLV capture: needs
+    implementation" was more precisely "implemented, never invoked." Fix:
+    wire it into the live --bot process on a recurring timer, and make it
+    idempotent per bet per day so a repeating timer can't spam clv_log with
+    duplicate rows for the same still-pending pick.
+
+    Deliberately NOT fixed here (AUDIT.md M17, flagged as a follow-up):
+    this still writes only to the clv_log SQL table, a separate pipeline
+    from the live post-game clv_log.json path — pipeline unification is
+    out of scope for tonight."""
+
+    @pytest.fixture(autouse=True)
+    def _isolated_db(self, tmp_path):
+        import db
+        tmp_db = str(tmp_path / "wire_in_4.db")
+        with patch.object(db, "DB_PATH", tmp_db):
+            db.init_db()
+            yield db
+
+    def _today_et(self) -> str:
+        import pytz
+        from datetime import datetime as _dt
+        return _dt.now(pytz.timezone("America/New_York")).strftime("%Y-%m-%d")
+
+    def _log_pending_ml_bet(self, db_mod):
+        db_mod.log_bet(
+            date=self._today_et(), bet="SF", bet_type="ML", game="SF @ LAD",
+            sp="Logan Webb", park="LAD", umpire="",
+            bet_odds="+145", model_prob=0.57, market_prob=0.41,
+            edge_pct=16.0, conviction="HIGH", stake=10.0,
+        )
+
+    def test_capture_writes_a_pre_game_line_for_a_pending_pick(self, _isolated_db):
+        """The literal ask: confirm a pick captures a pre-game line value."""
+        import bankroll_engine
+        self._log_pending_ml_bet(_isolated_db)
+        with patch("telegram_handler._fetch_closing_odds", return_value="+130"):
+            written = bankroll_engine.capture_pre_game_clv()
+        assert written == 1
+        rows = _isolated_db.get_clv_log(days=1)
+        assert len(rows) == 1
+        assert rows[0]["bet"] == "SF"
+        assert rows[0]["closing_odds"] == "+130"
+
+    def test_capture_is_idempotent_per_bet_per_day(self, _isolated_db):
+        """A recurring timer must not write a duplicate row for a pick
+        that's still pending and already has a pre-game line captured."""
+        import bankroll_engine
+        self._log_pending_ml_bet(_isolated_db)
+        with patch("telegram_handler._fetch_closing_odds", return_value="+130"):
+            first  = bankroll_engine.capture_pre_game_clv()
+            second = bankroll_engine.capture_pre_game_clv()
+        assert first == 1
+        assert second == 0
+        assert len(_isolated_db.get_clv_log(days=1)) == 1
+
+    def test_bot_mode_starts_the_clv_capture_loop(self):
+        """--bot is the only actually-deployed persistent process (Railway)
+        — the capture loop must start there, not just in scheduler.py (which
+        AUDIT.md M5 already flags as undeployed). brain.py's --bot branch
+        lives under `if __name__ == "__main__":`, not a function, so check
+        the module source directly rather than a callable."""
+        import inspect
+        import brain
+        src = inspect.getsource(brain)
+        bot_block = src[src.index('if "--bot" in args:'):src.index('elif "--live" in args:')]
+        assert "run_pre_game_clv_loop" in bot_block

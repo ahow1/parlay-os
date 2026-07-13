@@ -41,6 +41,7 @@ from bankroll_engine import (
     kelly_stake, sizing_summary, current_bankroll, sizing_bankroll, peak_bankroll, is_drawdown_pause,
     daily_budget, daily_budget_pct, pool_budget, pool_exposure, pool_remaining,
     drawdown_tier, growth_tracker, MIN_STAKE, get_stuck_pending_bets,
+    run_pre_game_clv_loop,
 )
 from profile_engine import update_sp_profile, update_hitter_profile, update_bullpen_profile
 from props_engine   import (
@@ -4979,6 +4980,7 @@ if __name__ == "__main__":
             start_hedge_monitor()
             _sp_mon = SPMonitor(send_fn=_send_telegram)
             _threading.Thread(target=_sp_mon.run, name="sp-monitor", daemon=True).start()
+            _threading.Thread(target=run_pre_game_clv_loop, name="clv-capture", daemon=True).start()
             print("Parlay OS bot running (Ctrl-C to stop)...")
             try:
                 _poll_loop()

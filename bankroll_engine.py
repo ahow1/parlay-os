@@ -496,6 +496,11 @@ def capture_pre_game_clv() -> int:
         bet_odds = str(b.get("bet_odds") or "")
         if not team or not bet_odds:
             continue
+        # Idempotent per bet per day — a recurring caller must not spam
+        # clv_log with a fresh "closing" line every tick for a bet that's
+        # still pending (TIER 3 WIRE-IN 4).
+        if _db.clv_log_exists(today, team, bet_type):
+            continue
         closing = _fetch_closing_odds(team, bet_type)
         if not closing:
             continue
@@ -525,6 +530,37 @@ def capture_pre_game_clv() -> int:
         except Exception:
             pass
     return written
+
+
+def run_pre_game_clv_loop(stop_event=None) -> None:
+    """
+    Background loop: calls capture_pre_game_clv() every 15 minutes so each
+    pending pick gets its pre-game line snapshotted before first pitch
+    (TIER 3 WIRE-IN 4 — AUDIT.md M6: capture_pre_game_clv() was fully built
+    but had zero callers anywhere outside test_fixes.py). Meant to run as a
+    daemon thread started by brain.py in --bot mode, the only actually-
+    deployed persistent process — scheduler.py's schedule_loop() is not
+    part of any deployed process (AUDIT.md M5) and would never fire this.
+
+    capture_pre_game_clv() is idempotent per bet per day, so a repeating
+    timer is safe and won't spam clv_log with duplicate rows.
+
+    Deliberately NOT done here (AUDIT.md M17, flagged as a follow-up): this
+    still writes only to the clv_log SQL table, a separate pipeline from
+    the live post-game clv_log.json path used by telegram_handler.py's
+    auto-settler and read by api.py's /api/clv endpoints. Unifying the two
+    pipelines is out of scope for tonight.
+    """
+    import threading
+    _stop = stop_event or threading.Event()
+    while not _stop.is_set():
+        try:
+            n = capture_pre_game_clv()
+            if n:
+                print(f"[CLV] Pre-game capture: {n} row(s) written")
+        except Exception as e:
+            print(f"[CLV] Pre-game capture loop error: {e}")
+        _stop.wait(900)  # 15-minute cadence, matches sp_monitor's SP-check interval
 
 
 if __name__ == "__main__":
