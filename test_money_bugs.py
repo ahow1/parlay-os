@@ -226,3 +226,54 @@ class TestGameAnalysisFailuresSurfaced:
         import brain
         src = inspect.getsource(brain)
         assert 'scout_out["analysis_failures"]' in src
+
+
+# ── B4: pick sent to Telegram but never persisted ─────────────────────────────
+
+class TestLogBetRetryAndSuppress:
+    """B4: a log_bet() failure must retry once; if it still fails, the pick
+    must never be queued for Telegram/dashboard display, since a pick shown
+    but not stored is invisible to settlement/learning/dashboard forever."""
+
+    def _analysis(self):
+        return {
+            "away_name": "SF", "home_name": "LAD", "home": "LAD", "umpire": "",
+            "away_sp": {}, "home_sp": {}, "ump_edge": {}, "home_dog": {},
+            "best_away_odds": "+120", "away_model_p": 0.55, "away_nv": 0.50,
+            "away_edge": 5.0, "away_stake": 20.0,
+        }
+
+    def test_succeeds_on_first_try_calls_once(self):
+        from brain import _log_bet_with_retry
+        with patch("brain._db.log_bet") as mock_log:
+            ok = _log_bet_with_retry("2026-07-13", self._analysis(), "away", "MEDIUM")
+        assert ok is True
+        assert mock_log.call_count == 1
+
+    def test_retries_once_then_succeeds(self):
+        from brain import _log_bet_with_retry
+        with patch("brain._db.log_bet", side_effect=[sqlite3.OperationalError("locked"), None]) as mock_log:
+            ok = _log_bet_with_retry("2026-07-13", self._analysis(), "away", "MEDIUM")
+        assert ok is True
+        assert mock_log.call_count == 2
+
+    def test_fails_twice_returns_false_and_stops_retrying(self):
+        from brain import _log_bet_with_retry
+        with patch("brain._db.log_bet", side_effect=sqlite3.OperationalError("locked")) as mock_log:
+            ok = _log_bet_with_retry("2026-07-13", self._analysis(), "away", "MEDIUM")
+        assert ok is False
+        assert mock_log.call_count == 2, "must not retry more than once (2 attempts total)"
+
+    def test_persist_check_precedes_telegram_queueing_in_source(self):
+        """Structural guard: the retry/suppress check must run before the
+        pick is queued into all_locks/all_flips or scout_out['bets'] —
+        otherwise a DB failure can no longer suppress anything because the
+        pick was already queued for Telegram."""
+        import inspect
+        import brain
+        src = inspect.getsource(brain.run_daily_scout)
+        persist_idx = src.index("_log_bet_with_retry(")
+        locks_idx   = src.index("all_locks.append((analysis, side))")
+        bets_idx    = src.index('scout_out["bets"].append({')
+        assert persist_idx < locks_idx, "persist check must run before all_locks queueing"
+        assert persist_idx < bets_idx, "persist check must run before scout_out['bets'] recording"

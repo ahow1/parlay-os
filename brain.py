@@ -2670,6 +2670,50 @@ def _game_analysis_failure_message(failures: list) -> str:
     )
 
 
+def _log_bet_with_retry(today: str, analysis: dict, side: str, conv: str) -> bool:
+    """Persist a bet to the DB, retrying once on failure. Returns True if
+    stored, False if it failed twice. Caller must suppress the Telegram/
+    dashboard display of this pick when this returns False — a pick that
+    reaches the user but was never stored is invisible to settlement,
+    memory/learning, and the dashboard forever (AUDIT.md B4)."""
+    for attempt in (1, 2):
+        try:
+            _pt_res      = analysis.get(f"{side}_pitch_trap") or {}
+            _fr_res      = analysis.get(f"{side}_framing")    or {}
+            _sp_data_log = analysis.get(f"{side}_sp") or {}
+            _ump_e_log   = analysis.get("ump_edge") or {}
+            _hd_log      = analysis.get("home_dog") or {}
+            _sharp_s     = analysis.get("market_sharp_signal", "")
+            _db.log_bet(
+                date=today,
+                bet=analysis.get(f"{side}_name", ""),
+                bet_type="ML",
+                game=f"{analysis['away_name']} @ {analysis['home_name']}",
+                sp=_sp_data_log.get("name", ""),
+                park=analysis["home"],
+                umpire=analysis["umpire"],
+                bet_odds=str(analysis.get(f"best_{side}_odds", "")),
+                model_prob=analysis.get(f"{side}_model_p"),
+                market_prob=analysis.get(f"{side}_nv"),
+                edge_pct=analysis.get(f"{side}_edge"),
+                conviction=conv,
+                stake=float(analysis.get(f"{side}_stake", 0)),
+                pitch_trap=_pt_res.get("tag") or None,
+                framing_edge=_fr_res.get("tag") or None,
+                closer_avail=str(analysis.get(f"{side}_key_rel_avail", True)),
+                lineup_slot_score=analysis.get(f"{side}_slot_run_adj"),
+                sharp_signal=_sharp_s if _sharp_s else None,
+                umpire_edge=_ump_e_log.get("tag") or None,
+                home_dog_angle=1 if _hd_log.get("is_home_dog_value") else 0,
+                first_pitch_strike_rate=_sp_data_log.get("fp_strike_rate"),
+                sp_gb_rate=_sp_data_log.get("gb_rate"),
+            )
+            return True
+        except Exception as e:
+            print(f"  DB log error (attempt {attempt}/2): {e}")
+    return False
+
+
 def _generate_pick_narrative(analysis: dict, side: str) -> str:
     """One-line narrative bullet for a pick — why the model likes it."""
     sp_key   = f"{side}_sp"
@@ -3097,6 +3141,7 @@ def run_daily_scout(window: str = "all"):
     _faded_games:     set  = set()  # game keys already represented in fades
     _cap_blocked_teams: list = []   # teams with edge that were blocked by daily cap
     _game_analysis_failures: list = []   # {game, error} — analyze_game() crashed outright, not a routine skip
+    _persist_failures: list = []   # teams whose pick was withheld — log_bet() failed twice
 
     # Seed accumulated_risk from today's already-pending bets (stale or earlier scout)
     _prior_pending = [b for b in _db.get_bets()
@@ -3383,16 +3428,8 @@ def run_daily_scout(window: str = "all"):
                     _cap_blocked_teams.append(_team)
                     continue
 
-                accumulated_risk = round(accumulated_risk + proposed_stake, 2)
-                all_bets.append(analysis)
-                bet_found = True
-
                 edge = analysis.get(f"{side}_edge", 0)
                 conv = analysis.get(f"{side}_conv", "PASS")
-                if conv == "HIGH" and edge >= 7:
-                    all_locks.append((analysis, side))
-                elif conv == "MEDIUM" and 4 <= edge < 7:
-                    all_flips.append((analysis, side))
 
                 # Validate bet type before logging
                 if not DRY_RUN:
@@ -3401,41 +3438,23 @@ def run_daily_scout(window: str = "all"):
                     except BetValidationError as ve:
                         print(f"  [VALIDATOR] {ve}")
 
-                # DB log
-                if not DRY_RUN:
-                    try:
-                        _pt_res  = analysis.get(f"{side}_pitch_trap") or {}
-                        _fr_res  = analysis.get(f"{side}_framing")    or {}
-                        _sp_data_log = analysis.get(f"{side}_sp") or {}
-                        _ump_e_log   = analysis.get("ump_edge") or {}
-                        _hd_log      = analysis.get("home_dog") or {}
-                        _sharp_s     = analysis.get("market_sharp_signal", "")
-                        _db.log_bet(
-                            date=today,
-                            bet=analysis.get(f"{side}_name", ""),
-                            bet_type="ML",
-                            game=f"{analysis['away_name']} @ {analysis['home_name']}",
-                            sp=_sp_data_log.get("name", ""),
-                            park=analysis["home"],
-                            umpire=analysis["umpire"],
-                            bet_odds=str(analysis.get(f"best_{side}_odds", "")),
-                            model_prob=analysis.get(f"{side}_model_p"),
-                            market_prob=analysis.get(f"{side}_nv"),
-                            edge_pct=analysis.get(f"{side}_edge"),
-                            conviction=analysis.get(f"{side}_conv", ""),
-                            stake=float(analysis.get(f"{side}_stake", 0)),
-                            pitch_trap=_pt_res.get("tag") or None,
-                            framing_edge=_fr_res.get("tag") or None,
-                            closer_avail=str(analysis.get(f"{side}_key_rel_avail", True)),
-                            lineup_slot_score=analysis.get(f"{side}_slot_run_adj"),
-                            sharp_signal=_sharp_s if _sharp_s else None,
-                            umpire_edge=_ump_e_log.get("tag") or None,
-                            home_dog_angle=1 if _hd_log.get("is_home_dog_value") else 0,
-                            first_pitch_strike_rate=_sp_data_log.get("fp_strike_rate"),
-                            sp_gb_rate=_sp_data_log.get("gb_rate"),
-                        )
-                    except Exception as e:
-                        print(f"DB log error: {e}")
+                # ── DB log — must succeed (with one retry) before this pick is
+                # queued for Telegram/dashboard. A pick shown but never stored
+                # is invisible to settlement/learning/dashboard forever (B4).
+                if not DRY_RUN and not _log_bet_with_retry(today, analysis, side, conv):
+                    _team = analysis.get(f"{side}_name", side)
+                    print(f"  SUPPRESS {_team}: log_bet() failed twice — withholding pick rather than showing an unstored bet")
+                    _persist_failures.append(_team)
+                    continue
+
+                accumulated_risk = round(accumulated_risk + proposed_stake, 2)
+                all_bets.append(analysis)
+                bet_found = True
+
+                if conv == "HIGH" and edge >= 7:
+                    all_locks.append((analysis, side))
+                elif conv == "MEDIUM" and 4 <= edge < 7:
+                    all_flips.append((analysis, side))
 
                 _sp_data = analysis.get(f"{side}_sp") or {}
                 scout_out["bets"].append({
@@ -3878,6 +3897,17 @@ def run_daily_scout(window: str = "all"):
         if not DRY_RUN:
             _send_telegram(_fail_msg)
 
+    # ── Sanity check: picks withheld because log_bet() failed twice ───────────
+    if _persist_failures:
+        _persist_msg = (
+            f"⚠️ [DB LOG FAILED] {len(_persist_failures)} pick(s) withheld — "
+            f"log_bet() failed twice, not shown without being stored: "
+            f"{', '.join(_persist_failures)}"
+        )
+        print(_persist_msg)
+        if not DRY_RUN:
+            _send_telegram(_persist_msg)
+
     # ── Public channel post ───────────────────────────────────────────────────
     if PUBLIC_CHANNEL_ID:
         try:
@@ -3925,6 +3955,7 @@ def run_daily_scout(window: str = "all"):
     scout_out["data_health"] = data_health.as_dict()
     scout_out["sp_missing_suppressed"] = _sp_missing_suppressed
     scout_out["analysis_failures"] = _game_analysis_failures
+    scout_out["persist_failures"] = _persist_failures
     print(f"[DATA HEALTH] {data_health.summary()} — {scout_out['data_health']}")
     if _sp_missing_suppressed:
         print(f"[SUPPRESSED] {len(_sp_missing_suppressed)} pick(s) dropped — probable pitcher unknown: {_sp_missing_suppressed}")
