@@ -313,6 +313,31 @@ def init_db():
             alert_sent        INTEGER DEFAULT 0,
             UNIQUE(date, team)
         );
+
+        CREATE TABLE IF NOT EXISTS feature_snapshots (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            bet_id              INTEGER NOT NULL REFERENCES bets(id),
+            feature_name        TEXT NOT NULL,
+            feature_value       REAL,
+            feature_value_text  TEXT,
+            feature_weight      REAL,
+            created_at          TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_feature_snapshots_bet_id
+            ON feature_snapshots(bet_id);
+
+        CREATE TABLE IF NOT EXISTS model_versions (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            model_name    TEXT NOT NULL,
+            version       TEXT NOT NULL,
+            sport         TEXT DEFAULT 'MLB',
+            created_date  TEXT NOT NULL,
+            feature_list  TEXT,
+            notes         TEXT,
+            rolling_roi   REAL,
+            rolling_clv   REAL,
+            UNIQUE(model_name, version)
+        );
         """)
     # Migrations for existing DBs that predate schema additions
     with _conn() as conn:
@@ -335,6 +360,15 @@ def init_db():
             "ALTER TABLE bets ADD COLUMN confidence_engine_score INTEGER",
             # line_history: signal_type column (also added lazily by LME)
             "ALTER TABLE line_history ADD COLUMN signal_type TEXT",
+            # Prediction logging schema (2026-07-09 design doc) — schema only,
+            # not wired into the bet flow yet.
+            "ALTER TABLE bets ADD COLUMN sport TEXT DEFAULT 'MLB'",
+            "ALTER TABLE bets ADD COLUMN model_version TEXT",
+            "ALTER TABLE bets ADD COLUMN reasoning_text TEXT",
+            "ALTER TABLE bets ADD COLUMN kalshi_price REAL",
+            "ALTER TABLE bets ADD COLUMN kalshi_liquidity_ok INTEGER",
+            "ALTER TABLE bets ADD COLUMN roi REAL",
+            "ALTER TABLE bets ADD COLUMN graded_at TEXT",
         ]:
             try:
                 conn.execute(ddl)
