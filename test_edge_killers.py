@@ -96,3 +96,97 @@ class TestWrcPlusAdjUsesRealValue:
         )
         buggy_value = round(100 + 5.0, 1)
         assert result["adj_wrc_plus"] != buggy_value
+
+
+# ── M1: SP-missing false-positive gaps ────────────────────────────────────────
+
+class TestSpMissingGapsClosed:
+    """M1: get_game_sps() can attach a real probable pitcher's NAME to a fully
+    fabricated stat-line (sp_missing=True, era/k9 = league-average defaults).
+    Three consumers checked `name` instead of `sp_missing` and so could show
+    a fake-ace pick/prop under a real pitcher's name."""
+
+    def _fabricated_sp(self, **overrides):
+        sp = {
+            "name": "Gerrit Cole", "pitcher_id": 543037,
+            "k9": 12.0, "ip": 100, "gs": 15, "ttop": True,
+            "hand": "R", "era": 4.35, "xfip": 4.35,
+            "sp_missing": True,
+        }
+        sp.update(overrides)
+        return sp
+
+    def test_sgp_builder_skips_fabricated_sp_dominance_leg(self):
+        from props_engine import build_sgp_suggestions
+        fabricated = self._fabricated_sp()
+        nrfi_r  = {"p_nrfi": 0.60}
+        total_r = {"p_under": 0.60, "p_over": 0.60}
+        market  = {"totals": {"line": 8.5}}
+
+        suggestions = build_sgp_suggestions(
+            fabricated, {}, away_xr=4.0, home_xr=4.0,
+            nrfi_r=nrfi_r, total_r=total_r, market=market,
+            away_model_p=0.5, home_model_p=0.5,
+        )
+        assert not any(s["type"] == "SP_DOMINANCE" for s in suggestions), (
+            "a fabricated (sp_missing=True) SP must never produce an "
+            "SP_DOMINANCE SGP leg, even though its default k9 passes the "
+            ">=8.0 threshold"
+        )
+
+    def test_sgp_builder_still_produces_leg_for_real_sp(self):
+        """Control: with sp_missing=False (real data), the same inputs must
+        still produce an SP_DOMINANCE suggestion — proves the skip above is
+        actually about sp_missing, not a broken test fixture."""
+        from props_engine import build_sgp_suggestions
+        real_sp = self._fabricated_sp(sp_missing=False)
+        nrfi_r  = {"p_nrfi": 0.60}
+        total_r = {"p_under": 0.60, "p_over": 0.60}
+        market  = {"totals": {"line": 8.5}}
+
+        suggestions = build_sgp_suggestions(
+            real_sp, {}, away_xr=4.0, home_xr=4.0,
+            nrfi_r=nrfi_r, total_r=total_r, market=market,
+            away_model_p=0.5, home_model_p=0.5,
+        )
+        assert any(s["type"] == "SP_DOMINANCE" for s in suggestions)
+
+    def test_props_kprop_gate_skips_fabricated_sp(self):
+        from brain import _build_props_entry
+        analysis = {
+            "away_sp": self._fabricated_sp(),
+            "home_sp": {},
+            "nrfi": {}, "total": {}, "totals_line": None,
+        }
+        entry = _build_props_entry(analysis, [])
+        k_props = [p for p in entry["props"] if p.get("type") == "K_PROP"]
+        assert k_props == [], (
+            "the /props K-prop feed must skip a fabricated (sp_missing=True) "
+            "SP even though its name isn't 'TBD'"
+        )
+
+    def test_props_kprop_gate_still_includes_real_sp(self):
+        from brain import _build_props_entry
+        analysis = {
+            "away_sp": self._fabricated_sp(sp_missing=False),
+            "home_sp": {},
+            "nrfi": {}, "total": {}, "totals_line": None,
+        }
+        entry = _build_props_entry(analysis, [])
+        k_props = [p for p in entry["props"] if p.get("type") == "K_PROP"]
+        assert len(k_props) == 1
+
+    def test_confidence_dampening_flags_fabricated_sp_by_sp_missing(self):
+        from brain import _sp_effectively_unknown
+        assert _sp_effectively_unknown(self._fabricated_sp()) is True
+
+    def test_confidence_dampening_still_flags_true_tbd(self):
+        """Regression guard: a genuinely unannounced probable pitcher (no
+        name, sp_missing not set) must still be flagged."""
+        from brain import _sp_effectively_unknown
+        assert _sp_effectively_unknown({"name": "TBD"}) is True
+        assert _sp_effectively_unknown({}) is True
+
+    def test_confidence_dampening_does_not_flag_real_confirmed_sp(self):
+        from brain import _sp_effectively_unknown
+        assert _sp_effectively_unknown(self._fabricated_sp(sp_missing=False)) is False

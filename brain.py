@@ -630,8 +630,8 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     # A missing SP means we don't know the run-prevention side of the ledger.
     # Rather than blocking the bet entirely, we shrink the edge conservatively.
     _SP_TBD_REDUCTION = 0.15
-    away_sp_tbd = not away_sp.get("name") or away_sp.get("name") == "TBD"
-    home_sp_tbd = not home_sp.get("name") or home_sp.get("name") == "TBD"
+    away_sp_tbd = _sp_effectively_unknown(away_sp)
+    home_sp_tbd = _sp_effectively_unknown(home_sp)
     if away_sp_tbd or home_sp_tbd:
         away_model_p = round(away_model_p - _SP_TBD_REDUCTION * (away_model_p - 0.5), 4)
         home_model_p = round(home_model_p - _SP_TBD_REDUCTION * (home_model_p - 0.5), 4)
@@ -2714,6 +2714,18 @@ def _log_bet_with_retry(today: str, analysis: dict, side: str, conv: str) -> boo
     return False
 
 
+def _sp_effectively_unknown(sp: dict) -> bool:
+    """True if this SP's data can't be trusted for confidence purposes —
+    either no real probable pitcher is confirmed (name missing/TBD) OR the
+    stats are fabricated fallback data even though a real name is attached
+    (sp_missing=True). get_game_sps() can overwrite a fabricated stat-line's
+    name with the real probable pitcher's name (AUDIT.md M1), so checking
+    name alone misses that case."""
+    if not sp:
+        return True
+    return bool(sp.get("sp_missing")) or not sp.get("name") or sp.get("name") == "TBD"
+
+
 def _generate_pick_narrative(analysis: dict, side: str) -> str:
     """One-line narrative bullet for a pick — why the model likes it."""
     sp_key   = f"{side}_sp"
@@ -3998,7 +4010,7 @@ def _build_props_entry(analysis: dict, sgp_list: list) -> dict:
     props = []
 
     for sp_side, sp in (("away", away_sp), ("home", home_sp)):
-        if not sp or not sp.get("name") or sp.get("name") == "TBD":
+        if not sp or not sp.get("name") or sp.get("name") == "TBD" or sp.get("sp_missing"):
             continue
         name   = sp["name"]
         k_line = round(sp.get("k9", 8.5) * 5.0 / 9, 1)

@@ -255,7 +255,7 @@ def build_sgp_suggestions(
 
     # ── SP DOMINANCE: SP over Ks + NRFI + game under ─────────────────────────
     for sp_side, sp in (("away", away_sp), ("home", home_sp)):
-        if not sp or sp.get("k9", 0) < 8.0:
+        if not sp or sp.get("sp_missing") or sp.get("k9", 0) < 8.0:
             continue
         p_nrfi  = nrfi_r.get("p_nrfi", 0.0)
         p_under = total_r.get("p_under", 0.0)
