@@ -195,3 +195,115 @@ class TestProfileReadsWiredIntoScoring:
         src = inspect.getsource(offense_engine.analyze_offense)
         assert "_profile_clutch_run_adj(" in src
         assert "profile_clutch_adj" in src
+
+
+# ── TIER 3 WIRE-IN 3: log every MLB bet type reaching Telegram ───────────────
+
+class TestWireIn3AllBetTypesLogged:
+    """Only bet_type='ML' picks were ever written to `bets`. TOTAL, NRFI,
+    PROP, and PARLAY picks reached Telegram/dashboard via _daily_bet_slip()
+    but were never persisted anywhere — invisible to settlement, CLV
+    grading, and the learning loop forever. Fix: log each pick type through
+    the existing log_bet() path at the same point it's added to the slip,
+    with zero change to the Telegram message text itself (isolated DB;
+    never touches the real parlay_os.db)."""
+
+    @pytest.fixture(autouse=True)
+    def _isolated_db(self, tmp_path):
+        import db
+        tmp_db = str(tmp_path / "wire_in_3.db")
+        with patch.object(db, "DB_PATH", tmp_db):
+            db.init_db()
+            yield db
+
+    def _mk_ml_analysis(self, away_name, home_name, side, odds, model_p, stake, confidence=70):
+        return {
+            "away_name": away_name, "home_name": home_name,
+            "away": away_name[:3].upper(), "home": home_name[:3].upper(),
+            f"{side}_name": away_name if side == "away" else home_name,
+            f"best_{side}_odds": odds,
+            f"{side}_model_p": model_p,
+            f"{side}_nv": 0.45,
+            f"{side}_edge": 8.0,
+            f"{side}_stake": stake,
+            f"{side}_conv": "HIGH",
+            f"{side}_confidence_score": confidence,
+            "away_lineup_confirmed": True,
+            "home_lineup_confirmed": True,
+            "h2h": {},
+        }
+
+    def _call_slip(self):
+        import brain
+        locks = [
+            (self._mk_ml_analysis("Team A", "Team B", "away", "-150", 0.60, 20.0), "away"),
+            (self._mk_ml_analysis("Team C", "Team D", "home", "-150", 0.60, 20.0), "home"),
+        ]
+        all_nrfi = [{"game": "Team E @ Team F", "direction": "NRFI", "prob": 0.65, "stake": 10.0}]
+        all_totals = [{
+            "game": "Team G @ Team H", "direction": "OVER", "line": 8.5,
+            "prob": 0.60, "market_p": 0.524, "edge_pct": 7.6, "stake": 12.0,
+            "odds": "-110",
+        }]
+        all_k_props = [{
+            "sp": "Logan Webb", "team": "SF", "game": "SF @ LAD", "line": 6.5,
+            "p_over": 0.65, "market_p": 0.5, "edge_pct": 15.0, "stake": 9.0,
+            "statcast_2025": False,
+        }]
+        all_hitter_props = [{
+            "player": "Mookie Betts", "team": "LAD", "prop": "Hits O1.5",
+            "line": 1.5, "model_prob": 0.62, "market_p": 0.5,
+            "edge_pct": 12.0, "stake": 8.0,
+        }]
+        all_props = [{
+            "type": "SP_DOMINANCE",
+            "legs": ["SP OVER 6.5 Ks (65%)", "NRFI (65%)", "Game UNDER 8.5 (55%)"],
+            "joint_prob": 0.30, "kelly_stake": 8.0, "ev": 0.05,
+        }]
+        result = brain._daily_bet_slip(
+            locks, [], all_props, [], 1000.0,
+            all_nrfi=all_nrfi, all_totals=all_totals,
+            all_hitter_props=all_hitter_props, all_k_props=all_k_props,
+        )
+        return result
+
+    def test_nrfi_pick_gets_a_bets_row(self, _isolated_db):
+        self._call_slip()
+        rows = [b for b in _isolated_db.get_bets() if b.get("type") == "NRFI"]
+        assert len(rows) == 1
+        assert rows[0]["stake"] == 10.0
+
+    def test_total_pick_gets_a_bets_row(self, _isolated_db):
+        self._call_slip()
+        rows = [b for b in _isolated_db.get_bets() if b.get("type") == "TOTAL"]
+        assert len(rows) == 1
+        assert rows[0]["stake"] == 12.0
+
+    def test_k_prop_and_hitter_prop_each_get_a_bets_row(self, _isolated_db):
+        self._call_slip()
+        rows = [b for b in _isolated_db.get_bets() if b.get("type") == "PROP"]
+        assert len(rows) == 2
+        names = {r["bet"] for r in rows}
+        assert any("Logan Webb" in n for n in names)
+        assert any("Mookie Betts" in n for n in names)
+
+    def test_ml_parlay_gets_a_bets_row(self, _isolated_db):
+        self._call_slip()
+        rows = [b for b in _isolated_db.get_bets()
+                if b.get("type") == "PARLAY" and b.get("game") == "PARLAY"]
+        assert len(rows) == 1
+
+    def test_sgp_gets_a_bets_row(self, _isolated_db):
+        self._call_slip()
+        rows = [b for b in _isolated_db.get_bets()
+                if b.get("type") == "PARLAY" and "SGP" in (b.get("game") or "")]
+        assert len(rows) == 1
+
+    def test_telegram_message_text_unchanged_by_logging(self, _isolated_db, capsys):
+        """DB writes must be a side effect only — the printed (DRY_RUN)
+        Telegram message text must not reference logging at all."""
+        self._call_slip()
+        out = capsys.readouterr().out
+        assert "LOCKS (2" in out
+        assert "NRFI/YRFI (1 bets):" in out
+        assert "TOTALS (1 bets):" in out

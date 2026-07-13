@@ -1560,7 +1560,8 @@ def _daily_bet_slip(
         f"k_props={len(all_k_props or [])} hitter_props={len(all_hitter_props or [])} "
         f"injuries={len(all_injuries or [])} br=${br:.2f}"
     )
-    today = date.today().strftime("%b %d, %Y")
+    today     = date.today().strftime("%b %d, %Y")
+    today_iso = datetime.now(ET).strftime("%Y-%m-%d")
 
     locks       = all_locks[:MAX_LOCKS_PER_DAY]
     flips       = all_flips[:MAX_FLIPS_PER_DAY]
@@ -1849,6 +1850,17 @@ def _daily_bet_slip(
         p1.append(f"  ({prl_data['american']}) — ${prl_stake:.2f} — to win ${prl_win:.2f}")
         p1.append("")
 
+        if not DRY_RUN:
+            _ml_prl_mkt_p = (implied_prob(str(prl_data["american"])) or 0) / 100
+            _log_pick_with_retry(
+                "PARLAY",
+                date=today_iso, bet=" + ".join(leg_parts), game="PARLAY",
+                bet_odds=str(prl_data["american"]),
+                model_prob=combined_model_p, market_prob=_ml_prl_mkt_p,
+                edge_pct=round((combined_model_p - _ml_prl_mkt_p) * 100, 1),
+                conviction="PARLAY", stake=prl_stake,
+            )
+
     if injuries:
         p1.append("⚠️ INJURIES:")
         for inj in injuries:
@@ -1878,6 +1890,7 @@ def _daily_bet_slip(
         return {
             "player":    b["sp"],
             "team":      b.get("team", ""),
+            "game":      b.get("game", ""),
             "stat":      f"Ks O{b['line']}{sc_flag}",
             "odds_str":  "-110",
             "model_pct": round(b["p_over"] * 100, 1),
@@ -1921,6 +1934,17 @@ def _daily_bet_slip(
     # Enforce max 5 props per day (top 5 by edge, blowout-filtered above)
     all_player_props = all_player_props[:MAX_PROPS_PER_DAY]
 
+    if not DRY_RUN:
+        for _p in all_player_props:
+            _log_pick_with_retry(
+                "PROP",
+                date=today_iso, bet=f"{_p['player']} {_p['stat']}", game=_p.get("game", ""),
+                bet_odds=_p["odds_str"], model_prob=_p["model_p"], market_prob=_p.get("market_p", 0.5),
+                edge_pct=_p["edge_pct"],
+                conviction=("LOCK" if _p["edge_pct"] >= 10.0 else "FLIP"),
+                stake=_p["stake"],
+            )
+
     prop_locks = [p for p in all_player_props if p["edge_pct"] >= 10.0]
     prop_flips = [p for p in all_player_props if 5.0 <= p["edge_pct"] < 10.0]
 
@@ -1943,6 +1967,15 @@ def _daily_bet_slip(
         p2.append(f"🌅 NRFI/YRFI ({len(nrfi_bets)} bets):")
         for bet in nrfi_bets:
             p2.append(f"  {bet['game']} — {bet['direction']} ({bet['prob']:.1%}) — ${bet['stake']:.2f}")
+            if not DRY_RUN:
+                _nrfi_mkt_p = (implied_prob("-110") or 0) / 100
+                _log_pick_with_retry(
+                    "NRFI",
+                    date=today_iso, bet=f"{bet['game']} {bet['direction']}", game=bet["game"],
+                    bet_odds="-110", model_prob=bet["prob"], market_prob=_nrfi_mkt_p,
+                    edge_pct=round((bet["prob"] - _nrfi_mkt_p) * 100, 1),
+                    conviction="PROP", stake=bet["stake"],
+                )
         p2.append("")
 
     # ── Props parlay: top 3 locks only ──────────────────────────────────────
@@ -1965,6 +1998,17 @@ def _daily_bet_slip(
             p2.append(f"  {legs_str}")
             p2.append(f"  Combined odds: {prl['american']} — Stake: ${prl_stake:.2f} — To win: ${prl_win:.2f}")
             p2.append("")
+
+            if not DRY_RUN:
+                _props_prl_mkt_p = (implied_prob(str(prl["american"])) or 0) / 100
+                _log_pick_with_retry(
+                    "PARLAY",
+                    date=today_iso, bet=legs_str, game="PROPS PARLAY",
+                    bet_odds=str(prl["american"]),
+                    model_prob=round(joint_p, 4), market_prob=_props_prl_mkt_p,
+                    edge_pct=round((joint_p - _props_prl_mkt_p) * 100, 1),
+                    conviction="PARLAY", stake=prl_stake,
+                )
 
     def _prop_line(p: dict) -> str:
         odds_s = p["odds_str"]
@@ -1995,6 +2039,13 @@ def _daily_bet_slip(
             ev       = prop.get("ev", 0) or 0
             ptype    = prop.get("type", "SGP")
             p2.append(f"  [{ptype}] {legs_str} — ${stake:.2f} — EV: {ev:+.4f}")
+            if not DRY_RUN:
+                _log_pick_with_retry(
+                    "PARLAY",
+                    date=today_iso, bet=legs_str, game=f"SGP:{ptype}",
+                    bet_odds="", model_prob=prop.get("joint_prob"), market_prob=None,
+                    edge_pct=ev, conviction="PARLAY", stake=stake,
+                )
         p2.append("")
 
     if not has_p2:
@@ -2014,6 +2065,14 @@ def _daily_bet_slip(
                 f"  {bet['game']} — {bet['direction']} {bet['line']} ({bet['prob']:.1%}) — "
                 f"${bet['stake']:.2f} — EDGE: +{bet['edge_pct']:.1f}%"
             )
+            if not DRY_RUN:
+                _log_pick_with_retry(
+                    "TOTAL",
+                    date=today_iso, bet=f"{bet['game']} {bet['direction']} {bet['line']}",
+                    game=bet["game"], bet_odds=str(bet.get("odds", "-110")),
+                    model_prob=bet["prob"], market_prob=bet["market_p"],
+                    edge_pct=bet["edge_pct"], conviction="PROP", stake=bet["stake"],
+                )
         p3.append("")
     else:
         p3.append("📊 TOTALS: None today")
@@ -2738,6 +2797,28 @@ def _log_bet_with_retry(today: str, analysis: dict, side: str, conv: str) -> boo
             return True
         except Exception as e:
             print(f"  DB log error (attempt {attempt}/2): {e}")
+    return False
+
+
+def _log_pick_with_retry(bet_type: str, *, date: str, bet: str, game: str,
+                          bet_odds: str, model_prob, market_prob, edge_pct,
+                          conviction: str, stake: float) -> bool:
+    """Persist a non-ML pick (TOTAL/NRFI/PROP/PARLAY) via the same log_bet()
+    path as ML, retrying once on failure. Unlike _log_bet_with_retry, a
+    failure here never changes what's shown in Telegram — the message is
+    already built by the time this runs; this is best-effort logging
+    underneath an otherwise-unchanged slip (TIER 3 WIRE-IN 3)."""
+    for attempt in (1, 2):
+        try:
+            _db.log_bet(
+                date=date, bet=bet, bet_type=bet_type, game=game,
+                sp="", park="", umpire="", bet_odds=bet_odds,
+                model_prob=model_prob, market_prob=market_prob,
+                edge_pct=edge_pct, conviction=conviction, stake=stake,
+            )
+            return True
+        except Exception as e:
+            print(f"  DB log error [{bet_type}] (attempt {attempt}/2): {e}")
     return False
 
 
@@ -3591,6 +3672,7 @@ def run_daily_scout(window: str = "all"):
                             "market_p":  round(mkt_p, 4),
                             "edge_pct":  round(edge * 100, 1),
                             "stake":     kelly_stake(model_p, str(mkt_odds), "PROP"),
+                            "odds":      str(mkt_odds),
                         }
                 if best_total_bet and best_total_bet["stake"] > 0:
                     all_totals.append(best_total_bet)
