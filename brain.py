@@ -502,11 +502,18 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     away_bp_fatigue_safe = away_bp.get("avg_fatigue") if away_bp_data_ok else 4.0
     home_bp_fatigue_safe = home_bp.get("avg_fatigue") if home_bp_data_ok else 4.0
 
+    # Offense data may be unavailable (offense_missing=True) — same pattern
+    # as the bullpen data_ok exclusion above (AUDIT.md M2).
+    away_off_data_ok = not away_off.get("offense_missing", False)
+    home_off_data_ok = not home_off.get("offense_missing", False)
+
     away_model_p, home_model_p = _weighted_win_prob(
         away_xfip              = away_sp.get("xfip", 4.35),
         home_xfip              = home_sp.get("xfip", 4.35),
         away_bp_fatigue        = away_bp_fatigue_safe,
         home_bp_fatigue        = home_bp_fatigue_safe,
+        away_off_data_ok       = away_off_data_ok,
+        home_off_data_ok       = home_off_data_ok,
         away_bp_data_ok        = away_bp_data_ok,
         home_bp_data_ok        = home_bp_data_ok,
         away_wrc               = away_wrc_v,
@@ -1161,6 +1168,8 @@ def _weighted_win_prob(
     home_key_reliever_avail: bool = True,
     away_bp_data_ok: bool = True,   # False → bullpen fetch failed; exclude Factor 4
     home_bp_data_ok: bool = True,
+    away_off_data_ok: bool = True,  # False → offense fetch failed; exclude Factor 5
+    home_off_data_ok: bool = True,
     ump_home_win_adj: float = 0.0,
     # New Savant-powered factors
     away_xwoba_against: float | None = None,  # SP xwOBA against (ADD 1)
@@ -1242,10 +1251,16 @@ def _weighted_win_prob(
         bp_away_p  = away_bp_q / bp_denom if bp_denom > 0 else 0.5
 
     # Factor 5 — Offense (wRC+ + bat tracking) (13%)
-    away_off_q = max(away_wrc, 50.0) + away_bat_tracking_adj * 10
-    home_off_q = max(home_wrc, 50.0) + home_bat_tracking_adj * 10
-    off_denom  = away_off_q + home_off_q
-    off_away_p = away_off_q / off_denom if off_denom > 0 else 0.5
+    if not away_off_data_ok or not home_off_data_ok:
+        # Offense fetch failed for one/both sides — exclude the wRC+ signal
+        # entirely (neutral 0.5) rather than trust fabricated league-average
+        # defaults (AUDIT.md M2).
+        off_away_p = 0.5
+    else:
+        away_off_q = max(away_wrc, 50.0) + away_bat_tracking_adj * 10
+        home_off_q = max(home_wrc, 50.0) + home_bat_tracking_adj * 10
+        off_denom  = away_off_q + home_off_q
+        off_away_p = away_off_q / off_denom if off_denom > 0 else 0.5
 
     # Factor 6 — Pythagorean + home dog (8%)
     # Blend Pythagorean and home dog structural edge

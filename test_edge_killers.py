@@ -190,3 +190,105 @@ class TestSpMissingGapsClosed:
     def test_confidence_dampening_does_not_flag_real_confirmed_sp(self):
         from brain import _sp_effectively_unknown
         assert _sp_effectively_unknown(self._fabricated_sp(sp_missing=False)) is False
+
+
+# ── M2: neutral-default masking in bullpen + offense ──────────────────────────
+
+class TestNeutralDefaultMasking:
+    """M2: bullpen_run_factor() resolved a data_ok=False (UNKNOWN tier)
+    bullpen to a neutral 1.0 purely by coincidence of the tier-lookup dict's
+    default, with no explicit data_ok check. offense_engine.py had no
+    aggregate missing-data flag at all, so a fully-down offense feed had no
+    suppression path in the win-prob blend."""
+
+    def test_bullpen_run_factor_ignores_stale_fields_when_data_not_ok(self):
+        """If data_ok=False but fatigue_tier/high_fatigue_arms somehow carry
+        stale non-neutral values, the old code (no data_ok check) would still
+        use them. The fix must return the explicit neutral 1.0 regardless."""
+        from bullpen_engine import bullpen_run_factor
+        bp = {"data_ok": False, "fatigue_tier": "TIRED", "high_fatigue_arms": ["A", "B"]}
+        assert bullpen_run_factor(bp) == 1.0
+
+    def test_bullpen_run_factor_still_uses_real_data_when_ok(self):
+        from bullpen_engine import bullpen_run_factor
+        bp = {"data_ok": True, "fatigue_tier": "TIRED", "high_fatigue_arms": ["A", "B"]}
+        assert bullpen_run_factor(bp) == round(1.04 + 2 * 0.005, 4)
+
+    def test_analyze_offense_flags_offense_missing_on_total_fetch_failure(self):
+        import offense_engine as oe
+        patchers = [
+            patch.object(oe, "_rolling_hitting_window", return_value={}),
+            patch.object(oe, "_team_recent_record", return_value={}),
+            patch.object(oe, "_platoon_splits_real", return_value={}),
+            patch.object(oe, "_platoon_adjustment_real", return_value=(100.0, 0.0)),
+            patch.object(oe, "_team_hitting_stats", return_value={}),
+            patch.object(oe, "_wrc_plus_proxy", return_value=100.0),
+            patch.object(oe, "_risp_stats", return_value={}),
+        ]
+        for p in patchers:
+            p.start()
+        try:
+            result = oe.analyze_offense("NYY", game_pk=None, side="away", opp_sp_hand="R")
+        finally:
+            for p in patchers:
+                p.stop()
+        assert result.get("offense_missing") is True
+
+    def test_analyze_offense_does_not_flag_missing_with_healthy_data(self):
+        import offense_engine as oe
+        patchers = [
+            patch.object(oe, "_rolling_hitting_window", return_value={
+                "wrc_plus": 105.0, "rpg": 4.6, "low_sample": False, "games": 10,
+            }),
+            patch.object(oe, "_team_recent_record", return_value={"win_pct": 0.5}),
+            patch.object(oe, "_platoon_splits_real", return_value={
+                "vs_lhp": {"wrc_plus": 100.0}, "vs_rhp": {"wrc_plus": 100.0},
+            }),
+            patch.object(oe, "_platoon_adjustment_real", return_value=(100.0, 0.0)),
+            patch.object(oe, "_team_hitting_stats", return_value={
+                "avg": 0.260, "obp": 0.330, "slg": 0.430, "ops": 0.760,
+                "runs": 450, "games": 90,
+            }),
+            patch.object(oe, "_wrc_plus_proxy", return_value=105.0),
+            patch.object(oe, "_risp_stats", return_value={"risp_avg": 0.26, "risp_ops": 0.76}),
+        ]
+        for p in patchers:
+            p.start()
+        try:
+            result = oe.analyze_offense("NYY", game_pk=None, side="away", opp_sp_hand="R")
+        finally:
+            for p in patchers:
+                p.stop()
+        assert result.get("offense_missing") is False
+
+    def test_default_offense_flags_missing(self):
+        from offense_engine import _default_offense
+        assert _default_offense("ZZZ").get("offense_missing") is True
+
+    def test_weighted_win_prob_excludes_offense_when_data_missing(self):
+        """Mirrors the existing bullpen data_ok exclusion pattern (Factor 4)
+        for the new offense data_ok params (Factor 5): wildly lopsided wRC+
+        must NOT move win prob when either side's offense data is missing."""
+        from brain import _weighted_win_prob
+        common = dict(
+            away_xfip=4.35, home_xfip=4.35,
+            away_bp_fatigue=4.0, home_bp_fatigue=4.0,
+            home_dog_add=0.0, pyth_away_p=0.5,
+            lm_direction="", lm_magnitude=0.0,
+            away_platoon_edge=0.0, home_platoon_edge=0.0,
+            away_momentum_score=0.0, home_momentum_score=0.0,
+        )
+        away_p_missing, _ = _weighted_win_prob(
+            away_wrc=150.0, home_wrc=50.0,
+            away_off_data_ok=False, home_off_data_ok=True,
+            **common,
+        )
+        away_p_present, _ = _weighted_win_prob(
+            away_wrc=150.0, home_wrc=50.0,
+            away_off_data_ok=True, home_off_data_ok=True,
+            **common,
+        )
+        assert away_p_missing != away_p_present, (
+            "a lopsided wRC+ gap must stop moving win prob once offense "
+            "data is flagged missing on one side"
+        )

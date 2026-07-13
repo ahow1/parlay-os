@@ -281,6 +281,11 @@ def analyze_bullpen(team_id: int, game_date: str, label: str = "") -> dict:
 
 def bullpen_run_factor(bp: dict) -> float:
     """Convert bullpen fatigue to a run expectancy multiplier."""
+    if not bp.get("data_ok", True):
+        # Bullpen data unavailable (roster fetch failed) — return the
+        # explicit neutral factor rather than relying on the tier-lookup
+        # dict's default happening to also be neutral (AUDIT.md M2).
+        return 1.0
     tier  = bp.get("fatigue_tier", "MODERATE")
     base  = {"FRESH": 0.97, "MODERATE": 1.0, "TIRED": 1.04}.get(tier, 1.0)
     high  = len(bp.get("high_fatigue_arms", []))

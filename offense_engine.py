@@ -441,6 +441,13 @@ def analyze_offense(team_code: str, game_pk: int = None, side: str = "away",
     ops      = hitting.get("ops", 0.730)
     wrc_plus_season = _wrc_plus_proxy(ops, park_factor)
 
+    # Aggregate missing-data flag (AUDIT.md M2) — true on a genuine total
+    # feed blackout (both rolling windows AND season stats came back empty),
+    # not a normal low-sample edge case (which wrc_low_sample already flags).
+    # Mirrors sp_missing / bullpen's data_ok so brain.py can suppress this
+    # factor from the win-prob blend instead of trusting fabricated defaults.
+    offense_missing = (not w7 and not w30) or not hitting
+
     # Recency-weighted wRC+ blend
     wrc_plus_14d = round(0.40 * wrc7 + 0.35 * wrc30 + 0.25 * wrc_plus_season, 1)
     rolling_rpg  = round(0.40 * rpg7 + 0.35 * rpg30 + 0.25 * (hitting.get("runs", 0) / max(hitting.get("games", 1), 1)), 2)
@@ -508,6 +515,8 @@ def analyze_offense(team_code: str, game_pk: int = None, side: str = "away",
         "wrc_plus_14d":           wrc_plus_14d,
         "wrc_window_days":        window_days,
         "wrc_low_sample":         low_sample_flag,
+        # Data health
+        "offense_missing":        offense_missing,
         # Platoon-adjusted
         "adj_wrc_plus":           wrc_plus_adj,
         "platoon_delta":          round(platoon_delta, 1),
@@ -560,6 +569,7 @@ def _default_offense(team_code: str) -> dict:
         "wrc_plus_14d":       100.0,
         "wrc_window_days":    14,
         "wrc_low_sample":     False,
+        "offense_missing":    True,
         "adj_wrc_plus":       100.0,
         "platoon_delta":      0.0,
         "platoon_vs_lhp":     None,
