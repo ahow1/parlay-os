@@ -2627,7 +2627,7 @@ def _send_telegram(msg: str) -> bool:
     if not BOT_TOKEN or not CHAT_ID:
         print(f"[TG] WARN: BOT_TOKEN={'set' if BOT_TOKEN else 'MISSING'} CHAT_ID={'set' if CHAT_ID else 'MISSING'} — printing instead:")
         print(msg)
-        return True
+        return False
     print(f"[TG] Sending message to chat {CHAT_ID} (len={len(msg)})...")
     try:
         resp = requests.post(

@@ -72,3 +72,41 @@ class TestKPropRealModelP:
             "edge_pct must not be derived from gap*10 (a K-count differential, "
             "not a probability-point edge)"
         )
+
+
+# ── B2: Telegram false success on missing credentials ────────────────────────
+
+class TestTelegramFalseSuccess:
+    """B2: _send_telegram() must return False (not True) when credentials are
+    missing, so callers don't mark an unsent slip as sent and dedup can retry."""
+
+    def test_returns_false_when_bot_token_missing(self):
+        import brain
+        with patch.object(brain, "DRY_RUN", False), \
+             patch.object(brain, "BOT_TOKEN", ""), \
+             patch.object(brain, "CHAT_ID", "7852968108"):
+            assert brain._send_telegram("test message") is False
+
+    def test_returns_false_when_chat_id_missing(self):
+        import brain
+        with patch.object(brain, "DRY_RUN", False), \
+             patch.object(brain, "BOT_TOKEN", "fake:token"), \
+             patch.object(brain, "CHAT_ID", ""):
+            assert brain._send_telegram("test message") is False
+
+    def test_returns_false_when_both_missing(self):
+        import brain
+        with patch.object(brain, "DRY_RUN", False), \
+             patch.object(brain, "BOT_TOKEN", ""), \
+             patch.object(brain, "CHAT_ID", ""):
+            assert brain._send_telegram("test message") is False
+
+    def test_does_not_call_requests_when_credentials_missing(self):
+        """Missing-credentials path must short-circuit before any HTTP call."""
+        import brain
+        with patch.object(brain, "DRY_RUN", False), \
+             patch.object(brain, "BOT_TOKEN", ""), \
+             patch.object(brain, "CHAT_ID", ""), \
+             patch.object(brain.requests, "post") as mock_post:
+            brain._send_telegram("test message")
+        mock_post.assert_not_called()
