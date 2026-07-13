@@ -17,6 +17,7 @@ from functools import lru_cache
 
 from api_client import get as _http_get
 from constants import LG_K_RATE, LG_WHIFF_RATE, PARK_K_FACTORS
+from props_engine import prob_over, prob_under
 
 STATSAPI    = "https://statsapi.mlb.com/api/v1"
 SAVANT_BASE = "https://baseballsavant.mlb.com"
@@ -184,6 +185,17 @@ def project_strikeouts(
     }
 
 
+def _k_edge_pct(model_p_over: float, direction: str) -> float:
+    """
+    Edge vs the standard -110 K-prop market baseline (implied ~50%, matching
+    the flat 0.5 market_p already assumed elsewhere for K props).
+    """
+    market_p = 0.5
+    if direction == "OVER":
+        return round((model_p_over - market_p) * 100, 2)
+    return round(((1 - model_p_over) - market_p) * 100, 2)
+
+
 # ── Full analysis ─────────────────────────────────────────────────────────────
 
 def analyze_k_prop(
@@ -234,6 +246,13 @@ def analyze_k_prop(
     if conf < 60:
         return None
 
+    # Real model probability — same Poisson approach as the props_engine.k_prop
+    # fallback path (lam = expected strikeouts for this start).
+    lam          = projected_k
+    model_p_over = prob_over(lam, market_line)
+    model_p      = model_p_over if direction == "OVER" else prob_under(lam, market_line)
+    edge_pct     = _k_edge_pct(model_p_over, direction)
+
     sp_name = sp_stats.get("name", "SP")
     return {
         "sp_name":       sp_name,
@@ -242,6 +261,8 @@ def analyze_k_prop(
         "projected_k":   projected_k,
         "gap":           round(gap, 2),
         "confidence":    conf,
+        "model_p":       round(model_p, 4),
+        "edge_pct":      edge_pct,
         "whiff_rate":    proj.get("whiff_rate"),
         "elite_whiff":   proj.get("elite_whiff", False),
         "lineup_k_rate": proj.get("lineup_k_rate"),

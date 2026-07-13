@@ -3248,7 +3248,7 @@ def run_daily_scout(window: str = "all"):
                 except Exception:
                     _akp = None
             if _akp:
-                _k_stake = kelly_stake(_akp["model_p"] if "model_p" in _akp else 0.55, "-110", "PROP")
+                _k_stake = kelly_stake(_akp.get("model_p", 0.55), "-110", "PROP")
                 all_k_props.append({
                     "sp":         _sp.get("name"),
                     "team":       analysis.get(_kside, ""),
@@ -3256,7 +3256,7 @@ def run_daily_scout(window: str = "all"):
                     "line":       _k_line,
                     "p_over":     _akp.get("model_p", 0.55),
                     "market_p":   0.5,
-                    "edge_pct":   _akp.get("gap", 0) * 10,
+                    "edge_pct":   _akp.get("edge_pct", 0),
                     "stake":      _k_stake,
                     "statcast_2025": False,
                     "projected_k":  _akp.get("projected_k"),
