@@ -122,3 +122,76 @@ class TestProfileTablesReceiveRows:
         assert row is not None
         assert row["pitcher_id"] == 657277
         assert row["era"] == 2.90
+
+
+# ── M11: connect profile reads into sp_engine / offense_engine scoring ───────
+
+class TestProfileReadsWiredIntoScoring:
+    """M11: profile_engine persists pitcher_profiles/hitter_profiles every
+    run, but memory_engine.get_pitcher_profile()/get_hitter_profile() had
+    zero callers anywhere — persisted data was never read back. Wire in a
+    small, capped, additive run_factor refinement in each engine; must fall
+    back to 0.0 (no change) when no profile / insufficient data exists."""
+
+    def test_sp_profile_platoon_adj_returns_zero_with_no_profile(self):
+        from sp_engine import _profile_platoon_run_adj
+        assert _profile_platoon_run_adj(None, era=3.50, opp_team="LAD") == 0.0
+
+    def test_sp_profile_platoon_adj_returns_zero_when_splits_missing(self):
+        from sp_engine import _profile_platoon_run_adj
+        profile = {"era_vs_lhh": None, "era_vs_rhh": None}
+        assert _profile_platoon_run_adj(profile, era=3.50, opp_team="LAD") == 0.0
+
+    def test_sp_profile_platoon_adj_positive_when_matchup_worse(self):
+        """Opponent has the league's highest LHB mix, pitcher's era_vs_lhh
+        (5.00) is much worse than overall era (3.00) -> matchup_era > era
+        -> positive adj (more expected runs)."""
+        from sp_engine import _profile_platoon_run_adj
+        from constants import TEAM_LHB_PCT
+        profile = {"era_vs_lhh": 5.00, "era_vs_rhh": 2.50}
+        opp = max(TEAM_LHB_PCT, key=TEAM_LHB_PCT.get)
+        adj = _profile_platoon_run_adj(profile, era=3.00, opp_team=opp)
+        assert adj > 0
+
+    def test_sp_profile_platoon_adj_capped_at_8_pct(self):
+        from sp_engine import _profile_platoon_run_adj
+        profile = {"era_vs_lhh": 20.0, "era_vs_rhh": 20.0}
+        adj = _profile_platoon_run_adj(profile, era=1.00, opp_team="LAD")
+        assert adj == 0.08
+
+    def test_analyze_sp_wires_profile_adj_into_run_factor(self):
+        import inspect
+        import sp_engine
+        src = inspect.getsource(sp_engine.analyze_sp)
+        assert "_profile_platoon_run_adj(" in src
+        assert "profile_platoon_adj" in src
+
+    def test_offense_profile_clutch_adj_returns_zero_with_no_lineup(self):
+        from offense_engine import _profile_clutch_run_adj
+        assert _profile_clutch_run_adj([]) == 0.0
+
+    def test_offense_profile_clutch_adj_returns_zero_when_no_profiles_found(self):
+        from offense_engine import _profile_clutch_run_adj
+        lineup = [{"id": 1, "name": "Nobody Special"}]
+        adj = _profile_clutch_run_adj(lineup, get_hitter_profile_fn=lambda name: None)
+        assert adj == 0.0
+
+    def test_offense_profile_clutch_adj_positive_when_lineup_clutch(self):
+        from offense_engine import _profile_clutch_run_adj
+        lineup = [{"id": 1, "name": "Hot Hitter"}, {"id": 2, "name": "Cold Hitter"}]
+        profiles = {"Hot Hitter": {"wrc_risp": 140.0}, "Cold Hitter": {"wrc_risp": 130.0}}
+        adj = _profile_clutch_run_adj(lineup, get_hitter_profile_fn=profiles.get)
+        assert adj > 0
+
+    def test_offense_profile_clutch_adj_capped_at_5_pct(self):
+        from offense_engine import _profile_clutch_run_adj
+        lineup = [{"id": 1, "name": "Legend"}]
+        adj = _profile_clutch_run_adj(lineup, get_hitter_profile_fn=lambda name: {"wrc_risp": 999.0})
+        assert adj == 0.05
+
+    def test_analyze_offense_wires_profile_adj_into_run_factor(self):
+        import inspect
+        import offense_engine
+        src = inspect.getsource(offense_engine.analyze_offense)
+        assert "_profile_clutch_run_adj(" in src
+        assert "profile_clutch_adj" in src

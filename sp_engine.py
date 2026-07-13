@@ -555,6 +555,27 @@ def _platoon_run_factor(sp_hand: str, opp_team: str) -> float:
     return round(1.0 + avg_delta / 100, 4)
 
 
+def _profile_platoon_run_adj(profile: dict | None, era: float, opp_team: str) -> float:
+    """
+    Additive run_factor refinement (AUDIT.md M11) from this SPECIFIC
+    pitcher's own persisted era_vs_lhh/era_vs_rhh split (pitcher_profiles) —
+    distinct from _platoon_run_factor()'s league-wide generic delta above.
+    Weighted by the opponent's actual LHB/RHB mix. Returns 0.0 (no change)
+    when there's no profile or insufficient split data — always safe to
+    fall back to current behavior.
+    """
+    if not profile or era is None or era <= 0:
+        return 0.0
+    era_vs_lhh = profile.get("era_vs_lhh")
+    era_vs_rhh = profile.get("era_vs_rhh")
+    if era_vs_lhh is None or era_vs_rhh is None:
+        return 0.0
+    lhb_pct     = TEAM_LHB_PCT.get(opp_team, 0.43)
+    matchup_era = lhb_pct * era_vs_lhh + (1 - lhb_pct) * era_vs_rhh
+    adj         = (matchup_era - era) / era
+    return round(max(min(adj, 0.08), -0.08), 4)
+
+
 def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "",
                pitcher_name: str = "") -> dict:
     """Full SP analysis: season stats + last-3-start rolling + adjustments."""
@@ -622,8 +643,21 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "",
     else:
         abs_adj = _abs_adjustment(bb9, k9, hand)
 
+    # ── Profile-persisted platoon split (additive, safe fallback — M11) ─────
+    profile_platoon_adj = 0.0
+    if pitcher_name:
+        try:
+            from memory_engine import get_pitcher_profile
+            profile_platoon_adj = _profile_platoon_run_adj(
+                get_pitcher_profile(pitcher_name), era, opp_team
+            )
+        except Exception:
+            profile_platoon_adj = 0.0
+
     sp_quality = round(xfip / max(LG_ERA, 0.01), 4)
-    run_factor = round(ump_run * plat_rf * sp_quality * (1.0 + abs_adj), 4)
+    run_factor = round(
+        ump_run * plat_rf * sp_quality * (1.0 + abs_adj) * (1.0 + profile_platoon_adj), 4
+    )
 
     return {
         "pitcher_id":       pitcher_id,
@@ -644,6 +678,7 @@ def analyze_sp(pitcher_id: int, opp_team: str, umpire: str = "",
         "abs_adj":          abs_adj,
         "abs_score":        abs_score,
         "plat_run_factor":  plat_rf,
+        "profile_platoon_adj": profile_platoon_adj,
         "run_factor":       run_factor,
         # Last-3-start rolling stats
         "rolling_era_3":    last3.get("rolling_era_3"),

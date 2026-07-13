@@ -402,6 +402,38 @@ def lineup_slot_quality(lineup: list, park_factor: float = 1.0) -> dict:
     return result
 
 
+def _profile_clutch_run_adj(lineup: list, get_hitter_profile_fn=None) -> float:
+    """
+    Additive run_factor refinement (AUDIT.md M11) from this SPECIFIC lineup's
+    own persisted wRC+ vs RISP (hitter_profiles) — flags lineups that over/
+    under-perform in clutch spots beyond season wRC+ alone. Averaged across
+    lineup hitters with a profile, weighted equally. Returns 0.0 (no change)
+    when there's no lineup or no profile data found — always safe to fall
+    back to current behavior.
+    """
+    if not lineup:
+        return 0.0
+    if get_hitter_profile_fn is None:
+        from memory_engine import get_hitter_profile as get_hitter_profile_fn
+    wrc_risp_vals = []
+    for player in lineup:
+        name = player.get("name")
+        if not name:
+            continue
+        profile = get_hitter_profile_fn(name)
+        if not profile:
+            continue
+        wrc_risp = profile.get("wrc_risp")
+        if wrc_risp is None:
+            continue
+        wrc_risp_vals.append(wrc_risp)
+    if not wrc_risp_vals:
+        return 0.0
+    avg_wrc_risp = sum(wrc_risp_vals) / len(wrc_risp_vals)
+    adj = (avg_wrc_risp - 100.0) / 100.0
+    return round(max(min(adj, 0.05), -0.05), 4)
+
+
 # ── Main analysis ─────────────────────────────────────────────────────────────
 
 def analyze_offense(team_code: str, game_pk: int = None, side: str = "away",
@@ -496,6 +528,14 @@ def analyze_offense(team_code: str, game_pk: int = None, side: str = "away",
         form_adj   = min((rolling_rpg / rpg_season) ** 0.25, 1.10)
         run_factor = round(run_factor * form_adj, 4)
 
+    # ── Profile-persisted RISP clutch split (additive, safe fallback — M11) ──
+    profile_clutch_adj = 0.0
+    try:
+        profile_clutch_adj = _profile_clutch_run_adj(lineup)
+    except Exception:
+        profile_clutch_adj = 0.0
+    run_factor = round(run_factor * (1.0 + profile_clutch_adj), 4)
+
     # Platoon matchup edge flag (15+ wRC+ points = real edge)
     vs_today_wrc    = splits.get("vs_lhp" if opp_sp_hand == "L" else "vs_rhp", {}).get("wrc_plus", 100.0)
     vs_opp_wrc      = splits.get("vs_rhp" if opp_sp_hand == "L" else "vs_lhp", {}).get("wrc_plus", 100.0)
@@ -547,6 +587,7 @@ def analyze_offense(team_code: str, game_pk: int = None, side: str = "away",
         "lineup":                 lineup,
         "lhb_pct":                TEAM_LHB_PCT.get(team_code, 0.43),
         # Run factor
+        "profile_clutch_adj":     profile_clutch_adj,
         "run_factor":             run_factor,
         # Woba proxy for ML model compat
         "woba":                   hitting.get("obp", 0.320),
