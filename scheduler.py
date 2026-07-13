@@ -66,13 +66,70 @@ def run_daily_accuracy_task():
 
 
 def run_nightly_profiles_task():
-    """Update player/team profiles for all games played today."""
+    """Update player/team profiles for all games completed today.
+
+    run_nightly_profile_updates() needs per-game args (game_pk, date, teams,
+    scores, SP id/name) — it used to be called with zero args against a
+    6-required-arg signature and crashed every single run (AUDIT.md B5).
+    Fetches today's completed games from the MLB schedule, and cross-
+    references sp_tracker (already populated by brain.py's scout runs) for
+    each game's starting pitchers.
+    """
     try:
+        from telegram_handler import _fetch_final_games
         from profile_engine import run_nightly_profile_updates
-        run_nightly_profile_updates()
-        log.info("[scheduler] Nightly profile updates done")
+        import db as _db
+
+        today = _now_et().strftime("%Y-%m-%d")
+        games = _fetch_final_games(today)
+        if not games:
+            log.info("[scheduler] Nightly profiles: no completed games today")
+            return
+
+        sp_by_pk = {str(row["game_pk"]): row for row in _db.get_sp_tracker(today)}
+        updated = 0
+        for g in games:
+            game_pk    = g.get("gamePk")
+            teams      = g.get("teams", {})
+            away_score = teams.get("away", {}).get("score")
+            home_score = teams.get("home", {}).get("score")
+            if game_pk is None or away_score is None or home_score is None:
+                continue
+            away_name = teams.get("away", {}).get("team", {}).get("name", "")
+            home_name = teams.get("home", {}).get("team", {}).get("name", "")
+            sp_row    = sp_by_pk.get(str(game_pk)) or {}
+            run_nightly_profile_updates(
+                game_pk=game_pk,
+                game_date=today,
+                away_team=away_name,
+                home_team=home_name,
+                away_score=int(away_score),
+                home_score=int(home_score),
+                away_sp_id=sp_row.get("away_sp_id") or None,
+                home_sp_id=sp_row.get("home_sp_id") or None,
+                away_sp_name=sp_row.get("away_sp_name") or "",
+                home_sp_name=sp_row.get("home_sp_name") or "",
+            )
+            updated += 1
+        log.info(f"[scheduler] Nightly profile updates done for {updated}/{len(games)} completed game(s)")
     except Exception as e:
         log.error(f"[scheduler] Nightly profiles failed: {e}", exc_info=True)
+
+
+def run_weekly_team_updates_task():
+    """Sunday 2am ET: update all team + bullpen profiles.
+
+    run_weekly_team_updates(team_ids) needs a {team_code: team_id} dict — it
+    used to be called with zero args and crashed every single run
+    (AUDIT.md B5).
+    """
+    try:
+        from profile_engine import run_weekly_team_updates
+        from constants import MLB_TEAM_IDS
+        run_weekly_team_updates(MLB_TEAM_IDS)
+        log.info(f"[scheduler] Weekly team updates done for {len(MLB_TEAM_IDS)} teams")
+    except Exception as e:
+        log.error(f"[scheduler] Weekly team updates failed: {e}", exc_info=True)
 
 
 def run_improvement_check_task():
@@ -275,11 +332,7 @@ def schedule_loop(stop_event=None):
                 and week != last_weekly):
             run_weekly_maintenance_task()
             run_confidence_retrain_task()
-            try:
-                from profile_engine import run_weekly_team_updates
-                run_weekly_team_updates()
-            except Exception as e:
-                log.error(f"[scheduler] Weekly team updates failed: {e}", exc_info=True)
+            run_weekly_team_updates_task()
             last_weekly = week
             log.info(f"[scheduler] Weekly tasks (maintenance + conf_retrain) fired for week {week}")
 
