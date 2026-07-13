@@ -3,7 +3,6 @@
 import os
 import sys
 import sqlite3
-import tempfile
 import pytest
 from unittest.mock import patch, MagicMock
 from datetime import date, datetime
@@ -119,25 +118,38 @@ class TestNightlyDebriefScheduling:
 # ── FIX 3: Learning loop — calibration_buckets ───────────────────────────────
 
 class TestLearningLoopCalibration:
-    """FIX 3: Every settled bet must write to calibration_buckets."""
+    """FIX 3: Every settled bet must write to calibration_buckets.
 
-    def setup_method(self):
-        """Use a temp DB for calibration tests."""
-        self._tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-        self._orig_path = os.environ.get("PARLAY_DB", "parlay_os.db")
-        os.environ["PARLAY_DB"] = self._tmp.name
-        import db as _db
-        _db.init_db()
+    Isolation note: db.py reads PARLAY_DB into a module-level DB_PATH
+    constant once at import time. By the time this class runs, `db` has
+    almost certainly already been imported (e.g. transitively via
+    bankroll_engine, imported by TestDrawdownProtection above) — so
+    setting os.environ["PARLAY_DB"] here silently no-ops and every write
+    below would land in the real parlay_os.db. patch.object(db, "DB_PATH",
+    ...) (the pattern test_wire_ins.py already uses) works regardless of
+    import order, since it's read fresh from the module namespace on every
+    call rather than captured once.
 
-    def teardown_method(self):
-        os.environ["PARLAY_DB"] = self._orig_path
-        self._tmp.close()
-        os.unlink(self._tmp.name)
+    _feed_brain_from_settled (called below) also writes through
+    memory_engine.py, which has its own entirely separate hardcoded
+    DB_PATH = "parlay_os.db" constant (confirmed by diffing a full
+    sqlite dump before/after this test: bet_memory and team_performance
+    rows were landing in the real file even with db.DB_PATH patched) —
+    so that module's DB_PATH must be patched too."""
 
-    def test_feed_brain_writes_calibration_bucket(self):
+    @pytest.fixture(autouse=True)
+    def _isolated_db(self, tmp_path):
+        import db
+        import memory_engine
+        tmp_db = str(tmp_path / "test_fixes_calibration.db")
+        with patch.object(db, "DB_PATH", tmp_db), \
+             patch.object(memory_engine, "DB_PATH", tmp_db):
+            db.init_db()
+            yield db
+
+    def test_feed_brain_writes_calibration_bucket(self, _isolated_db):
         """_feed_brain_from_settled must call db.update_calibration for each settled bet."""
-        import db as _db
-        _db.init_db()
+        _db = _isolated_db
         # Log a bet and settle it
         _db.log_bet(
             date="2026-05-27", bet="SF", bet_type="ML", game="SF @ LAD",
@@ -157,9 +169,9 @@ class TestLearningLoopCalibration:
         cal = _db.get_calibration()
         assert len(cal) > 0, "calibration_buckets must have at least 1 row after settling a bet"
 
-    def test_calibration_bucket_name_matches_model_prob(self):
+    def test_calibration_bucket_name_matches_model_prob(self, _isolated_db):
         """Bucket name must reflect model probability range (e.g. '0.55-0.60')."""
-        import db as _db
+        _db = _isolated_db
         _db.update_calibration("0.55-0.60", win=True)
         cal = _db.get_calibration()
         buckets = [c["bucket"] for c in cal]
@@ -180,17 +192,22 @@ class TestCLVCapture:
             from brain import _capture_clv_snapshot
             assert callable(_capture_clv_snapshot)
 
-    def test_clv_log_written_to_db(self):
-        """After CLV capture, clv_log table must have a row for the bet."""
-        import db as _db
-        # Simulate writing a CLV log entry directly
-        _db.log_clv(
-            date="2026-05-27", bet="SF", bet_type="ML",
-            game="SF @ LAD", sp="Logan Webb", park="LAD", umpire="",
-            bet_odds="+145", closing_odds="+130",
-            clv_pct=3.5, result=None, model="12-factor", edge_pct=16.0,
-        )
-        rows = _db.get_clv_log(days=1)
+    def test_clv_log_written_to_db(self, tmp_path):
+        """After CLV capture, clv_log table must have a row for the bet.
+        Isolated against a temp DB — never the real parlay_os.db (see
+        TestLearningLoopCalibration's isolation note above)."""
+        import db
+        tmp_db = str(tmp_path / "test_fixes_clv.db")
+        with patch.object(db, "DB_PATH", tmp_db):
+            db.init_db()
+            # Simulate writing a CLV log entry directly
+            db.log_clv(
+                date="2026-05-27", bet="SF", bet_type="ML",
+                game="SF @ LAD", sp="Logan Webb", park="LAD", umpire="",
+                bet_odds="+145", closing_odds="+130",
+                clv_pct=3.5, result=None, model="12-factor", edge_pct=16.0,
+            )
+            rows = db.get_clv_log(days=1)
         assert len(rows) >= 1, "clv_log must record closing odds"
         assert rows[0]["clv_pct"] == 3.5
 
