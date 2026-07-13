@@ -582,24 +582,45 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     # ── Brain learning adjustments (SP correction + team bias + situations) ────
     _away_sp_id = away_sp.get("pitcher_id") if away_sp else None
     _home_sp_id = home_sp.get("pitcher_id") if home_sp else None
-    _brain_situations = ""
-    _away_sits: list = []
-    _home_sits: list = []
-    try:
-        from situations_engine import get_active_situations
-        _away_sits = get_active_situations(away_code, home_code, away_nv, "away") or []
-        _home_sits = get_active_situations(home_code, away_code, home_nv, "home") or []
-        if _away_sits:
-            _brain_situations = "+".join(sorted(_away_sits))
-    except Exception:
-        pass
+
+    # ── Situational angles — computed here (not get_active_situations(),
+    # which doesn't exist in situations_engine.py and always failed silently)
+    # so total_away_adj/total_home_adj can actually reach the win-prob blend
+    # below, instead of only feeding a flat +8 confidence bump (AUDIT.md B7).
+    _sit_game_data = {
+        "away_tid":           away_tid,
+        "home_tid":           home_tid,
+        "best_away_odds":     market.get("best_away_odds"),
+        "best_home_odds":     market.get("best_home_odds"),
+        "game_time_et":       _parse_game_time_et(event.get("commence_utc", "")),
+        "series_game_number": event.get("series_game_number"),
+        "games_in_series":    event.get("games_in_series"),
+    }
+    situations_result = check_situations(
+        away_code, home_code,
+        _sit_game_data,
+        sp_data={"away": away_sp, "home": home_sp},
+        bullpen_data={"away": away_bp, "home": home_bp},
+        market_data=market,
+        offense_data={"away": away_off, "home": home_off},
+    )
+    if situations_result.get("triggered"):
+        _sit_labels = " | ".join(situations_result.get("labels", []))
+        print(f"  SITUATIONS ({situations_result['n_triggered']}): {_sit_labels}"
+              + (" ⚡STACK" if situations_result.get("situation_stack") else ""))
+
+    _brain_situations = "+".join(sorted(situations_result.get("triggered", [])))
+
+    # Apply the situational net probability adjustments directly to the
+    # win-prob blend — previously computed but never used (AUDIT.md B7).
+    away_model_p = round(away_model_p + situations_result.get("total_away_adj", 0.0), 4)
+    home_model_p = round(home_model_p + situations_result.get("total_home_adj", 0.0), 4)
 
     away_model_p, _away_brain_notes = apply_brain_to_prob(
         away_model_p, _home_sp_id, away_code, _brain_situations,
     )
     home_model_p, _home_brain_notes = apply_brain_to_prob(
-        home_model_p, _away_sp_id, home_code,
-        "+".join(sorted(_home_sits)) if _home_sits else "",
+        home_model_p, _away_sp_id, home_code, _brain_situations,
     )
     if _away_brain_notes or _home_brain_notes:
         print(f"  [BRAIN] away_adj={away_model_p:.4f} ({', '.join(_away_brain_notes)}) "
@@ -801,28 +822,7 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     home_k_prop = k_prop(home_sp, home_sp.get("k9", 8.5) * 5 / 9,
                           ump_k_factor=ump_k) if home_sp else None
 
-    # ── Situational angles ────────────────────────────────────────────────────
-    _sit_game_data = {
-        "away_tid":           away_tid,
-        "home_tid":           home_tid,
-        "best_away_odds":     best_away_odds,
-        "best_home_odds":     best_home_odds,
-        "game_time_et":       _parse_game_time_et(event.get("commence_utc", "")),
-        "series_game_number": event.get("series_game_number"),
-        "games_in_series":    event.get("games_in_series"),
-    }
-    situations_result = check_situations(
-        away_code, home_code,
-        _sit_game_data,
-        sp_data={"away": away_sp, "home": home_sp},
-        bullpen_data={"away": away_bp, "home": home_bp},
-        market_data=market,
-        offense_data={"away": away_off, "home": home_off},
-    )
-    if situations_result.get("triggered"):
-        _sit_labels = " | ".join(situations_result.get("labels", []))
-        print(f"  SITUATIONS ({situations_result['n_triggered']}): {_sit_labels}"
-              + (" ⚡STACK" if situations_result.get("situation_stack") else ""))
+    # (situations_result computed earlier, before the win-prob blend — B7)
 
     # ── Conviction ────────────────────────────────────────────────────────────
     away_conv = _conviction(away_edge, away_model_p, away_bp, market)
