@@ -1,12 +1,18 @@
 {
-  "timestamp": "2026-07-13T01:04:57Z",
-  "date": "2026-07-12",
-  "window": "west",
+  "timestamp": "2026-07-13T17:07:19Z",
+  "date": "2026-07-13",
+  "window": "day",
   "bankroll": 163.55,
   "games": [],
   "bets": [],
   "passes": [],
   "slip_sent": false,
   "sent_pick_ids": [],
-  "slip_quality": "bad"
+  "slip_quality": "bad",
+  "data_health": {
+    "odds": "failed"
+  },
+  "sp_missing_suppressed": [],
+  "analysis_failures": [],
+  "persist_failures": []
 }
