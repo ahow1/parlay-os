@@ -110,3 +110,75 @@ class TestTelegramFalseSuccess:
              patch.object(brain.requests, "post") as mock_post:
             brain._send_telegram("test message")
         mock_post.assert_not_called()
+
+
+# ── B10: stuck-pending bankroll deflation ─────────────────────────────────────
+
+def _mock_bets(today_str, old_str):
+    """Realistic bets table rows: one win, one loss, one fresh pending
+    (today), one stuck pending (old_str, >48h in the past, no result)."""
+    return [
+        {"date": today_str, "stake": 20.0, "result": "W", "bet_odds": "-110"},
+        {"date": today_str, "stake": 10.0, "result": "L", "bet_odds": "-110"},
+        {"date": today_str, "stake": 15.0, "result": None, "bet_odds": "-120"},
+        {"date": old_str,   "stake": 50.0, "result": None, "bet_odds": "+150"},
+    ]
+
+
+class TestStuckPendingBankroll:
+    """B10: current_bankroll() must exclude orphaned (>48h past game date,
+    still unresolved) pending bets from its deduction, and those bets must be
+    surfaced via a dedicated getter so they're operator-visible."""
+
+    def _dates(self):
+        today = datetime.now(timezone.utc)
+        old = today - timedelta(days=5)
+        return today.strftime("%Y-%m-%d"), old.strftime("%Y-%m-%d")
+
+    def test_get_stuck_pending_bets_returns_only_old_unresolved(self):
+        from bankroll_engine import get_stuck_pending_bets
+        today_str, old_str = self._dates()
+        with patch("bankroll_engine._db.get_bets", return_value=_mock_bets(today_str, old_str)):
+            stuck = get_stuck_pending_bets()
+        assert len(stuck) == 1
+        assert stuck[0]["date"] == old_str
+        assert stuck[0]["stake"] == 50.0
+
+    def test_fresh_pending_bet_not_flagged_stuck(self):
+        from bankroll_engine import get_stuck_pending_bets
+        today_str, old_str = self._dates()
+        with patch("bankroll_engine._db.get_bets", return_value=_mock_bets(today_str, old_str)):
+            stuck = get_stuck_pending_bets()
+        assert all(b["date"] != today_str for b in stuck)
+
+    def test_current_bankroll_excludes_stuck_pending_stake(self):
+        """The $50 stuck pending stake must NOT be subtracted — only the real
+        $15 fresh-pending exposure should reduce bankroll below settled P&L."""
+        from bankroll_engine import current_bankroll
+        from math_engine import STARTING_BANKROLL, american_to_decimal
+        today_str, old_str = self._dates()
+        env = dict(os.environ)
+        env.pop("BANKROLL_OVERRIDE", None)
+        with patch.dict(os.environ, env, clear=True), \
+             patch("bankroll_engine._db.get_bets", return_value=_mock_bets(today_str, old_str)):
+            result = current_bankroll()
+
+        win_gain = (american_to_decimal("-110") - 1) * 20.0
+        expected_with_stuck_excluded = round(STARTING_BANKROLL + win_gain - 10.0 - 15.0, 2)
+        expected_if_stuck_wrongly_deducted = round(expected_with_stuck_excluded - 50.0, 2)
+
+        assert result == expected_with_stuck_excluded
+        assert result != expected_if_stuck_wrongly_deducted
+
+    def test_stuck_pending_alert_message_empty_when_no_stuck_bets(self):
+        from brain import _stuck_pending_alert_message
+        assert _stuck_pending_alert_message([]) == ""
+
+    def test_stuck_pending_alert_message_mentions_count_and_total(self):
+        from brain import _stuck_pending_alert_message
+        msg = _stuck_pending_alert_message([
+            {"date": "2026-06-01", "stake": 50.0, "result": None},
+            {"date": "2026-06-02", "stake": 25.0, "result": None},
+        ])
+        assert "2" in msg
+        assert "75.00" in msg

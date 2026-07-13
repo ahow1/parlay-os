@@ -40,7 +40,7 @@ from market_engine  import get_mlb_events, full_market_snapshot
 from bankroll_engine import (
     kelly_stake, sizing_summary, current_bankroll, sizing_bankroll, peak_bankroll, is_drawdown_pause,
     daily_budget, daily_budget_pct, pool_budget, pool_exposure, pool_remaining,
-    drawdown_tier, growth_tracker, MIN_STAKE,
+    drawdown_tier, growth_tracker, MIN_STAKE, get_stuck_pending_bets,
 )
 from profile_engine import update_sp_profile, update_hitter_profile, update_bullpen_profile
 from props_engine   import (
@@ -2644,6 +2644,19 @@ def _send_telegram(msg: str) -> bool:
         return False
 
 
+def _stuck_pending_alert_message(stuck_bets: list) -> str:
+    """Build the operator-facing alert for orphaned pending bets (AUDIT.md B10).
+    Returns "" if there are none — caller should skip sending in that case."""
+    if not stuck_bets:
+        return ""
+    total = round(sum(float(b.get("stake") or 0) for b in stuck_bets), 2)
+    return (
+        f"⚠️ {len(stuck_bets)} STUCK PENDING BET(S) — ${total:.2f} total stake, "
+        f">48h past game date with no result. Excluded from bankroll calc — "
+        f"needs manual settlement review."
+    )
+
+
 def _generate_pick_narrative(analysis: dict, side: str) -> str:
     """One-line narrative bullet for a pick — why the model likes it."""
     sp_key   = f"{side}_sp"
@@ -3096,6 +3109,13 @@ def run_daily_scout(window: str = "all"):
         print(f"[DRAWDOWN] {_dd_status['pct']:.1f}% — props only mode, ML bets blocked, stakes at 50%")
     elif _dd_status["tier"] == 1:
         print(f"[DRAWDOWN] {_dd_status['pct']:.1f}% — minor drawdown, stakes at 75%")
+
+    # Stuck-pending alert: bets >48h past game date with no result silently
+    # deflate current_bankroll() (AUDIT.md B10) — surface them instead.
+    _stuck_msg = _stuck_pending_alert_message(get_stuck_pending_bets())
+    if _stuck_msg:
+        print(_stuck_msg)
+        _send_telegram(_stuck_msg)
 
     # Stop-loss circuit breaker: halt picks if today's loss exceeds 3% of bankroll
     from bankroll_engine import is_daily_stop_loss_active as _stop_loss_active, daily_pnl as _daily_pnl

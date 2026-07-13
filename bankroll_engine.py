@@ -4,9 +4,14 @@ Starting bankroll: $150.
 """
 
 import os
-from datetime import date
+from datetime import date, datetime, timezone
 import db as _db
 from math_engine import STARTING_BANKROLL, american_to_decimal
+
+# A pending bet whose game date is this far in the past with no result is
+# almost certainly orphaned (postponed/rescheduled game, API gap, settlement
+# mismatch) rather than real open exposure — see AUDIT.md B10.
+STUCK_PENDING_HOURS = 48
 
 # ── Drawdown tiers ─────────────────────────────────────────────────────────────
 DRAWDOWN_MINOR      = 0.10   # -10%: reduce stakes 25%
@@ -54,6 +59,35 @@ _POOL_BET_TYPES = {
 
 # ── Bankroll queries ───────────────────────────────────────────────────────────
 
+def _bet_age_hours(bet: dict) -> float | None:
+    """Hours elapsed since this bet's logged (game) date began, UTC basis.
+    Returns None if the date is missing/unparsable."""
+    bet_date = bet.get("date")
+    if not bet_date:
+        return None
+    try:
+        bet_dt = datetime.strptime(bet_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        return None
+    return (datetime.now(timezone.utc) - bet_dt).total_seconds() / 3600.0
+
+
+def _is_stuck_pending(bet: dict, hours: float = STUCK_PENDING_HOURS) -> bool:
+    """A pending bet is 'stuck' if it's unresolved and its game date is more
+    than `hours` in the past — see AUDIT.md B10."""
+    if bet.get("result"):
+        return False
+    age = _bet_age_hours(bet)
+    return age is not None and age > hours
+
+
+def get_stuck_pending_bets(hours: float = STUCK_PENDING_HOURS) -> list:
+    """Pending bets that are almost certainly orphaned rather than real open
+    exposure — surfaced so they're operator-visible instead of silently
+    deflating current_bankroll()."""
+    return [b for b in _db.get_bets() if _is_stuck_pending(b, hours)]
+
+
 def current_bankroll() -> float:
     override = os.getenv("BANKROLL_OVERRIDE")
     if override:
@@ -70,7 +104,10 @@ def current_bankroll() -> float:
                 current += (dec - 1) * stake
         elif result == "L":
             current -= stake
-    pending = sum(float(b.get("stake") or 0) for b in bets if not b.get("result"))
+    pending = sum(
+        float(b.get("stake") or 0) for b in bets
+        if not b.get("result") and not _is_stuck_pending(b)
+    )
     return round(current - pending, 2)
 
 
