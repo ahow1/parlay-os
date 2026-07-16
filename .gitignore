@@ -9,3 +9,4 @@ data_cache/
 *.log
 *.swp
 runlog.txt
+sgo_cache.json
