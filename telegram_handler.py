@@ -34,6 +34,13 @@ CHAT_ID      = os.getenv("TELEGRAM_CHAT_ID", "")
 ODDS_API_KEY = os.getenv("ODDS_API_KEY", "")
 ET           = pytz.timezone("America/New_York")
 
+# CLV closing-line source. "oddsapi" (default) = the-odds-api Pinnacle/DK path,
+# unchanged. "sgo" = SportsGameOdds no-vig consensus (math_engine.no_vig_prob()
+# averaged across SGO's soft books, see sportsgameodds_client.no_vig_consensus).
+# Only affects which closing line CLV grading reads — does not touch pick
+# generation, staking, or the Telegram slip.
+ODDS_SOURCE  = os.getenv("ODDS_SOURCE", "oddsapi").strip().lower()
+
 _LISTENER_LOCK = "/tmp/parlay_os_tg.lock"
 
 
@@ -187,6 +194,43 @@ def sync_scout_json():
 # ── CLV FETCH ─────────────────────────────────────────────────────────────────
 
 def _fetch_closing_odds(team_code: str, bet_type: str = "ML") -> str | None:
+    """Closing-line odds for CLV grading. Source controlled by ODDS_SOURCE
+    (oddsapi | sgo) — defaults to oddsapi so existing behavior is unchanged
+    unless explicitly opted in."""
+    if ODDS_SOURCE == "sgo":
+        return _fetch_closing_odds_sgo(team_code, bet_type)
+    return _fetch_closing_odds_oddsapi(team_code, bet_type)
+
+
+def _fetch_closing_odds_sgo(team_code: str, bet_type: str = "ML") -> str | None:
+    """Pull the SGO no-vig consensus line for a team (ODDS_SOURCE=sgo)."""
+    from constants import MLB_TEAM_NAMES
+    from sportsgameodds_client import fetch_mlb_slate, no_vig_consensus
+    names = [n.lower() for n in MLB_TEAM_NAMES.get(team_code, [team_code])]
+
+    market = "totals" if bet_type.startswith(("O", "U")) else "moneyline"
+    try:
+        slate = fetch_mlb_slate()
+    except Exception as e:
+        print(f"[CLV] SGO slate fetch failed: {e}")
+        return None
+
+    for ev in slate.values():
+        away_match = any(n in ev["away"].lower() for n in names)
+        home_match = any(n in ev["home"].lower() for n in names)
+        if not (away_match or home_match):
+            continue
+        consensus = no_vig_consensus(ev, market=market)
+        if not consensus:
+            continue
+        if market == "moneyline":
+            return consensus["away_american"] if away_match else consensus["home_american"]
+        side = "over" if bet_type.upper().startswith("O") else "under"
+        return consensus.get(f"{side}_american")
+    return None
+
+
+def _fetch_closing_odds_oddsapi(team_code: str, bet_type: str = "ML") -> str | None:
     """Pull Pinnacle odds for a team from the-odds-api (used as closing line)."""
     if not ODDS_API_KEY:
         return None

@@ -380,3 +380,127 @@ class TestWireIn4PreGameClvCapture:
         src = inspect.getsource(brain)
         bot_block = src[src.index('if "--bot" in args:'):src.index('elif "--live" in args:')]
         assert "run_pre_game_clv_loop" in bot_block
+
+
+# ── SGO wire-in Step 3: ODDS_SOURCE flag + SGO CLV grading ─────────────────────
+
+class TestOddsSourceFlag:
+    """ODDS_SOURCE (oddsapi | sgo) picks which closing-line source CLV
+    grading reads. Defaults to oddsapi so existing behavior is unchanged
+    unless explicitly opted in — bet generation, staking, and the Telegram
+    slip never touch this flag."""
+
+    def test_default_source_is_oddsapi(self, monkeypatch):
+        monkeypatch.delenv("ODDS_SOURCE", raising=False)
+        import importlib
+        import telegram_handler
+        importlib.reload(telegram_handler)
+        assert telegram_handler.ODDS_SOURCE == "oddsapi"
+
+    def test_dispatcher_routes_to_oddsapi_by_default(self):
+        import telegram_handler
+        with patch.object(telegram_handler, "ODDS_SOURCE", "oddsapi"), \
+             patch.object(telegram_handler, "_fetch_closing_odds_oddsapi", return_value="-130") as m_api, \
+             patch.object(telegram_handler, "_fetch_closing_odds_sgo", return_value="+999") as m_sgo:
+            result = telegram_handler._fetch_closing_odds("LAD", "ML")
+        assert result == "-130"
+        m_api.assert_called_once_with("LAD", "ML")
+        m_sgo.assert_not_called()
+
+    def test_dispatcher_routes_to_sgo_when_flagged(self):
+        import telegram_handler
+        with patch.object(telegram_handler, "ODDS_SOURCE", "sgo"), \
+             patch.object(telegram_handler, "_fetch_closing_odds_oddsapi", return_value="-130") as m_api, \
+             patch.object(telegram_handler, "_fetch_closing_odds_sgo", return_value="+999") as m_sgo:
+            result = telegram_handler._fetch_closing_odds("LAD", "ML")
+        assert result == "+999"
+        m_sgo.assert_called_once_with("LAD", "ML")
+        m_api.assert_not_called()
+
+    @staticmethod
+    def _fake_sgo_event():
+        return {
+            "event_id": "evtX",
+            "home": "Los Angeles Dodgers",
+            "away": "San Francisco Giants",
+            "moneyline": {
+                "away": {"draftkings": {"american": 145}, "fanduel": {"american": 140}},
+                "home": {"draftkings": {"american": -160}, "fanduel": {"american": -155}},
+            },
+            "totals": {"line": 8.5, "over": {}, "under": {}},
+        }
+
+    def test_sgo_fetch_matches_team_and_returns_no_vig_consensus(self):
+        import telegram_handler
+        from sportsgameodds_client import no_vig_consensus
+        slate = {"evtX": self._fake_sgo_event()}
+        expected = no_vig_consensus(slate["evtX"], market="moneyline")["away_american"]
+
+        with patch("sportsgameodds_client.fetch_mlb_slate", return_value=slate):
+            closing = telegram_handler._fetch_closing_odds_sgo("SF", "ML")
+
+        assert closing == expected
+
+    def test_sgo_fetch_matches_home_side_too(self):
+        import telegram_handler
+        from sportsgameodds_client import no_vig_consensus
+        slate = {"evtX": self._fake_sgo_event()}
+        expected = no_vig_consensus(slate["evtX"], market="moneyline")["home_american"]
+
+        with patch("sportsgameodds_client.fetch_mlb_slate", return_value=slate):
+            closing = telegram_handler._fetch_closing_odds_sgo("LAD", "ML")
+
+        assert closing == expected
+
+    def test_sgo_fetch_returns_none_when_team_not_in_slate(self):
+        import telegram_handler
+        slate = {"evtX": self._fake_sgo_event()}
+        with patch("sportsgameodds_client.fetch_mlb_slate", return_value=slate):
+            closing = telegram_handler._fetch_closing_odds_sgo("NYY", "ML")
+        assert closing is None
+
+
+class TestSgoClvGradingEndToEnd:
+    """Full pipeline: a pending pick in the bets table, ODDS_SOURCE=sgo, and
+    capture_pre_game_clv() must grade it against the SGO no-vig consensus
+    closing line — same clv_log write path as the oddsapi source, only the
+    line's origin changes."""
+
+    @pytest.fixture(autouse=True)
+    def _isolated_db(self, tmp_path):
+        import db
+        tmp_db = str(tmp_path / "sgo_clv_e2e.db")
+        with patch.object(db, "DB_PATH", tmp_db):
+            db.init_db()
+            yield db
+
+    def _today_et(self) -> str:
+        import pytz
+        from datetime import datetime as _dt
+        return _dt.now(pytz.timezone("America/New_York")).strftime("%Y-%m-%d")
+
+    def test_pending_ml_pick_graded_against_sgo_consensus(self, _isolated_db, monkeypatch):
+        import bankroll_engine
+        import telegram_handler
+        from sportsgameodds_client import no_vig_consensus
+
+        _isolated_db.log_bet(
+            date=self._today_et(), bet="SF", bet_type="ML", game="SF @ LAD",
+            sp="Logan Webb", park="LAD", umpire="",
+            bet_odds="+150", model_prob=0.44, market_prob=0.40,
+            edge_pct=4.0, conviction="MEDIUM", stake=15.0,
+        )
+
+        slate = {"evtX": TestOddsSourceFlag._fake_sgo_event()}
+        expected_closing = no_vig_consensus(slate["evtX"], market="moneyline")["away_american"]
+
+        monkeypatch.setattr(telegram_handler, "ODDS_SOURCE", "sgo")
+        with patch("sportsgameodds_client.fetch_mlb_slate", return_value=slate):
+            written = bankroll_engine.capture_pre_game_clv()
+
+        assert written == 1
+        rows = _isolated_db.get_clv_log(days=1)
+        assert len(rows) == 1
+        assert rows[0]["bet"] == "SF"
+        assert rows[0]["closing_odds"] == expected_closing
+        assert rows[0]["clv_pct"] is not None
