@@ -145,6 +145,34 @@ def init_db():
             profit       REAL
         );
 
+        CREATE TABLE IF NOT EXISTS bets_archive (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            orig_id      INTEGER,
+            date         TEXT NOT NULL,
+            timestamp    TEXT NOT NULL,
+            bet          TEXT NOT NULL,
+            type         TEXT,
+            game         TEXT,
+            sp           TEXT,
+            park         TEXT,
+            umpire       TEXT,
+            bet_odds     TEXT,
+            model_prob   REAL,
+            market_prob  REAL,
+            edge_pct     REAL,
+            conviction   TEXT,
+            stake        REAL,
+            closing_odds TEXT,
+            clv_pct      REAL,
+            result       TEXT,
+            game_score   TEXT,
+            notes        TEXT,
+            verify_hash  TEXT,
+            profit       REAL,
+            archived_at    TEXT NOT NULL,
+            archive_reason TEXT
+        );
+
         CREATE TABLE IF NOT EXISTS bankroll_log (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             date         TEXT NOT NULL,
@@ -525,6 +553,34 @@ def get_bets(date=None, unresolved_only=False):
     q += " ORDER BY timestamp DESC"
     with _conn() as conn:
         return [dict(r) for r in conn.execute(q, params)]
+
+
+def archive_bets(bet_ids: list[int], reason: str) -> int:
+    """Move rows from bets to bets_archive (recoverable) instead of deleting them.
+    Returns the number of rows archived."""
+    if not bet_ids:
+        return 0
+    now = datetime.now(ET).isoformat()
+    placeholders = ",".join("?" * len(bet_ids))
+    with _conn() as conn:
+        rows = conn.execute(
+            f"SELECT * FROM bets WHERE id IN ({placeholders})", bet_ids
+        ).fetchall()
+        for r in rows:
+            conn.execute("""
+                INSERT INTO bets_archive
+                  (orig_id, date, timestamp, bet, type, game, sp, park, umpire,
+                   bet_odds, model_prob, market_prob, edge_pct, conviction, stake,
+                   closing_odds, clv_pct, result, game_score, notes, verify_hash,
+                   profit, archived_at, archive_reason)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """, (r["id"], r["date"], r["timestamp"], r["bet"], r["type"], r["game"],
+                  r["sp"], r["park"], r["umpire"], r["bet_odds"], r["model_prob"],
+                  r["market_prob"], r["edge_pct"], r["conviction"], r["stake"],
+                  r["closing_odds"], r["clv_pct"], r["result"], r["game_score"],
+                  r["notes"], r["verify_hash"], r["profit"], now, reason))
+        conn.execute(f"DELETE FROM bets WHERE id IN ({placeholders})", bet_ids)
+        return len(rows)
 
 
 # ─── BANKROLL ─────────────────────────────────────────────────────────────────
