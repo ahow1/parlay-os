@@ -1551,6 +1551,7 @@ def _daily_bet_slip(
     all_hitter_props: list | None = None,
     all_k_props: list | None = None,
     all_injuries: list | None = None,
+    all_er_props: list | None = None,
 ) -> bool:
     """Send the daily bet slip as 3 labeled Telegram messages.
     Returns True only if Part 1 was sent (HTTP 200) AND contained at least 1 bet."""
@@ -1559,7 +1560,7 @@ def _daily_bet_slip(
         f"locks={len(all_locks)} flips={len(all_flips)} props={len(all_props)} "
         f"fades={len(all_fades)} nrfi={len(all_nrfi or [])} totals={len(all_totals or [])} "
         f"k_props={len(all_k_props or [])} hitter_props={len(all_hitter_props or [])} "
-        f"injuries={len(all_injuries or [])} br=${br:.2f}"
+        f"er_props={len(all_er_props or [])} injuries={len(all_injuries or [])} br=${br:.2f}"
     )
     today     = date.today().strftime("%b %d, %Y")
     today_iso = datetime.now(ET).strftime("%Y-%m-%d")
@@ -1570,6 +1571,7 @@ def _daily_bet_slip(
     totals_bets = list(all_totals or [])
     hitter_bets = list(all_hitter_props or [])
     k_bets      = list(all_k_props or [])
+    er_bets     = list(all_er_props or [])
     injuries    = list(all_injuries or [])
 
     # Hard filter: never send $0-stake or negative-EV props
@@ -1925,10 +1927,29 @@ def _daily_bet_slip(
             "leg_label": leg,
         }
 
+    def _norm_er(b: dict) -> dict:
+        last     = b["sp"].split()[-1]
+        dir_abbr = "O" if b.get("direction") == "OVER" else "U"
+        leg      = f"{last} {dir_abbr}{b['line']} ER"
+        return {
+            "player":    b["sp"],
+            "team":      b.get("team", ""),
+            "game":      b.get("game", ""),
+            "stat":      f"ER {dir_abbr}{b['line']}",
+            "odds_str":  "-110",
+            "model_pct": round(b["model_p"] * 100, 1),
+            "model_p":   b["model_p"],
+            "market_p":  0.5,   # ER props use -110 baseline → 0.5 market_p
+            "edge_pct":  b["edge_pct"],
+            "stake":     b["stake"],
+            "leg_label": leg,
+        }
+
     # k_bets carry statcast_2025 flag from the scout; pass it through for the label
     all_player_props = (
         [_norm_k(b) for b in k_bets] +
-        [_norm_h(h) for h in hitter_bets]
+        [_norm_h(h) for h in hitter_bets] +
+        [_norm_er(b) for b in er_bets]
     )
     all_player_props = sorted(all_player_props, key=lambda x: x["edge_pct"], reverse=True)
     all_player_props = [p for p in all_player_props if p["edge_pct"] >= 5.0]
@@ -2155,9 +2176,11 @@ def _send_slip_update(
     all_hitter_props: list,
     today: str,
     br: float,
+    all_er_props: list | None = None,
 ) -> bool:
     """Send a brief Telegram update containing only newly-added picks plus a
     rebuilt parlay from ALL current locks. Returns True on successful send."""
+    all_er_props = all_er_props or []
 
     def _id_ml(a: dict, s: str) -> str:
         return f"ML:{a.get(f'{s}_name','')}:{a.get(f'best_{s}_odds','')}"
@@ -2173,6 +2196,9 @@ def _send_slip_update(
 
     def _id_hitter(h: dict) -> str:
         return f"HITTER:{h['player']}:{h.get('team','')}:{h['prop']}"
+
+    def _id_er(b: dict) -> str:
+        return f"ER:{b['sp']}:{b['line']}:{b.get('direction','')}"
 
     lines = [
         f"PARLAY OS — {today}",
@@ -2220,6 +2246,15 @@ def _send_slip_update(
         lines.append(
             f"🏏 PROP: {h['player']} ({h.get('team','')}) — "
             f"{h['prop']} — ${h['stake']:.2f} — EDGE: +{h['edge_pct']:.1f}%"
+        )
+
+    for b in all_er_props:
+        if b.get("edge_pct", 0) < 5.0 or _id_er(b) not in new_pick_ids:
+            continue
+        _dir_abbr = "O" if b.get("direction") == "OVER" else "U"
+        lines.append(
+            f"📊 PROP: {b['sp']} ({b.get('team','')}) — "
+            f"{_dir_abbr}{b['line']} ER — ${b['stake']:.2f} — EDGE: +{b['edge_pct']:.1f}%"
         )
 
     if len(lines) == 3:
@@ -3256,6 +3291,7 @@ def run_daily_scout(window: str = "all"):
     all_totals:       list = []   # {game, direction, line, prob, stake}
     all_hitter_props: list = []   # {player, team, prop, stake, edge_pct, ...}
     all_k_props:      list = []   # {sp, game, line, p_over, edge_pct, stake}
+    all_er_props:     list = []   # {sp, game, line, direction, model_p, edge_pct, stake}
     all_injuries:     list = []   # injury warning strings — collected, sent in slip
     game_key_map:     dict = {}   # (away_code, home_code) → analysis
     props_games:      list = []   # per-game props data for props_output.json
@@ -3514,6 +3550,19 @@ def run_daily_scout(window: str = "all"):
                                                   market_line=_er_market_line)
                     if _er_res:
                         print(f"  ER PROP [{_er_side}]: {er_prop_telegram_line(_er_res)}")
+                        _er_stake = kelly_stake(_er_res.get("model_p", 0.55), "-110", "PROP")
+                        all_er_props.append({
+                            "sp":         _er_res.get("sp_name", _er_sp.get("name")),
+                            "team":       analysis.get(_er_side, ""),
+                            "game":       _game_lbl_kp,
+                            "line":       _er_res.get("market_line", _er_market_line),
+                            "direction":  _er_res.get("direction", "OVER"),
+                            "model_p":    _er_res.get("model_p", 0.55),
+                            "market_p":   0.5,
+                            "edge_pct":   _er_res.get("edge_pct", 0),
+                            "stake":      _er_stake,
+                            "confidence": _er_res.get("confidence", 0),
+                        })
                 except Exception as _er_err:
                     pass
 
@@ -3764,6 +3813,15 @@ def run_daily_scout(window: str = "all"):
                 "p": _hb.get("model_prob", 0),
                 "game": _hb.get("game", ""),
             })
+    for _eb in all_er_props:
+        if _eb.get("edge_pct", 0) >= 3.0:
+            _dir_abbr = "O" if _eb.get("direction") == "OVER" else "U"
+            _top_props_all.append({
+                "label": f"{_eb['sp']} {_dir_abbr}{_eb['line']} ER",
+                "edge": _eb.get("edge_pct", 0),
+                "p": _eb.get("model_p", 0),
+                "game": _eb.get("game", ""),
+            })
     _top_props_all.sort(key=lambda x: x["edge"], reverse=True)
     _top_props_3 = _top_props_all[:3]
     if _top_props_3:
@@ -3881,6 +3939,9 @@ def run_daily_scout(window: str = "all"):
     def _pick_id_hitter(h: dict) -> str:
         return f"HITTER:{h['player']}:{h.get('team','')}:{h['prop']}"
 
+    def _pick_id_er(b: dict) -> str:
+        return f"ER:{b['sp']}:{b['line']}:{b.get('direction','')}"
+
     current_pick_ids: set = set()
     for a, s in all_locks + all_flips:
         current_pick_ids.add(_pick_id_ml(a, s))
@@ -3894,6 +3955,9 @@ def run_daily_scout(window: str = "all"):
     for h in all_hitter_props:
         if h.get("edge_pct", 0) >= 5.0:
             current_pick_ids.add(_pick_id_hitter(h))
+    for b in all_er_props:
+        if b.get("edge_pct", 0) >= 5.0:
+            current_pick_ids.add(_pick_id_er(b))
 
     # ── Check if a slip was already sent today ─────────────────────────────────
     prev_pick_ids: set = set()
@@ -3954,18 +4018,21 @@ def run_daily_scout(window: str = "all"):
             new_ml_pick_ids, all_locks, all_flips,
             all_totals, all_nrfi, all_k_props, all_hitter_props,
             today, br,
+            all_er_props=all_er_props,
         )
     else:
         print(
             f"Building daily bet slip — "
             f"locks={len(all_locks)} flips={len(all_flips)} nrfi={len(all_nrfi)} "
             f"totals={len(all_totals)} k_props={len(all_k_props)} "
-            f"hitter_props={len(all_hitter_props)} injuries={len(all_injuries)}"
+            f"hitter_props={len(all_hitter_props)} er_props={len(all_er_props)} "
+            f"injuries={len(all_injuries)}"
         )
         try:
             _slip_sent_ok = _daily_bet_slip(
                 all_locks, all_flips, all_sgp, all_fades, br,
                 all_nrfi, all_totals, all_hitter_props, all_k_props, all_injuries,
+                all_er_props=all_er_props,
             )
         except Exception as slip_err:
             print(f"Daily slip EXCEPTION: {slip_err}")

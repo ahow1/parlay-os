@@ -287,6 +287,67 @@ class TestWireIn3AllBetTypesLogged:
         assert any("Logan Webb" in n for n in names)
         assert any("Mookie Betts" in n for n in names)
 
+    def test_earned_runs_prop_gets_a_bets_row(self, _isolated_db):
+        """analyze_earned_runs() computed a result but it was only print()ed —
+        never appended to any list, never sent, never logged. Fix: fold it
+        into the same all_player_props → _log_pick_with_retry('PROP', ...)
+        path K-props and hitter props already use."""
+        import brain
+        locks = [(self._mk_ml_analysis("Team A", "Team B", "away", "-150", 0.60, 20.0), "away")]
+        all_er_props = [{
+            "sp": "Jacob deGrom", "team": "TEX", "game": "TEX @ HOU", "line": 2.5,
+            "direction": "UNDER", "model_p": 0.63, "market_p": 0.5,
+            "edge_pct": 13.0, "stake": 7.0, "confidence": 70,
+        }]
+        brain._daily_bet_slip(
+            locks, [], [], [], 1000.0,
+            all_er_props=all_er_props,
+        )
+        rows = [b for b in _isolated_db.get_bets() if b.get("type") == "PROP"]
+        assert len(rows) == 1
+        assert "deGrom" in rows[0]["bet"]
+        assert "ER" in rows[0]["bet"]
+        assert rows[0]["stake"] == 7.0
+        assert rows[0]["edge_pct"] == 13.0
+
+    def test_earned_runs_prop_appears_alongside_k_and_hitter_props(self, _isolated_db):
+        """All three player-prop sources feed the same all_player_props list —
+        confirm ER doesn't crowd out or get crowded out by K/hitter props."""
+        self._call_slip_with_er()
+        rows = [b for b in _isolated_db.get_bets() if b.get("type") == "PROP"]
+        assert len(rows) == 3
+        names = {r["bet"] for r in rows}
+        assert any("Logan Webb" in n for n in names)
+        assert any("Mookie Betts" in n for n in names)
+        assert any("deGrom" in n for n in names)
+
+    def _call_slip_with_er(self):
+        import brain
+        locks = [
+            (self._mk_ml_analysis("Team A", "Team B", "away", "-150", 0.60, 20.0), "away"),
+            (self._mk_ml_analysis("Team C", "Team D", "home", "-150", 0.60, 20.0), "home"),
+        ]
+        all_k_props = [{
+            "sp": "Logan Webb", "team": "SF", "game": "SF @ LAD", "line": 6.5,
+            "p_over": 0.65, "market_p": 0.5, "edge_pct": 15.0, "stake": 9.0,
+            "statcast_2025": False,
+        }]
+        all_hitter_props = [{
+            "player": "Mookie Betts", "team": "LAD", "prop": "Hits O1.5",
+            "line": 1.5, "model_prob": 0.62, "market_p": 0.5,
+            "edge_pct": 12.0, "stake": 8.0,
+        }]
+        all_er_props = [{
+            "sp": "Jacob deGrom", "team": "TEX", "game": "TEX @ HOU", "line": 2.5,
+            "direction": "UNDER", "model_p": 0.63, "market_p": 0.5,
+            "edge_pct": 13.0, "stake": 7.0, "confidence": 70,
+        }]
+        return brain._daily_bet_slip(
+            locks, [], [], [], 1000.0,
+            all_hitter_props=all_hitter_props, all_k_props=all_k_props,
+            all_er_props=all_er_props,
+        )
+
     def test_ml_parlay_gets_a_bets_row(self, _isolated_db):
         self._call_slip()
         rows = [b for b in _isolated_db.get_bets()
