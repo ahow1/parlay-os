@@ -208,7 +208,12 @@ def _fetch_closing_odds_sgo(team_code: str, bet_type: str = "ML") -> str | None:
     from sportsgameodds_client import fetch_mlb_slate, no_vig_consensus
     names = [n.lower() for n in MLB_TEAM_NAMES.get(team_code, [team_code])]
 
-    market = "totals" if bet_type.startswith(("O", "U")) else "moneyline"
+    if bet_type.startswith("RUNLINE"):
+        market = "spreads"
+    elif bet_type.startswith(("O", "U")):
+        market = "totals"
+    else:
+        market = "moneyline"
     try:
         slate = fetch_mlb_slate()
     except Exception as e:
@@ -223,7 +228,9 @@ def _fetch_closing_odds_sgo(team_code: str, bet_type: str = "ML") -> str | None:
         consensus = no_vig_consensus(ev, market=market)
         if not consensus:
             continue
-        if market == "moneyline":
+        # moneyline and spreads both key off away/home — grade the run-line bet
+        # against the spread consensus (not moneyline), same team-side lookup.
+        if market in ("moneyline", "spreads"):
             return consensus["away_american"] if away_match else consensus["home_american"]
         side = "over" if bet_type.upper().startswith("O") else "under"
         return consensus.get(f"{side}_american")
@@ -238,7 +245,9 @@ def _fetch_closing_odds_oddsapi(team_code: str, bet_type: str = "ML") -> str | N
     names = MLB_TEAM_NAMES.get(team_code, [team_code])
 
     market_key = "h2h"
-    if bet_type.startswith(("O", "U")):
+    if bet_type.startswith("RUNLINE"):
+        market_key = "spreads"
+    elif bet_type.startswith(("O", "U")):
         market_key = "totals"
 
     try:
@@ -1278,7 +1287,7 @@ def _f5_runs(game_pk: int, game: dict) -> tuple[int, int]:
 def _determine_outcome(bet: dict, game: dict, side: str) -> str | None:
     """
     W/L/P based on bet type and final score. Returns None if undetermined.
-    Handles: ML, F5, O{line}, U{line}
+    Handles: ML, F5, O{line}, U{line}, RUNLINE{+/-1.5}
     """
     bet_type = (bet.get("type") or "ML").strip().upper()
     teams    = game.get("teams", {})
@@ -1307,6 +1316,20 @@ def _determine_outcome(bet: dict, game: dict, side: str) -> str | None:
             return None
         if our_f5 > opp_f5:  return "W"
         if our_f5 < opp_f5:  return "L"
+        return "P"
+
+    # Run line — e.g. "RUNLINE-1.5" (favorite, must win by 2+) or "RUNLINE+1.5"
+    # (underdog, covers unless it loses by 2+). MLB run line is fixed at ±1.5,
+    # so a push is impossible, but the branch mirrors O/U's shape for safety.
+    if bet_type.startswith("RUNLINE"):
+        try:
+            line = float(bet_type[len("RUNLINE"):])
+        except ValueError:
+            return None
+        margin  = our_score - opp_score
+        covered = margin + line
+        if covered > 0:  return "W"
+        if covered < 0:  return "L"
         return "P"
 
     # Over / Under — e.g. "O8.5", "U7.5"

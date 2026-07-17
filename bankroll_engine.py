@@ -24,6 +24,7 @@ DRAWDOWN_PAUSE      = 0.20   # -20%: full pause + Telegram alert
 POOL_ML     = 2.00
 POOL_PROPS  = 0.60
 POOL_PARLAY = 0.15
+POOL_RUNLINE = POOL_ML   # mirrors the ML bucket — same market shape (game-level side pick)
 
 MAX_STAKE_PCT = 0.15   # absolute safety backstop: 15% of bankroll per bet (tier ceilings below stay under this)
 MIN_STAKE     = 1.00   # minimum recommended stake
@@ -49,11 +50,14 @@ CONVICTION_BANDS = {
     "PROP":   (15.0 / 300, 20.0 / 300),
 }
 
-# Which bet_type strings belong to each pool
+# Which bet_type strings belong to each pool. RUNLINE bet_type carries the fixed
+# MLB line as a suffix (RUNLINE-1.5 / RUNLINE+1.5) so settlement/CLV grading can
+# tell favorite from underdog — see _determine_outcome() in telegram_handler.py.
 _POOL_BET_TYPES = {
-    "ML":     {"ML", "STRAIGHT", "MONEYLINE", "F5"},
-    "PROPS":  {"PROP", "PLAYER_PROP", "NRFI", "TOTAL"},
-    "PARLAY": {"PARLAY"},
+    "ML":      {"ML", "STRAIGHT", "MONEYLINE", "F5"},
+    "PROPS":   {"PROP", "PLAYER_PROP", "NRFI", "TOTAL"},
+    "PARLAY":  {"PARLAY"},
+    "RUNLINE": {"RUNLINE-1.5", "RUNLINE+1.5"},
 }
 
 
@@ -267,7 +271,8 @@ def pool_budget(pool: str, br: float | None = None) -> float:
     if br is None:
         br = sizing_bankroll()
     budget = daily_budget(br)
-    pct = {"ML": POOL_ML, "PROPS": POOL_PROPS, "PARLAY": POOL_PARLAY}.get(pool.upper(), 0)
+    pct = {"ML": POOL_ML, "PROPS": POOL_PROPS, "PARLAY": POOL_PARLAY,
+           "RUNLINE": POOL_RUNLINE}.get(pool.upper(), 0)
     return round(budget * pct, 2)
 
 
@@ -418,6 +423,7 @@ def sizing_summary(model_prob: float, odds: str, conviction: str) -> dict:
         "pool_ml_remaining":      pool_remaining("ML", br),
         "pool_props_remaining":   pool_remaining("PROPS", br),
         "pool_parlay_remaining":  pool_remaining("PARLAY", br),
+        "pool_runline_remaining": pool_remaining("RUNLINE", br),
         "recommended_stake":      stake,
         "conviction":             conviction,
     }
@@ -587,6 +593,7 @@ if __name__ == "__main__":
     print(f"  ML pool:        ${pool_budget('ML', br):.2f} / remaining ${pool_remaining('ML', br):.2f}")
     print(f"  PROPS pool:     ${pool_budget('PROPS', br):.2f} / remaining ${pool_remaining('PROPS', br):.2f}")
     print(f"  PARLAY pool:    ${pool_budget('PARLAY', br):.2f} / remaining ${pool_remaining('PARLAY', br):.2f}")
+    print(f"  RUNLINE pool:   ${pool_budget('RUNLINE', br):.2f} / remaining ${pool_remaining('RUNLINE', br):.2f}")
     stake = kelly_stake(0.55, "+130", "HIGH")
     print(f"Kelly stake (55% prob, +130, HIGH): ${stake:.2f}")
     gt = growth_tracker()

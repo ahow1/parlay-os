@@ -144,6 +144,46 @@ def game_total_prob(away_xr: float, home_xr: float, total_line: float) -> dict:
     }
 
 
+# ── RUN LINE (±1.5) ───────────────────────────────────────────────────────────
+
+def _poisson_pmf(lam: float, k: int) -> float:
+    return (lam ** k) * math.exp(-lam) / math.factorial(k)
+
+
+def _prob_margin_at_least(lam_a: float, lam_b: float, k: int, cap: int = 25) -> float:
+    """P(A - B >= k) where A ~ Poisson(lam_a), B ~ Poisson(lam_b), independent.
+    No closed form in pure Python (that's scipy.stats.skellam, which isn't
+    installed in the GitHub Actions scout jobs — they only pip install
+    requests/pytz/flask/flask-cors) — so this sums P(B=b) * P(A >= b+k) over
+    a run-count range wide enough that the Poisson tail beyond it is
+    negligible for MLB-scale run totals."""
+    total = 0.0
+    for b in range(0, cap + 1):
+        pb = _poisson_pmf(lam_b, b)
+        need = b + k
+        p_a_ge = 1.0 if need <= 0 else (1.0 - poisson_cdf(lam_a, need - 1))
+        total += pb * p_a_ge
+    return round(min(max(total, 0.0), 1.0), 4)
+
+
+def run_line_prob(away_xr: float, home_xr: float) -> dict:
+    """
+    P(away covers -1.5), P(away covers +1.5), and the same for home.
+    MLB run line is fixed at +/-1.5 — whichever side is favored by the market
+    carries -1.5, the other +1.5. Away/home runs modeled as independent
+    Poisson(away_xr)/Poisson(home_xr), same run-expectancy inputs as the
+    moneyline and totals models.
+    """
+    p_away_minus_1_5 = _prob_margin_at_least(away_xr, home_xr, 2)   # away wins by 2+
+    p_home_minus_1_5 = _prob_margin_at_least(home_xr, away_xr, 2)   # home wins by 2+
+    return {
+        "away_minus_1_5": p_away_minus_1_5,
+        "home_plus_1_5":  round(1.0 - p_away_minus_1_5, 4),   # home covers unless away wins by 2+
+        "home_minus_1_5": p_home_minus_1_5,
+        "away_plus_1_5":  round(1.0 - p_home_minus_1_5, 4),   # away covers unless home wins by 2+
+    }
+
+
 def f5_run_expectancy(full_xr: float, sp_stats: dict) -> float:
     """Approximate F5 run expectancy: scale full-game by SP dominance + typical 5-inning share."""
     gs   = sp_stats.get("gs", 1) or 1

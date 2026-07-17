@@ -292,6 +292,24 @@ class TestNoVigConsensus:
         with pytest.raises(ValueError):
             sgo.no_vig_consensus(_fake_event(), market="spread")
 
+    def test_spreads_market_uses_away_home_run_line(self):
+        """RUNLINE grading (test_runline.py) depends on this: 'spreads' must
+        key off away/home like moneyline, not over/under like totals."""
+        odds = {
+            "sp-away": _fake_odd("points", "sp", "away", "away", spread=-1.5,
+                                  books={"draftkings": -130, "fanduel": -125}),
+            "sp-home": _fake_odd("points", "sp", "home", "home", spread=1.5,
+                                  books={"draftkings": 110, "fanduel": 105}),
+        }
+        ev = sgo._normalize_event(_fake_event(odds=odds))
+        consensus = sgo.no_vig_consensus(ev, market="spreads")
+        assert consensus["market"] == "spreads"
+        assert consensus["n_books"] == 2
+        assert "away_prob_pct" in consensus and "home_prob_pct" in consensus
+        assert "away_american" in consensus and "home_american" in consensus
+        # away is the -1.5 favorite here -> should imply >50% to cover
+        assert consensus["away_prob_pct"] > consensus["home_prob_pct"]
+
 
 class TestGetEventByTeams:
     def test_exact_match(self):

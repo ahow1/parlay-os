@@ -47,7 +47,7 @@ from profile_engine import update_sp_profile, update_hitter_profile, update_bull
 from props_engine   import (
     k_prop, nrfi_prob, team_run_expectancy, game_total_prob,
     f5_run_expectancy, correlated_parlay, scan_k_prop,
-    build_sgp_suggestions, prob_over,
+    build_sgp_suggestions, prob_over, run_line_prob,
 )
 from bet_type_validator import (
     validate_bet, BetValidationError, day_classification,
@@ -114,6 +114,18 @@ except ImportError:
     _STRIKEOUT_ENGINE_AVAILABLE = False
     def analyze_k_prop(*a, **k): return None
     def k_prop_telegram_line(*a): return ""
+
+# SGO client — run-line (spread) odds only come from SGO today (market_engine's
+# The-Odds-API path hardcodes f5/spreads out to avoid tripping the ML/totals
+# circuit breaker). Degrades to "no run-line picks" if the key/package is missing.
+try:
+    from sportsgameodds_client import fetch_mlb_slate, no_vig_consensus, get_event_by_teams
+    _SGO_AVAILABLE = True
+except ImportError:
+    _SGO_AVAILABLE = False
+    def fetch_mlb_slate(*a, **k): return {}
+    def no_vig_consensus(*a, **k): return None
+    def get_event_by_teams(*a, **k): return None
 
 try:
     from line_movement_engine import start_line_polling
@@ -1552,6 +1564,7 @@ def _daily_bet_slip(
     all_k_props: list | None = None,
     all_injuries: list | None = None,
     all_er_props: list | None = None,
+    all_runline: list | None = None,
 ) -> bool:
     """Send the daily bet slip as 3 labeled Telegram messages.
     Returns True only if Part 1 was sent (HTTP 200) AND contained at least 1 bet."""
@@ -1560,7 +1573,8 @@ def _daily_bet_slip(
         f"locks={len(all_locks)} flips={len(all_flips)} props={len(all_props)} "
         f"fades={len(all_fades)} nrfi={len(all_nrfi or [])} totals={len(all_totals or [])} "
         f"k_props={len(all_k_props or [])} hitter_props={len(all_hitter_props or [])} "
-        f"er_props={len(all_er_props or [])} injuries={len(all_injuries or [])} br=${br:.2f}"
+        f"er_props={len(all_er_props or [])} injuries={len(all_injuries or [])} "
+        f"runline={len(all_runline or [])} br=${br:.2f}"
     )
     today     = date.today().strftime("%b %d, %Y")
     today_iso = datetime.now(ET).strftime("%Y-%m-%d")
@@ -1573,10 +1587,12 @@ def _daily_bet_slip(
     k_bets      = list(all_k_props or [])
     er_bets     = list(all_er_props or [])
     injuries    = list(all_injuries or [])
+    runline_bets = list(all_runline or [])
 
     # Hard filter: never send $0-stake or negative-EV props
-    nrfi_bets   = [b for b in nrfi_bets   if (b.get("stake") or 0) > 0]
-    totals_bets = [b for b in totals_bets if (b.get("stake") or 0) > 0]
+    nrfi_bets    = [b for b in nrfi_bets    if (b.get("stake") or 0) > 0]
+    totals_bets  = [b for b in totals_bets  if (b.get("stake") or 0) > 0]
+    runline_bets = [b for b in runline_bets if (b.get("stake") or 0) > 0]
     k_bets      = [b for b in k_bets      if (b.get("stake") or 0) > 0]
     hitter_bets = [h for h in hitter_bets if (h.get("stake") or 0) > 0]
     all_props   = [p for p in (all_props or [])
@@ -1593,6 +1609,7 @@ def _daily_bet_slip(
     hitter_bets = sorted(hitter_bets, key=lambda h: h.get("edge_pct", 0), reverse=True)
     hitter_bets = [h for h in hitter_bets if _no_model_blowout(h)]
     totals_bets = sorted(totals_bets, key=lambda b: b.get("edge_pct", 0), reverse=True)[:5]
+    runline_bets = sorted(runline_bets, key=lambda b: b.get("edge_pct", 0), reverse=True)[:5]
 
     n_locks = len(locks)
     _has_props_today = bool(nrfi_bets or totals_bets or k_bets or hitter_bets or all_props)
@@ -1616,7 +1633,21 @@ def _daily_bet_slip(
     ml_pool_rem      = pool_remaining("ML", br)
     props_pool_rem   = pool_remaining("PROPS", br)
     parlay_pool_rem  = pool_remaining("PARLAY", br)
+    runline_pool_rem = pool_remaining("RUNLINE", br)
     budget           = daily_budget(br)
+
+    # Enforce RUNLINE pool budget — admit highest-edge run-line picks first
+    # until the pool is exhausted (own pool, mirrors the ML bucket — never
+    # competes with ML/PROPS/PARLAY budget).
+    _runline_spent = 0.0
+    _capped_runline: list = []
+    for _rb in runline_bets:
+        _s = float(_rb.get("stake") or 0)
+        if _runline_spent + _s > runline_pool_rem:
+            break
+        _capped_runline.append(_rb)
+        _runline_spent += _s
+    runline_bets = _capped_runline
 
     # Enforce props pool budget — admit highest-edge props first until pool is exhausted
     _props_spent = 0.0
@@ -1736,8 +1767,9 @@ def _daily_bet_slip(
         ml_win  += prl_win
 
     # Compute props_risk only from bets that appear in the slip.
-    nrfi_risk   = sum(b.get("stake", 0) for b in nrfi_bets)
-    totals_risk = sum(b.get("stake", 0) for b in totals_bets)
+    nrfi_risk    = sum(b.get("stake", 0) for b in nrfi_bets)
+    totals_risk  = sum(b.get("stake", 0) for b in totals_bets)
+    runline_risk = sum(b.get("stake", 0) for b in runline_bets)
     sgp_risk    = sum(p.get("kelly_stake", 0) or 0 for p in all_props[:2])
     # player_props_risk filled after all_player_props is assembled (below)
     total_risk = round(ml_risk, 2)   # updated after player props built
@@ -1972,7 +2004,7 @@ def _daily_bet_slip(
 
     # ── Final risk total — only from bets actually shown in the slip ──────────
     player_props_risk = sum(p["stake"] for p in all_player_props)
-    props_risk  = nrfi_risk + totals_risk + sgp_risk + player_props_risk
+    props_risk  = nrfi_risk + totals_risk + runline_risk + sgp_risk + player_props_risk
     total_risk  = round(ml_risk + props_risk, 2)
     if total_risk > cap and not override_cap:
         print(f"[SLIP] WARNING: displayed risk ${total_risk:.2f} > budget ${cap:.2f} "
@@ -2100,6 +2132,23 @@ def _daily_bet_slip(
         p3.append("📊 TOTALS: None today")
         p3.append("")
 
+    if runline_bets:
+        p3.append(f"🎯 RUN LINE ({len(runline_bets)} bets):")
+        for bet in runline_bets:
+            p3.append(
+                f"  {bet['game']} — {bet['team']} {bet['line']:+.1f} ({bet['prob']:.1%}) — "
+                f"${bet['stake']:.2f} — EDGE: +{bet['edge_pct']:.1f}%"
+            )
+            if not DRY_RUN:
+                _log_pick_with_retry(
+                    bet["bet_type"],
+                    date=today_iso, bet=bet["team"],
+                    game=bet["game"], bet_odds=bet["odds"],
+                    model_prob=bet["prob"], market_prob=bet["market_p"],
+                    edge_pct=bet["edge_pct"], conviction=bet["conviction"], stake=bet["stake"],
+                )
+        p3.append("")
+
     if all_fades:
         p3.append("❌ FADES:")
         seen_fade_teams:   set = set()
@@ -2142,13 +2191,13 @@ def _daily_bet_slip(
     # skip Telegram entirely — no "RED day" / "no edges" / empty-pool spam.
     _has_any_pick = bool(
         locks or flips or prl_valid
-        or nrfi_bets or totals_bets
+        or nrfi_bets or totals_bets or runline_bets
         or prop_locks or prop_flips or all_props
     )
     if not _has_any_pick:
         print(
             f"[SLIP] No qualified picks today (day={day_cls['color']}) — "
-            f"skipping Telegram send entirely (no locks/flips/props/totals/nrfi)."
+            f"skipping Telegram send entirely (no locks/flips/props/totals/nrfi/runline)."
         )
         return False
 
@@ -2177,16 +2226,21 @@ def _send_slip_update(
     today: str,
     br: float,
     all_er_props: list | None = None,
+    all_runline: list | None = None,
 ) -> bool:
     """Send a brief Telegram update containing only newly-added picks plus a
     rebuilt parlay from ALL current locks. Returns True on successful send."""
     all_er_props = all_er_props or []
+    all_runline  = all_runline or []
 
     def _id_ml(a: dict, s: str) -> str:
         return f"ML:{a.get(f'{s}_name','')}:{a.get(f'best_{s}_odds','')}"
 
     def _id_total(b: dict) -> str:
         return f"TOT:{b['game']}:{b['direction']}:{b['line']}"
+
+    def _id_runline(b: dict) -> str:
+        return f"RL:{b['game']}:{b['team']}:{b['line']}"
 
     def _id_nrfi(b: dict) -> str:
         return f"NRFI:{b['game']}:{b['direction']}"
@@ -2223,6 +2277,14 @@ def _send_slip_update(
             continue
         lines.append(
             f"📊 TOTAL: {b['game']} — {b['direction']} {b['line']} "
+            f"({b['prob']:.1%}) — ${b['stake']:.2f} — EDGE: +{b['edge_pct']:.1f}%"
+        )
+
+    for b in all_runline:
+        if _id_runline(b) not in new_pick_ids:
+            continue
+        lines.append(
+            f"🎯 RUN LINE: {b['game']} — {b['team']} {b['line']:+.1f} "
             f"({b['prob']:.1%}) — ${b['stake']:.2f} — EDGE: +{b['edge_pct']:.1f}%"
         )
 
@@ -3255,6 +3317,18 @@ def run_daily_scout(window: str = "all"):
     if not events:
         print("WARNING: 0 games returned — check ODDS_API_KEY env var and API quota")
 
+    # Run-line odds only come from SGO — one slate fetch for the whole scout
+    # (SGO client caches it 30 min on disk anyway, but no reason to hit it
+    # once per game). Degrades to {} on any failure — run line just skips.
+    _sgo_slate: dict = {}
+    if _SGO_AVAILABLE:
+        try:
+            _sgo_slate = fetch_mlb_slate()
+            print(f"[RUNLINE] SGO slate: {len(_sgo_slate)} games")
+        except Exception as _sgo_e:
+            print(f"[RUNLINE] SGO slate fetch failed: {_sgo_e}")
+            _sgo_slate = {}
+
     # ── Start line movement polling thread (background, 30-min intervals) ─────
     if events and _LINE_POLLING_AVAILABLE:
         try:
@@ -3289,6 +3363,7 @@ def run_daily_scout(window: str = "all"):
     all_sgp:      list = []   # correlated SGP suggestions across all games
     all_nrfi:         list = []   # {game, direction, prob, stake}
     all_totals:       list = []   # {game, direction, line, prob, stake}
+    all_runline:      list = []   # {game, team, line, prob, edge_pct, stake, odds, bet_type}
     all_hitter_props: list = []   # {player, team, prop, stake, edge_pct, ...}
     all_k_props:      list = []   # {sp, game, line, p_over, edge_pct, stake}
     all_er_props:     list = []   # {sp, game, line, direction, model_p, edge_pct, stake}
@@ -3729,6 +3804,75 @@ def run_daily_scout(window: str = "all"):
                 else:
                     print(f"  SKIP totals {game_lbl}: no side with ≥3% edge over market")
 
+            # ── Run line (±1.5) — SGO-only, mirrors the totals edge/stake pattern ──
+            _rl_event = (get_event_by_teams(analysis.get("away_name", ""),
+                                             analysis.get("home_name", ""), _sgo_slate)
+                         if _SGO_AVAILABLE and _sgo_slate else None)
+            _rl_spreads   = (_rl_event or {}).get("spreads") or {}
+            _rl_away_line = _rl_spreads.get("away_line")
+            _rl_home_line = _rl_spreads.get("home_line")
+            if _rl_away_line == -1.5 and _rl_home_line == 1.5:
+                _rl_fav = "away"
+            elif _rl_home_line == -1.5 and _rl_away_line == 1.5:
+                _rl_fav = "home"
+            else:
+                _rl_fav = None
+
+            if _rl_fav and analysis.get("away_xr") is not None and analysis.get("home_xr") is not None:
+                _rl_probs     = run_line_prob(analysis["away_xr"], analysis["home_xr"])
+                _rl_consensus = no_vig_consensus(_rl_event, market="spreads")
+                if _rl_consensus:
+                    _rl_model = {
+                        "away": _rl_probs["away_minus_1_5"] if _rl_fav == "away" else _rl_probs["away_plus_1_5"],
+                        "home": _rl_probs["home_minus_1_5"] if _rl_fav == "home" else _rl_probs["home_plus_1_5"],
+                    }
+                    _rl_mkt = {
+                        "away": (_rl_consensus.get("away_prob_pct") or 0) / 100,
+                        "home": (_rl_consensus.get("home_prob_pct") or 0) / 100,
+                    }
+                    _rl_odds = {
+                        "away": _rl_consensus.get("away_american"),
+                        "home": _rl_consensus.get("home_american"),
+                    }
+                    _rl_line  = {"away": _rl_away_line, "home": _rl_home_line}
+                    _rl_best_edge = 0.0
+                    _rl_best      = None
+                    for _rl_side in ("away", "home"):
+                        _rl_m = _rl_model[_rl_side]
+                        _rl_k = _rl_mkt[_rl_side]
+                        _rl_o = _rl_odds[_rl_side]
+                        if _rl_o is None or _rl_k <= 0:
+                            continue
+                        # Same sanity filters as totals: skip extreme market prices
+                        # (no value) and unrealistic model estimates (λ likely off).
+                        if _rl_k >= 0.75 or _rl_m >= 0.75:
+                            continue
+                        _rl_edge = _rl_m - _rl_k
+                        if _rl_edge <= _rl_best_edge:
+                            continue
+                        _rl_edge_pct = round(_rl_edge * 100, 2)
+                        _rl_conv = _conviction(_rl_edge_pct, _rl_m, {}, {})
+                        if _rl_conv == "PASS":
+                            continue
+                        _rl_stake = kelly_stake(_rl_m, str(_rl_o), _rl_conv, edge_pct=_rl_edge_pct)
+                        if _rl_stake <= 0:
+                            continue
+                        _rl_best_edge = _rl_edge
+                        _rl_best = {
+                            "game":       game_lbl,
+                            "team":       analysis.get(f"{_rl_side}_name", ""),
+                            "line":       _rl_line[_rl_side],
+                            "prob":       round(_rl_m, 4),
+                            "market_p":   round(_rl_k, 4),
+                            "edge_pct":   _rl_edge_pct,
+                            "conviction": _rl_conv,
+                            "stake":      _rl_stake,
+                            "odds":       str(_rl_o),
+                            "bet_type":   f"RUNLINE{_rl_line[_rl_side]:+.1f}",
+                        }
+                    if _rl_best:
+                        all_runline.append(_rl_best)
+
         if not bet_found:
             all_pass.append(analysis)
             scout_out["passes"].append({
@@ -3930,6 +4074,9 @@ def run_daily_scout(window: str = "all"):
     def _pick_id_total(b: dict) -> str:
         return f"TOT:{b['game']}:{b['direction']}:{b['line']}"
 
+    def _pick_id_runline(b: dict) -> str:
+        return f"RL:{b['game']}:{b['team']}:{b['line']}"
+
     def _pick_id_nrfi(b: dict) -> str:
         return f"NRFI:{b['game']}:{b['direction']}"
 
@@ -3947,6 +4094,8 @@ def run_daily_scout(window: str = "all"):
         current_pick_ids.add(_pick_id_ml(a, s))
     for b in all_totals:
         current_pick_ids.add(_pick_id_total(b))
+    for b in all_runline:
+        current_pick_ids.add(_pick_id_runline(b))
     for b in all_nrfi:
         current_pick_ids.add(_pick_id_nrfi(b))
     for b in all_k_props:
@@ -4018,7 +4167,7 @@ def run_daily_scout(window: str = "all"):
             new_ml_pick_ids, all_locks, all_flips,
             all_totals, all_nrfi, all_k_props, all_hitter_props,
             today, br,
-            all_er_props=all_er_props,
+            all_er_props=all_er_props, all_runline=all_runline,
         )
     else:
         print(
@@ -4026,13 +4175,13 @@ def run_daily_scout(window: str = "all"):
             f"locks={len(all_locks)} flips={len(all_flips)} nrfi={len(all_nrfi)} "
             f"totals={len(all_totals)} k_props={len(all_k_props)} "
             f"hitter_props={len(all_hitter_props)} er_props={len(all_er_props)} "
-            f"injuries={len(all_injuries)}"
+            f"injuries={len(all_injuries)} runline={len(all_runline)}"
         )
         try:
             _slip_sent_ok = _daily_bet_slip(
                 all_locks, all_flips, all_sgp, all_fades, br,
                 all_nrfi, all_totals, all_hitter_props, all_k_props, all_injuries,
-                all_er_props=all_er_props,
+                all_er_props=all_er_props, all_runline=all_runline,
             )
         except Exception as slip_err:
             print(f"Daily slip EXCEPTION: {slip_err}")

@@ -197,6 +197,7 @@ def fetch_mlb_slate(force_refresh: bool = False) -> dict:
 _CONSENSUS_MARKETS = {
     "moneyline": ("away", "home"),
     "totals":    ("over", "under"),
+    "spreads":   ("away", "home"),
 }
 
 
@@ -208,8 +209,9 @@ def no_vig_consensus(event: dict, market: str = "moneyline") -> dict | None:
     the de-vigged probability across every book quoting both sides. That
     average stands in for Pinnacle as the CLV closing-line benchmark.
 
-    market: "moneyline" (away/home) or "totals" (over/under). Returns None if
-    no book quotes both sides.
+    market: "moneyline" (away/home), "totals" (over/under), or "spreads"
+    (away/home run line, fixed at +/-1.5 in MLB). Returns None if no book
+    quotes both sides.
     """
     if market not in _CONSENSUS_MARKETS:
         raise ValueError(f"no_vig_consensus: unsupported market {market!r}")
