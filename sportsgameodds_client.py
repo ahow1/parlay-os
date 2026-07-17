@@ -19,7 +19,7 @@ import logging
 import threading
 
 from api_client import get as _http_get
-from math_engine import american_to_decimal, implied_prob
+from math_engine import american_to_decimal, implied_prob, no_vig_prob, decimal_to_american
 
 _log = logging.getLogger(__name__)
 
@@ -192,6 +192,59 @@ def fetch_mlb_slate(force_refresh: bool = False) -> dict:
     normalized = {ev["eventID"]: _normalize_event(ev) for ev in raw.get("data", [])}
     _save_cache({"fetched_at": time.time(), "data": normalized})
     return normalized
+
+
+_CONSENSUS_MARKETS = {
+    "moneyline": ("away", "home"),
+    "totals":    ("over", "under"),
+}
+
+
+def no_vig_consensus(event: dict, market: str = "moneyline") -> dict | None:
+    """No-vig consensus line for one SGO event's two-sided market.
+
+    SGO's free tier carries soft (retail) books only — no Pinnacle. This
+    strips each soft book's vig with math_engine.no_vig_prob(), then averages
+    the de-vigged probability across every book quoting both sides. That
+    average stands in for Pinnacle as the CLV closing-line benchmark.
+
+    market: "moneyline" (away/home) or "totals" (over/under). Returns None if
+    no book quotes both sides.
+    """
+    if market not in _CONSENSUS_MARKETS:
+        raise ValueError(f"no_vig_consensus: unsupported market {market!r}")
+    key1, key2 = _CONSENSUS_MARKETS[market]
+    book_lines = event.get(market) or {}
+    side1 = book_lines.get(key1, {})
+    side2 = book_lines.get(key2, {})
+
+    common = sorted(set(side1) & set(side2))
+    p1s, p2s = [], []
+    for book in common:
+        o1 = side1[book].get("american")
+        o2 = side2[book].get("american")
+        if o1 is None or o2 is None:
+            continue
+        nv = no_vig_prob(str(o1), str(o2))
+        if nv.get("side1_true") is None:
+            continue
+        p1s.append(nv["side1_true"])
+        p2s.append(nv["side2_true"])
+
+    if not p1s:
+        return None
+
+    p1 = round(sum(p1s) / len(p1s), 2)
+    p2 = round(sum(p2s) / len(p2s), 2)
+    return {
+        "market":           market,
+        f"{key1}_prob_pct": p1,
+        f"{key2}_prob_pct": p2,
+        f"{key1}_american": decimal_to_american(100 / p1),
+        f"{key2}_american": decimal_to_american(100 / p2),
+        "books_used":       common,
+        "n_books":          len(p1s),
+    }
 
 
 def get_event_by_teams(away_name: str, home_name: str, slate: dict | None = None) -> dict | None:

@@ -209,6 +209,90 @@ class TestCaching:
         assert result == {}
 
 
+class TestNoVigConsensus:
+    """Step 2: no-vig consensus benchmark. Known-example values hand-derived
+    by running math_engine.no_vig_prob() on each book pair below and
+    averaging (real LAD @ NYY moneyline from the 2026-07-16 SGO slate,
+    sgo_cache.json event KxcmCDxK1cnaAUVHTyiq):
+
+    book        away   home
+    betmgm      -110   -110  -> 50.00 / 50.00
+    bovada      -113   -107  -> 50.65 / 49.35
+    caesars     -110   -110  -> 50.00 / 50.00
+    draftkings  -111   -108  -> 50.33 / 49.67
+    espnbet     -110   -110  -> 50.00 / 50.00
+    fanduel     -108   -108  -> 50.00 / 50.00
+    pointsbet   -111   -111  -> 50.00 / 50.00
+    unibet      -114   -107  -> 50.75 / 49.25
+    williamhill -110   -110  -> 50.00 / 50.00
+    avg                      -> 50.19 / 49.81
+    """
+
+    def test_known_real_game_moneyline(self):
+        books_away = {
+            "betmgm": -110, "bovada": -113, "caesars": -110, "draftkings": -111,
+            "espnbet": -110, "fanduel": -108, "pointsbet": -111, "unibet": -114,
+            "williamhill": -110,
+        }
+        books_home = {
+            "betmgm": -110, "bovada": -107, "caesars": -110, "draftkings": -108,
+            "espnbet": -110, "fanduel": -108, "pointsbet": -111, "unibet": -107,
+            "williamhill": -110,
+        }
+        odds = {
+            "ml-away": _fake_odd("points", "ml", "away", "away", books=books_away),
+            "ml-home": _fake_odd("points", "ml", "home", "home", books=books_home),
+        }
+        ev = sgo._normalize_event(_fake_event(
+            home="New York Yankees", away="Los Angeles Dodgers", odds=odds))
+
+        consensus = sgo.no_vig_consensus(ev, market="moneyline")
+
+        assert consensus["n_books"] == 9
+        assert consensus["books_used"] == sorted(books_away)
+        assert consensus["away_prob_pct"] == 50.19
+        assert consensus["home_prob_pct"] == 49.81
+
+    def test_only_books_quoting_both_sides_are_used(self):
+        odds = {
+            "ml-away": _fake_odd("points", "ml", "away", "away",
+                                  books={"draftkings": -110, "fanduel": -108}),
+            "ml-home": _fake_odd("points", "ml", "home", "home",
+                                  books={"draftkings": -110}),
+        }
+        ev = sgo._normalize_event(_fake_event(odds=odds))
+        consensus = sgo.no_vig_consensus(ev, market="moneyline")
+        assert consensus["books_used"] == ["draftkings"]
+        assert consensus["n_books"] == 1
+
+    def test_no_common_book_returns_none(self):
+        odds = {
+            "ml-away": _fake_odd("points", "ml", "away", "away", books={"fanduel": -110}),
+            "ml-home": _fake_odd("points", "ml", "home", "home", books={"draftkings": -110}),
+        }
+        ev = sgo._normalize_event(_fake_event(odds=odds))
+        assert sgo.no_vig_consensus(ev, market="moneyline") is None
+
+    def test_totals_market_uses_over_under(self):
+        odds = {
+            "tot-over":  _fake_odd("points", "ou", "all", "over",  line=9.5,
+                                    books={"draftkings": -110, "fanduel": -105}),
+            "tot-under": _fake_odd("points", "ou", "all", "under", line=9.5,
+                                    books={"draftkings": -110, "fanduel": -115}),
+        }
+        ev = sgo._normalize_event(_fake_event(odds=odds))
+        consensus = sgo.no_vig_consensus(ev, market="totals")
+        assert consensus["market"] == "totals"
+        assert consensus["n_books"] == 2
+        assert "over_prob_pct" in consensus
+        assert "under_prob_pct" in consensus
+
+    def test_unsupported_market_raises(self):
+        import pytest
+        with pytest.raises(ValueError):
+            sgo.no_vig_consensus(_fake_event(), market="spread")
+
+
 class TestGetEventByTeams:
     def test_exact_match(self):
         slate = {"evt1": {"home": "Philadelphia Phillies", "away": "New York Mets"}}
