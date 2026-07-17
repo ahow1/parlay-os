@@ -160,10 +160,23 @@ def sizing_bankroll() -> float:
     return real_sizing_bankroll()
 
 
+def _anchor_start_and_bets():
+    """Starting balance + the settled bets to replay for real_sizing_bankroll/real_peak_bankroll.
+    Uses the most recent bankroll_anchor checkpoint (a manually-confirmed real bankroll,
+    set via db.set_bankroll_anchor — never BANKROLL_OVERRIDE) if one exists, replaying only
+    bets settled after the anchor date. Falls back to STARTING_BANKROLL + full history
+    when no anchor has been set."""
+    anchor = _db.get_bankroll_anchor()
+    if anchor:
+        start, anchor_date = anchor
+        bets = [b for b in _db.get_bets() if (b.get("date") or "") > anchor_date]
+        return float(start), bets
+    return float(STARTING_BANKROLL), _db.get_bets()
+
+
 def real_sizing_bankroll() -> float:
     """Settled P&L bankroll — never uses BANKROLL_OVERRIDE. Used for drawdown calculations."""
-    bets = _db.get_bets()
-    current = float(STARTING_BANKROLL)
+    current, bets = _anchor_start_and_bets()
     for b in bets:
         result = b.get("result")
         stake  = float(b.get("stake") or 0)
@@ -178,9 +191,8 @@ def real_sizing_bankroll() -> float:
 
 def real_peak_bankroll() -> float:
     """Peak settled P&L — never uses BANKROLL_OVERRIDE. Used for drawdown calculations."""
-    bets = _db.get_bets()
-    current = float(STARTING_BANKROLL)
-    peak    = float(STARTING_BANKROLL)
+    current, bets = _anchor_start_and_bets()
+    peak = current
     for b in bets:
         result = b.get("result")
         stake  = float(b.get("stake") or 0)

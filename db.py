@@ -173,6 +173,14 @@ def init_db():
             archive_reason TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS bankroll_anchor (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            anchor_value REAL NOT NULL,
+            anchor_date  TEXT NOT NULL,
+            set_at       TEXT NOT NULL,
+            note         TEXT
+        );
+
         CREATE TABLE IF NOT EXISTS bankroll_log (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             date         TEXT NOT NULL,
@@ -581,6 +589,31 @@ def archive_bets(bet_ids: list[int], reason: str) -> int:
                   r["notes"], r["verify_hash"], r["profit"], now, reason))
         conn.execute(f"DELETE FROM bets WHERE id IN ({placeholders})", bet_ids)
         return len(rows)
+
+
+def set_bankroll_anchor(value: float, note: str = "") -> None:
+    """Record a manually-confirmed real bankroll checkpoint. Settled-P&L replay
+    (real_sizing_bankroll/real_peak_bankroll in bankroll_engine.py) starts from
+    the most recent anchor instead of the hardcoded STARTING_BANKROLL. This is
+    a distinct, explicitly-set value — it is never read from BANKROLL_OVERRIDE
+    automatically, so drawdown protection can't be silently defeated by bumping
+    the env var (see FIX 7 in test_fixes.py)."""
+    now = datetime.now(ET).isoformat()
+    today = datetime.now(ET).strftime("%Y-%m-%d")
+    with _conn() as conn:
+        conn.execute("""
+            INSERT INTO bankroll_anchor (anchor_value, anchor_date, set_at, note)
+            VALUES (?,?,?,?)
+        """, (value, today, now, note))
+
+
+def get_bankroll_anchor():
+    """Return (anchor_value, anchor_date) from the most recently set anchor, or None."""
+    with _conn() as conn:
+        row = conn.execute(
+            "SELECT anchor_value, anchor_date FROM bankroll_anchor ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    return (row["anchor_value"], row["anchor_date"]) if row else None
 
 
 # ─── BANKROLL ─────────────────────────────────────────────────────────────────
