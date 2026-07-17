@@ -11,6 +11,9 @@ on:
     - cron: '30 4 * * *'     # daily_debrief  — 11:30pm ET (04:30 UTC)
     - cron: '0 14 * * 1'     # weekly_roi     — Mon 9am ET (14:00 UTC)
     - cron: '0 14 * * 0,2,3,4,5,6'  # morning_planner — 9am ET, every day except Monday
+    - cron: '45 16 * * *'    # capture_clv    — 12:45pm ET (16:45 UTC): before day games
+    - cron: '45 22 * * *'    # capture_clv    — 6:45pm ET (22:45 UTC): before evening games
+    - cron: '45 1 * * *'     # capture_clv    — 9:45pm ET (01:45 UTC next day): before west games
   workflow_dispatch:
     inputs:
       job:
@@ -28,6 +31,7 @@ on:
           - daily_debrief
           - weekly_roi
           - morning_planner
+          - capture_clv
 
 # ─── SHARED SETUP ─────────────────────────────────────────────────────────────
 # Each job installs deps, runs ONE brain.py flag, commits if outputs changed,
@@ -313,3 +317,44 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python brain.py --planner
+
+  # ─── 7. PRE-GAME CLV CAPTURE — 12:45pm / 6:45pm / 9:45pm ET ──────────────
+  # One-shot (brain.py --capture-clv exits after a single tick — Actions jobs
+  # can't run a persistent 15-min loop like --bot does on Railway). Scheduled
+  # near each window's typical first pitch so the closing line is captured
+  # shortly before game time. Graded against the SGO no-vig consensus
+  # (ODDS_SOURCE=sgo) rather than the-odds-api. Idempotent per bet per day
+  # (db.clv_log_exists()) — safe to run multiple times or re-run on failure.
+  capture_clv:
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'capture_clv') ||
+      (github.event_name == 'schedule' && (
+        github.event.schedule == '45 16 * * *' ||
+        github.event.schedule == '45 22 * * *' ||
+        github.event.schedule == '45 1 * * *'
+      ))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+
+      - run: pip install -q requests pytz flask flask-cors
+
+      - name: One-shot pre-game CLV capture (SGO consensus closing line)
+        env:
+          ODDS_SOURCE:            sgo
+          SPORTSGAMEODDS_API_KEY: ${{ secrets.SPORTSGAMEODDS_API_KEY }}
+        run: python brain.py --capture-clv
+
+      - name: Commit CLV capture outputs
+        run: |
+          git config user.name "Parlay OS Bot"
+          git config user.email "bot@parlay-os.com"
+          git add parlay_os.db || true
+          git diff --staged --quiet || git commit -m "CLV capture: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push || true

@@ -504,3 +504,32 @@ class TestSgoClvGradingEndToEnd:
         assert rows[0]["bet"] == "SF"
         assert rows[0]["closing_odds"] == expected_closing
         assert rows[0]["clv_pct"] is not None
+
+
+class TestCaptureClvOneShot:
+    """GitHub Actions jobs are one-shot processes — they can't run
+    run_pre_game_clv_loop()'s persistent 15-min timer the way --bot does
+    on Railway (whose live status isn't confirmed). brain.py --capture-clv
+    does a single capture_pre_game_clv() tick and exits, so a scheduled
+    Actions job can call it a few times a day near first pitch instead."""
+
+    def test_capture_clv_flag_dispatches_to_one_shot_capture(self):
+        import brain
+        with patch("brain.capture_pre_game_clv", return_value=2) as m:
+            brain._run_capture_clv()
+        m.assert_called_once_with()
+
+    def test_capture_clv_branch_wired_into_arg_dispatch(self):
+        import inspect
+        import brain
+        src   = inspect.getsource(brain)
+        start = src.index('elif "--capture-clv" in args:')
+        block = src[start:start + 200]
+        assert "_run_capture_clv()" in block
+
+    def test_capture_failure_is_logged_not_raised(self):
+        import brain
+        with patch("brain.capture_pre_game_clv", side_effect=RuntimeError("boom")), \
+             patch("brain.error_logger.log_error") as m_log:
+            brain._run_capture_clv()  # must not raise
+        m_log.assert_called_once()

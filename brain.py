@@ -41,7 +41,7 @@ from bankroll_engine import (
     kelly_stake, sizing_summary, current_bankroll, sizing_bankroll, peak_bankroll, is_drawdown_pause,
     daily_budget, daily_budget_pct, pool_budget, pool_exposure, pool_remaining,
     drawdown_tier, growth_tracker, MIN_STAKE, get_stuck_pending_bets,
-    run_pre_game_clv_loop,
+    run_pre_game_clv_loop, capture_pre_game_clv,
 )
 from profile_engine import update_sp_profile, update_hitter_profile, update_bullpen_profile
 from props_engine   import (
@@ -4695,6 +4695,25 @@ def _run_weekly_roi():
     _send_telegram(msg)
 
 
+# ── PRE-GAME CLV CAPTURE (ONE-SHOT) ───────────────────────────────────────────
+
+def _run_capture_clv():
+    """One-shot pre-game CLV capture for GitHub Actions (bounded, no loop).
+    Does a single capture_pre_game_clv() tick — the same call
+    run_pre_game_clv_loop() makes every 15 min under --bot — then exits.
+    Actions jobs are one-shot processes, so this is scheduled at fixed
+    times near first pitch instead of running on a persistent timer.
+    Idempotent per bet per day via db.clv_log_exists(), so running this
+    multiple times a day (or re-running a job) never writes duplicate rows."""
+    print("Running pre-game CLV capture (one-shot)...")
+    try:
+        n = capture_pre_game_clv()
+        print(f"[CLV] captured {n} pre-game closing line(s)")
+    except Exception as e:
+        error_logger.log_error("brain._run_capture_clv", e)
+        print(f"[CLV] capture failed: {e}")
+
+
 # ── LINE MOVEMENT RE-SCOUT ────────────────────────────────────────────────────
 
 def _run_linecheck():
@@ -5007,6 +5026,9 @@ if __name__ == "__main__":
 
     elif "--linecheck" in args:
         _run_linecheck()
+
+    elif "--capture-clv" in args:
+        _run_capture_clv()
 
     elif "--planner" in args:
         _run_morning_planner()
