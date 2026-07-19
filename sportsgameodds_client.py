@@ -13,10 +13,12 @@ burn the monthly cap fastest.
 """
 
 import os
+import re
 import json
 import time
 import logging
 import threading
+import unicodedata
 
 from api_client import get as _http_get
 from math_engine import american_to_decimal, implied_prob, no_vig_prob, decimal_to_american
@@ -261,6 +263,92 @@ def get_event_by_teams(away_name: str, home_name: str, slate: dict | None = None
            (home_name in ev["home"] or ev["home"] in home_name):
             return ev
     return None
+
+
+def _normalize_player_name(name: str) -> str:
+    """Lowercase, accent-stripped, punctuation-stripped comparison key.
+    'Andrés Giménez' and 'A.J. Ewing' both collapse to plain ascii words so
+    they can be compared to SGO's slug-derived name on equal footing."""
+    name = unicodedata.normalize("NFKD", name or "")
+    name = "".join(c for c in name if not unicodedata.combining(c))
+    name = re.sub(r"[.']", "", name)          # "A.J." -> "AJ", not "A J"
+    name = re.sub(r"[^a-zA-Z0-9]+", " ", name)
+    return re.sub(r"\s+", " ", name).strip().lower()
+
+
+def _slug_to_words(player_id: str) -> str:
+    """SGO player_id slug ('FERNANDO_TATIS_JR_1_MLB') -> space-joined name
+    ('FERNANDO TATIS JR'). Drops the trailing '_MLB' league tag and the
+    numeric disambiguator token before it."""
+    parts = (player_id or "").split("_")
+    if parts and parts[-1].upper() == "MLB":
+        parts = parts[:-1]
+    if parts and parts[-1].isdigit():
+        parts = parts[:-1]
+    return " ".join(parts)
+
+
+def player_names_match(sgo_player_id: str, full_name: str) -> bool:
+    """True when an SGO player_id slug refers to the same player as a
+    lineup's full display name (e.g. MLB Stats API 'fullName')."""
+    if not sgo_player_id or not full_name:
+        return False
+    return _normalize_player_name(_slug_to_words(sgo_player_id)) == _normalize_player_name(full_name)
+
+
+def player_prop_market_prob(event: dict | None, player_name: str, stat: str, line: float) -> float | None:
+    """
+    No-vig consensus probability that `player_name` goes OVER `line` in
+    `stat` (one of PROP_STAT_IDS' values, e.g. 'batter_hits',
+    'batter_rbis', 'pitcher_strikeouts'), sourced from one normalized SGO
+    event (see fetch_mlb_slate()).
+
+    Same approach as no_vig_consensus(): de-vigs each book's over/under
+    pair with math_engine.no_vig_prob() and averages the over-side fair
+    probability across every book that prices both sides for this exact
+    player/stat/line.
+
+    Returns None if the event, player, or exact line isn't in SGO's book
+    data, or no book prices both sides — callers should fall back to a
+    fixed baseline in that case, not treat None as 0.
+    """
+    if not event:
+        return None
+
+    over = under = None
+    for p in event.get("props", []):
+        if p.get("stat") != stat or p.get("line") is None:
+            continue
+        try:
+            if float(p["line"]) != float(line):
+                continue
+        except (TypeError, ValueError):
+            continue
+        if not player_names_match(p.get("player_id", ""), player_name):
+            continue
+        if p.get("side") == "over":
+            over = p
+        elif p.get("side") == "under":
+            under = p
+
+    if not over or not under:
+        return None
+
+    common = sorted(set(over["by_book"]) & set(under["by_book"]))
+    probs = []
+    for book in common:
+        o1 = over["by_book"][book].get("american")
+        o2 = under["by_book"][book].get("american")
+        if o1 is None or o2 is None:
+            continue
+        nv = no_vig_prob(str(o1), str(o2))
+        if nv.get("side1_true") is None:
+            continue
+        probs.append(nv["side1_true"])   # 0-100 scale (math_engine convention)
+
+    if not probs:
+        return None
+    return round(sum(probs) / len(probs) / 100.0, 4)   # -> 0-1 fraction to match market_p convention
 
 
 if __name__ == "__main__":
