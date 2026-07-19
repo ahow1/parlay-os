@@ -1,16 +1,455 @@
 {
-  "timestamp": "2026-07-19T14:17:29Z",
+  "timestamp": "2026-07-19T14:28:35Z",
   "date": "2026-07-19",
   "window": "all",
   "bankroll": 300.0,
-  "games": [],
-  "bets": [],
-  "passes": [],
-  "slip_sent": false,
-  "sent_pick_ids": [],
-  "slip_quality": "bad",
+  "games": [
+    {
+      "away": "CWS",
+      "home": "TOR",
+      "away_model": 0.5443,
+      "home_model": 0.4707,
+      "away_edge": 3.5,
+      "home_edge": -2.0,
+      "away_xr": 4.313,
+      "home_xr": 3.5
+    },
+    {
+      "away": "LAD",
+      "home": "NYY",
+      "away_model": 0.4785,
+      "home_model": 0.4865,
+      "away_edge": -6.35,
+      "home_edge": 2.85,
+      "away_xr": 3.5,
+      "home_xr": 3.5
+    },
+    {
+      "away": "TEX",
+      "home": "ATL",
+      "away_model": 0.5202,
+      "home_model": 0.4932,
+      "away_edge": -0.82,
+      "home_edge": 2.16,
+      "away_xr": 4.892,
+      "home_xr": 5.018
+    },
+    {
+      "away": "TB",
+      "home": "BOS",
+      "away_model": 0.5057,
+      "home_model": 0.5093,
+      "away_edge": 3.84,
+      "home_edge": -2.34,
+      "away_xr": 4.014,
+      "home_xr": 4.373
+    },
+    {
+      "away": "NYM",
+      "home": "PHI",
+      "away_model": 0.4835,
+      "home_model": 0.5315,
+      "away_edge": -6.26,
+      "home_edge": 7.76,
+      "away_xr": 3.5,
+      "home_xr": 3.715
+    },
+    {
+      "away": "PIT",
+      "home": "CLE",
+      "away_model": 0.5059,
+      "home_model": 0.5076,
+      "away_edge": 0.36,
+      "home_edge": 0.99,
+      "away_xr": 5.215,
+      "home_xr": 3.506
+    },
+    {
+      "away": "BAL",
+      "home": "HOU",
+      "away_model": 0.4979,
+      "home_model": 0.4976,
+      "away_edge": 1.97,
+      "home_edge": -2.42,
+      "away_xr": 4.352,
+      "home_xr": 3.996
+    },
+    {
+      "away": "SD",
+      "home": "KC",
+      "away_model": 0.4824,
+      "home_model": 0.5041,
+      "away_edge": 2.44,
+      "home_edge": -3.79,
+      "away_xr": 3.879,
+      "home_xr": 5.687
+    },
+    {
+      "away": "MIA",
+      "home": "MIL",
+      "away_model": 0.4913,
+      "home_model": 0.5222,
+      "away_edge": 3.03,
+      "home_edge": -1.68,
+      "away_xr": 4.635,
+      "home_xr": 4.374
+    },
+    {
+      "away": "MIN",
+      "home": "CHC",
+      "away_model": 0.5081,
+      "home_model": 0.5054,
+      "away_edge": 11.6,
+      "home_edge": -10.25,
+      "away_xr": 4.182,
+      "home_xr": 5.334
+    },
+    {
+      "away": "CIN",
+      "home": "COL",
+      "away_model": 0.5299,
+      "home_model": 0.4836,
+      "away_edge": -7.29,
+      "home_edge": 8.64,
+      "away_xr": 5.157,
+      "home_xr": 3.5
+    },
+    {
+      "away": "WAS",
+      "home": "ATH",
+      "away_model": 0.5215,
+      "home_model": 0.492,
+      "away_edge": -4.64,
+      "home_edge": 5.99,
+      "away_xr": 6.603,
+      "home_xr": 4.49
+    },
+    {
+      "away": "DET",
+      "home": "LAA",
+      "away_model": 0.5414,
+      "home_model": 0.4542,
+      "away_edge": -4.3,
+      "home_edge": 3.86,
+      "away_xr": 5.001,
+      "home_xr": 3.5
+    },
+    {
+      "away": "STL",
+      "home": "AZ",
+      "away_model": 0.5255,
+      "home_model": 0.488,
+      "away_edge": 5.39,
+      "home_edge": -4.04,
+      "away_xr": 3.773,
+      "home_xr": 3.631
+    },
+    {
+      "away": "SF",
+      "home": "SEA",
+      "away_model": 0.5362,
+      "home_model": 0.4773,
+      "away_edge": 17.84,
+      "home_edge": -16.49,
+      "away_xr": 4.34,
+      "home_xr": 3.5
+    },
+    {
+      "away": "LAD",
+      "home": "NYY",
+      "away_model": 0.4785,
+      "home_model": 0.4865,
+      "away_edge": -4.76,
+      "home_edge": 1.26,
+      "away_xr": 3.5,
+      "home_xr": 3.5
+    }
+  ],
+  "bets": [
+    {
+      "team": "Philadelphia Phillies",
+      "side": "home",
+      "game": "New York Mets @ Philadelphia Phillies",
+      "odds": 115,
+      "book": "lowvig",
+      "model_prob": 0.5315,
+      "market_prob": 0.4539,
+      "edge_pct": 7.76,
+      "stake": 30.0,
+      "conviction": "HIGH",
+      "confidence_score": 72,
+      "sp": "Alan Rangel",
+      "sp_era": 4.19,
+      "sp_xfip": 4.01,
+      "sp_yrfi_lean": false,
+      "bullpen_tier": null,
+      "weather_adj": null,
+      "platoon_edge": 5.0,
+      "h2h": {
+        "h2h_available": true,
+        "n_games": 10,
+        "away_win_rate": 0.3,
+        "home_win_rate": 0.7,
+        "avg_total": 9.2,
+        "over_rate": 0.5
+      }
+    },
+    {
+      "team": "Minnesota Twins",
+      "side": "away",
+      "game": "Minnesota Twins @ Chicago Cubs",
+      "odds": 149,
+      "book": "betonlineag",
+      "model_prob": 0.5081,
+      "market_prob": 0.3921,
+      "edge_pct": 11.6,
+      "stake": 25.0,
+      "conviction": "MEDIUM",
+      "confidence_score": 91,
+      "sp": "Zebby Matthews",
+      "sp_era": 4.57,
+      "sp_xfip": 4.67,
+      "sp_yrfi_lean": false,
+      "bullpen_tier": null,
+      "weather_adj": null,
+      "platoon_edge": -10.0,
+      "h2h": {
+        "h2h_available": true,
+        "n_games": 8,
+        "away_win_rate": 0.5,
+        "home_win_rate": 0.5,
+        "avg_total": 7.75,
+        "over_rate": 0.5
+      }
+    },
+    {
+      "team": "Colorado Rockies",
+      "side": "home",
+      "game": "Cincinnati Reds @ Colorado Rockies",
+      "odds": 146,
+      "book": "lowvig",
+      "model_prob": 0.4836,
+      "market_prob": 0.3972,
+      "edge_pct": 8.64,
+      "stake": 21.4,
+      "conviction": "MEDIUM",
+      "confidence_score": 63,
+      "sp": "Ryan Feltner",
+      "sp_era": 4.55,
+      "sp_xfip": 4.74,
+      "sp_yrfi_lean": true,
+      "bullpen_tier": null,
+      "weather_adj": null,
+      "platoon_edge": 8.3,
+      "h2h": {
+        "h2h_available": true,
+        "n_games": 10,
+        "away_win_rate": 0.7,
+        "home_win_rate": 0.3,
+        "avg_total": 9.3,
+        "over_rate": 0.7
+      }
+    }
+  ],
+  "passes": [
+    {
+      "game": "Chicago White Sox @ Toronto Blue Jays",
+      "edges": {
+        "away": 3.5,
+        "home": -2.0
+      }
+    },
+    {
+      "game": "Los Angeles Dodgers @ New York Yankees",
+      "edges": {
+        "away": -6.35,
+        "home": 2.85
+      }
+    },
+    {
+      "game": "Texas Rangers @ Atlanta Braves",
+      "edges": {
+        "away": -0.82,
+        "home": 2.16
+      }
+    },
+    {
+      "game": "Tampa Bay Rays @ Boston Red Sox",
+      "edges": {
+        "away": 3.84,
+        "home": -2.34
+      }
+    },
+    {
+      "game": "Pittsburgh Pirates @ Cleveland Guardians",
+      "edges": {
+        "away": 0.36,
+        "home": 0.99
+      }
+    },
+    {
+      "game": "Baltimore Orioles @ Houston Astros",
+      "edges": {
+        "away": 1.97,
+        "home": -2.42
+      }
+    },
+    {
+      "game": "San Diego Padres @ Kansas City Royals",
+      "edges": {
+        "away": 2.44,
+        "home": -3.79
+      }
+    },
+    {
+      "game": "Miami Marlins @ Milwaukee Brewers",
+      "edges": {
+        "away": 3.03,
+        "home": -1.68
+      }
+    },
+    {
+      "game": "Washington Nationals @ Athletics",
+      "edges": {
+        "away": -4.64,
+        "home": 5.99
+      }
+    },
+    {
+      "game": "Detroit Tigers @ Los Angeles Angels",
+      "edges": {
+        "away": -4.3,
+        "home": 3.86
+      }
+    },
+    {
+      "game": "St. Louis Cardinals @ Arizona Diamondbacks",
+      "edges": {
+        "away": 5.39,
+        "home": -4.04
+      }
+    },
+    {
+      "game": "San Francisco Giants @ Seattle Mariners",
+      "edges": {
+        "away": 17.84,
+        "home": -16.49
+      }
+    },
+    {
+      "game": "Los Angeles Dodgers @ New York Yankees",
+      "edges": {
+        "away": -4.76,
+        "home": 1.26
+      }
+    }
+  ],
+  "slip_sent": true,
+  "sent_pick_ids": [
+    "ER:Brandon Young:2.0:OVER",
+    "ER:Casey Mize:1.5:OVER",
+    "ER:Eduardo Rodriguez:1.5:OVER",
+    "ER:Emmet Sheehan:2.5:UNDER",
+    "ER:Hunter Greene:4.0:UNDER",
+    "ER:Jacob Lopez:4.0:UNDER",
+    "ER:Noah Cameron:3.0:UNDER",
+    "ER:Robbie Ray:2.0:OVER",
+    "ER:Ryan Weathers:2.5:UNDER",
+    "ER:Sonny Gray:1.5:OVER",
+    "HITTER:Alec Bohm:PHI:SO O0.5",
+    "HITTER:Andrew Benintendi:CWS:RBI O0.5",
+    "HITTER:Andy Pages:LAD:SO O0.5",
+    "HITTER:Ben Rice:NYY:HR O0.5",
+    "HITTER:Ben Rice:NYY:RBI O0.5",
+    "HITTER:Ben Rice:NYY:SO O0.5",
+    "HITTER:Ben Rice:NYY:TB O1.5",
+    "HITTER:Braden Montgomery:CWS:RBI O0.5",
+    "HITTER:Braden Montgomery:CWS:TB O1.5",
+    "HITTER:Brandon Marsh:PHI:SO O0.5",
+    "HITTER:Bryce Harper:PHI:SO O0.5",
+    "HITTER:Bryson Stott:PHI:SO O0.5",
+    "HITTER:Ceddanne Rafaela:BOS:RBI O0.5",
+    "HITTER:Cody Bellinger:NYY:SO O0.5",
+    "HITTER:Colson Montgomery:CWS:RBI O0.5",
+    "HITTER:Colson Montgomery:CWS:SO O0.5",
+    "HITTER:Jahmai Jones:BOS:HR O0.5",
+    "HITTER:Jahmai Jones:BOS:RBI O0.5",
+    "HITTER:Jazz Chisholm Jr.:NYY:RBI O0.5",
+    "HITTER:Jazz Chisholm Jr.:NYY:SO O0.5",
+    "HITTER:Kazuma Okamoto:TOR:HR O0.5",
+    "HITTER:Kazuma Okamoto:TOR:RBI O0.5",
+    "HITTER:Kazuma Okamoto:TOR:SO O0.5",
+    "HITTER:Kyle Schwarber:PHI:HR O0.5",
+    "HITTER:Kyle Schwarber:PHI:RBI O0.5",
+    "HITTER:Kyle Schwarber:PHI:SO O0.5",
+    "HITTER:Max Muncy:LAD:SO O0.5",
+    "HITTER:Max Schuemann:NYY:SO O0.5",
+    "HITTER:Miguel Vargas:CWS:TB O1.5",
+    "HITTER:Munetaka Murakami:CWS:SO O0.5",
+    "HITTER:Romy Gonzalez:BOS:SO O0.5",
+    "HITTER:Sam Antonacci:CWS:HR O0.5",
+    "HITTER:Sam Antonacci:CWS:RBI O0.5",
+    "HITTER:Sam Antonacci:CWS:TB O1.5",
+    "HITTER:Sean Keys:TOR:RBI O0.5",
+    "HITTER:Sean Keys:TOR:SO O0.5",
+    "HITTER:Shohei Ohtani:LAD:HR O0.5",
+    "HITTER:Shohei Ohtani:LAD:RBI O0.5",
+    "HITTER:Shohei Ohtani:LAD:SO O0.5",
+    "HITTER:Shohei Ohtani:LAD:TB O1.5",
+    "HITTER:Vladimir Guerrero Jr.:TOR:RBI O0.5",
+    "HITTER:Vladimir Guerrero Jr.:TOR:SO O0.5",
+    "HITTER:Willson Contreras:BOS:HR O0.5",
+    "HITTER:Willson Contreras:BOS:RBI O0.5",
+    "HITTER:Willson Contreras:BOS:SO O0.5",
+    "HITTER:Wilyer Abreu:BOS:HR O0.5",
+    "HITTER:Wilyer Abreu:BOS:RBI O0.5",
+    "HITTER:Wilyer Abreu:BOS:SO O0.5",
+    "KPROP:Alan Rangel:5.7",
+    "KPROP:Andre Pallante:3.6",
+    "KPROP:Casey Mize:5.0",
+    "KPROP:Eduardo Rodriguez:3.5",
+    "KPROP:Foster Griffin:4.9",
+    "KPROP:Joey Cantillo:5.2",
+    "KPROP:Logan Gilbert:5.2",
+    "KPROP:Nathan Eovaldi:5.4",
+    "KPROP:Noah Cameron:4.8",
+    "KPROP:Nolan McLean:5.8",
+    "KPROP:Robbie Ray:4.2",
+    "KPROP:Ryan Johnson:3.8",
+    "KPROP:Ryan Weathers:5.6",
+    "KPROP:Sean Burke:5.4",
+    "KPROP:Shota Imanaga:4.9",
+    "KPROP:Sonny Gray:4.4",
+    "KPROP:Trey Yesavage:4.6",
+    "ML:Philadelphia Phillies:115",
+    "NRFI:Detroit Tigers @ Los Angeles Angels:YRFI",
+    "NRFI:Minnesota Twins @ Chicago Cubs:YRFI",
+    "NRFI:San Diego Padres @ Kansas City Royals:YRFI",
+    "NRFI:Washington Nationals @ Athletics:YRFI",
+    "TOT:Chicago White Sox @ Toronto Blue Jays:UNDER:8.0",
+    "TOT:Detroit Tigers @ Los Angeles Angels:UNDER:9.5",
+    "TOT:Los Angeles Dodgers @ New York Yankees:UNDER:7.5",
+    "TOT:Los Angeles Dodgers @ New York Yankees:UNDER:8.5",
+    "TOT:Miami Marlins @ Milwaukee Brewers:OVER:8.0",
+    "TOT:Minnesota Twins @ Chicago Cubs:OVER:7.5",
+    "TOT:New York Mets @ Philadelphia Phillies:UNDER:8.5",
+    "TOT:Pittsburgh Pirates @ Cleveland Guardians:OVER:7.0",
+    "TOT:San Diego Padres @ Kansas City Royals:UNDER:10.0",
+    "TOT:Tampa Bay Rays @ Boston Red Sox:UNDER:8.0",
+    "TOT:Texas Rangers @ Atlanta Braves:OVER:8.5"
+  ],
+  "slip_quality": "good",
   "data_health": {
-    "odds": "failed"
+    "odds": "live",
+    "fangraphs_sp": "live",
+    "savant": "degraded",
+    "lineups": "degraded",
+    "savant_bullpen_stuff": "live",
+    "savant_bat_tracking": "live",
+    "savant_park_of_defense": "live",
+    "savant_sprint_baserunning": "live",
+    "savant_arm_angle": "live",
+    "h2h": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],
