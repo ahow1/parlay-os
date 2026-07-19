@@ -125,12 +125,17 @@ class TestNormalizeProps:
                                     books={"fanduel": 350}),
             "tb-over":   _fake_odd("batting_totalBases", "ou", "PLAYER_C", "over", line=1.5,
                                     books={"fanduel": 100}),
+            "rbi-over":  _fake_odd("batting_RBI", "ou", "PLAYER_E", "over", line=0.5,
+                                    books={"fanduel": 280}),
             "k-over":    _fake_odd("pitching_strikeouts", "ou", "PLAYER_D", "over", line=5.5,
                                     books={"fanduel": -110}),
         }
         ev = sgo._normalize_event(_fake_event(odds=odds))
         stats_found = {p["stat"] for p in ev["props"]}
-        assert stats_found == {"batter_hits", "batter_home_runs", "batter_total_bases", "pitcher_strikeouts"}
+        assert stats_found == {
+            "batter_hits", "batter_home_runs", "batter_total_bases",
+            "batter_rbis", "pitcher_strikeouts",
+        }
 
     def test_player_id_and_line_preserved(self):
         odds = {"hits-over": _fake_odd("batting_hits", "ou", "PLAYER_A", "over", line=0.5,
@@ -321,3 +326,105 @@ class TestGetEventByTeams:
         slate = {"evt1": {"home": "Philadelphia Phillies", "away": "New York Mets"}}
         found = sgo.get_event_by_teams("Boston Red Sox", "New York Yankees", slate=slate)
         assert found is None
+
+
+class TestPlayerNamesMatch:
+    """SGO player_id is a name slug ('FERNANDO_TATIS_JR_1_MLB'), not the MLBAM
+    id lineups use — player_names_match() bridges the two. Cases below are
+    all drawn from real slugs seen in a live SGO slate fetch."""
+
+    def test_plain_name(self):
+        assert sgo.player_names_match("ANDRES_GIMENEZ_1_MLB", "Andres Gimenez")
+
+    def test_diacritics(self):
+        assert sgo.player_names_match("ANDRES_GIMENEZ_1_MLB", "Andrés Giménez")
+
+    def test_jr_suffix(self):
+        assert sgo.player_names_match("FERNANDO_TATIS_JR_1_MLB", "Fernando Tatis Jr.")
+
+    def test_ii_suffix(self):
+        assert sgo.player_names_match("MICHAEL_HARRIS_II_1_MLB", "Michael Harris II")
+
+    def test_initials(self):
+        assert sgo.player_names_match("AJ_EWING_1_MLB", "A.J. Ewing")
+
+    def test_multi_word_last_name(self):
+        assert sgo.player_names_match("ADRIAN_DEL_CASTILLO_1_MLB", "Adrian Del Castillo")
+
+    def test_different_player_does_not_match(self):
+        assert not sgo.player_names_match("ANDRES_GIMENEZ_1_MLB", "Freddie Freeman")
+
+    def test_empty_inputs_do_not_match(self):
+        assert not sgo.player_names_match("", "Freddie Freeman")
+        assert not sgo.player_names_match("ANDRES_GIMENEZ_1_MLB", "")
+
+
+class TestPlayerPropMarketProb:
+    """player_prop_market_prob() — the market_data lookup that feeds real
+    market_p into brain.py's prop pipelines. Must return a 0-1 fraction
+    (market_p convention), or None whenever there's no usable market, so
+    callers can safely fall back to their fixed baseline."""
+
+    def _event_with_rbi_market(self):
+        odds = {
+            "rbi-over-dk":   _fake_odd("batting_RBI", "ou", "ANDRES_GIMENEZ_1_MLB", "over",
+                                        line=0.5, books={"draftkings": 309, "fanduel": 280}),
+            "rbi-under-dk":  _fake_odd("batting_RBI", "ou", "ANDRES_GIMENEZ_1_MLB", "under",
+                                        line=0.5, books={"draftkings": -460, "fanduel": -400}),
+        }
+        return sgo._normalize_event(_fake_event(odds=odds))
+
+    def test_present_player_both_sides_priced(self):
+        ev = self._event_with_rbi_market()
+        p = sgo.player_prop_market_prob(ev, "Andres Gimenez", "batter_rbis", 0.5)
+        assert p is not None
+        # de-vigged over-probability should land clearly below 50% (a +300ish
+        # underdog side), and be a fraction, not a 0-100 percentage
+        assert 0.0 < p < 0.40
+
+    def test_diacritic_name_still_matches(self):
+        ev = self._event_with_rbi_market()
+        p = sgo.player_prop_market_prob(ev, "Andrés Giménez", "batter_rbis", 0.5)
+        assert p is not None
+
+    def test_absent_player_returns_none(self):
+        ev = self._event_with_rbi_market()
+        assert sgo.player_prop_market_prob(ev, "Freddie Freeman", "batter_rbis", 0.5) is None
+
+    def test_wrong_line_returns_none(self):
+        ev = self._event_with_rbi_market()
+        assert sgo.player_prop_market_prob(ev, "Andres Gimenez", "batter_rbis", 1.5) is None
+
+    def test_wrong_stat_returns_none(self):
+        ev = self._event_with_rbi_market()
+        assert sgo.player_prop_market_prob(ev, "Andres Gimenez", "batter_hits", 0.5) is None
+
+    def test_sparse_odds_only_one_side_priced_returns_none(self):
+        """Real slates are ~50% sparse: a line exists but only one side (or no
+        book) has both over and under priced. No shared book -> no de-vig
+        possible -> must return None, not a one-sided or wrong number."""
+        odds = {
+            "over-only": _fake_odd("batting_RBI", "ou", "ANDRES_GIMENEZ_1_MLB", "over",
+                                    line=0.5, books={"draftkings": 309}),
+        }
+        ev = sgo._normalize_event(_fake_event(odds=odds))
+        assert sgo.player_prop_market_prob(ev, "Andres Gimenez", "batter_rbis", 0.5) is None
+
+    def test_no_common_book_returns_none(self):
+        """Over priced by one book, under priced by a different book -- no
+        single book quotes both sides, so no vig can be removed."""
+        odds = {
+            "over": _fake_odd("batting_RBI", "ou", "ANDRES_GIMENEZ_1_MLB", "over",
+                               line=0.5, books={"draftkings": 309}),
+            "under": _fake_odd("batting_RBI", "ou", "ANDRES_GIMENEZ_1_MLB", "under",
+                                line=0.5, books={"fanduel": -400}),
+        }
+        ev = sgo._normalize_event(_fake_event(odds=odds))
+        assert sgo.player_prop_market_prob(ev, "Andres Gimenez", "batter_rbis", 0.5) is None
+
+    def test_none_event_returns_none(self):
+        assert sgo.player_prop_market_prob(None, "Andres Gimenez", "batter_rbis", 0.5) is None
+
+    def test_empty_event_returns_none(self):
+        ev = sgo._normalize_event(_fake_event(odds={}))
+        assert sgo.player_prop_market_prob(ev, "Andres Gimenez", "batter_rbis", 0.5) is None
