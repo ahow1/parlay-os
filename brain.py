@@ -119,13 +119,16 @@ except ImportError:
 # The-Odds-API path hardcodes f5/spreads out to avoid tripping the ML/totals
 # circuit breaker). Degrades to "no run-line picks" if the key/package is missing.
 try:
-    from sportsgameodds_client import fetch_mlb_slate, no_vig_consensus, get_event_by_teams
+    from sportsgameodds_client import (
+        fetch_mlb_slate, no_vig_consensus, get_event_by_teams, player_prop_market_prob,
+    )
     _SGO_AVAILABLE = True
 except ImportError:
     _SGO_AVAILABLE = False
     def fetch_mlb_slate(*a, **k): return {}
     def no_vig_consensus(*a, **k): return None
     def get_event_by_teams(*a, **k): return None
+    def player_prop_market_prob(*a, **k): return None
 
 try:
     from line_movement_engine import start_line_polling
@@ -3100,6 +3103,16 @@ _HITTER_PROP_TOP_N     = 6      # evaluate top N batters in batting order
 _LG_K9_VS_BATTERS      = 8.7   # league-avg SP K/9 used for batter SO adjustment
 _LG_ERA_HITTER_BASE    = 4.35  # league-avg ERA used for hit/TB adjustment
 
+# stat_key (from _HITTER_PROP_LINES) -> SGO's friendly stat name (PROP_STAT_IDS
+# values). No entry for "strikeOuts" (batter Ks) — SGO has no market for it,
+# so that prop always uses the fixed baseline.
+_SGO_HITTER_STAT_MAP = {
+    "hits":       "batter_hits",
+    "homeRuns":   "batter_home_runs",
+    "totalBases": "batter_total_bases",
+    "rbi":        "batter_rbis",
+}
+
 
 def _normalize_lineup_players(players: list) -> list:
     """
@@ -3214,16 +3227,24 @@ def _scan_hitter_props(
     stats: dict,
     opp_sp: dict,
     br: float,
+    sgo_event: dict | None = None,
 ) -> list:
     """
     Evaluate prop markets for one batter using Poisson model vs. market baseline.
     Adjusts λ by opponent SP quality when real SP data is available.
     Returns list of recommendation dicts, only for props with >= _HITTER_PROP_MIN_EDGE.
+
+    When `sgo_event` (a normalized SGO event from fetch_mlb_slate()) has a real
+    market for this player/stat/line, its no-vig consensus probability replaces
+    the fixed baseline as market_p — for both the edge check and the recorded
+    output. Falls back to the fixed baseline when SGO has no market for that
+    player/stat, so coverage gaps never suppress a pick that would otherwise
+    have qualified.
     """
     n     = stats["games"]
     recs  = []
 
-    for stat_key, label, line, market_p in _HITTER_PROP_LINES:
+    for stat_key, label, line, baseline_p in _HITTER_PROP_LINES:
         raw = stats.get(stat_key, 0)
         lam  = raw / n
         if lam <= 0:
@@ -3240,6 +3261,18 @@ def _scan_hitter_props(
 
         lam      = max(lam, 0.001)
         model_p  = min(prob_over(lam, line), 0.87)   # Poisson tails blow up; 87% is realistic ceiling
+
+        market_p  = baseline_p
+        _sgo_stat = _SGO_HITTER_STAT_MAP.get(stat_key)
+        if _sgo_stat and sgo_event:
+            try:
+                _real_p = player_prop_market_prob(sgo_event, player_name, _sgo_stat, line)
+            except Exception:
+                _real_p = None
+            if _real_p is not None:
+                print(f"  [PROPS] {player_name} {label}: real SGO market_p={_real_p:.3f} (baseline was {baseline_p:.2f})")
+                market_p = _real_p
+
         edge     = round(model_p - market_p, 4)
 
         if edge < _HITTER_PROP_MIN_EDGE:
@@ -3275,6 +3308,7 @@ def _fetch_game_hitter_props(
     away_sp: dict,
     home_sp: dict,
     br: float,
+    sgo_event: dict | None = None,
 ) -> list:
     """
     Fetch confirmed lineup + 14-day stats for each starter.
@@ -3305,7 +3339,7 @@ def _fetch_game_hitter_props(
                 continue
             if not stats:
                 continue
-            recs = _scan_hitter_props(name, team, stats, opp_sp, br)
+            recs = _scan_hitter_props(name, team, stats, opp_sp, br, sgo_event)
             all_props.extend(recs)
 
     return all_props
@@ -3562,6 +3596,19 @@ def run_daily_scout(window: str = "all"):
             print(f"  SGP error: {sgp_err}")
             sgp_suggestions = []
 
+        # ── SGO event lookup for this game — reused by hitter props and K props
+        # below so both pipelines can substitute a real market_p when SGO has
+        # a matching player/stat/line. None (safe, falls back to baselines)
+        # whenever SGO is unavailable or this game isn't in today's slate.
+        _sgo_event = None
+        if _SGO_AVAILABLE and _sgo_slate:
+            try:
+                _sgo_event = get_event_by_teams(
+                    analysis.get("away_name", ""), analysis.get("home_name", ""), _sgo_slate
+                )
+            except Exception:
+                _sgo_event = None
+
         # ── Hitter props for this game ────────────────────────────────────────
         try:
             game_hitter_props = _fetch_game_hitter_props(
@@ -3570,6 +3617,7 @@ def run_daily_scout(window: str = "all"):
                 analysis.get("away_sp") or {},
                 analysis.get("home_sp") or {},
                 br,
+                _sgo_event,
             )
             all_hitter_props.extend(game_hitter_props)
         except Exception as hp_err:
@@ -3585,6 +3633,17 @@ def run_daily_scout(window: str = "all"):
             _opp_tid = analysis.get("home_tid" if _kside == "away" else "away_tid")
             _park    = analysis.get("home", "")
             _ump_k_f = UMPIRE_TENDENCIES.get(analysis.get("umpire", ""), (1.0, 1.0, ""))[0]
+
+            # Real SGO pitcher_strikeouts market_p for this exact SP/line, if any
+            _real_k_mp = None
+            if _sgo_event:
+                try:
+                    _real_k_mp = player_prop_market_prob(_sgo_event, _sp.get("name", ""), "pitcher_strikeouts", _k_line)
+                except Exception:
+                    _real_k_mp = None
+                if _real_k_mp is not None:
+                    print(f"  [PROPS] {_sp.get('name')} K O{_k_line}: real SGO market_p={_real_k_mp:.3f} (baseline was 0.50)")
+
             # Try new analyze_k_prop (richer model) first
             _akp = None
             if _STRIKEOUT_ENGINE_AVAILABLE:
@@ -3594,14 +3653,23 @@ def run_daily_scout(window: str = "all"):
                     _akp = None
             if _akp:
                 _k_stake = kelly_stake(_akp.get("model_p", 0.55), "-110", "PROP")
+                if _real_k_mp is not None:
+                    _k_direction   = _akp.get("direction", "OVER")
+                    _model_p_over  = _akp.get("model_p", 0.55) if _k_direction == "OVER" else 1 - _akp.get("model_p", 0.55)
+                    _k_market_p    = _real_k_mp
+                    _k_edge_pct    = round((_model_p_over - _k_market_p) * 100, 2) if _k_direction == "OVER" \
+                                     else round((_k_market_p - _model_p_over) * 100, 2)
+                else:
+                    _k_market_p = 0.5
+                    _k_edge_pct = _akp.get("edge_pct", 0)
                 all_k_props.append({
                     "sp":         _sp.get("name"),
                     "team":       analysis.get(_kside, ""),
                     "game":       _game_lbl_kp,
                     "line":       _k_line,
                     "p_over":     _akp.get("model_p", 0.55),
-                    "market_p":   0.5,
-                    "edge_pct":   _akp.get("edge_pct", 0),
+                    "market_p":   _k_market_p,
+                    "edge_pct":   _k_edge_pct,
                     "stake":      _k_stake,
                     "statcast_2025": False,
                     "projected_k":  _akp.get("projected_k"),
@@ -3621,14 +3689,20 @@ def run_daily_scout(window: str = "all"):
                             _sp_sc = get_pitcher_statcast(_sp["pitcher_id"])
                         except Exception:
                             _sp_sc = {}
+                    if _real_k_mp is not None:
+                        _k_market_p = _real_k_mp
+                        _k_edge_pct = round((_p_k - _k_market_p) * 100, 1)
+                    else:
+                        _k_market_p = 0.5
+                        _k_edge_pct = round((_p_k - 0.50) * 100, 1)
                     all_k_props.append({
                         "sp":             _sp.get("name"),
                         "team":           analysis.get(_kside, ""),
                         "game":           _game_lbl_kp,
                         "line":           _k_line,
                         "p_over":         _p_k,
-                        "market_p":       0.5,
-                        "edge_pct":       round((_p_k - 0.50) * 100, 1),
+                        "market_p":       _k_market_p,
+                        "edge_pct":       _k_edge_pct,
                         "stake":          _k_stake,
                         "statcast_2025":  _sp_sc.get("STATCAST_2025", False),
                     })
