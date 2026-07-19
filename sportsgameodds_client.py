@@ -3,7 +3,7 @@ Pulls MLB odds from SportsGameOdds (SGO) and normalizes them to decimal odds +
 implied probability, independent of which sportsbook or market they came from.
 
 Covers, per game: moneyline, totals, run-line (spread), open-vs-current line
-for each, and player props (batter hits, home runs/total bases, pitcher Ks).
+for each, and player props (batter hits, home runs, total bases, RBI, pitcher Ks).
 
 SGO Amateur (free) tier hard limits: 10 requests/min, 2,500 entities/month.
 One request per cache refresh covers the ENTIRE day's MLB slate — never call
@@ -36,6 +36,7 @@ PROP_STAT_IDS = {
     "batting_hits":        "batter_hits",
     "batting_homeRuns":    "batter_home_runs",
     "batting_totalBases":  "batter_total_bases",
+    "batting_RBI":         "batter_rbis",
     "pitching_strikeouts": "pitcher_strikeouts",
 }
 
