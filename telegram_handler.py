@@ -1468,13 +1468,19 @@ def run_settlement_check() -> list[dict]:
             r_lab   = {"W": "WIN", "L": "LOSS", "P": "PUSH"}[outcome]
             bd      = _bankroll_display()
 
-            msg = (
-                f"{em} AUTO-SETTLE: {team_code} {bet.get('type','ML')} {r_lab}\n"
-                f"{score} | {pnl_str}{clv_txt}\n"
-                f"Bankroll: ${bd['bankroll']:.2f}"
-            )
-            _send(msg)
-            print(f"[AUTO] settled bet #{bet['id']}: {team_code} {outcome} {score}")
+            # over_cap picks were never staked -- grade/settle them like any
+            # other bet (CLV, result, profit=0 all still apply), but never
+            # ping Telegram about a "win"/"loss" on a bet that wasn't placed.
+            if bet.get("over_cap"):
+                print(f"[AUTO] settled over_cap bet #{bet['id']}: {team_code} {outcome} {score} (not sent -- stake=0)")
+            else:
+                msg = (
+                    f"{em} AUTO-SETTLE: {team_code} {bet.get('type','ML')} {r_lab}\n"
+                    f"{score} | {pnl_str}{clv_txt}\n"
+                    f"Bankroll: ${bd['bankroll']:.2f}"
+                )
+                _send(msg)
+                print(f"[AUTO] settled bet #{bet['id']}: {team_code} {outcome} {score}")
 
             settled_log.append({
                 **bet,

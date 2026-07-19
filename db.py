@@ -405,6 +405,10 @@ def init_db():
             "ALTER TABLE bets ADD COLUMN kalshi_liquidity_ok INTEGER",
             "ALTER TABLE bets ADD COLUMN roi REAL",
             "ALTER TABLE bets ADD COLUMN graded_at TEXT",
+            # Cap-tracking: picks that qualified but couldn't be staked because
+            # the daily/pool cap was already spent. Logged with stake=0 so they
+            # carry zero P&L, but graded/settled identically to real picks.
+            "ALTER TABLE bets ADD COLUMN over_cap INTEGER DEFAULT 0",
         ]:
             try:
                 conn.execute(ddl)
@@ -433,12 +437,24 @@ def log_bet(date, bet, bet_type, game, sp, park, umpire,
             lineup_slot_score=None, sharp_signal=None, umpire_edge=None,
             home_dog_angle=None, first_pitch_strike_rate=None, sp_gb_rate=None,
             situations_triggered=None, abs_score=None,
-            sharp_checklist_results=None, confidence_engine_score=None):
+            sharp_checklist_results=None, confidence_engine_score=None,
+            over_cap=0):
     now = datetime.now(ET).isoformat()
     verify_hash = hashlib.sha256(
         f"{game}|{bet}|{bet_odds}|{now}".encode()
     ).hexdigest()
+    if over_cap:
+        stake = 0.0   # over_cap picks were never staked -- enforced here, not just by callers
     with _conn() as conn:
+        if not over_cap:
+            # A real pick always supersedes an unsettled over_cap phantom row
+            # at the same (date, game, bet, type) key -- e.g. the cap frees up
+            # on a same-day rerun. Without this, INSERT OR IGNORE below would
+            # silently drop the real pick behind the phantom's unique-index slot.
+            conn.execute("""
+                DELETE FROM bets
+                WHERE date=? AND game=? AND bet=? AND type=? AND over_cap=1 AND result IS NULL
+            """, (date, game, bet, bet_type))
         conn.execute("""
             INSERT OR IGNORE INTO bets
               (date, timestamp, bet, type, game, sp, park, umpire,
@@ -447,15 +463,16 @@ def log_bet(date, bet, bet_type, game, sp, park, umpire,
                sharp_signal, umpire_edge, home_dog_angle,
                first_pitch_strike_rate, sp_gb_rate,
                situations_triggered, abs_score,
-               sharp_checklist_results, confidence_engine_score)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               sharp_checklist_results, confidence_engine_score, over_cap)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (date, now, bet, bet_type, game, sp, park, umpire,
               bet_odds, model_prob, market_prob, edge_pct, conviction, stake, verify_hash,
               pitch_trap, framing_edge, closer_avail, lineup_slot_score,
               sharp_signal, umpire_edge, home_dog_angle,
               first_pitch_strike_rate, sp_gb_rate,
               situations_triggered, abs_score,
-              sharp_checklist_results, confidence_engine_score))
+              sharp_checklist_results, confidence_engine_score,
+              1 if over_cap else 0))
 
 
 def get_pick_by_hash(verify_hash: str) -> dict | None:

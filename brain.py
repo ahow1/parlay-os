@@ -1683,6 +1683,7 @@ def _daily_bet_slip(
             break
         _capped_runline.append(_rb)
         _runline_spent += _s
+    over_cap_runline = runline_bets[len(_capped_runline):]
     runline_bets = _capped_runline
 
     # Enforce props pool budget — admit highest-edge props first until pool is exhausted
@@ -1694,6 +1695,7 @@ def _daily_bet_slip(
             break
         _capped_hitter.append(_h)
         _props_spent += _s
+    over_cap_hitter = hitter_bets[len(_capped_hitter):]
     hitter_bets = _capped_hitter
 
     _capped_k: list = []
@@ -1703,6 +1705,7 @@ def _daily_bet_slip(
             break
         _capped_k.append(_b)
         _props_spent += _s
+    over_cap_k = k_bets[len(_capped_k):]
     k_bets = _capped_k
 
     _capped_nrfi: list = []
@@ -1712,6 +1715,7 @@ def _daily_bet_slip(
             break
         _capped_nrfi.append(_b)
         _props_spent += _s
+    over_cap_nrfi = nrfi_bets[len(_capped_nrfi):]
     nrfi_bets = _capped_nrfi
 
     # Parlay: HIGH conviction locks first; fall back to top picks by confidence
@@ -2035,6 +2039,24 @@ def _daily_bet_slip(
                 stake=_p["stake"],
             )
 
+        # Same qualifying bar as all_player_props (edge >= 5%) so an over_cap
+        # row means "this would have been a real pick" — just cut by the
+        # props pool budget, not the separate MAX_PROPS_PER_DAY quota.
+        _over_cap_props = (
+            [_norm_k(b) for b in over_cap_k] +
+            [_norm_h(h) for h in over_cap_hitter]
+        )
+        _over_cap_props = [p for p in _over_cap_props if p["edge_pct"] >= 5.0]
+        for _p in _over_cap_props:
+            _log_pick_with_retry(
+                "PROP",
+                date=today_iso, bet=f"{_p['player']} {_p['stat']}", game=_p.get("game", ""),
+                bet_odds=_p["odds_str"], model_prob=_p["model_p"], market_prob=_p.get("market_p", 0.5),
+                edge_pct=_p["edge_pct"],
+                conviction=("LOCK" if _p["edge_pct"] >= 10.0 else "FLIP"),
+                stake=_p["stake"], over_cap=True,
+            )
+
     prop_locks = [p for p in all_player_props if p["edge_pct"] >= 10.0]
     prop_flips = [p for p in all_player_props if 5.0 <= p["edge_pct"] < 10.0]
 
@@ -2067,6 +2089,17 @@ def _daily_bet_slip(
                     conviction="PROP", stake=bet["stake"],
                 )
         p2.append("")
+
+    if not DRY_RUN:
+        for bet in over_cap_nrfi:
+            _nrfi_mkt_p = (implied_prob("-110") or 0) / 100
+            _log_pick_with_retry(
+                "NRFI",
+                date=today_iso, bet=f"{bet['game']} {bet['direction']}", game=bet["game"],
+                bet_odds="-110", model_prob=bet["prob"], market_prob=_nrfi_mkt_p,
+                edge_pct=round((bet["prob"] - _nrfi_mkt_p) * 100, 1),
+                conviction="PROP", stake=bet["stake"], over_cap=True,
+            )
 
     # ── Props parlay: top 3 locks only ──────────────────────────────────────
     parlay_legs = prop_locks[:3]
@@ -2184,6 +2217,16 @@ def _daily_bet_slip(
                     edge_pct=bet["edge_pct"], conviction=bet["conviction"], stake=bet["stake"],
                 )
         p3.append("")
+
+    if not DRY_RUN:
+        for bet in over_cap_runline:
+            _log_pick_with_retry(
+                bet["bet_type"],
+                date=today_iso, bet=bet["team"],
+                game=bet["game"], bet_odds=bet["odds"],
+                model_prob=bet["prob"], market_prob=bet["market_p"],
+                edge_pct=bet["edge_pct"], conviction=bet["conviction"], stake=bet["stake"], over_cap=True,
+            )
 
     if all_fades:
         p3.append("❌ FADES:")
@@ -2890,12 +2933,17 @@ def _game_analysis_failure_message(failures: list) -> str:
     )
 
 
-def _log_bet_with_retry(today: str, analysis: dict, side: str, conv: str) -> bool:
+def _log_bet_with_retry(today: str, analysis: dict, side: str, conv: str, over_cap: bool = False) -> bool:
     """Persist a bet to the DB, retrying once on failure. Returns True if
     stored, False if it failed twice. Caller must suppress the Telegram/
     dashboard display of this pick when this returns False — a pick that
     reaches the user but was never stored is invisible to settlement,
-    memory/learning, and the dashboard forever (AUDIT.md B4)."""
+    memory/learning, and the dashboard forever (AUDIT.md B4).
+
+    over_cap=True logs a pick that qualified but couldn't be staked because
+    the daily cap was already spent — same fields as a real pick, forced
+    stake=0 so it carries no P&L, flagged so CLV/settlement can still grade
+    it without it ever reaching Telegram."""
     for attempt in (1, 2):
         try:
             _pt_res      = analysis.get(f"{side}_pitch_trap") or {}
@@ -2917,7 +2965,7 @@ def _log_bet_with_retry(today: str, analysis: dict, side: str, conv: str) -> boo
                 market_prob=analysis.get(f"{side}_nv"),
                 edge_pct=analysis.get(f"{side}_edge"),
                 conviction=conv,
-                stake=float(analysis.get(f"{side}_stake", 0)),
+                stake=0.0 if over_cap else float(analysis.get(f"{side}_stake", 0)),
                 pitch_trap=_pt_res.get("tag") or None,
                 framing_edge=_fr_res.get("tag") or None,
                 closer_avail=str(analysis.get(f"{side}_key_rel_avail", True)),
@@ -2927,6 +2975,7 @@ def _log_bet_with_retry(today: str, analysis: dict, side: str, conv: str) -> boo
                 home_dog_angle=1 if _hd_log.get("is_home_dog_value") else 0,
                 first_pitch_strike_rate=_sp_data_log.get("fp_strike_rate"),
                 sp_gb_rate=_sp_data_log.get("gb_rate"),
+                over_cap=over_cap,
             )
             return True
         except Exception as e:
@@ -2936,19 +2985,24 @@ def _log_bet_with_retry(today: str, analysis: dict, side: str, conv: str) -> boo
 
 def _log_pick_with_retry(bet_type: str, *, date: str, bet: str, game: str,
                           bet_odds: str, model_prob, market_prob, edge_pct,
-                          conviction: str, stake: float) -> bool:
+                          conviction: str, stake: float, over_cap: bool = False) -> bool:
     """Persist a non-ML pick (TOTAL/NRFI/PROP/PARLAY) via the same log_bet()
     path as ML, retrying once on failure. Unlike _log_bet_with_retry, a
     failure here never changes what's shown in Telegram — the message is
     already built by the time this runs; this is best-effort logging
-    underneath an otherwise-unchanged slip (TIER 3 WIRE-IN 3)."""
+    underneath an otherwise-unchanged slip (TIER 3 WIRE-IN 3).
+
+    over_cap=True logs a pick that qualified but was cut by the props/runline
+    pool budget — same fields as a real pick, forced stake=0."""
     for attempt in (1, 2):
         try:
             _db.log_bet(
                 date=date, bet=bet, bet_type=bet_type, game=game,
                 sp="", park="", umpire="", bet_odds=bet_odds,
                 model_prob=model_prob, market_prob=market_prob,
-                edge_pct=edge_pct, conviction=conviction, stake=stake,
+                edge_pct=edge_pct, conviction=conviction,
+                stake=0.0 if over_cap else stake,
+                over_cap=over_cap,
             )
             return True
         except Exception as e:
@@ -3769,6 +3823,8 @@ def run_daily_scout(window: str = "all"):
 
                 proposed_stake = float(analysis.get(f"{side}_stake", 0))
                 proposed_stake = max(proposed_stake, MIN_STAKE)   # enforce $1.00 floor
+                edge = analysis.get(f"{side}_edge", 0)
+                conv = analysis.get(f"{side}_conv", "PASS")
 
                 # ── Hard daily cap block ───────────────────────────────────────
                 if not _override_cap and accumulated_risk + proposed_stake > _cap:
@@ -3778,10 +3834,9 @@ def run_daily_scout(window: str = "all"):
                         f"(accumulated ${accumulated_risk:.2f} + ${proposed_stake:.2f})"
                     )
                     _cap_blocked_teams.append(_team)
+                    if not DRY_RUN:
+                        _log_bet_with_retry(today, analysis, side, conv, over_cap=True)
                     continue
-
-                edge = analysis.get(f"{side}_edge", 0)
-                conv = analysis.get(f"{side}_conv", "PASS")
 
                 # Validate bet type before logging
                 if not DRY_RUN:
