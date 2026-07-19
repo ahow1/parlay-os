@@ -164,12 +164,56 @@ def sizing_bankroll() -> float:
     return real_sizing_bankroll()
 
 
+_anchor_healed = False
+
+
+def ensure_bankroll_anchor(default_value: float = 300.0) -> None:
+    """Self-heal: guarantee a bankroll_anchor row exists and no pre-anchor settled
+    bets are left live in `bets`.
+
+    fc19638 added the anchor/archive machinery but never called it, so drawdown
+    silently kept replaying from STARTING_BANKROLL through 9 stale May seed bets
+    (phantom 22% drawdown, see [problem B]). This closes that gap AND makes the
+    fix durable: GitHub Actions checks out and re-commits parlay_os.db on every
+    run, so a one-time manual archive is a single point of failure — any future
+    DB reset/rollback/manual edit would silently reintroduce the bug. Running
+    this idempotently on every process start means a fresh checkout always
+    self-corrects instead of depending on the archived DB state surviving.
+
+    Cheap and safe to call repeatedly: no-ops after the first successful run
+    in a given process (module-level guard), and archive_bets()/set_bankroll_
+    anchor() are themselves no-ops on an already-healed DB.
+    """
+    global _anchor_healed
+    if _anchor_healed:
+        return
+    import pytz
+    ET = pytz.timezone("America/New_York")
+    today = datetime.now(ET).strftime("%Y-%m-%d")
+
+    anchor = _db.get_bankroll_anchor()
+    if anchor is None:
+        value = float(os.getenv("BANKROLL_OVERRIDE") or default_value)
+        _db.set_bankroll_anchor(value, note="self-heal: no anchor existed, seeded from confirmed bankroll")
+        anchor = (value, today)
+
+    _, anchor_date = anchor
+    stale_ids = [
+        b["id"] for b in _db.get_bets()
+        if b.get("result") is not None and (b.get("date") or "") < anchor_date
+    ]
+    if stale_ids:
+        _db.archive_bets(stale_ids, reason=f"pre-anchor settled bet (anchor_date={anchor_date})")
+    _anchor_healed = True
+
+
 def _anchor_start_and_bets():
     """Starting balance + the settled bets to replay for real_sizing_bankroll/real_peak_bankroll.
     Uses the most recent bankroll_anchor checkpoint (a manually-confirmed real bankroll,
     set via db.set_bankroll_anchor — never BANKROLL_OVERRIDE) if one exists, replaying only
     bets settled after the anchor date. Falls back to STARTING_BANKROLL + full history
     when no anchor has been set."""
+    ensure_bankroll_anchor()
     anchor = _db.get_bankroll_anchor()
     if anchor:
         start, anchor_date = anchor

@@ -5,7 +5,7 @@ import sys
 import sqlite3
 import pytest
 from unittest.mock import patch, MagicMock
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import pytz
 
 # ── FIX 7: Drawdown protection — real P&L, not BANKROLL_OVERRIDE ──────────────
@@ -49,6 +49,82 @@ class TestDrawdownProtection:
         with patch.dict(os.environ, {"BANKROLL_OVERRIDE": "500"}):
             br = current_bankroll()
         assert br == 500.0, "current_bankroll() display should still respect BANKROLL_OVERRIDE"
+
+
+class TestBankrollAnchorSelfHeal:
+    """fc19638 added the bankroll_anchor/archive_bets machinery but never called
+    it, so drawdown kept replaying from STARTING_BANKROLL through 9 stale May
+    seed bets (phantom 22% pause). ensure_bankroll_anchor() must self-heal any
+    DB state that's missing the anchor — including a fresh/reverted GitHub
+    Actions checkout — not just the one DB this was fixed on by hand."""
+
+    def _fresh_db(self, tmp_path, monkeypatch):
+        db_path = str(tmp_path / "test_anchor.db")
+        monkeypatch.setenv("PARLAY_DB", db_path)
+        import importlib
+        import db as _db
+        importlib.reload(_db)
+        _db.init_db()
+        import bankroll_engine as be
+        be._anchor_healed = False
+        return _db, be
+
+    def test_self_heal_creates_anchor_and_archives_stale_bets(self, tmp_path, monkeypatch):
+        _db, be = self._fresh_db(tmp_path, monkeypatch)
+        with _db._conn() as conn:
+            conn.execute(
+                "INSERT INTO bets (date, timestamp, bet, type, game, bet_odds, stake, result, profit) "
+                "VALUES ('2020-01-01','2020-01-01T00:00:00','Stale Team','ML','Stale Game','-110',10,'L',-10)"
+            )
+        assert _db.get_bankroll_anchor() is None, "precondition: no anchor set"
+
+        be.ensure_bankroll_anchor(300.0)
+
+        anchor = _db.get_bankroll_anchor()
+        assert anchor is not None and anchor[0] == 300.0
+        assert _db.get_bets() == [], "pre-anchor settled bet must be archived out of live bets"
+        with _db._conn() as conn:
+            assert conn.execute("SELECT COUNT(*) FROM bets_archive").fetchone()[0] == 1
+
+    def test_self_heal_leaves_pending_bets_untouched(self, tmp_path, monkeypatch):
+        """Only settled (result IS NOT NULL) pre-anchor bets are archived — open
+        pending bets are real current exposure and must never be swept away."""
+        _db, be = self._fresh_db(tmp_path, monkeypatch)
+        with _db._conn() as conn:
+            conn.execute(
+                "INSERT INTO bets (date, timestamp, bet, type, game, bet_odds, stake, result) "
+                "VALUES ('2020-01-01','2020-01-01T00:00:00','Pending Team','ML','Pending Game','-110',10,NULL)"
+            )
+        be.ensure_bankroll_anchor(300.0)
+        assert len(_db.get_bets()) == 1, "pending bet must stay live"
+
+    def test_self_heal_idempotent(self, tmp_path, monkeypatch):
+        """Calling it repeatedly (every drawdown_tier() call, in practice) must
+        not create duplicate anchors or re-archive already-archived bets."""
+        _db, be = self._fresh_db(tmp_path, monkeypatch)
+        be.ensure_bankroll_anchor(300.0)
+        first = _db.get_bankroll_anchor()
+        be.ensure_bankroll_anchor(300.0)
+        be.ensure_bankroll_anchor(300.0)
+        assert _db.get_bankroll_anchor() == first
+        with _db._conn() as conn:
+            assert conn.execute("SELECT COUNT(*) FROM bankroll_anchor").fetchone()[0] == 1
+
+    def test_real_drawdown_still_pauses_after_self_heal(self, tmp_path, monkeypatch):
+        """Safety must not be disabled by the fix — a genuine >=20% drawdown
+        after the anchor date still has to trigger the pause."""
+        _db, be = self._fresh_db(tmp_path, monkeypatch)
+        be.ensure_bankroll_anchor(300.0)
+        anchor_date = _db.get_bankroll_anchor()[1]
+        after = (date.fromisoformat(anchor_date) + timedelta(days=1)).isoformat()
+        with _db._conn() as conn:
+            conn.execute(
+                "INSERT INTO bets (date, timestamp, bet, type, game, bet_odds, stake, result, profit) "
+                f"VALUES ('{after}','{after}T00:00:00','Loss','ML','Game','-110',70,'L',-70)"
+            )
+        dd = be.drawdown_tier()
+        assert dd["pause"] is True
+        assert dd["pct"] >= 20.0
 
 
 # ── FIX 5: Stop-loss circuit breaker ─────────────────────────────────────────
