@@ -127,6 +127,60 @@ class TestBankrollAnchorSelfHeal:
         assert dd["pct"] >= 20.0
 
 
+class TestConvictionGapTextHonest:
+    """The 'PASS ... need >3.0%' log line implied MIN_EDGE_PCT (3.0%) was the
+    real bar, but _conviction() actually requires edge>=4% AND model_p>=0.48
+    for MEDIUM (or edge>=7%/model>=0.52 for HIGH, edge>=10%/model>=0.40 for
+    the value-dog exception) — a 3.5% edge that reads as clearing the printed
+    threshold can still PASS. _conviction_gap_text() must describe the real
+    unmet requirement, derived from the same CONVICTION_* constants
+    _conviction() itself gates on, and must never claim a bet qualifies when
+    _conviction() says PASS (or vice versa)."""
+
+    def test_edge_below_min_floor(self):
+        from brain import _conviction_gap_text, MIN_EDGE_PCT
+        text = _conviction_gap_text(1.2, 0.50)
+        assert f"{MIN_EDGE_PCT:.1f}%" in text and "floor" in text
+
+    def test_edge_above_min_floor_but_below_medium_tier_is_not_misreported(self):
+        """This is the exact bug: 3.5% edge clears MIN_EDGE_PCT=3.0 but still
+        PASSes — the old text said 'need >3.0%' which reads as satisfied."""
+        from brain import _conviction_gap_text, _conviction, MIN_EDGE_PCT, CONVICTION_MEDIUM_EDGE_MIN
+        edge, model = 3.5, 0.507
+        assert edge > MIN_EDGE_PCT
+        assert _conviction(edge, model, {}, {}) == "PASS"
+        text = _conviction_gap_text(edge, model)
+        assert f"{MIN_EDGE_PCT:.1f}%" not in text, "must not repeat the misleading 3.0% floor once edge already clears it"
+        assert f"{CONVICTION_MEDIUM_EDGE_MIN:.1f}%" in text
+
+    def test_edge_qualifies_but_model_too_low(self):
+        """9.2% edge, model 0.449 — real blocker is model probability, not edge."""
+        from brain import _conviction_gap_text, _conviction, CONVICTION_MEDIUM_MODEL_MIN
+        edge, model = 9.2, 0.449
+        assert _conviction(edge, model, {}, {}) == "PASS"
+        text = _conviction_gap_text(edge, model)
+        assert "model_p" in text and f"{model:.3f}" in text
+        assert f"{CONVICTION_MEDIUM_MODEL_MIN:.2f}" in text
+
+    def test_gap_text_never_called_when_conviction_actually_qualifies(self):
+        """Sanity: every combo _conviction() marks non-PASS must not be passed
+        to _conviction_gap_text in the real call site (it's only invoked
+        inside the `conv == PASS or edge < MIN_EDGE_PCT` branch)."""
+        from brain import _conviction
+        assert _conviction(11.9, 0.529, {}, {}) == "MEDIUM"
+
+    def test_named_constants_match_conviction_behavior(self):
+        """Refactor must not change actual thresholds — only the log text."""
+        from brain import (
+            _conviction, CONVICTION_MEDIUM_EDGE_MIN, CONVICTION_MEDIUM_MODEL_MIN,
+            CONVICTION_HIGH_EDGE_MIN, CONVICTION_HIGH_MODEL_MIN,
+        )
+        assert _conviction(CONVICTION_MEDIUM_EDGE_MIN, CONVICTION_MEDIUM_MODEL_MIN, {}, {}) == "MEDIUM"
+        assert _conviction(CONVICTION_MEDIUM_EDGE_MIN - 0.1, CONVICTION_MEDIUM_MODEL_MIN, {}, {}) == "PASS"
+        assert _conviction(CONVICTION_MEDIUM_EDGE_MIN, CONVICTION_MEDIUM_MODEL_MIN - 0.01, {}, {}) == "PASS"
+        assert _conviction(CONVICTION_HIGH_EDGE_MIN, CONVICTION_HIGH_MODEL_MIN, {}, {}) == "HIGH"
+
+
 # ── FIX 5: Stop-loss circuit breaker ─────────────────────────────────────────
 
 class TestStopLossCircuitBreaker:

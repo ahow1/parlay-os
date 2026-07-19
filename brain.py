@@ -194,6 +194,20 @@ MIN_EDGE_PCT = 3.0
 # Minimum Pythagorean probability to include in output
 MIN_PROB     = 0.48
 
+# ── Conviction tier thresholds ─────────────────────────────────────────────────
+# MIN_EDGE_PCT above is only the first-pass floor _conviction() checks — clearing
+# it is necessary but not sufficient. These are the real per-tier bars a bet must
+# also clear; kept as named constants (not literals inside _conviction()) so the
+# "PASS ... need >X%" log text can be generated from the same source of truth
+# instead of drifting out of sync with the actual gate, as MIN_EDGE_PCT alone did.
+CONVICTION_MEDIUM_EDGE_MIN      = 4.0    # MEDIUM: edge >= this AND model_p >= MEDIUM_MODEL_MIN
+CONVICTION_MEDIUM_MODEL_MIN     = 0.48
+CONVICTION_HIGH_EDGE_MIN        = 7.0    # HIGH: edge >= this AND model_p >= HIGH_MODEL_MIN
+CONVICTION_HIGH_MODEL_MIN       = 0.52
+CONVICTION_VALUE_DOG_EDGE_MIN   = 10.0   # value-dog exception: big edge on a plus-money dog,
+CONVICTION_VALUE_DOG_MODEL_MIN  = 0.40   # model floor relaxed to this instead of 0.48
+CONVICTION_VALUE_DOG_HIGH_EDGE  = 14.0   # value-dog HIGH (vs MEDIUM) cutoff
+
 
 # ── PYTHAGOREAN WIN PROB ──────────────────────────────────────────────────────
 
@@ -1154,13 +1168,32 @@ def _conviction(edge_pct: float, model_p: float, bp: dict, market: dict) -> str:
         return "PASS"
     # Value underdog exception: +10% edge on a big underdog, floor lowered to 0.40.
     # Market at +200 implies 33% — our 40% model is still a real edge, not a flip.
-    if edge_pct >= 10 and model_p >= 0.40:
-        return "HIGH" if edge_pct >= 14 else "MEDIUM"
-    if edge_pct >= 7 and model_p >= 0.52:
+    if edge_pct >= CONVICTION_VALUE_DOG_EDGE_MIN and model_p >= CONVICTION_VALUE_DOG_MODEL_MIN:
+        return "HIGH" if edge_pct >= CONVICTION_VALUE_DOG_HIGH_EDGE else "MEDIUM"
+    if edge_pct >= CONVICTION_HIGH_EDGE_MIN and model_p >= CONVICTION_HIGH_MODEL_MIN:
         return "HIGH"
-    if edge_pct >= 4 and model_p >= 0.48:
+    if edge_pct >= CONVICTION_MEDIUM_EDGE_MIN and model_p >= CONVICTION_MEDIUM_MODEL_MIN:
         return "MEDIUM"
     return "PASS"
+
+
+def _conviction_gap_text(edge_pct: float, model_p: float) -> str:
+    """Human-readable reason a bet's edge/model_p didn't clear any conviction
+    tier — derived from the exact same thresholds _conviction() gates on, so
+    this can't drift out of sync with the real requirement the way a hardcoded
+    'need >{MIN_EDGE_PCT}%' string did (MIN_EDGE_PCT is only the first-pass
+    floor; the real per-tier bars are the CONVICTION_* constants above)."""
+    if edge_pct < MIN_EDGE_PCT:
+        return f"edge {edge_pct:+.1f}% < {MIN_EDGE_PCT:.1f}% floor"
+    if edge_pct < CONVICTION_MEDIUM_EDGE_MIN:
+        return f"edge {edge_pct:+.1f}% < {CONVICTION_MEDIUM_EDGE_MIN:.1f}% (min for any conviction tier)"
+    if edge_pct >= CONVICTION_VALUE_DOG_EDGE_MIN:
+        return (f"edge {edge_pct:+.1f}% >= {CONVICTION_VALUE_DOG_EDGE_MIN:.0f}% but "
+                f"model_p {model_p:.3f} < {CONVICTION_VALUE_DOG_MODEL_MIN:.2f} "
+                f"(value-dog floor)")
+    return (f"edge {edge_pct:+.1f}% >= {CONVICTION_MEDIUM_EDGE_MIN:.0f}% but "
+            f"model_p {model_p:.3f} < {CONVICTION_MEDIUM_MODEL_MIN:.2f} "
+            f"(required for MEDIUM)")
 
 
 # ── SP QUALITY TIERS ─────────────────────────────────────────────────────────
@@ -2417,7 +2450,7 @@ def _should_recommend(game: dict, side: str, bet_type: str = "ML") -> bool:
     odds  = game.get(f"best_{side}_odds")
 
     if conv == "PASS" or edge < MIN_EDGE_PCT:
-        print(f"  PASS {team}: edge {edge:+.1f}% (need >{MIN_EDGE_PCT}%) model={model:.3f} nv={nv:.3f}")
+        print(f"  PASS {team}: {_conviction_gap_text(edge, model)} nv={nv:.3f}")
         return False
 
     # No -200 or worse favorites — too much juice, destroys EV at scale
