@@ -1,65 +1,16 @@
 {
-  "timestamp": "2026-07-19T20:41:02Z",
-  "date": "2026-07-19",
-  "window": "evening",
+  "timestamp": "2026-07-20T16:19:46Z",
+  "date": "2026-07-20",
+  "window": "day",
   "bankroll": 300.0,
-  "games": [
-    {
-      "away": "LAD",
-      "home": "NYY",
-      "away_model": 0.4883,
-      "home_model": 0.4767,
-      "away_edge": -5.07,
-      "home_edge": 1.57,
-      "away_xr": 3.919,
-      "home_xr": 3.5
-    }
-  ],
+  "games": [],
   "bets": [],
-  "passes": [
-    {
-      "game": "Los Angeles Dodgers @ New York Yankees",
-      "edges": {
-        "away": -5.07,
-        "home": 1.57
-      }
-    }
-  ],
-  "slip_sent": true,
-  "sent_pick_ids": [
-    "ER:Emmet Sheehan:2.5:UNDER",
-    "ER:Ryan Weathers:2.5:UNDER",
-    "HITTER:Andy Pages:LAD:RBI O0.5",
-    "HITTER:Andy Pages:LAD:SO O0.5",
-    "HITTER:Andy Pages:LAD:TB O1.5",
-    "HITTER:Ben Rice:NYY:HR O0.5",
-    "HITTER:Ben Rice:NYY:RBI O0.5",
-    "HITTER:Ben Rice:NYY:SO O0.5",
-    "HITTER:Ben Rice:NYY:TB O1.5",
-    "HITTER:Cody Bellinger:NYY:SO O0.5",
-    "HITTER:Freddie Freeman:LAD:SO O0.5",
-    "HITTER:Jazz Chisholm Jr.:NYY:SO O0.5",
-    "HITTER:Max Muncy:LAD:SO O0.5",
-    "HITTER:Max Schuemann:NYY:SO O0.5",
-    "HITTER:Shohei Ohtani:LAD:HR O0.5",
-    "HITTER:Shohei Ohtani:LAD:RBI O0.5",
-    "HITTER:Shohei Ohtani:LAD:SO O0.5",
-    "HITTER:Shohei Ohtani:LAD:TB O1.5",
-    "HITTER:Trent Grisham:NYY:SO O0.5",
-    "KPROP:Ryan Weathers:5.6"
-  ],
+  "passes": [],
+  "slip_sent": false,
+  "sent_pick_ids": [],
   "slip_quality": "bad",
   "data_health": {
-    "odds": "live",
-    "fangraphs_sp": "live",
-    "savant": "degraded",
-    "lineups": "live",
-    "savant_bullpen_stuff": "live",
-    "savant_bat_tracking": "live",
-    "savant_park_of_defense": "live",
-    "savant_sprint_baserunning": "live",
-    "savant_arm_angle": "live",
-    "h2h": "live"
+    "odds": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],

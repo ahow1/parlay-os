@@ -1,48 +1,5 @@
 {
-  "date": "2026-07-19",
-  "timestamp": "2026-07-19T16:42:57.421744-04:00",
-  "games": [
-    {
-      "away": "LAD",
-      "home": "NYY",
-      "away_name": "Los Angeles Dodgers",
-      "home_name": "New York Yankees",
-      "time": "7:21 PM ET",
-      "asp": "Emmet Sheehan",
-      "hsp": "Ryan Weathers",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Emmet Sheehan",
-          "sp_side": "away",
-          "model_line": 5.7,
-          "p_over": 0.4661,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Ryan Weathers",
-          "sp_side": "home",
-          "model_line": 5.6,
-          "p_over": 0.5726,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4508,
-          "p_yrfi": 0.5492,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.42,
-          "market_line": 9.0,
-          "p_over": 0.2144,
-          "p_under": 0.7856,
-          "recommendation": "UNDER 9.0"
-        }
-      ],
-      "sgp": []
-    }
-  ]
+  "date": "2026-07-20",
+  "timestamp": "2026-07-20T12:19:46.969563-04:00",
+  "games": []
 }
