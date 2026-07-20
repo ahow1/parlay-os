@@ -278,12 +278,12 @@ class TestNeutralDefaultMasking:
             away_platoon_edge=0.0, home_platoon_edge=0.0,
             away_momentum_score=0.0, home_momentum_score=0.0,
         )
-        away_p_missing, _ = _weighted_win_prob(
+        away_p_missing, _, _ = _weighted_win_prob(
             away_wrc=150.0, home_wrc=50.0,
             away_off_data_ok=False, home_off_data_ok=True,
             **common,
         )
-        away_p_present, _ = _weighted_win_prob(
+        away_p_present, _, _ = _weighted_win_prob(
             away_wrc=150.0, home_wrc=50.0,
             away_off_data_ok=True, home_off_data_ok=True,
             **common,

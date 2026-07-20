@@ -547,7 +547,7 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     away_off_data_ok = not away_off.get("offense_missing", False)
     home_off_data_ok = not home_off.get("offense_missing", False)
 
-    away_model_p, home_model_p = _weighted_win_prob(
+    away_model_p, home_model_p, _ml_factors = _weighted_win_prob(
         away_xfip              = away_sp.get("xfip", 4.35),
         home_xfip              = home_sp.get("xfip", 4.35),
         away_bp_fatigue        = away_bp_fatigue_safe,
@@ -891,6 +891,7 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         "home_name":  home_name,
         "away_sp":    away_sp,
         "home_sp":    home_sp,
+        "ml_factors": _ml_factors,
         "umpire":     umpire,
         "ump_note":   ump_note,
         "weather":    weather,
@@ -1255,7 +1256,7 @@ def _weighted_win_prob(
     away_arm_angle_adj: float = 0.0,        # arm angle platoon (ADD 4)
     home_arm_angle_adj: float = 0.0,
     h2h_away_p: float = 0.50,               # H2H win rate (ADD — existing factor)
-) -> tuple[float, float]:
+) -> tuple[float, float, list[dict]]:
     """
     Updated 12-factor weighted win probability (Savant data pipeline expansion).
     Weights:
@@ -1263,7 +1264,9 @@ def _weighted_win_prob(
       Offense (wRC++bat tracking) 13%, Pythagorean 8%,
       Platoon+arm angle 8%, Park+weather+OF defense 6%,
       Momentum+YoY 5%, ABS+tempo 3%, Baserunning+sprint 3%, H2H 2%.
-    Returns (away_p, home_p) rounded to 4 decimal places.
+    Returns (away_p, home_p, factors) — away_p/home_p rounded to 4 decimal
+    places, factors is a list of per-factor {name, weight, away_p, raw}
+    dicts for diagnostic archiving (home side = 1 - away_p per factor).
     """
     # Factor 1 — SP xwOBA against (18%)
     # Convert xwOBA to quality score: lower xwOBA = better pitcher
@@ -1370,7 +1373,47 @@ def _weighted_win_prob(
         0.02 * h2h_away_p_clamped
     )
     away_p = round(max(0.15, min(0.85, away_p)), 4)
-    return away_p, round(1.0 - away_p, 4)
+
+    # Factor breakdown for diagnostic archiving (parlay-os archive project,
+    # Step 1). away_p per factor lets a caller derive either side's
+    # contribution (home = 1 - away_p) without re-deriving the math here.
+    factors = [
+        {"name": "sp_xwoba", "weight": 0.18, "away_p": round(sp_away_p, 4),
+         "raw": {"away_xfip": away_xfip, "home_xfip": home_xfip,
+                 "away_xwoba_against": away_xwoba_against, "home_xwoba_against": home_xwoba_against,
+                 "xwoba_fallback_used": away_xwoba_against is None or home_xwoba_against is None}},
+        {"name": "pitch_quality", "weight": 0.12, "away_p": round(pq_away_p, 4),
+         "raw": {"away_pitch_quality_adj": away_pitch_quality_adj, "home_pitch_quality_adj": home_pitch_quality_adj}},
+        {"name": "rolling_form", "weight": 0.07, "away_p": round(roll_away_p, 4),
+         "raw": {"away_rolling_tier": away_rolling_tier, "home_rolling_tier": home_rolling_tier}},
+        {"name": "bullpen", "weight": 0.15, "away_p": round(bp_away_p, 4),
+         "raw": {"away_bp_fatigue": away_bp_fatigue, "home_bp_fatigue": home_bp_fatigue,
+                 "away_bp_stuff_adj": away_bp_stuff_adj, "home_bp_stuff_adj": home_bp_stuff_adj,
+                 "data_ok": away_bp_data_ok and home_bp_data_ok}},
+        {"name": "offense", "weight": 0.13, "away_p": round(off_away_p, 4),
+         "raw": {"away_wrc": away_wrc, "home_wrc": home_wrc,
+                 "away_bat_tracking_adj": away_bat_tracking_adj, "home_bat_tracking_adj": home_bat_tracking_adj,
+                 "data_ok": away_off_data_ok and home_off_data_ok}},
+        {"name": "pythagorean_homedog", "weight": 0.08, "away_p": round(pyth_blend, 4),
+         "raw": {"pyth_away_p": pyth_away_p, "home_dog_add": home_dog_add}},
+        {"name": "platoon_arm_angle", "weight": 0.08, "away_p": round(platoon_away_p, 4),
+         "raw": {"away_platoon_edge": away_platoon_edge, "home_platoon_edge": home_platoon_edge,
+                 "away_arm_angle_adj": away_arm_angle_adj, "home_arm_angle_adj": home_arm_angle_adj}},
+        {"name": "park_weather_of", "weight": 0.06, "away_p": round(park_away_p, 4),
+         "raw": {"park_of_adj": park_of_adj}},
+        {"name": "momentum_yoy", "weight": 0.05, "away_p": round(momentum_away_p, 4),
+         "raw": {"away_momentum_score": away_momentum_score, "home_momentum_score": home_momentum_score,
+                 "away_yoy_adj": away_yoy_adj, "home_yoy_adj": home_yoy_adj}},
+        {"name": "abs_tempo", "weight": 0.03, "away_p": round(abs_away_p, 4),
+         "raw": {"away_fps_adj": away_fps_adj, "home_fps_adj": home_fps_adj,
+                 "away_tempo_adj": away_tempo_adj, "home_tempo_adj": home_tempo_adj}},
+        {"name": "baserunning_sprint", "weight": 0.03, "away_p": round(sprint_away_p, 4),
+         "raw": {"away_sprint_adj": away_sprint_adj, "home_sprint_adj": home_sprint_adj}},
+        {"name": "h2h", "weight": 0.02, "away_p": round(h2h_away_p_clamped, 4),
+         "raw": {"h2h_away_p": h2h_away_p}},
+    ]
+
+    return away_p, round(1.0 - away_p, 4), factors
 
 
 # ── SGP FORMAT ───────────────────────────────────────────────────────────────
@@ -1934,6 +1977,10 @@ def _daily_bet_slip(
                 model_prob=combined_model_p, market_prob=_ml_prl_mkt_p,
                 edge_pct=round((combined_model_p - _ml_prl_mkt_p) * 100, 1),
                 conviction="PARLAY", stake=prl_stake,
+                diagnostics={
+                    "bet_type": "PARLAY_ML",
+                    "legs": [_build_ml_diagnostics(a, s) for a, s in parlay_candidates],
+                },
             )
 
     if injuries:
@@ -1974,6 +2021,7 @@ def _daily_bet_slip(
             "edge_pct":  b["edge_pct"],
             "stake":     b["stake"],
             "leg_label": leg,
+            "diagnostics": b.get("diagnostics"),
         }
 
     def _norm_h(h: dict) -> dict:
@@ -1997,6 +2045,7 @@ def _daily_bet_slip(
             "edge_pct":  h["edge_pct"],
             "stake":     h["stake"],
             "leg_label": leg,
+            "diagnostics": h.get("diagnostics"),
         }
 
     def _norm_er(b: dict) -> dict:
@@ -2015,6 +2064,7 @@ def _daily_bet_slip(
             "edge_pct":  b["edge_pct"],
             "stake":     b["stake"],
             "leg_label": leg,
+            "diagnostics": b.get("diagnostics"),
         }
 
     # k_bets carry statcast_2025 flag from the scout; pass it through for the label
@@ -2037,6 +2087,7 @@ def _daily_bet_slip(
                 edge_pct=_p["edge_pct"],
                 conviction=("LOCK" if _p["edge_pct"] >= 10.0 else "FLIP"),
                 stake=_p["stake"],
+                diagnostics=_p.get("diagnostics"),
             )
 
         # Same qualifying bar as all_player_props (edge >= 5%) so an over_cap
@@ -2055,6 +2106,7 @@ def _daily_bet_slip(
                 edge_pct=_p["edge_pct"],
                 conviction=("LOCK" if _p["edge_pct"] >= 10.0 else "FLIP"),
                 stake=_p["stake"], over_cap=True,
+                diagnostics=_p.get("diagnostics"),
             )
 
     prop_locks = [p for p in all_player_props if p["edge_pct"] >= 10.0]
@@ -2087,6 +2139,7 @@ def _daily_bet_slip(
                     bet_odds="-110", model_prob=bet["prob"], market_prob=_nrfi_mkt_p,
                     edge_pct=round((bet["prob"] - _nrfi_mkt_p) * 100, 1),
                     conviction="PROP", stake=bet["stake"],
+                    diagnostics=bet.get("diagnostics"),
                 )
         p2.append("")
 
@@ -2099,6 +2152,7 @@ def _daily_bet_slip(
                 bet_odds="-110", model_prob=bet["prob"], market_prob=_nrfi_mkt_p,
                 edge_pct=round((bet["prob"] - _nrfi_mkt_p) * 100, 1),
                 conviction="PROP", stake=bet["stake"], over_cap=True,
+                diagnostics=bet.get("diagnostics"),
             )
 
     # ── Props parlay: top 3 locks only ──────────────────────────────────────
@@ -2131,6 +2185,10 @@ def _daily_bet_slip(
                     model_prob=round(joint_p, 4), market_prob=_props_prl_mkt_p,
                     edge_pct=round((joint_p - _props_prl_mkt_p) * 100, 1),
                     conviction="PARLAY", stake=prl_stake,
+                    diagnostics={
+                        "bet_type": "PARLAY_PROPS",
+                        "legs": [leg.get("diagnostics") for leg in parlay_legs],
+                    },
                 )
 
     def _prop_line(p: dict) -> str:
@@ -2168,6 +2226,7 @@ def _daily_bet_slip(
                     date=today_iso, bet=legs_str, game=f"SGP:{ptype}",
                     bet_odds="", model_prob=prop.get("joint_prob"), market_prob=None,
                     edge_pct=ev, conviction="PARLAY", stake=stake,
+                    diagnostics={"bet_type": "SGP", "sgp": prop},
                 )
         p2.append("")
 
@@ -2195,6 +2254,7 @@ def _daily_bet_slip(
                     game=bet["game"], bet_odds=str(bet.get("odds", "-110")),
                     model_prob=bet["prob"], market_prob=bet["market_p"],
                     edge_pct=bet["edge_pct"], conviction="PROP", stake=bet["stake"],
+                    diagnostics=bet.get("diagnostics"),
                 )
         p3.append("")
     else:
@@ -2215,6 +2275,7 @@ def _daily_bet_slip(
                     game=bet["game"], bet_odds=bet["odds"],
                     model_prob=bet["prob"], market_prob=bet["market_p"],
                     edge_pct=bet["edge_pct"], conviction=bet["conviction"], stake=bet["stake"],
+                    diagnostics=bet.get("diagnostics"),
                 )
         p3.append("")
 
@@ -2226,6 +2287,7 @@ def _daily_bet_slip(
                 game=bet["game"], bet_odds=bet["odds"],
                 model_prob=bet["prob"], market_prob=bet["market_p"],
                 edge_pct=bet["edge_pct"], conviction=bet["conviction"], stake=bet["stake"], over_cap=True,
+                diagnostics=bet.get("diagnostics"),
             )
 
     if all_fades:
@@ -2933,6 +2995,96 @@ def _game_analysis_failure_message(failures: list) -> str:
     )
 
 
+def _safe_diagnostic_json(diagnostics: dict | None) -> str | None:
+    """Serialize a diagnostics dict for the bets.diagnostic_json column.
+    Never raises -- a serialization failure must not block a real pick from
+    being logged (Telegram/settlement depend on the row existing)."""
+    if not diagnostics:
+        return None
+    try:
+        return json.dumps(diagnostics, default=str)
+    except Exception as e:
+        print(f"  diagnostic_json serialize error: {e}")
+        return None
+
+
+def _build_ml_diagnostics(analysis: dict, side: str) -> dict:
+    """Snapshot of the 12-factor breakdown + underlying engine data that
+    produced this ML pick's edge -- for diagnostic_json (daily archive
+    project, Step 1). side is 'away' or 'home'; opp is the other team."""
+    opp = "home" if side == "away" else "away"
+    ml_factors = analysis.get("ml_factors") or []
+    factors = [
+        {
+            "name": f["name"],
+            "weight": f["weight"],
+            "p": f["away_p"] if side == "away" else round(1 - f["away_p"], 4),
+            "contribution": round(f["weight"] * (f["away_p"] if side == "away" else (1 - f["away_p"])), 4),
+            "raw": f.get("raw", {}),
+        }
+        for f in ml_factors
+    ]
+    sp      = analysis.get(f"{side}_sp") or {}
+    opp_sp  = analysis.get(f"{opp}_sp") or {}
+    bp      = analysis.get(f"{side}_bp") or {}
+    opp_bp  = analysis.get(f"{opp}_bp") or {}
+    off     = analysis.get(f"{side}_off") or {}
+    opp_off = analysis.get(f"{opp}_off") or {}
+    return {
+        "bet_type":  "ML",
+        "side":      side,
+        "factors":   factors,
+        "sp":        {"team": sp, "opp": opp_sp},
+        "bullpen":   {"team": bp, "opp": opp_bp},
+        "offense":   {"team": off, "opp": opp_off},
+        "weather":   analysis.get("weather"),
+        "park":      analysis.get("home"),
+        "umpire":    analysis.get("umpire"),
+        "ump_edge":  analysis.get("ump_edge"),
+        "home_dog":  analysis.get("home_dog"),
+        "momentum":  analysis.get(f"{side}_momentum"),
+        "situations": analysis.get("situations"),
+        "flags": {
+            "sp_missing":          bool(sp.get("sp_missing")),
+            "opp_sp_missing":      bool(opp_sp.get("sp_missing")),
+            "bp_data_ok":          bool(bp.get("data_ok", True)) and bool(opp_bp.get("data_ok", True)),
+            "off_data_ok":         not off.get("offense_missing", False) and not opp_off.get("offense_missing", False),
+            "lineup_confirmed":    analysis.get(f"{side}_lineup_confirmed", True),
+            "opp_lineup_confirmed": analysis.get(f"{opp}_lineup_confirmed", True),
+        },
+    }
+
+
+def _build_game_diagnostics(analysis: dict, bet_type: str, extra: dict | None = None) -> dict:
+    """Snapshot of game-level engine data (SP both sides, bullpen, offense,
+    weather, park, umpire) for a non-ML pick sourced from a single game's
+    analyze_game() output (NRFI/TOTAL/RUNLINE) -- for diagnostic_json
+    (daily archive project, Step 1). `extra` merges in the bet-specific
+    model breakdown (e.g. the nrfi_prob()/game_total_prob()/run_line_prob()
+    return dict)."""
+    d = {
+        "bet_type": bet_type,
+        "away_sp":  analysis.get("away_sp"),
+        "home_sp":  analysis.get("home_sp"),
+        "away_bp":  analysis.get("away_bp"),
+        "home_bp":  analysis.get("home_bp"),
+        "away_off": analysis.get("away_off"),
+        "home_off": analysis.get("home_off"),
+        "away_xr":  analysis.get("away_xr"),
+        "home_xr":  analysis.get("home_xr"),
+        "weather":  analysis.get("weather"),
+        "park":     analysis.get("home"),
+        "umpire":   analysis.get("umpire"),
+        "flags": {
+            "away_sp_missing": bool((analysis.get("away_sp") or {}).get("sp_missing")),
+            "home_sp_missing": bool((analysis.get("home_sp") or {}).get("sp_missing")),
+        },
+    }
+    if extra:
+        d.update(extra)
+    return d
+
+
 def _log_bet_with_retry(today: str, analysis: dict, side: str, conv: str, over_cap: bool = False) -> bool:
     """Persist a bet to the DB, retrying once on failure. Returns True if
     stored, False if it failed twice. Caller must suppress the Telegram/
@@ -2976,6 +3128,7 @@ def _log_bet_with_retry(today: str, analysis: dict, side: str, conv: str, over_c
                 first_pitch_strike_rate=_sp_data_log.get("fp_strike_rate"),
                 sp_gb_rate=_sp_data_log.get("gb_rate"),
                 over_cap=over_cap,
+                diagnostic_json=_safe_diagnostic_json(_build_ml_diagnostics(analysis, side)),
             )
             return True
         except Exception as e:
@@ -2985,7 +3138,8 @@ def _log_bet_with_retry(today: str, analysis: dict, side: str, conv: str, over_c
 
 def _log_pick_with_retry(bet_type: str, *, date: str, bet: str, game: str,
                           bet_odds: str, model_prob, market_prob, edge_pct,
-                          conviction: str, stake: float, over_cap: bool = False) -> bool:
+                          conviction: str, stake: float, over_cap: bool = False,
+                          diagnostics: dict | None = None) -> bool:
     """Persist a non-ML pick (TOTAL/NRFI/PROP/PARLAY) via the same log_bet()
     path as ML, retrying once on failure. Unlike _log_bet_with_retry, a
     failure here never changes what's shown in Telegram — the message is
@@ -2993,7 +3147,12 @@ def _log_pick_with_retry(bet_type: str, *, date: str, bet: str, game: str,
     underneath an otherwise-unchanged slip (TIER 3 WIRE-IN 3).
 
     over_cap=True logs a pick that qualified but was cut by the props/runline
-    pool budget — same fields as a real pick, forced stake=0."""
+    pool budget — same fields as a real pick, forced stake=0.
+
+    diagnostics, when provided by the caller, is whatever factor breakdown
+    was available at the point this pick was built (props_engine return
+    dict, SP/bullpen/offense snapshot, market source) — saved as-is for the
+    daily archive project."""
     for attempt in (1, 2):
         try:
             _db.log_bet(
@@ -3003,6 +3162,7 @@ def _log_pick_with_retry(bet_type: str, *, date: str, bet: str, game: str,
                 edge_pct=edge_pct, conviction=conviction,
                 stake=0.0 if over_cap else stake,
                 over_cap=over_cap,
+                diagnostic_json=_safe_diagnostic_json(diagnostics),
             )
             return True
         except Exception as e:
@@ -3318,6 +3478,7 @@ def _scan_hitter_props(
 
         market_p  = baseline_p
         _sgo_stat = _SGO_HITTER_STAT_MAP.get(stat_key)
+        _used_sgo = False
         if _sgo_stat and sgo_event:
             try:
                 _real_p = player_prop_market_prob(sgo_event, player_name, _sgo_stat, line)
@@ -3326,6 +3487,7 @@ def _scan_hitter_props(
             if _real_p is not None:
                 print(f"  [PROPS] {player_name} {label}: real SGO market_p={_real_p:.3f} (baseline was {baseline_p:.2f})")
                 market_p = _real_p
+                _used_sgo = True
 
         edge     = round(model_p - market_p, 4)
 
@@ -3350,6 +3512,13 @@ def _scan_hitter_props(
             "edge_pct":   round(edge * 100, 1),
             "stake":      stake,
             "n_games":    n,
+            "diagnostics": {
+                "bet_type": "HITTER_PROP", "stat_key": stat_key, "lam": round(lam, 3),
+                "model_prob": model_p, "market_p": market_p, "n_games": n,
+                "opp_sp": opp_sp,
+                "market_source": "SGO" if _used_sgo else "baseline",
+                "flags": {"opp_sp_missing": bool(opp_sp.get("sp_missing"))},
+            },
         })
 
     return recs
@@ -3729,6 +3898,11 @@ def run_daily_scout(window: str = "all"):
                     "projected_k":  _akp.get("projected_k"),
                     "whiff_rate":   _akp.get("whiff_rate"),
                     "confidence":   _akp.get("confidence", 0),
+                    "diagnostics": {
+                        "bet_type": "K_PROP", "model": _akp, "sp": _sp,
+                        "market_source": "SGO" if _real_k_mp is not None else "baseline_-110",
+                        "flags": {"sp_missing": bool(_sp.get("sp_missing"))},
+                    },
                 })
                 print(f"  K PROP [{_kside}]: {k_prop_telegram_line(_akp)}")
             else:
@@ -3759,6 +3933,11 @@ def run_daily_scout(window: str = "all"):
                         "edge_pct":       _k_edge_pct,
                         "stake":          _k_stake,
                         "statcast_2025":  _sp_sc.get("STATCAST_2025", False),
+                        "diagnostics": {
+                            "bet_type": "K_PROP", "model": _k_r, "sp": _sp, "statcast": _sp_sc,
+                            "market_source": "SGO" if _real_k_mp is not None else "baseline_-110",
+                            "flags": {"sp_missing": bool(_sp.get("sp_missing")), "used_fallback_model": True},
+                        },
                     })
 
         # ── ER props for this game ────────────────────────────────────────────
@@ -3798,6 +3977,12 @@ def run_daily_scout(window: str = "all"):
                             "edge_pct":   _er_res.get("edge_pct", 0),
                             "stake":      _er_stake,
                             "confidence": _er_res.get("confidence", 0),
+                            "diagnostics": {
+                                "bet_type": "ER_PROP", "model": _er_res,
+                                "sp": _er_sp, "opp_off": _er_opp_off, "opp_bp": _er_bp,
+                                "market_source": "baseline_-110",
+                                "flags": {"sp_missing": bool(_er_sp.get("sp_missing"))},
+                            },
                         })
                 except Exception as _er_err:
                     pass
@@ -3919,7 +4104,10 @@ def run_daily_scout(window: str = "all"):
                 direction = "NRFI" if nrfi_note == "nrfi" else "YRFI"
                 prob  = nrfi_r_g["p_nrfi"] if direction == "NRFI" else nrfi_r_g["p_yrfi"]
                 stake = kelly_stake(prob, "-110", "PROP")
-                all_nrfi.append({"game": game_lbl, "direction": direction, "prob": prob, "stake": stake})
+                all_nrfi.append({
+                    "game": game_lbl, "direction": direction, "prob": prob, "stake": stake,
+                    "diagnostics": _build_game_diagnostics(analysis, "NRFI", {"nrfi": nrfi_r_g}),
+                })
 
             line       = analysis.get("totals_line")
             best_over  = analysis.get("totals_best_over")
@@ -3960,6 +4148,7 @@ def run_daily_scout(window: str = "all"):
                             "edge_pct":  round(edge * 100, 1),
                             "stake":     kelly_stake(model_p, str(mkt_odds), "PROP"),
                             "odds":      str(mkt_odds),
+                            "diagnostics": _build_game_diagnostics(analysis, "TOTAL", {"total": total_r_g}),
                         }
                 if best_total_bet and best_total_bet["stake"] > 0:
                     all_totals.append(best_total_bet)
@@ -4031,6 +4220,10 @@ def run_daily_scout(window: str = "all"):
                             "stake":      _rl_stake,
                             "odds":       str(_rl_o),
                             "bet_type":   f"RUNLINE{_rl_line[_rl_side]:+.1f}",
+                            "diagnostics": _build_game_diagnostics(analysis, "RUNLINE", {
+                                "run_line_probs": _rl_probs, "market_consensus": _rl_consensus,
+                                "side": _rl_side,
+                            }),
                         }
                     if _rl_best:
                         all_runline.append(_rl_best)

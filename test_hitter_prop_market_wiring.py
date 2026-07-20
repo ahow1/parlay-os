@@ -128,7 +128,7 @@ class TestOutputShapeUnchanged:
     add, remove, or rename a field."""
 
     EXPECTED_KEYS = {"player", "team", "prop", "line", "lam", "model_prob",
-                      "market_p", "edge_pct", "stake", "n_games"}
+                      "market_p", "edge_pct", "stake", "n_games", "diagnostics"}
 
     def test_keys_unchanged_without_sgo_event(self):
         recs = brain._scan_hitter_props("Andres Gimenez", "TOR", _stats(), {"sp_missing": True}, 300.0, None)

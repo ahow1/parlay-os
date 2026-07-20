@@ -409,6 +409,12 @@ def init_db():
             # the daily/pool cap was already spent. Logged with stake=0 so they
             # carry zero P&L, but graded/settled identically to real picks.
             "ALTER TABLE bets ADD COLUMN over_cap INTEGER DEFAULT 0",
+            # Diagnostic archive: JSON snapshot of the factor breakdown (SP,
+            # bullpen, offense, weather, park, umpire, form, splits, weights/
+            # contributions, data-quality flags) that produced this pick's
+            # edge. One column, not a separate table, because it's always
+            # 1:1 with a single bet row (same reasoning as over_cap above).
+            "ALTER TABLE bets ADD COLUMN diagnostic_json TEXT",
         ]:
             try:
                 conn.execute(ddl)
@@ -438,7 +444,7 @@ def log_bet(date, bet, bet_type, game, sp, park, umpire,
             home_dog_angle=None, first_pitch_strike_rate=None, sp_gb_rate=None,
             situations_triggered=None, abs_score=None,
             sharp_checklist_results=None, confidence_engine_score=None,
-            over_cap=0):
+            over_cap=0, diagnostic_json=None):
     now = datetime.now(ET).isoformat()
     verify_hash = hashlib.sha256(
         f"{game}|{bet}|{bet_odds}|{now}".encode()
@@ -463,8 +469,9 @@ def log_bet(date, bet, bet_type, game, sp, park, umpire,
                sharp_signal, umpire_edge, home_dog_angle,
                first_pitch_strike_rate, sp_gb_rate,
                situations_triggered, abs_score,
-               sharp_checklist_results, confidence_engine_score, over_cap)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               sharp_checklist_results, confidence_engine_score, over_cap,
+               diagnostic_json)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (date, now, bet, bet_type, game, sp, park, umpire,
               bet_odds, model_prob, market_prob, edge_pct, conviction, stake, verify_hash,
               pitch_trap, framing_edge, closer_avail, lineup_slot_score,
@@ -472,7 +479,7 @@ def log_bet(date, bet, bet_type, game, sp, park, umpire,
               first_pitch_strike_rate, sp_gb_rate,
               situations_triggered, abs_score,
               sharp_checklist_results, confidence_engine_score,
-              1 if over_cap else 0))
+              1 if over_cap else 0, diagnostic_json))
 
 
 def get_pick_by_hash(verify_hash: str) -> dict | None:
