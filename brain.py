@@ -1181,6 +1181,20 @@ def _conviction(edge_pct: float, model_p: float, bp: dict, market: dict) -> str:
     return "PASS"
 
 
+def _ml_bucket(conv: str) -> str | None:
+    """Which slip bucket a conviction tier lands in -- "LOCK", "FLIP", or
+    None (PASS/unclassified). Single source of truth for tier -> bucket so
+    downstream code never re-derives the split from edge_pct itself --
+    that's what silently dropped MEDIUM picks with edge >= 7% (staked and
+    logged, but absent from the slip and the ML bet count) before this
+    function existed."""
+    if conv == "HIGH":
+        return "LOCK"
+    if conv == "MEDIUM":
+        return "FLIP"
+    return None
+
+
 def _conviction_gap_text(edge_pct: float, model_p: float) -> str:
     """Human-readable reason a bet's edge/model_p didn't clear any conviction
     tier — derived from the exact same thresholds _conviction() gates on, so
@@ -1939,7 +1953,7 @@ def _daily_bet_slip(
         p1.append("  None today")
     p1.append("")
 
-    p1.append(f"🪙 COIN FLIPS ({len(flips)} — MEDIUM conviction 4-7% edge):")
+    p1.append(f"🪙 COIN FLIPS ({len(flips)} — MEDIUM conviction, edge 4%+):")
     if flips:
         for analysis, side in flips:
             stake  = _ml_stake(analysis, side)
@@ -3648,7 +3662,7 @@ def run_daily_scout(window: str = "all"):
     _sp_missing_suppressed = []  # [team_name, ...] — picks dropped: probable pitcher unknown
     # Daily slip collections
     all_locks:    list = []   # (analysis, side) — HIGH conviction, edge ≥ 7%
-    all_flips:    list = []   # (analysis, side) — MEDIUM conviction, edge 4-7%
+    all_flips:    list = []   # (analysis, side) — MEDIUM conviction, edge ≥ 4%
     all_fades:    list = []   # (analysis, side, reason)
     all_sgp:      list = []   # correlated SGP suggestions across all games
     all_nrfi:         list = []   # {game, direction, prob, stake}
@@ -4043,9 +4057,10 @@ def run_daily_scout(window: str = "all"):
                 all_bets.append(analysis)
                 bet_found = True
 
-                if conv == "HIGH" and edge >= 7:
+                _bucket = _ml_bucket(conv)
+                if _bucket == "LOCK":
                     all_locks.append((analysis, side))
-                elif conv == "MEDIUM" and 4 <= edge < 7:
+                elif _bucket == "FLIP":
                     all_flips.append((analysis, side))
 
                 _sp_data = analysis.get(f"{side}_sp") or {}
