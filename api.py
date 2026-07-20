@@ -506,34 +506,15 @@ def api_verify_pick(verify_hash):
 
 @app.route("/api/picks/<pick_date>")
 def api_picks_by_date(pick_date):
+    """Day view: every pick logged for pick_date (staked + over_cap), with
+    its diagnostic factor breakdown (archive project Step 1/2), result,
+    and CLV once graded. Same shape as `python brain.py --archive`."""
+    from archive_engine import build_daily_archive
     try:
-        datetime.strptime(pick_date, "%Y-%m-%d")
+        archive = build_daily_archive(pick_date)
     except ValueError:
         return jsonify({"error": "Invalid date. Use YYYY-MM-DD"}), 400
-
-    bets = _db.get_bets(date=pick_date)
-    return jsonify({
-        "date":  pick_date,
-        "picks": [
-            {
-                "id":           b["id"],
-                "bet":          b.get("bet"),
-                "type":         b.get("type"),
-                "game":         b.get("game"),
-                "odds":         b.get("bet_odds"),
-                "stake":        b.get("stake"),
-                "result":       b.get("result"),
-                "conviction":   b.get("conviction"),
-                "edge_pct":     b.get("edge_pct"),
-                "model_prob":   b.get("model_prob"),
-                "market_prob":  b.get("market_prob"),
-                "sp":           b.get("sp"),
-                "park":         b.get("park"),
-                "umpire":       b.get("umpire"),
-            }
-            for b in bets
-        ],
-    })
+    return jsonify(archive)
 
 
 @app.route("/api/memory")

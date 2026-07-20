@@ -5285,6 +5285,22 @@ def _run_capture_clv():
         print(f"[CLV] capture failed: {e}")
 
 
+def _run_archive(date_str: str):
+    """Daily archive project, Step 2: dump every pick logged for date_str
+    (staked + over_cap) with its diagnostic factor breakdown (Step 1),
+    result, and CLV -- a readable text summary to stdout, plus a JSON
+    file to archives/YYYY-MM-DD.json for later access."""
+    from archive_engine import build_daily_archive, format_archive_text, write_archive_json
+    try:
+        archive = build_daily_archive(date_str)
+    except ValueError:
+        print(f"[ARCHIVE] Invalid date '{date_str}' — use YYYY-MM-DD")
+        return
+    print(format_archive_text(archive))
+    path = write_archive_json(archive)
+    print(f"[ARCHIVE] Wrote {path}")
+
+
 # ── LINE MOVEMENT RE-SCOUT ────────────────────────────────────────────────────
 
 def _run_linecheck():
@@ -5548,6 +5564,15 @@ if __name__ == "__main__":
 
     args = set(sys.argv[1:])
 
+    # Parse --archive flag (date to archive; short-circuits scout mode)
+    _archive_date = None
+    _argv_pre = sys.argv[1:]
+    for _i, _av in enumerate(_argv_pre):
+        if _av.startswith("--archive="):
+            _archive_date = _av.split("=", 1)[1]
+        elif _av == "--archive" and _i + 1 < len(_argv_pre):
+            _archive_date = _argv_pre[_i + 1]
+
     # Parse --window flag (applies only to scout mode; ignored by other modes)
     _window_val = "all"
     _argv_list  = sys.argv[1:]
@@ -5560,7 +5585,11 @@ if __name__ == "__main__":
         print(f"[WARN] Unknown --window='{_window_val}' — defaulting to 'all'")
         _window_val = "all"
 
-    if "--bot" in args:
+    if _archive_date:
+        _run_archive(_archive_date)
+        sys.exit(0)
+
+    elif "--bot" in args:
         # Persistent bot mode: Telegram listener + auto-settler + hedge monitor + SP monitor
         try:
             import threading as _threading
