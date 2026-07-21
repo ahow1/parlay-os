@@ -1,30 +1,102 @@
 {
-  "last_updated": "2026-07-20T19:51:03.289652-04:00",
+  "last_updated": "2026-07-20T21:16:05.841764-04:00",
   "in_progress": [
     {
       "game_pk": 824410,
       "label": "Minnesota Twins @ Cleveland Guardians",
-      "score": "2-7",
-      "inning": "T4",
-      "pitcher": "Tanner Bibee",
+      "score": "4-13",
+      "inning": "B8",
+      "pitcher": "Alex Jackson",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 823522,
       "label": "Pittsburgh Pirates @ New York Yankees",
-      "score": "3-4",
-      "inning": "B2",
-      "pitcher": "Braxton Ashcraft",
+      "score": "5-8",
+      "inning": "B6",
+      "pitcher": "Wilber Dotel",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 822788,
       "label": "Tampa Bay Rays @ Toronto Blue Jays",
-      "score": "2-0",
+      "score": "6-1",
+      "inning": "T8",
+      "pitcher": "Cam Booser",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823436,
+      "label": "Los Angeles Dodgers @ Philadelphia Phillies",
+      "score": "3-5",
+      "inning": "B6",
+      "pitcher": "Emmet Sheehan",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824898,
+      "label": "San Diego Padres @ Atlanta Braves",
+      "score": "2-3",
+      "inning": "B7",
+      "pitcher": "Bradgley Rodriguez",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824087,
+      "label": "San Francisco Giants @ Kansas City Royals",
+      "score": "1-3",
+      "inning": "T6",
+      "pitcher": "Michael Wacha",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823762,
+      "label": "New York Mets @ Milwaukee Brewers",
+      "score": "1-5",
+      "inning": "T6",
+      "pitcher": "Lance McCullers Jr.",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824654,
+      "label": "Detroit Tigers @ Chicago Cubs",
+      "score": "4-0",
+      "inning": "B2",
+      "pitcher": "Jameson Taillon",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 822874,
+      "label": "Chicago White Sox @ Texas Rangers",
+      "score": "1-2",
+      "inning": "T4",
+      "pitcher": "Jacob deGrom",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824167,
+      "label": "Miami Marlins @ Houston Astros",
+      "score": "2-6",
       "inning": "B3",
-      "pitcher": "Nick Martinez",
+      "pitcher": "Ronel Blanco",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824328,
+      "label": "Washington Nationals @ Colorado Rockies",
+      "score": "3-0",
+      "inning": "B2",
+      "pitcher": "Andrew Alvarez",
       "quality_score": 4.5,
       "trailing": "HOME"
     }
