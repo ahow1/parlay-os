@@ -1,214 +1,65 @@
 {
-  "timestamp": "2026-07-20T21:07:21Z",
+  "timestamp": "2026-07-21T00:59:09Z",
   "date": "2026-07-20",
-  "window": "evening",
+  "window": "west",
   "bankroll": 300.0,
   "games": [
     {
-      "away": "MIN",
-      "home": "CLE",
-      "away_model": 0.5558,
-      "home_model": 0.4592,
-      "away_edge": 0.58,
-      "home_edge": 0.92,
-      "away_xr": 4.362,
+      "away": "ATH",
+      "home": "AZ",
+      "away_model": 0.515,
+      "home_model": 0.53,
+      "away_edge": 8.83,
+      "home_edge": -4.33,
+      "away_xr": 6.285,
+      "home_xr": 5.817
+    },
+    {
+      "away": "CIN",
+      "home": "SEA",
+      "away_model": 0.4963,
+      "home_model": 0.5237,
+      "away_edge": 6.42,
+      "home_edge": -4.42,
+      "away_xr": 4.245,
       "home_xr": 3.5
     },
     {
-      "away": "PIT",
-      "home": "NYY",
-      "away_model": 0.5266,
-      "home_model": 0.4684,
-      "away_edge": 3.59,
-      "home_edge": -4.09,
-      "away_xr": 4.874,
+      "away": "STL",
+      "home": "LAA",
+      "away_model": 0.5188,
+      "home_model": 0.5012,
+      "away_edge": 1.88,
+      "home_edge": 0.12,
+      "away_xr": 3.797,
       "home_xr": 3.5
-    },
-    {
-      "away": "TB",
-      "home": "TOR",
-      "away_model": 0.493,
-      "home_model": 0.502,
-      "away_edge": 9.42,
-      "home_edge": -9.92,
-      "away_xr": 3.5,
-      "home_xr": 3.5
-    },
-    {
-      "away": "BAL",
-      "home": "BOS",
-      "away_model": 0.457,
-      "home_model": 0.538,
-      "away_edge": 5.19,
-      "home_edge": -5.69,
-      "away_xr": 3.5,
-      "home_xr": 4.352
-    },
-    {
-      "away": "LAD",
-      "home": "PHI",
-      "away_model": 0.4514,
-      "home_model": 0.5136,
-      "away_edge": 2.3,
-      "home_edge": -5.8,
-      "away_xr": 3.5,
-      "home_xr": 3.916
-    },
-    {
-      "away": "SD",
-      "home": "ATL",
-      "away_model": 0.4956,
-      "home_model": 0.4694,
-      "away_edge": 4.17,
-      "home_edge": -7.67,
-      "away_xr": 5.274,
-      "home_xr": 6.137
-    },
-    {
-      "away": "SF",
-      "home": "KC",
-      "away_model": 0.5154,
-      "home_model": 0.4496,
-      "away_edge": 5.02,
-      "home_edge": -8.52,
-      "away_xr": 4.42,
-      "home_xr": 4.209
-    },
-    {
-      "away": "NYM",
-      "home": "MIL",
-      "away_model": 0.4444,
-      "home_model": 0.5506,
-      "away_edge": 10.63,
-      "home_edge": -11.13,
-      "away_xr": 3.5,
-      "home_xr": 4.434
     }
   ],
-  "bets": [
-    {
-      "team": "Tampa Bay Rays",
-      "side": "away",
-      "game": "Tampa Bay Rays @ Toronto Blue Jays",
-      "odds": 145,
-      "book": "lowvig",
-      "model_prob": 0.493,
-      "market_prob": 0.3988,
-      "edge_pct": 9.42,
-      "stake": 23.6,
-      "conviction": "MEDIUM",
-      "confidence_score": 89,
-      "sp": "Nick Martinez",
-      "sp_era": 2.65,
-      "sp_xfip": 3.69,
-      "sp_yrfi_lean": true,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 9.4,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.6,
-        "home_win_rate": 0.4,
-        "avg_total": 8.3,
-        "over_rate": 0.3
-      }
-    },
-    {
-      "team": "San Diego Padres",
-      "side": "away",
-      "game": "San Diego Padres @ Atlanta Braves",
-      "odds": 117,
-      "book": "betrivers",
-      "model_prob": 0.4956,
-      "market_prob": 0.4539,
-      "edge_pct": 4.17,
-      "stake": 20.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 62,
-      "sp": "JP Sears",
-      "sp_era": 5.03,
-      "sp_xfip": 4.91,
-      "sp_yrfi_lean": true,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 0.4,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.9,
-        "home_win_rate": 0.1,
-        "avg_total": 6.4,
-        "over_rate": 0.2
-      }
-    },
-    {
-      "team": "San Francisco Giants",
-      "side": "away",
-      "game": "San Francisco Giants @ Kansas City Royals",
-      "odds": 110,
-      "book": "lowvig",
-      "model_prob": 0.5154,
-      "market_prob": 0.4652,
-      "edge_pct": 5.02,
-      "stake": 20.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 75,
-      "sp": "Trevor McDonald",
-      "sp_era": 5.02,
-      "sp_xfip": 3.49,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 5.7,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 6,
-        "away_win_rate": 0.667,
-        "home_win_rate": 0.333,
-        "avg_total": 5.83,
-        "over_rate": 0.333
-      }
-    }
-  ],
+  "bets": [],
   "passes": [
     {
-      "game": "Minnesota Twins @ Cleveland Guardians",
+      "game": "Athletics @ Arizona Diamondbacks",
       "edges": {
-        "away": 0.58,
-        "home": 0.92
+        "away": 8.83,
+        "home": -4.33
       }
     },
     {
-      "game": "Pittsburgh Pirates @ New York Yankees",
+      "game": "Cincinnati Reds @ Seattle Mariners",
       "edges": {
-        "away": 3.59,
-        "home": -4.09
+        "away": 6.42,
+        "home": -4.42
       }
     },
     {
-      "game": "Baltimore Orioles @ Boston Red Sox",
+      "game": "St. Louis Cardinals @ Los Angeles Angels",
       "edges": {
-        "away": 5.19,
-        "home": -5.69
-      }
-    },
-    {
-      "game": "Los Angeles Dodgers @ Philadelphia Phillies",
-      "edges": {
-        "away": 2.3,
-        "home": -5.8
-      }
-    },
-    {
-      "game": "New York Mets @ Milwaukee Brewers",
-      "edges": {
-        "away": 10.63,
-        "home": -11.13
+        "away": 1.88,
+        "home": 0.12
       }
     }
   ],
-  "slip_sent": true,
+  "slip_sent": false,
   "sent_pick_ids": [
     "ER:Joe Ryan:1.5:OVER",
     "ER:Nick Martinez:1.5:OVER",
@@ -396,7 +247,7 @@
     "TOT:San Francisco Giants @ Kansas City Royals:UNDER:10.0",
     "TOT:Tampa Bay Rays @ Toronto Blue Jays:UNDER:7.5"
   ],
-  "slip_quality": "good",
+  "slip_quality": "bad",
   "data_health": {
     "odds": "live",
     "fangraphs_sp": "live",
