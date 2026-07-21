@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-07-21T21:02:59Z",
+  "timestamp": "2026-07-21T21:17:35Z",
   "date": "2026-07-21",
-  "window": "evening",
+  "window": "all",
   "bankroll": 300.0,
   "games": [
     {
@@ -73,95 +73,87 @@
       "home_edge": -2.92,
       "away_xr": 3.665,
       "home_xr": 3.5
-    }
-  ],
-  "bets": [
-    {
-      "team": "Minnesota Twins",
-      "side": "away",
-      "game": "Minnesota Twins @ Cleveland Guardians",
-      "odds": 134,
-      "book": "betus",
-      "model_prob": 0.5174,
-      "market_prob": 0.4173,
-      "edge_pct": 10.01,
-      "stake": 25.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 84,
-      "sp": "Kendry Rojas",
-      "sp_era": 2.79,
-      "sp_xfip": 3.95,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": -10.6,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.5,
-        "home_win_rate": 0.5,
-        "avg_total": 8.3,
-        "over_rate": 0.4
-      }
     },
     {
-      "team": "San Diego Padres",
-      "side": "away",
-      "game": "San Diego Padres @ Atlanta Braves",
-      "odds": 135,
-      "book": "betrivers",
-      "model_prob": 0.4978,
-      "market_prob": 0.4225,
-      "edge_pct": 7.53,
-      "stake": 20.8,
-      "conviction": "MEDIUM",
-      "confidence_score": 68,
-      "sp": "Walker Buehler",
-      "sp_era": 5.36,
-      "sp_xfip": 4.02,
-      "sp_yrfi_lean": true,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 0.4,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.8,
-        "home_win_rate": 0.2,
-        "avg_total": 5.8,
-        "over_rate": 0.1
-      }
+      "away": "DET",
+      "home": "CHC",
+      "away_model": 0.4864,
+      "home_model": 0.5086,
+      "away_edge": 1.04,
+      "home_edge": -1.54,
+      "away_xr": 3.987,
+      "home_xr": 4.566
     },
     {
-      "team": "New York Mets",
-      "side": "away",
-      "game": "New York Mets @ Milwaukee Brewers",
-      "odds": 119,
-      "book": "betus",
-      "model_prob": 0.4922,
-      "market_prob": 0.448,
-      "edge_pct": 4.42,
-      "stake": 20.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 65,
-      "sp": "Zac Thornton",
-      "sp_era": 2.6,
-      "sp_xfip": 2.94,
-      "sp_yrfi_lean": true,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": -0.4,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.2,
-        "home_win_rate": 0.8,
-        "avg_total": 8.2,
-        "over_rate": 0.5
-      }
+      "away": "CWS",
+      "home": "TEX",
+      "away_model": 0.4683,
+      "home_model": 0.5267,
+      "away_edge": -2.01,
+      "home_edge": 1.51,
+      "away_xr": 4.698,
+      "home_xr": 4.922
+    },
+    {
+      "away": "MIA",
+      "home": "HOU",
+      "away_model": 0.4953,
+      "home_model": 0.5197,
+      "away_edge": 2.8,
+      "home_edge": -1.3,
+      "away_xr": 4.495,
+      "home_xr": 4.24
+    },
+    {
+      "away": "WAS",
+      "home": "COL",
+      "away_model": 0.5461,
+      "home_model": 0.4489,
+      "away_edge": 3.45,
+      "home_edge": -3.95,
+      "away_xr": 6.903,
+      "home_xr": 3.881
+    },
+    {
+      "away": "STL",
+      "home": "LAA",
+      "away_model": 0.4994,
+      "home_model": 0.5156,
+      "away_edge": 2.12,
+      "home_edge": -0.62,
+      "away_xr": 3.5,
+      "home_xr": 3.675
+    },
+    {
+      "away": "ATH",
+      "home": "AZ",
+      "away_model": 0.5414,
+      "home_model": 0.4739,
+      "away_edge": 9.73,
+      "home_edge": -8.2,
+      "away_xr": 5.479,
+      "home_xr": 3.807
+    },
+    {
+      "away": "CIN",
+      "home": "SEA",
+      "away_model": 0.4932,
+      "home_model": 0.5218,
+      "away_edge": 1.95,
+      "home_edge": -0.45,
+      "away_xr": 3.85,
+      "home_xr": 3.563
     }
   ],
+  "bets": [],
   "passes": [
+    {
+      "game": "Minnesota Twins @ Cleveland Guardians",
+      "edges": {
+        "away": 10.01,
+        "home": -8.51
+      }
+    },
     {
       "game": "Los Angeles Dodgers @ Philadelphia Phillies",
       "edges": {
@@ -184,14 +176,77 @@
       }
     },
     {
+      "game": "San Diego Padres @ Atlanta Braves",
+      "edges": {
+        "away": 7.53,
+        "home": -9.03
+      }
+    },
+    {
       "game": "San Francisco Giants @ Kansas City Royals",
       "edges": {
         "away": 1.1,
         "home": -2.6
       }
+    },
+    {
+      "game": "New York Mets @ Milwaukee Brewers",
+      "edges": {
+        "away": 4.42,
+        "home": -2.92
+      }
+    },
+    {
+      "game": "Detroit Tigers @ Chicago Cubs",
+      "edges": {
+        "away": 1.04,
+        "home": -1.54
+      }
+    },
+    {
+      "game": "Chicago White Sox @ Texas Rangers",
+      "edges": {
+        "away": -2.01,
+        "home": 1.51
+      }
+    },
+    {
+      "game": "Miami Marlins @ Houston Astros",
+      "edges": {
+        "away": 2.8,
+        "home": -1.3
+      }
+    },
+    {
+      "game": "Washington Nationals @ Colorado Rockies",
+      "edges": {
+        "away": 3.45,
+        "home": -3.95
+      }
+    },
+    {
+      "game": "St. Louis Cardinals @ Los Angeles Angels",
+      "edges": {
+        "away": 2.12,
+        "home": -0.62
+      }
+    },
+    {
+      "game": "Athletics @ Arizona Diamondbacks",
+      "edges": {
+        "away": 9.73,
+        "home": -8.2
+      }
+    },
+    {
+      "game": "Cincinnati Reds @ Seattle Mariners",
+      "edges": {
+        "away": 1.95,
+        "home": -0.45
+      }
     }
   ],
-  "slip_sent": true,
+  "slip_sent": false,
   "sent_pick_ids": [
     "ER:Brandon Sproat:3.0:UNDER",
     "ER:Justin Wrobleski:2.0:OVER",
@@ -351,12 +406,12 @@
     "TOT:San Diego Padres @ Atlanta Braves:OVER:9.0",
     "TOT:San Francisco Giants @ Kansas City Royals:UNDER:9.0"
   ],
-  "slip_quality": "good",
+  "slip_quality": "bad",
   "data_health": {
     "odds": "live",
     "fangraphs_sp": "live",
     "savant": "degraded",
-    "lineups": "live",
+    "lineups": "degraded",
     "savant_bullpen_stuff": "live",
     "savant_bat_tracking": "live",
     "savant_park_of_defense": "live",
@@ -364,7 +419,9 @@
     "savant_arm_angle": "live",
     "h2h": "live"
   },
-  "sp_missing_suppressed": [],
+  "sp_missing_suppressed": [
+    "Athletics"
+  ],
   "analysis_failures": [],
   "persist_failures": []
 }
