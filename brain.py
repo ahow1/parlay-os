@@ -1688,6 +1688,7 @@ def _daily_bet_slip(
     runline_bets = [b for b in runline_bets if (b.get("stake") or 0) > 0]
     k_bets      = [b for b in k_bets      if (b.get("stake") or 0) > 0]
     hitter_bets = [h for h in hitter_bets if (h.get("stake") or 0) > 0]
+    er_bets     = [b for b in er_bets     if (b.get("stake") or 0) > 0]
     all_props   = [p for p in (all_props or [])
                    if (p.get("kelly_stake") or 0) > 0 and (p.get("ev") or 0) >= 0]
 
@@ -1701,6 +1702,7 @@ def _daily_bet_slip(
     k_bets      = [b for b in k_bets if _no_model_blowout(b)]
     hitter_bets = sorted(hitter_bets, key=lambda h: h.get("edge_pct", 0), reverse=True)
     hitter_bets = [h for h in hitter_bets if _no_model_blowout(h)]
+    er_bets     = sorted(er_bets,     key=lambda b: b.get("edge_pct", 0), reverse=True)
     totals_bets = sorted(totals_bets, key=lambda b: b.get("edge_pct", 0), reverse=True)[:5]
     runline_bets = sorted(runline_bets, key=lambda b: b.get("edge_pct", 0), reverse=True)[:5]
 
@@ -1774,6 +1776,32 @@ def _daily_bet_slip(
         _props_spent += _s
     over_cap_nrfi = nrfi_bets[len(_capped_nrfi):]
     nrfi_bets = _capped_nrfi
+
+    # ER props share the PROPS pool too (bet_type "PROP" is already in the
+    # PROPS bucket in _POOL_BET_TYPES) — previously had no dollar cap at all,
+    # only the downstream MAX_PROPS_PER_DAY top-5-by-edge slot count.
+    _capped_er: list = []
+    for _b in er_bets:
+        _s = float(_b.get("stake") or 0)
+        if _props_spent + _s > props_pool_rem:
+            break
+        _capped_er.append(_b)
+        _props_spent += _s
+    over_cap_er = er_bets[len(_capped_er):]
+    er_bets = _capped_er
+
+    # TOTAL bets share the PROPS pool too (bet_type "TOTAL" is already in the
+    # PROPS bucket in _POOL_BET_TYPES) — previously had no dollar cap at all,
+    # only a top-5-by-edge slot count with no budget check.
+    _capped_totals: list = []
+    for _b in totals_bets:
+        _s = float(_b.get("stake") or 0)
+        if _props_spent + _s > props_pool_rem:
+            break
+        _capped_totals.append(_b)
+        _props_spent += _s
+    over_cap_totals = totals_bets[len(_capped_totals):]
+    totals_bets = _capped_totals
 
     # Parlay: HIGH conviction locks first; fall back to top picks by confidence
     # Rules: ≤3 legs, no leg worse than -180, combined model prob threshold
@@ -2109,7 +2137,8 @@ def _daily_bet_slip(
         # props pool budget, not the separate MAX_PROPS_PER_DAY quota.
         _over_cap_props = (
             [_norm_k(b) for b in over_cap_k] +
-            [_norm_h(h) for h in over_cap_hitter]
+            [_norm_h(h) for h in over_cap_hitter] +
+            [_norm_er(b) for b in over_cap_er]
         )
         _over_cap_props = [p for p in _over_cap_props if p["edge_pct"] >= 5.0]
         for _p in _over_cap_props:
@@ -2274,6 +2303,17 @@ def _daily_bet_slip(
     else:
         p3.append("📊 TOTALS: None today")
         p3.append("")
+
+    if not DRY_RUN:
+        for bet in over_cap_totals:
+            _log_pick_with_retry(
+                "TOTAL",
+                date=today_iso, bet=f"{bet['game']} {bet['direction']} {bet['line']}",
+                game=bet["game"], bet_odds=str(bet.get("odds", "-110")),
+                model_prob=bet["prob"], market_prob=bet["market_p"],
+                edge_pct=bet["edge_pct"], conviction="PROP", stake=bet["stake"],
+                over_cap=True, diagnostics=bet.get("diagnostics"),
+            )
 
     if runline_bets:
         p3.append(f"🎯 RUN LINE ({len(runline_bets)} bets):")
