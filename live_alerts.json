@@ -1,11 +1,29 @@
 {
-  "last_updated": "2026-07-21T19:51:24.467110-04:00",
+  "last_updated": "2026-07-21T21:14:08.956505-04:00",
   "in_progress": [
+    {
+      "game_pk": 824409,
+      "label": "Minnesota Twins @ Cleveland Guardians",
+      "score": "2-5",
+      "inning": "T8",
+      "pitcher": "Hunter Gaddis",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823437,
+      "label": "Los Angeles Dodgers @ Philadelphia Phillies",
+      "score": "2-1",
+      "inning": "T5",
+      "pitcher": "Zack Wheeler",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
     {
       "game_pk": 822787,
       "label": "Tampa Bay Rays @ Toronto Blue Jays",
-      "score": "3-0",
-      "inning": "T2",
+      "score": "8-0",
+      "inning": "B6",
       "pitcher": "Drew Rasmussen",
       "quality_score": 4.5,
       "trailing": "HOME"
@@ -13,9 +31,63 @@
     {
       "game_pk": 824895,
       "label": "San Diego Padres @ Atlanta Braves",
+      "score": "6-2",
+      "inning": "T7",
+      "pitcher": "JR Ritchie",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824085,
+      "label": "San Francisco Giants @ Kansas City Royals",
+      "score": "2-1",
+      "inning": "T6",
+      "pitcher": "Luinder Avila",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823760,
+      "label": "New York Mets @ Milwaukee Brewers",
       "score": "1-0",
-      "inning": "B2",
-      "pitcher": "Walker Buehler",
+      "inning": "T5",
+      "pitcher": "Chad Patrick",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824652,
+      "label": "Detroit Tigers @ Chicago Cubs",
+      "score": "0-7",
+      "inning": "B3",
+      "pitcher": "Ty Madden",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 822871,
+      "label": "Chicago White Sox @ Texas Rangers",
+      "score": "0-4",
+      "inning": "B4",
+      "pitcher": "Noah Schultz",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824165,
+      "label": "Miami Marlins @ Houston Astros",
+      "score": "0-2",
+      "inning": "B4",
+      "pitcher": "Tyler Phillips",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824329,
+      "label": "Washington Nationals @ Colorado Rockies",
+      "score": "2-0",
+      "inning": "T2",
+      "pitcher": "Michael Lorenzen",
       "quality_score": 4.5,
       "trailing": "HOME"
     }
