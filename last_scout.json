@@ -1,146 +1,116 @@
 {
-  "timestamp": "2026-07-22T16:14:38Z",
+  "timestamp": "2026-07-22T21:06:19Z",
   "date": "2026-07-22",
-  "window": "day",
+  "window": "evening",
   "bankroll": 300.0,
   "games": [
     {
+      "away": "LAD",
+      "home": "PHI",
+      "away_model": 0.4908,
+      "home_model": 0.4942,
+      "away_edge": -4.19,
+      "home_edge": 2.69,
+      "away_xr": 5.056,
+      "home_xr": 5.297
+    },
+    {
+      "away": "MIN",
+      "home": "CLE",
+      "away_model": 0.4991,
+      "home_model": 0.5159,
+      "away_edge": 6.7,
+      "home_edge": -5.2,
+      "away_xr": 3.957,
+      "home_xr": 4.964
+    },
+    {
       "away": "PIT",
       "home": "NYY",
-      "away_model": 0.5268,
-      "home_model": 0.4882,
-      "away_edge": 15.25,
-      "home_edge": -13.75,
-      "away_xr": 5.217,
-      "home_xr": 3.904
+      "away_model": 0.5335,
+      "home_model": 0.4815,
+      "away_edge": 15.78,
+      "home_edge": -14.28,
+      "away_xr": 5.036,
+      "home_xr": 3.786
+    },
+    {
+      "away": "TB",
+      "home": "TOR",
+      "away_model": 0.5136,
+      "home_model": 0.4814,
+      "away_edge": 1.59,
+      "home_edge": -2.09,
+      "away_xr": 4.925,
+      "home_xr": 3.5
     },
     {
       "away": "BAL",
       "home": "BOS",
-      "away_model": 0.4891,
-      "home_model": 0.5258,
-      "away_edge": 8.24,
-      "home_edge": -6.75,
-      "away_xr": 4.082,
-      "home_xr": 4.782
+      "away_model": 0.4898,
+      "home_model": 0.5252,
+      "away_edge": 2.88,
+      "home_edge": -1.38,
+      "away_xr": 4.124,
+      "home_xr": 4.684
     },
     {
-      "away": "SF",
-      "home": "KC",
-      "away_model": 0.5024,
-      "home_model": 0.4826,
-      "away_edge": -4.76,
-      "home_edge": 3.26,
-      "away_xr": 4.317,
-      "home_xr": 3.734
-    },
-    {
-      "away": "NYM",
-      "home": "MIL",
-      "away_model": 0.491,
-      "home_model": 0.524,
-      "away_edge": 7.88,
-      "home_edge": -6.38,
-      "away_xr": 3.5,
-      "home_xr": 3.722
+      "away": "SD",
+      "home": "ATL",
+      "away_model": 0.4992,
+      "home_model": 0.4858,
+      "away_edge": 1.77,
+      "home_edge": -3.27,
+      "away_xr": 5.318,
+      "home_xr": 4.922
     }
   ],
-  "bets": [
-    {
-      "team": "Pittsburgh Pirates",
-      "side": "away",
-      "game": "Pittsburgh Pirates @ New York Yankees",
-      "odds": 161,
-      "book": "lowvig",
-      "model_prob": 0.5268,
-      "market_prob": 0.3743,
-      "edge_pct": 15.25,
-      "stake": 40.0,
-      "conviction": "HIGH",
-      "confidence_score": 96,
-      "sp": "Mitch Keller",
-      "sp_era": 5.14,
-      "sp_xfip": 4.08,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 8.2,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 7,
-        "away_win_rate": 0.429,
-        "home_win_rate": 0.571,
-        "avg_total": 11.14,
-        "over_rate": 0.857
-      }
-    },
-    {
-      "team": "Baltimore Orioles",
-      "side": "away",
-      "game": "Baltimore Orioles @ Boston Red Sox",
-      "odds": 140,
-      "book": "betonlineag",
-      "model_prob": 0.4891,
-      "market_prob": 0.4067,
-      "edge_pct": 8.24,
-      "stake": 20.5,
-      "conviction": "MEDIUM",
-      "confidence_score": 68,
-      "sp": "Kyle Bradish",
-      "sp_era": 3.61,
-      "sp_xfip": 3.83,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": -4.0,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.3,
-        "home_win_rate": 0.7,
-        "avg_total": 9.0,
-        "over_rate": 0.5
-      }
-    },
-    {
-      "team": "New York Mets",
-      "side": "away",
-      "game": "New York Mets @ Milwaukee Brewers",
-      "odds": 140,
-      "book": "betrivers",
-      "model_prob": 0.491,
-      "market_prob": 0.4122,
-      "edge_pct": 7.88,
-      "stake": 21.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 68,
-      "sp": "Christian Scott",
-      "sp_era": 2.87,
-      "sp_xfip": 3.36,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 0.1,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.3,
-        "home_win_rate": 0.7,
-        "avg_total": 8.1,
-        "over_rate": 0.5
-      }
-    }
-  ],
+  "bets": [],
   "passes": [
     {
-      "game": "San Francisco Giants @ Kansas City Royals",
+      "game": "Los Angeles Dodgers @ Philadelphia Phillies",
       "edges": {
-        "away": -4.76,
-        "home": 3.26
+        "away": -4.19,
+        "home": 2.69
+      }
+    },
+    {
+      "game": "Minnesota Twins @ Cleveland Guardians",
+      "edges": {
+        "away": 6.7,
+        "home": -5.2
+      }
+    },
+    {
+      "game": "Pittsburgh Pirates @ New York Yankees",
+      "edges": {
+        "away": 15.78,
+        "home": -14.28
+      }
+    },
+    {
+      "game": "Tampa Bay Rays @ Toronto Blue Jays",
+      "edges": {
+        "away": 1.59,
+        "home": -2.09
+      }
+    },
+    {
+      "game": "Baltimore Orioles @ Boston Red Sox",
+      "edges": {
+        "away": 2.88,
+        "home": -1.38
+      }
+    },
+    {
+      "game": "San Diego Padres @ Atlanta Braves",
+      "edges": {
+        "away": 1.77,
+        "home": -3.27
       }
     }
   ],
-  "slip_sent": true,
+  "slip_sent": false,
   "sent_pick_ids": [
     "ER:Landen Roupp:2.5:UNDER",
     "ER:Mitch Keller:3.0:UNDER",
@@ -224,7 +194,7 @@
     "TOT:Pittsburgh Pirates @ New York Yankees:UNDER:9.5",
     "TOT:San Francisco Giants @ Kansas City Royals:UNDER:8.5"
   ],
-  "slip_quality": "good",
+  "slip_quality": "bad",
   "data_health": {
     "odds": "live",
     "fangraphs_sp": "live",
