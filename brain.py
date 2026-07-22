@@ -3678,6 +3678,13 @@ def run_daily_scout(window: str = "all"):
     _cap_blocked_teams: list = []   # teams with edge that were blocked by daily cap
     _game_analysis_failures: list = []   # {game, error} — analyze_game() crashed outright, not a routine skip
     _persist_failures: list = []   # teams whose pick was withheld — log_bet() failed twice
+    _ml_candidates: list = []   # {analysis, side, stake, edge, conv} — qualifying ML sides,
+                                 # admitted in a post-loop edge-sorted pass against the real
+                                 # ML pool cap (mirrors the RUNLINE admission pattern) instead
+                                 # of inline per-game-order admission against the flat daily cap
+    _all_game_analyses: list = []   # every analyzed game this run, admitted or not — used to
+                                     # resolve all_pass/scout_out["passes"] after the post-loop
+                                     # ML admission pass decides which games ended up with a bet
 
     # Seed accumulated_risk from today's already-pending bets (stale or earlier scout)
     _prior_pending = [b for b in _db.get_bets()
@@ -4009,9 +4016,9 @@ def run_daily_scout(window: str = "all"):
         except Exception as pe:
             print(f"  Props entry error: {pe}")
 
-        bet_found = False
         _sp_missing_game = bool((analysis.get("away_sp") or {}).get("sp_missing")) or \
                             bool((analysis.get("home_sp") or {}).get("sp_missing"))
+        _all_game_analyses.append(analysis)
         for side in ("away", "home"):
             if _should_recommend(analysis, side, bet_type="ML"):
                 if _sp_missing_game:
@@ -4025,65 +4032,14 @@ def run_daily_scout(window: str = "all"):
                 edge = analysis.get(f"{side}_edge", 0)
                 conv = analysis.get(f"{side}_conv", "PASS")
 
-                # ── Hard daily cap block ───────────────────────────────────────
-                if not _override_cap and accumulated_risk + proposed_stake > _cap:
-                    _team = analysis.get(f"{side}_name", side)
-                    print(
-                        f"  BLOCK {_team}: daily cap ${_cap:.2f} would be exceeded "
-                        f"(accumulated ${accumulated_risk:.2f} + ${proposed_stake:.2f})"
-                    )
-                    _cap_blocked_teams.append(_team)
-                    if not DRY_RUN:
-                        _log_bet_with_retry(today, analysis, side, conv, over_cap=True)
-                    continue
-
-                # Validate bet type before logging
-                if not DRY_RUN:
-                    try:
-                        validate_bet("STRAIGHT", conviction_levels=[conv])
-                    except BetValidationError as ve:
-                        print(f"  [VALIDATOR] {ve}")
-
-                # ── DB log — must succeed (with one retry) before this pick is
-                # queued for Telegram/dashboard. A pick shown but never stored
-                # is invisible to settlement/learning/dashboard forever (B4).
-                if not DRY_RUN and not _log_bet_with_retry(today, analysis, side, conv):
-                    _team = analysis.get(f"{side}_name", side)
-                    print(f"  SUPPRESS {_team}: log_bet() failed twice — withholding pick rather than showing an unstored bet")
-                    _persist_failures.append(_team)
-                    continue
-
-                accumulated_risk = round(accumulated_risk + proposed_stake, 2)
-                all_bets.append(analysis)
-                bet_found = True
-
-                _bucket = _ml_bucket(conv)
-                if _bucket == "LOCK":
-                    all_locks.append((analysis, side))
-                elif _bucket == "FLIP":
-                    all_flips.append((analysis, side))
-
-                _sp_data = analysis.get(f"{side}_sp") or {}
-                scout_out["bets"].append({
-                    "team":             analysis.get(f"{side}_name"),
-                    "side":             side,
-                    "game":             f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}",
-                    "odds":             analysis.get(f"best_{side}_odds"),
-                    "book":             analysis.get(f"best_{side}_book"),
-                    "model_prob":       analysis.get(f"{side}_model_p"),
-                    "market_prob":      analysis.get(f"{side}_nv"),
-                    "edge_pct":         analysis.get(f"{side}_edge"),
-                    "stake":            analysis.get(f"{side}_stake"),
-                    "conviction":       analysis.get(f"{side}_conv"),
-                    "confidence_score": analysis.get(f"{side}_confidence_score"),
-                    "sp":               _sp_data.get("name"),
-                    "sp_era":           _sp_data.get("era"),
-                    "sp_xfip":          _sp_data.get("xfip"),
-                    "sp_yrfi_lean":     analysis.get(f"{side}_sp_yrfi_lean", False),
-                    "bullpen_tier":     analysis.get(f"{side}_bullpen_tier"),
-                    "weather_adj":      analysis.get("weather_run_adj"),
-                    "platoon_edge":     analysis.get(f"{side}_platoon_edge"),
-                    "h2h":              analysis.get("h2h"),
+                # Qualify now, admit later. Admission (flat daily cap AND the
+                # real ML pool cap) happens in one edge-sorted pass after the
+                # whole slate is analyzed, so the best-edge picks get first
+                # claim on the budget instead of whichever game was analyzed
+                # first — mirrors the RUNLINE admission pattern.
+                _ml_candidates.append({
+                    "analysis": analysis, "side": side,
+                    "stake": proposed_stake, "edge": edge, "conv": conv,
                 })
             else:
                 # Collect fades: only when SP ERA is significantly above xFIP
@@ -4243,11 +4199,98 @@ def run_daily_scout(window: str = "all"):
                     if _rl_best:
                         all_runline.append(_rl_best)
 
-        if not bet_found:
-            all_pass.append(analysis)
+    # ── ML admission: edge-sorted pass against BOTH the flat daily cap AND
+    # the real ML pool cap (mirrors the RUNLINE admission pattern — highest-
+    # edge picks across the whole slate get first claim on the budget, not
+    # whichever game happened to be analyzed first).
+    #
+    # Double-gated rather than pool-only: ml_pool_rem (POOL_ML=2.00, i.e.
+    # 200% of daily_budget) is currently looser than the flat cap, so the
+    # flat cap remains the practical ceiling until POOL_ML is resized with
+    # real usage data (see Step 2.1 audit — "pool multipliers are mostly
+    # decorative"). This makes ml_pool_rem a real, enforced constraint
+    # instead of a display-only number, without loosening today's actual
+    # ML risk ceiling.
+    _ml_pool_spent = 0.0
+    for _mc in sorted(_ml_candidates, key=lambda c: c["edge"], reverse=True):
+        analysis = _mc["analysis"]
+        side     = _mc["side"]
+        proposed_stake    = _mc["stake"]
+        conv     = _mc["conv"]
+        _team = analysis.get(f"{side}_name", side)
+
+        _blocked_reason = None
+        if not _override_cap and accumulated_risk + proposed_stake > _cap:
+            _blocked_reason = f"daily cap ${_cap:.2f}"
+        elif not _override_cap and _ml_pool_spent + proposed_stake > _ml_rem:
+            _blocked_reason = f"ML pool ${_ml_rem:.2f}"
+
+        if _blocked_reason:
+            print(
+                f"  BLOCK {_team}: {_blocked_reason} would be exceeded "
+                f"(accumulated ${accumulated_risk:.2f} + ${proposed_stake:.2f}, "
+                f"ML pool spent ${_ml_pool_spent:.2f})"
+            )
+            _cap_blocked_teams.append(_team)
+            if not DRY_RUN:
+                _log_bet_with_retry(today, analysis, side, conv, over_cap=True)
+            continue
+
+        # Validate bet type before logging
+        if not DRY_RUN:
+            try:
+                validate_bet("STRAIGHT", conviction_levels=[conv])
+            except BetValidationError as ve:
+                print(f"  [VALIDATOR] {ve}")
+
+        # ── DB log — must succeed (with one retry) before this pick is
+        # queued for Telegram/dashboard. A pick shown but never stored
+        # is invisible to settlement/learning/dashboard forever (B4).
+        if not DRY_RUN and not _log_bet_with_retry(today, analysis, side, conv):
+            print(f"  SUPPRESS {_team}: log_bet() failed twice — withholding pick rather than showing an unstored bet")
+            _persist_failures.append(_team)
+            continue
+
+        accumulated_risk = round(accumulated_risk + proposed_stake, 2)
+        _ml_pool_spent    = round(_ml_pool_spent + proposed_stake, 2)
+        all_bets.append(analysis)
+
+        _bucket = _ml_bucket(conv)
+        if _bucket == "LOCK":
+            all_locks.append((analysis, side))
+        elif _bucket == "FLIP":
+            all_flips.append((analysis, side))
+
+        _sp_data = analysis.get(f"{side}_sp") or {}
+        scout_out["bets"].append({
+            "team":             analysis.get(f"{side}_name"),
+            "side":             side,
+            "game":             f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}",
+            "odds":             analysis.get(f"best_{side}_odds"),
+            "book":             analysis.get(f"best_{side}_book"),
+            "model_prob":       analysis.get(f"{side}_model_p"),
+            "market_prob":      analysis.get(f"{side}_nv"),
+            "edge_pct":         analysis.get(f"{side}_edge"),
+            "stake":            analysis.get(f"{side}_stake"),
+            "conviction":       analysis.get(f"{side}_conv"),
+            "confidence_score": analysis.get(f"{side}_confidence_score"),
+            "sp":               _sp_data.get("name"),
+            "sp_era":           _sp_data.get("era"),
+            "sp_xfip":          _sp_data.get("xfip"),
+            "sp_yrfi_lean":     analysis.get(f"{side}_sp_yrfi_lean", False),
+            "bullpen_tier":     analysis.get(f"{side}_bullpen_tier"),
+            "weather_adj":      analysis.get("weather_run_adj"),
+            "platoon_edge":     analysis.get(f"{side}_platoon_edge"),
+            "h2h":              analysis.get("h2h"),
+        })
+
+    _ml_admitted_ids = {id(a) for a in all_bets}
+    for _pg_analysis in _all_game_analyses:
+        if id(_pg_analysis) not in _ml_admitted_ids:
+            all_pass.append(_pg_analysis)
             scout_out["passes"].append({
-                "game":  f"{analysis['away_name']} @ {analysis['home_name']}",
-                "edges": {"away": analysis["away_edge"], "home": analysis["home_edge"]},
+                "game":  f"{_pg_analysis['away_name']} @ {_pg_analysis['home_name']}",
+                "edges": {"away": _pg_analysis["away_edge"], "home": _pg_analysis["home_edge"]},
             })
 
     # Fix: count only the actually-recommended side's stake, not both
