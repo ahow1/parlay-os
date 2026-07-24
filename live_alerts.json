@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-07-23T19:56:49.214867-04:00",
+  "last_updated": "2026-07-23T21:19:19.283534-04:00",
   "in_progress": [
     {
       "game_pk": 824893,
@@ -31,11 +31,20 @@
     {
       "game_pk": 823042,
       "label": "Arizona Diamondbacks @ St. Louis Cardinals",
-      "score": "10-2",
-      "inning": "T9",
-      "pitcher": "Taylor Clarke",
+      "score": "10-6",
+      "inning": "B9",
+      "pitcher": "Ryan Thompson",
       "quality_score": 4.5,
       "trailing": "HOME"
+    },
+    {
+      "game_pk": 824247,
+      "label": "Kansas City Royals @ Detroit Tigers",
+      "score": "3-4",
+      "inning": "B8",
+      "pitcher": "Drew Anderson",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
     }
   ],
   "active_alerts": [],
