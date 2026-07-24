@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-07-23T21:19:19.283534-04:00",
+  "last_updated": "2026-07-23T22:55:17.697327-04:00",
   "in_progress": [
     {
       "game_pk": 824893,
@@ -41,8 +41,8 @@
       "game_pk": 824247,
       "label": "Kansas City Royals @ Detroit Tigers",
       "score": "3-4",
-      "inning": "B8",
-      "pitcher": "Drew Anderson",
+      "inning": "T9",
+      "pitcher": "Kyle Finnegan",
       "quality_score": 4.5,
       "trailing": "AWAY"
     }
