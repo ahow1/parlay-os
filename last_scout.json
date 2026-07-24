@@ -1,90 +1,16 @@
 {
-  "timestamp": "2026-07-23T20:57:58Z",
+  "timestamp": "2026-07-24T00:56:18Z",
   "date": "2026-07-23",
-  "window": "evening",
+  "window": "west",
   "bankroll": 300.0,
-  "games": [
-    {
-      "away": "AZ",
-      "home": "STL",
-      "away_model": 0.5643,
-      "home_model": 0.4757,
-      "away_edge": 8.61,
-      "home_edge": -4.61,
-      "away_xr": 4.578,
-      "home_xr": 3.798
-    },
-    {
-      "away": "KC",
-      "home": "DET",
-      "away_model": 0.5092,
-      "home_model": 0.5108,
-      "away_edge": 18.15,
-      "home_edge": -16.15,
-      "away_xr": 4.015,
-      "home_xr": 5.298
-    }
-  ],
+  "games": [],
   "bets": [],
-  "passes": [
-    {
-      "game": "Arizona Diamondbacks @ St. Louis Cardinals",
-      "edges": {
-        "away": 8.61,
-        "home": -4.61
-      }
-    },
-    {
-      "game": "Kansas City Royals @ Detroit Tigers",
-      "edges": {
-        "away": 18.15,
-        "home": -16.15
-      }
-    }
-  ],
-  "slip_sent": true,
-  "sent_pick_ids": [
-    "ER:Michael McGreevy:2.0:OVER",
-    "ER:Randy Dobnak:1.5:OVER",
-    "ER:Troy Melton:1.5:OVER",
-    "ER:Zac Gallen:3.5:UNDER",
-    "HITTER:Alec Burleson:STL:TB O1.5",
-    "HITTER:Carter Jensen:KC:SO O0.5",
-    "HITTER:Dillon Dingler:DET:HR O0.5",
-    "HITTER:Dillon Dingler:DET:RBI O0.5",
-    "HITTER:Isaac Collins:KC:RBI O0.5",
-    "HITTER:JJ Wetherholt:STL:TB O1.5",
-    "HITTER:Jordan Walker:STL:RBI O0.5",
-    "HITTER:Jordan Walker:STL:TB O1.5",
-    "HITTER:Lane Thomas:KC:HR O0.5",
-    "HITTER:Lane Thomas:KC:RBI O0.5",
-    "HITTER:Lane Thomas:KC:SO O0.5",
-    "HITTER:Max Kepler:AZ:RBI O0.5",
-    "HITTER:Riley Greene:DET:RBI O0.5",
-    "HITTER:Salvador Perez:KC:HR O0.5",
-    "HITTER:Salvador Perez:KC:RBI O0.5",
-    "HITTER:Salvador Perez:KC:SO O0.5",
-    "HITTER:Tim Tawa:AZ:HR O0.5",
-    "HITTER:Tim Tawa:AZ:RBI O0.5",
-    "KPROP:Randy Dobnak:2.5",
-    "KPROP:Troy Melton:4.5",
-    "NRFI:Arizona Diamondbacks @ St. Louis Cardinals:YRFI",
-    "NRFI:Kansas City Royals @ Detroit Tigers:YRFI",
-    "TOT:Arizona Diamondbacks @ St. Louis Cardinals:OVER:7.5",
-    "TOT:Kansas City Royals @ Detroit Tigers:OVER:8.5"
-  ],
+  "passes": [],
+  "slip_sent": false,
+  "sent_pick_ids": [],
   "slip_quality": "bad",
   "data_health": {
-    "odds": "live",
-    "fangraphs_sp": "live",
-    "savant": "degraded",
-    "lineups": "live",
-    "savant_bullpen_stuff": "live",
-    "savant_bat_tracking": "live",
-    "savant_park_of_defense": "live",
-    "savant_sprint_baserunning": "live",
-    "savant_arm_angle": "live",
-    "h2h": "live"
+    "odds": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],
