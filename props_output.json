@@ -1,45 +1,45 @@
 {
-  "date": "2026-07-24",
-  "timestamp": "2026-07-24T21:05:00.449305-04:00",
+  "date": "2026-07-25",
+  "timestamp": "2026-07-25T11:59:10.335762-04:00",
   "games": [
     {
-      "away": "LAA",
-      "home": "SF",
-      "away_name": "Los Angeles Angels",
-      "home_name": "San Francisco Giants",
-      "time": "10:16 PM ET",
-      "asp": "Grayson Rodriguez",
-      "hsp": "Logan Webb",
+      "away": "KC",
+      "home": "DET",
+      "away_name": "Kansas City Royals",
+      "home_name": "Detroit Tigers",
+      "time": "1:11 PM ET",
+      "asp": "Michael Wacha",
+      "hsp": "Casey Mize",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Grayson Rodriguez",
+          "sp": "Michael Wacha",
           "sp_side": "away",
-          "model_line": 3.9,
-          "p_over": 0.436,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Logan Webb",
-          "sp_side": "home",
           "model_line": 4.0,
-          "p_over": 0.5595,
+          "p_over": 0.5677,
           "recommendation": "BET"
         },
         {
+          "type": "K_PROP",
+          "sp": "Casey Mize",
+          "sp_side": "home",
+          "model_line": 5.1,
+          "p_over": 0.4659,
+          "recommendation": "PASS"
+        },
+        {
           "type": "NRFI",
-          "p_nrfi": 0.4363,
-          "p_yrfi": 0.5637,
+          "p_nrfi": 0.449,
+          "p_yrfi": 0.551,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.64,
-          "market_line": 8.5,
-          "p_over": 0.3569,
-          "p_under": 0.6431,
-          "recommendation": "UNDER 8.5"
+          "model_total": 7.95,
+          "market_line": 8.0,
+          "p_over": 0.4003,
+          "p_under": 0.5997,
+          "recommendation": "UNDER 8.0"
         }
       ],
       "sgp": []
