@@ -1,248 +1,31 @@
 {
-  "timestamp": "2026-07-24T20:57:49Z",
+  "timestamp": "2026-07-25T01:02:30Z",
   "date": "2026-07-24",
-  "window": "evening",
+  "window": "west",
   "bankroll": 300.0,
   "games": [
     {
-      "away": "CHC",
-      "home": "PIT",
-      "away_model": 0.5246,
-      "home_model": 0.4954,
-      "away_edge": 1.53,
-      "home_edge": 0.47,
-      "away_xr": 4.144,
-      "home_xr": 4.041
-    },
-    {
-      "away": "KC",
-      "home": "DET",
-      "away_model": 0.4819,
-      "home_model": 0.5331,
-      "away_edge": 18.33,
-      "home_edge": -16.83,
+      "away": "LAA",
+      "home": "SF",
+      "away_model": 0.5247,
+      "home_model": 0.4953,
+      "away_edge": 11.08,
+      "home_edge": -9.08,
       "away_xr": 3.5,
-      "home_xr": 4.451
-    },
-    {
-      "away": "AZ",
-      "home": "WAS",
-      "away_model": 0.4295,
-      "home_model": 0.5355,
-      "away_edge": -10.32,
-      "home_edge": 6.82,
-      "away_xr": 4.859,
-      "home_xr": 5.878
-    },
-    {
-      "away": "NYY",
-      "home": "PHI",
-      "away_model": 0.5278,
-      "home_model": 0.4922,
-      "away_edge": 8.56,
-      "home_edge": -6.56,
-      "away_xr": 3.5,
-      "home_xr": 3.75
-    },
-    {
-      "away": "ATL",
-      "home": "BAL",
-      "away_model": 0.4713,
-      "home_model": 0.5487,
-      "away_edge": 1.33,
-      "home_edge": 0.67,
-      "away_xr": 4.862,
-      "home_xr": 4.478
-    },
-    {
-      "away": "CLE",
-      "home": "TB",
-      "away_model": 0.5261,
-      "home_model": 0.4939,
-      "away_edge": 7.81,
-      "home_edge": -5.81,
-      "away_xr": 3.56,
-      "home_xr": 4.184
-    },
-    {
-      "away": "LAD",
-      "home": "NYM",
-      "away_model": 0.509,
-      "home_model": 0.481,
-      "away_edge": -2.37,
-      "home_edge": 1.37,
-      "away_xr": 4.292,
-      "home_xr": 4.601
-    },
-    {
-      "away": "SD",
-      "home": "MIA",
-      "away_model": 0.4409,
-      "home_model": 0.5241,
-      "away_edge": -3.07,
-      "home_edge": -0.43,
-      "away_xr": 4.736,
-      "home_xr": 5.308
-    },
-    {
-      "away": "TOR",
-      "home": "BOS",
-      "away_model": 0.5162,
-      "home_model": 0.5038,
-      "away_edge": 5.31,
-      "home_edge": -3.31,
-      "away_xr": 3.5,
-      "home_xr": 4.336
-    },
-    {
-      "away": "HOU",
-      "home": "CWS",
-      "away_model": 0.5413,
-      "home_model": 0.4787,
-      "away_edge": 8.74,
-      "home_edge": -6.74,
-      "away_xr": 4.225,
-      "home_xr": 4.342
+      "home_xr": 4.137
     }
   ],
-  "bets": [
-    {
-      "team": "Kansas City Royals",
-      "side": "away",
-      "game": "Kansas City Royals @ Detroit Tigers",
-      "odds": 227,
-      "book": "betonlineag",
-      "model_prob": 0.4819,
-      "market_prob": 0.2986,
-      "edge_pct": 18.33,
-      "stake": 40.0,
-      "conviction": "HIGH",
-      "confidence_score": 76,
-      "sp": "Beck Way",
-      "sp_era": 3.22,
-      "sp_xfip": 4.61,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": -1.1,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.3,
-        "home_win_rate": 0.7,
-        "avg_total": 7.1,
-        "over_rate": 0.2
-      }
-    },
-    {
-      "team": "Washington Nationals",
-      "side": "home",
-      "game": "Arizona Diamondbacks @ Washington Nationals",
-      "odds": 109,
-      "book": "betonlineag",
-      "model_prob": 0.5355,
-      "market_prob": 0.4673,
-      "edge_pct": 6.82,
-      "stake": 20.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 77,
-      "sp": "Carson Palmquist",
-      "sp_era": 8.74,
-      "sp_xfip": 2.46,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 3.3,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.4,
-        "home_win_rate": 0.6,
-        "avg_total": 10.1,
-        "over_rate": 0.6
-      }
-    },
-    {
-      "team": "New York Yankees",
-      "side": "away",
-      "game": "New York Yankees @ Philadelphia Phillies",
-      "odds": 123,
-      "book": "betus",
-      "model_prob": 0.5278,
-      "market_prob": 0.4422,
-      "edge_pct": 8.56,
-      "stake": 30.0,
-      "conviction": "HIGH",
-      "confidence_score": 94,
-      "sp": "Cam Schlittler",
-      "sp_era": 2.2,
-      "sp_xfip": 2.99,
-      "sp_yrfi_lean": true,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 0.5,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 6,
-        "away_win_rate": 0.667,
-        "home_win_rate": 0.333,
-        "avg_total": 13.17,
-        "over_rate": 0.833
-      }
-    }
-  ],
+  "bets": [],
   "passes": [
     {
-      "game": "Chicago Cubs @ Pittsburgh Pirates",
+      "game": "Los Angeles Angels @ San Francisco Giants",
       "edges": {
-        "away": 1.53,
-        "home": 0.47
-      }
-    },
-    {
-      "game": "Atlanta Braves @ Baltimore Orioles",
-      "edges": {
-        "away": 1.33,
-        "home": 0.67
-      }
-    },
-    {
-      "game": "Cleveland Guardians @ Tampa Bay Rays",
-      "edges": {
-        "away": 7.81,
-        "home": -5.81
-      }
-    },
-    {
-      "game": "Los Angeles Dodgers @ New York Mets",
-      "edges": {
-        "away": -2.37,
-        "home": 1.37
-      }
-    },
-    {
-      "game": "San Diego Padres @ Miami Marlins",
-      "edges": {
-        "away": -3.07,
-        "home": -0.43
-      }
-    },
-    {
-      "game": "Toronto Blue Jays @ Boston Red Sox",
-      "edges": {
-        "away": 5.31,
-        "home": -3.31
-      }
-    },
-    {
-      "game": "Houston Astros @ Chicago White Sox",
-      "edges": {
-        "away": 8.74,
-        "home": -6.74
+        "away": 11.08,
+        "home": -9.08
       }
     }
   ],
-  "slip_sent": true,
+  "slip_sent": false,
   "sent_pick_ids": [
     "ER:Beck Way:2.0:OVER",
     "ER:Carson Palmquist:4.5:UNDER",
@@ -460,7 +243,7 @@
     "TOT:San Diego Padres @ Miami Marlins:OVER:9.0",
     "TOT:Toronto Blue Jays @ Boston Red Sox:UNDER:8.5"
   ],
-  "slip_quality": "good",
+  "slip_quality": "bad",
   "data_health": {
     "odds": "live",
     "fangraphs_sp": "live",
