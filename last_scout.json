@@ -1,299 +1,31 @@
 {
-  "timestamp": "2026-07-26T15:55:28Z",
+  "timestamp": "2026-07-26T20:52:59Z",
   "date": "2026-07-26",
-  "window": "day",
+  "window": "evening",
   "bankroll": 300.0,
   "games": [
     {
-      "away": "CLE",
-      "home": "TB",
-      "away_model": 0.5079,
-      "home_model": 0.5071,
-      "away_edge": 3.63,
-      "home_edge": -2.13,
-      "away_xr": 3.622,
-      "home_xr": 4.387
-    },
-    {
-      "away": "AZ",
-      "home": "WAS",
-      "away_model": 0.4508,
-      "home_model": 0.5342,
-      "away_edge": -6.08,
-      "home_edge": 4.58,
-      "away_xr": 5.562,
-      "home_xr": 4.328
-    },
-    {
-      "away": "ATL",
-      "home": "BAL",
-      "away_model": 0.4936,
-      "home_model": 0.5214,
-      "away_edge": -1.1,
-      "home_edge": 2.6,
-      "away_xr": 4.337,
-      "home_xr": 4.408
-    },
-    {
-      "away": "TOR",
-      "home": "BOS",
-      "away_model": 0.5213,
-      "home_model": 0.4937,
-      "away_edge": 8.74,
-      "home_edge": -7.24,
+      "away": "NYY",
+      "home": "PHI",
+      "away_model": 0.531,
+      "home_model": 0.464,
+      "away_edge": 17.98,
+      "home_edge": -18.48,
       "away_xr": 3.5,
-      "home_xr": 3.577
-    },
-    {
-      "away": "CHC",
-      "home": "PIT",
-      "away_model": 0.5001,
-      "home_model": 0.4949,
-      "away_edge": 3.91,
-      "home_edge": -4.41,
-      "away_xr": 4.315,
-      "home_xr": 5.366
-    },
-    {
-      "away": "KC",
-      "home": "DET",
-      "away_model": 0.482,
-      "home_model": 0.533,
-      "away_edge": 10.81,
-      "home_edge": -9.31,
-      "away_xr": 3.581,
-      "home_xr": 4.161
-    },
-    {
-      "away": "LAD",
-      "home": "NYM",
-      "away_model": 0.506,
-      "home_model": 0.459,
-      "away_edge": -6.91,
-      "home_edge": 3.41,
-      "away_xr": 4.912,
-      "home_xr": 3.912
-    },
-    {
-      "away": "SD",
-      "home": "MIA",
-      "away_model": 0.4771,
-      "home_model": 0.4879,
-      "away_edge": 0.77,
-      "home_edge": -4.27,
-      "away_xr": 5.454,
-      "home_xr": 4.197
-    },
-    {
-      "away": "ATH",
-      "home": "MIN",
-      "away_model": 0.4918,
-      "home_model": 0.4932,
-      "away_edge": 8.35,
-      "home_edge": -9.85,
-      "away_xr": 4.047,
-      "home_xr": 4.228
-    },
-    {
-      "away": "HOU",
-      "home": "CWS",
-      "away_model": 0.5007,
-      "home_model": 0.4943,
-      "away_edge": 1.23,
-      "home_edge": -1.73,
-      "away_xr": 5.463,
-      "home_xr": 5.284
-    },
-    {
-      "away": "COL",
-      "home": "MIL",
-      "away_model": 0.4531,
-      "home_model": 0.5619,
-      "away_edge": 20.52,
-      "home_edge": -19.02,
-      "away_xr": 3.5,
-      "home_xr": 4.413
-    },
-    {
-      "away": "CIN",
-      "home": "STL",
-      "away_model": 0.5192,
-      "home_model": 0.4958,
-      "away_edge": 6.92,
-      "home_edge": -5.42,
-      "away_xr": 3.575,
-      "home_xr": 3.72
-    },
-    {
-      "away": "SEA",
-      "home": "TEX",
-      "away_model": 0.45,
-      "home_model": 0.535,
-      "away_edge": -4.54,
-      "home_edge": 3.04,
-      "away_xr": 3.639,
-      "home_xr": 4.623
+      "home_xr": 3.641
     }
   ],
-  "bets": [
-    {
-      "team": "Washington Nationals",
-      "side": "home",
-      "game": "Arizona Diamondbacks @ Washington Nationals",
-      "odds": 102,
-      "book": "betrivers",
-      "model_prob": 0.5342,
-      "market_prob": 0.4884,
-      "edge_pct": 4.58,
-      "stake": 20.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 63,
-      "sp": "Miles Mikolas",
-      "sp_era": 5.6,
-      "sp_xfip": 5.11,
-      "sp_yrfi_lean": true,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 5.1,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.3,
-        "home_win_rate": 0.7,
-        "avg_total": 9.5,
-        "over_rate": 0.4
-      }
-    },
-    {
-      "team": "Toronto Blue Jays",
-      "side": "away",
-      "game": "Toronto Blue Jays @ Boston Red Sox",
-      "odds": 125,
-      "book": "lowvig",
-      "model_prob": 0.5213,
-      "market_prob": 0.4339,
-      "edge_pct": 8.74,
-      "stake": 30.0,
-      "conviction": "HIGH",
-      "confidence_score": 74,
-      "sp": "Kevin Gausman",
-      "sp_era": 4.51,
-      "sp_xfip": 3.47,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": -7.9,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.7,
-        "home_win_rate": 0.3,
-        "avg_total": 6.5,
-        "over_rate": 0.2
-      }
-    },
-    {
-      "team": "Kansas City Royals",
-      "side": "away",
-      "game": "Kansas City Royals @ Detroit Tigers",
-      "odds": 165,
-      "book": "betrivers",
-      "model_prob": 0.482,
-      "market_prob": 0.3739,
-      "edge_pct": 10.81,
-      "stake": 25.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 80,
-      "sp": "Luinder Avila",
-      "sp_era": 4.86,
-      "sp_xfip": 4.08,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": -1.3,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.3,
-        "home_win_rate": 0.7,
-        "avg_total": 6.7,
-        "over_rate": 0.2
-      }
-    }
-  ],
+  "bets": [],
   "passes": [
     {
-      "game": "Cleveland Guardians @ Tampa Bay Rays",
+      "game": "New York Yankees @ Philadelphia Phillies",
       "edges": {
-        "away": 3.63,
-        "home": -2.13
-      }
-    },
-    {
-      "game": "Atlanta Braves @ Baltimore Orioles",
-      "edges": {
-        "away": -1.1,
-        "home": 2.6
-      }
-    },
-    {
-      "game": "Chicago Cubs @ Pittsburgh Pirates",
-      "edges": {
-        "away": 3.91,
-        "home": -4.41
-      }
-    },
-    {
-      "game": "Los Angeles Dodgers @ New York Mets",
-      "edges": {
-        "away": -6.91,
-        "home": 3.41
-      }
-    },
-    {
-      "game": "San Diego Padres @ Miami Marlins",
-      "edges": {
-        "away": 0.77,
-        "home": -4.27
-      }
-    },
-    {
-      "game": "Athletics @ Minnesota Twins",
-      "edges": {
-        "away": 8.35,
-        "home": -9.85
-      }
-    },
-    {
-      "game": "Houston Astros @ Chicago White Sox",
-      "edges": {
-        "away": 1.23,
-        "home": -1.73
-      }
-    },
-    {
-      "game": "Colorado Rockies @ Milwaukee Brewers",
-      "edges": {
-        "away": 20.52,
-        "home": -19.02
-      }
-    },
-    {
-      "game": "Cincinnati Reds @ St. Louis Cardinals",
-      "edges": {
-        "away": 6.92,
-        "home": -5.42
-      }
-    },
-    {
-      "game": "Seattle Mariners @ Texas Rangers",
-      "edges": {
-        "away": -4.54,
-        "home": 3.04
+        "away": 17.98,
+        "home": -18.48
       }
     }
   ],
-  "slip_sent": true,
+  "slip_sent": false,
   "sent_pick_ids": [
     "ER:Connor Prielipp:3.0:UNDER",
     "ER:Emmet Sheehan:3.0:UNDER",
@@ -578,7 +310,7 @@
     "TOT:Seattle Mariners @ Texas Rangers:OVER:7.0",
     "TOT:Toronto Blue Jays @ Boston Red Sox:UNDER:7.5"
   ],
-  "slip_quality": "good",
+  "slip_quality": "bad",
   "data_health": {
     "odds": "live",
     "fangraphs_sp": "live",
