@@ -1,48 +1,5 @@
 {
   "date": "2026-07-26",
-  "timestamp": "2026-07-26T16:54:55.928192-04:00",
-  "games": [
-    {
-      "away": "NYY",
-      "home": "PHI",
-      "away_name": "New York Yankees",
-      "home_name": "Philadelphia Phillies",
-      "time": "7:21 PM ET",
-      "asp": "Will Warren",
-      "hsp": "Cristopher S\u00e1nchez",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Will Warren",
-          "sp_side": "away",
-          "model_line": 4.9,
-          "p_over": 0.5779,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Cristopher S\u00e1nchez",
-          "sp_side": "home",
-          "model_line": 5.7,
-          "p_over": 0.7229,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4818,
-          "p_yrfi": 0.5182,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.14,
-          "market_line": 8.0,
-          "p_over": 0.2895,
-          "p_under": 0.7105,
-          "recommendation": "UNDER 8.0"
-        }
-      ],
-      "sgp": []
-    }
-  ]
+  "timestamp": "2026-07-26T21:09:06.978885-04:00",
+  "games": []
 }
