@@ -535,8 +535,13 @@ def _calc_profit(result: str, stake: float, bet_odds: str) -> float:
 
 
 def resolve_bet_by_id(bet_id: int, closing_odds: str, result: str,
-                       game_score: str, notes: str = ""):
-    """Settle a specific bet by primary key — used by auto-settler."""
+                       game_score: str, notes: str = "", mark_notified: bool = False):
+    """Settle a specific bet by primary key — used by auto-settler.
+
+    mark_notified=True stamps notified_at in the same UPDATE as the result
+    write (atomic: a bet can never end up with a result but no notified_at
+    from this call), for callers that are sending the Telegram grading
+    message in the same step the result is determined."""
     clv = None
     profit = None
     with _conn() as c:
@@ -550,10 +555,29 @@ def resolve_bet_by_id(bet_id: int, closing_odds: str, result: str,
                 pass
         profit = _calc_profit(result, row["stake"], row["bet_odds"])
     with _conn() as conn:
-        conn.execute("""
-            UPDATE bets SET closing_odds=?, clv_pct=?, result=?, game_score=?, notes=?, profit=?
-            WHERE id=? AND result IS NULL
-        """, (closing_odds, clv, result, game_score, notes, profit, bet_id))
+        if mark_notified:
+            conn.execute("""
+                UPDATE bets SET closing_odds=?, clv_pct=?, result=?, game_score=?, notes=?, profit=?, notified_at=?
+                WHERE id=? AND result IS NULL
+            """, (closing_odds, clv, result, game_score, notes, profit,
+                  datetime.now(ET).isoformat(), bet_id))
+        else:
+            conn.execute("""
+                UPDATE bets SET closing_odds=?, clv_pct=?, result=?, game_score=?, notes=?, profit=?
+                WHERE id=? AND result IS NULL
+            """, (closing_odds, clv, result, game_score, notes, profit, bet_id))
+
+
+def mark_notified(bet_id: int) -> None:
+    """Stamp notified_at for a bet whose grading result already exists but
+    was never sent to Telegram (the settlement backlog path) -- also used
+    to suppress over_cap bets, which are graded silently by design and
+    should never be re-considered for notification."""
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE bets SET notified_at=? WHERE id=?",
+            (datetime.now(ET).isoformat(), bet_id),
+        )
 
 
 def resolve_bet(bet, date, closing_odds, result, game_score, notes=""):

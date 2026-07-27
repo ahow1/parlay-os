@@ -23,7 +23,7 @@ import time
 import threading
 import requests
 from api_client import get as _http_get
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import pytz
 
 import db as _db
@@ -1399,24 +1399,50 @@ def _update_clv_log(settled: list[dict]) -> None:
         print(f"[AUTO] clv_log update error: {e}")
 
 
-def run_settlement_check() -> list[dict]:
-    """
-    Core auto-settlement function.
-    Checks every pending bet. For any whose game is final, determines
-    outcome, fetches closing odds, settles in DB, and sends notification.
-    Returns list of dicts describing what was settled.
-    """
-    pending = [b for b in _db.get_bets() if not b.get("result")]
-    if not pending:
-        return []
+def _grading_message(label: str, bet_type: str, r_lab: str, score: str,
+                      pnl_str: str, clv_txt: str, bankroll: float) -> str:
+    em = "✅" if r_lab == "WIN" else "❌" if r_lab == "LOSS" else "🔄"
+    return (
+        f"{em} AUTO-SETTLE: {label} {bet_type} {r_lab}\n"
+        f"{score} | {pnl_str}{clv_txt}\n"
+        f"Bankroll: ${bankroll:.2f}"
+    )
 
-    # Group by date — fetch schedule once per date
+
+def run_settlement_check(days_back: int | None = None) -> list[dict]:
+    """
+    Core auto-settlement function. Two passes:
+
+    1. Still-pending bets (result IS NULL): for any whose game is final,
+       determine outcome, fetch closing odds, write result + notified_at
+       atomically, and send the Telegram grading message.
+       days_back, when given, only considers pending bets dated within the
+       last N days -- bounds MLB Stats API calls for the one-shot --settle
+       CLI. None (the default) checks every pending bet regardless of age,
+       matching this function's original unbounded behavior.
+    2. Notification backlog (result IS NOT NULL, notified_at IS NULL): bets
+       already graded by some other path (manual /settle, a prior partial
+       run) that never got a Telegram ping. No MLB API calls needed here --
+       the result already exists -- so this pass is never date-bounded.
+
+    Both passes stamp notified_at before/while sending so a bet gets
+    exactly one Telegram notification no matter how many times this runs.
+    Returns list of dicts describing what was settled/notified.
+    """
+    all_bets = _db.get_bets()
+    pending  = [b for b in all_bets if not b.get("result")]
+    if days_back is not None:
+        cutoff  = (datetime.now(ET).date() - timedelta(days=days_back)).isoformat()
+        pending = [b for b in pending if (b.get("date") or "") >= cutoff]
+    backlog  = [b for b in all_bets if b.get("result") and not b.get("notified_at")]
+
+    settled_log = []
+
+    # ── Pass 1: settle still-pending bets ──────────────────────────────
     by_date: dict[str, list] = {}
     for b in pending:
         d = b.get("date") or date.today().isoformat()
         by_date.setdefault(d, []).append(b)
-
-    settled_log = []
 
     for game_date, bets in by_date.items():
         games = _fetch_final_games(game_date)
@@ -1424,6 +1450,11 @@ def run_settlement_check() -> list[dict]:
             continue
 
         for bet in bets:
+            bet_type = (bet.get("type") or "ML").strip().upper()
+            if bet_type == "PROP":
+                print(f"[AUTO] prop settlement not implemented, skipping bet #{bet['id']}")
+                continue
+
             team_code = bet["bet"]
 
             # Find matching final game
@@ -1450,12 +1481,15 @@ def run_settlement_check() -> list[dict]:
             score   = _score_str(matched_game)
             clv_txt = _clv_str(str(bet.get("bet_odds", "")), closing or "")
 
-            # Settle by ID for precision
+            # Settle by ID for precision -- notified_at is stamped in the
+            # same UPDATE as result so this bet can never be picked up by
+            # the backlog pass afterward.
             _db.resolve_bet_by_id(
                 bet_id=bet["id"],
                 closing_odds=closing or "",
                 result=outcome,
                 game_score=score,
+                mark_notified=True,
             )
 
             # P&L for message
@@ -1464,7 +1498,6 @@ def run_settlement_check() -> list[dict]:
             pnl_str = (f"+${to_win:.2f}" if outcome == "W"
                        else f"-${stake:.2f}" if outcome == "L"
                        else "$0.00")
-            em      = "✅" if outcome == "W" else "❌" if outcome == "L" else "🔄"
             r_lab   = {"W": "WIN", "L": "LOSS", "P": "PUSH"}[outcome]
             bd      = _bankroll_display()
 
@@ -1474,11 +1507,8 @@ def run_settlement_check() -> list[dict]:
             if bet.get("over_cap"):
                 print(f"[AUTO] settled over_cap bet #{bet['id']}: {team_code} {outcome} {score} (not sent -- stake=0)")
             else:
-                msg = (
-                    f"{em} AUTO-SETTLE: {team_code} {bet.get('type','ML')} {r_lab}\n"
-                    f"{score} | {pnl_str}{clv_txt}\n"
-                    f"Bankroll: ${bd['bankroll']:.2f}"
-                )
+                msg = _grading_message(team_code, bet.get("type", "ML"), r_lab,
+                                        score, pnl_str, clv_txt, bd["bankroll"])
                 _send(msg)
                 print(f"[AUTO] settled bet #{bet['id']}: {team_code} {outcome} {score}")
 
@@ -1489,6 +1519,42 @@ def run_settlement_check() -> list[dict]:
                 "closing":  closing,
                 "clv_pct":  calc_clv(str(bet.get("bet_odds","")), closing).get("clv_pct") if closing else None,
             })
+
+    # ── Pass 2: notify the backlog -- already graded, never sent ───────
+    for bet in backlog:
+        bet_id  = bet["id"]
+        result  = bet.get("result")
+        r_lab   = {"W": "WIN", "L": "LOSS", "P": "PUSH"}.get(result)
+
+        if bet.get("over_cap") or r_lab is None:
+            # over_cap: no ping owed by design. Unrecognized result: don't
+            # loop on it forever, but don't fabricate a message either.
+            _db.mark_notified(bet_id)
+            if r_lab is None:
+                print(f"[AUTO] backlog bet #{bet_id} has unrecognized result {result!r} -- marked notified, not sent")
+            else:
+                print(f"[AUTO] backlog over_cap bet #{bet_id} marked notified (no send)")
+            continue
+
+        stake   = float(bet.get("stake") or 0)
+        to_win  = _to_win(stake, str(bet.get("bet_odds", "")))
+        pnl_str = (f"+${to_win:.2f}" if result == "W"
+                   else f"-${stake:.2f}" if result == "L"
+                   else "$0.00")
+        clv_txt = _clv_str(str(bet.get("bet_odds", "")), bet.get("closing_odds") or "")
+        bd      = _bankroll_display()
+        msg     = _grading_message(bet.get("bet", ""), bet.get("type", "ML"), r_lab,
+                                    bet.get("game_score") or "", pnl_str, clv_txt, bd["bankroll"])
+        _send(msg)
+        _db.mark_notified(bet_id)
+        print(f"[AUTO] backlog-notified bet #{bet_id}: {result}")
+
+        settled_log.append({
+            **bet,
+            "outcome": result,
+            "closing": bet.get("closing_odds"),
+            "backlog_notify": True,
+        })
 
     if settled_log:
         sync_scout_json()

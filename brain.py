@@ -1727,9 +1727,16 @@ def _daily_bet_slip(
     # Pool budgets for this slip
     ml_pool_rem      = pool_remaining("ML", br)
     props_pool_rem   = pool_remaining("PROPS", br)
-    parlay_pool_rem  = pool_remaining("PARLAY", br)
     runline_pool_rem = pool_remaining("RUNLINE", br)
     budget           = daily_budget(br)
+
+    # PARLAY has no admission pool like ML/PROPS/RUNLINE — pool_remaining("PARLAY")
+    # (POOL_PARLAY=0.15) is never read by the actual parlay stake logic below,
+    # which always computes min(budget*15%, br*1.5%) directly. Display that real
+    # ceiling (minus today's already-logged PARLAY-type exposure) instead of the
+    # unused pool figure, so the header matches what's actually enforced.
+    _parlay_real_cap = round(min(budget * 0.15, br * 0.015), 2)
+    parlay_pool_rem  = max(0.0, round(_parlay_real_cap - pool_exposure("PARLAY"), 2))
 
     # Enforce RUNLINE pool budget — admit highest-edge run-line picks first
     # until the pool is exhausted (own pool, mirrors the ML bucket — never
@@ -5383,6 +5390,26 @@ def _run_capture_clv():
         print(f"[CLV] capture failed: {e}")
 
 
+# ── PENDING BET SETTLEMENT (ONE-SHOT) ─────────────────────────────────────────
+
+def _run_settle():
+    """One-shot pending-bet settlement for GitHub Actions (no persistent
+    --bot process running this on a 30-min loop the way Railway would).
+    Runs the same run_settlement_check() start_auto_settler()'s background
+    thread would run, once, then exits. Bounded to the last 3 days of
+    pending bets for the MLB Stats API fetch (the notification backlog
+    pass inside run_settlement_check is unbounded -- it needs no API call,
+    just a DB read, so older stuck notifications still get flushed)."""
+    from telegram_handler import run_settlement_check
+    print("Running settlement check (one-shot)...")
+    try:
+        settled = run_settlement_check(days_back=3)
+        print(f"[SETTLE] settled/notified {len(settled)} bet(s)")
+    except Exception as e:
+        error_logger.log_error("brain._run_settle", e)
+        print(f"[SETTLE] settlement check failed: {e}")
+
+
 def _run_archive(date_str: str):
     """Daily archive project, Step 2: dump every pick logged for date_str
     (staked + over_cap) with its diagnostic factor breakdown (Step 1),
@@ -5730,6 +5757,9 @@ if __name__ == "__main__":
 
     elif "--planner" in args:
         _run_morning_planner()
+
+    elif "--settle" in args:
+        _run_settle()
 
     else:
         # Scout-only mode: no listener, no polling — just run the scout and send via direct HTTP
