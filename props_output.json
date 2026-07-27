@@ -1,5 +1,48 @@
 {
-  "date": "2026-07-26",
-  "timestamp": "2026-07-26T21:09:06.978885-04:00",
-  "games": []
+  "date": "2026-07-27",
+  "timestamp": "2026-07-27T12:54:34.255605-04:00",
+  "games": [
+    {
+      "away": "SEA",
+      "home": "TEX",
+      "away_name": "Seattle Mariners",
+      "home_name": "Texas Rangers",
+      "time": "2:35 PM ET",
+      "asp": "George Kirby",
+      "hsp": "Kumar Rocker",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "George Kirby",
+          "sp_side": "away",
+          "model_line": 4.5,
+          "p_over": 0.6384,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Kumar Rocker",
+          "sp_side": "home",
+          "model_line": 4.5,
+          "p_over": 0.5695,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4202,
+          "p_yrfi": 0.5798,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.76,
+          "market_line": 8.0,
+          "p_over": 0.5125,
+          "p_under": 0.4875,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": []
+    }
+  ]
 }
