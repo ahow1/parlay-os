@@ -415,6 +415,11 @@ def init_db():
             # edge. One column, not a separate table, because it's always
             # 1:1 with a single bet row (same reasoning as over_cap above).
             "ALTER TABLE bets ADD COLUMN diagnostic_json TEXT",
+            # Notification dedup: source of truth for "has this bet's grading
+            # result already been sent to Telegram." NULL = not yet notified.
+            # Existing rows get NULL on migration -- each gets exactly one
+            # notification on the next settlement run, then stays quiet.
+            "ALTER TABLE bets ADD COLUMN notified_at TIMESTAMP",
         ]:
             try:
                 conn.execute(ddl)
