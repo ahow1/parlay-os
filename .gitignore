@@ -1,6 +1,7 @@
 .worktrees/
 .env
 .env.save
+*.db
 *.db-shm
 *.db-wal
 __pycache__/
