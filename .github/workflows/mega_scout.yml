@@ -11,13 +11,16 @@ on:
     - cron: '30 4 * * *'     # daily_debrief  — 11:30pm ET (04:30 UTC)
     - cron: '0 14 * * 1'     # weekly_roi     — Mon 9am ET (14:00 UTC)
     - cron: '0 14 * * 0,2,3,4,5,6'  # morning_planner — 9am ET, every day except Monday
-    - cron: '45 16 * * *'    # capture_clv    — 12:45pm ET (16:45 UTC): before day games
-    - cron: '45 22 * * *'    # capture_clv    — 6:45pm ET (22:45 UTC): before evening games
-    - cron: '45 1 * * *'     # capture_clv    — 9:45pm ET (01:45 UTC next day): before west games
-    - cron: '0 1 * * *'      # settle_bets    — 9pm ET (01:00 UTC): early finishers
-    - cron: '0 3 * * *'      # settle_bets    — 11pm ET (03:00 UTC): most games done
-    - cron: '0 5 * * *'      # settle_bets    — 1am ET (05:00 UTC): extra innings / west coast
-    - cron: '0 14 * * *'     # settle_bets    — 9am ET (14:00 UTC): morning catch-all for stragglers/doubleheaders
+    # capture_clv and settle_bets no longer run on a schedule here — moved to
+    # Railway's persistent --bot process (run_pre_game_clv_loop every 15 min,
+    # _settler_loop every 30 min 4pm-1am ET with no days_back bound). Running
+    # both here AND on Railway meant two independent processes hitting two
+    # non-synced copies of parlay_os.db with the same settlement/CLV logic --
+    # the notified_at/clv_log_exists idempotency guards only protect within a
+    # single database, so duplicate Telegram sends were a real risk, not just
+    # duplicate work. The two brain.py CLI modes (--capture-clv, --settle)
+    # are kept below as workflow_dispatch-only manual fallbacks in case
+    # Railway ever goes down -- just no longer on autopilot via cron.
   workflow_dispatch:
     inputs:
       job:
@@ -323,21 +326,19 @@ jobs:
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python brain.py --planner
 
-  # ─── 7. PRE-GAME CLV CAPTURE — 12:45pm / 6:45pm / 9:45pm ET ──────────────
-  # One-shot (brain.py --capture-clv exits after a single tick — Actions jobs
-  # can't run a persistent 15-min loop like --bot does on Railway). Scheduled
-  # near each window's typical first pitch so the closing line is captured
-  # shortly before game time. Graded against the SGO no-vig consensus
-  # (ODDS_SOURCE=sgo) rather than the-odds-api. Idempotent per bet per day
-  # (db.clv_log_exists()) — safe to run multiple times or re-run on failure.
+  # ─── 7. PRE-GAME CLV CAPTURE — MANUAL FALLBACK ONLY ──────────────────────
+  # Moved off the schedule: Railway's --bot process runs run_pre_game_clv_loop()
+  # every 15 min continuously, which gets tighter closing-line precision than
+  # this job's fixed 12:45pm/6:45pm/9:45pm ET ticks ever could, and running
+  # both was a real double-send risk (see the schedule-block comment above).
+  # workflow_dispatch only now -- trigger manually from the Actions tab if
+  # Railway is ever down and CLV capture needs to happen from here instead.
+  # Graded against the SGO no-vig consensus (ODDS_SOURCE=sgo) rather than
+  # the-odds-api. Idempotent per bet per day (db.clv_log_exists()) — safe to
+  # run multiple times or re-run on failure.
   capture_clv:
     if: >
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'capture_clv') ||
-      (github.event_name == 'schedule' && (
-        github.event.schedule == '45 16 * * *' ||
-        github.event.schedule == '45 22 * * *' ||
-        github.event.schedule == '45 1 * * *'
-      ))
+      github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'capture_clv'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -364,23 +365,23 @@ jobs:
           git diff --staged --quiet || git commit -m "CLV capture: $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push || true
 
-  # ─── 8. BET SETTLEMENT — 9pm/11pm/1am/9am ET ─────────────────────────────
-  # One-shot (brain.py --settle exits after a single pass -- Actions jobs
-  # can't run a persistent 30-min loop the way --bot does on Railway).
-  # Scheduled around when games typically finish, plus a 9am ET catch-all
-  # for extra innings / postponements / doubleheaders still pending from
-  # the night before. Safe to run multiple times or re-run on failure --
-  # run_settlement_check() only sends one Telegram notification per bet
-  # (notified_at guard), no matter how many times this job fires.
+  # ─── 8. BET SETTLEMENT — MANUAL FALLBACK ONLY ────────────────────────────
+  # Moved off the schedule: Railway's --bot process runs _settler_loop()
+  # every 30 min, 4pm-1am ET, with NO days_back bound -- this job's one-shot
+  # brain.py --settle always ran with days_back=3, which permanently missed
+  # any pending bet older than 3 days (602 bets stranded as of 2026-07-28,
+  # cleaned up in a one-time manual pass -- see CLAUDE.md's Railway/GH
+  # Actions split section). Railway's unbounded loop naturally covers what
+  # this job's bounded window couldn't, and running both was a real
+  # double-send risk (see the schedule-block comment above). workflow_dispatch
+  # only now -- trigger manually from the Actions tab if Railway is ever down
+  # and settlement needs to happen from here instead. Safe to run multiple
+  # times or re-run on failure -- run_settlement_check() only sends one
+  # Telegram notification per bet (notified_at guard), no matter how many
+  # times this job fires.
   settle_bets:
     if: >
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'settle_bets') ||
-      (github.event_name == 'schedule' && (
-        github.event.schedule == '0 1 * * *' ||
-        github.event.schedule == '0 3 * * *' ||
-        github.event.schedule == '0 5 * * *' ||
-        github.event.schedule == '0 14 * * *'
-      ))
+      github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'settle_bets'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     concurrency:
