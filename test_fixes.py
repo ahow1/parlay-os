@@ -307,6 +307,32 @@ class TestLearningLoopCalibration:
         buckets = [c["bucket"] for c in cal]
         assert "0.55-0.60" in buckets, "calibration_buckets must store probability bucket name"
 
+    def test_settled_prop_bet_feeds_calibration_bucket(self, _isolated_db):
+        """FIX 2: PROP bets (hitter/K/ER props) now settle via
+        telegram_handler.run_settlement_check() -- once settled, they must
+        flow into calibration_buckets exactly like any other bet type, since
+        _feed_brain_from_settled only keys off result + model_prob, not
+        bet type. This closes the 'learning loop needs wiring to
+        calibration_buckets' gap for the PROP data that was previously
+        stranded pending forever and never reached this function at all."""
+        _db = _isolated_db
+        _db.log_bet(
+            date="2026-07-27", bet="Aaron Judge TB O1.5", bet_type="PROP",
+            game="Tampa Bay Rays @ Boston Red Sox", sp="", park="", umpire="",
+            bet_odds="-115", model_prob=0.58, market_prob=0.48,
+            edge_pct=10.0, conviction="LOCK", stake=15.0,
+        )
+        _db.resolve_bet("Aaron Judge TB O1.5", "2026-07-27", "-110", "W", "TBR 2-5 BOS")
+
+        from brain import _feed_brain_from_settled
+        settled = [b for b in _db.get_bets() if b.get("result") == "W"]
+        _feed_brain_from_settled(settled)
+
+        cal = _db.get_calibration()
+        assert len(cal) > 0, "a settled PROP bet must produce a calibration_buckets row"
+        assert any(c["bucket"] == "0.55-0.60" for c in cal), \
+            "PROP bet's model_prob=0.58 must land in the 0.55-0.60 bucket like any other bet type"
+
 
 # ── FIX 4: CLV capture ───────────────────────────────────────────────────────
 

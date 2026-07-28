@@ -44,13 +44,14 @@ def _log(bet="Boston Red Sox", game="Tampa Bay Rays @ Boston Red Sox",
 
 
 def _final_game(away_name="Tampa Bay Rays", home_name="Boston Red Sox",
-                 away_score=2, home_score=5):
+                 away_score=2, home_score=5, game_pk=123456):
     return {
         "teams": {
             "away": {"team": {"name": away_name}, "score": away_score},
             "home": {"team": {"name": home_name}, "score": home_score},
         },
         "status": {"detailedState": "Final"},
+        "gamePk": game_pk,
     }
 
 
@@ -66,34 +67,134 @@ class TestSchema:
         assert row["notified_at"] is None
 
 
-class TestPropSkip:
-    """PROP bets have no automated outcome-determination path -- must be
-    skipped explicitly during settlement, not silently swallowed by the
-    generic 'couldn't determine outcome' branch."""
+def _boxscore(away_stats=None, home_stats=None):
+    """away_stats/home_stats: list of (player_id, full_name, stat_group, stats_dict)."""
+    def _players(entries):
+        out = {}
+        for pid, name, stat_group, stats in (entries or []):
+            out[f"ID{pid}"] = {"person": {"id": pid, "fullName": name},
+                                "stats": {stat_group: stats}}
+        return out
+    return {"teams": {"away": {"players": _players(away_stats)},
+                       "home": {"players": _players(home_stats)}}}
 
-    def test_pending_prop_bet_is_skipped_not_settled(self, capsys):
+
+class TestPropSettlement:
+    """PROP bets (hitter/K/ER props) settle via MLB Stats API box score data,
+    through the same resolve_bet_by_id()/CLV/notification path every other
+    bet type uses -- see _parse_prop_bet/_match_prop_game/_settle_prop_bet in
+    telegram_handler.py."""
+
+    def _run(self, boxscore, game=None):
         import telegram_handler as th
-        _log(bet="Aaron Judge Over 1.5 TB", bet_type="PROP", game="NYY @ BOS")
-
+        game = game or _final_game()
         with patch.object(th, "_db", db), \
-             patch.object(th, "_fetch_final_games", return_value=[_final_game()]), \
-             patch.object(th, "_send") as mock_send:
+             patch.object(th, "_fetch_final_games", return_value=[game]), \
+             patch.object(th, "_fetch_boxscore", return_value=boxscore), \
+             patch.object(th, "_fetch_closing_odds", return_value=None), \
+             patch.object(th, "_send") as mock_send, \
+             patch.object(th, "sync_scout_json"), \
+             patch.object(th, "_update_clv_log"):
             settled = th.run_settlement_check()
+        return settled, mock_send
 
+    # ── Hitter prop (total bases) ────────────────────────────────────────
+    def test_hitter_prop_win(self):
+        _log(bet="Aaron Judge TB O1.5", bet_type="PROP", game="Tampa Bay Rays @ Boston Red Sox")
+        box = _boxscore(home_stats=[(1, "Aaron Judge", "batting", {"totalBases": 3})])
+        settled, mock_send = self._run(box)
+        assert len(settled) == 1 and settled[0]["outcome"] == "W"
+        assert db.get_bets()[0]["result"] == "W"
+        mock_send.assert_called_once()
+
+    def test_hitter_prop_loss(self):
+        _log(bet="Aaron Judge TB O1.5", bet_type="PROP", game="Tampa Bay Rays @ Boston Red Sox")
+        box = _boxscore(home_stats=[(1, "Aaron Judge", "batting", {"totalBases": 1})])
+        settled, _ = self._run(box)
+        assert settled[0]["outcome"] == "L"
+
+    def test_hitter_prop_push(self):
+        """totalBases can land exactly on a whole-number line (unlike the
+        fixed .5 lines _HITTER_PROP_LINES normally uses) -- still handled."""
+        _log(bet="Aaron Judge TB O2", bet_type="PROP", game="Tampa Bay Rays @ Boston Red Sox")
+        box = _boxscore(home_stats=[(1, "Aaron Judge", "batting", {"totalBases": 2})])
+        settled, _ = self._run(box)
+        assert settled[0]["outcome"] == "P"
+
+    # ── K prop (SP strikeouts, always Over) ──────────────────────────────
+    def test_k_prop_win(self):
+        _log(bet="Gerrit Cole Ks O6.5", bet_type="PROP", game="Tampa Bay Rays @ Boston Red Sox")
+        box = _boxscore(home_stats=[(2, "Gerrit Cole", "pitching", {"strikeOuts": 9})])
+        settled, _ = self._run(box)
+        assert settled[0]["outcome"] == "W"
+
+    def test_k_prop_loss(self):
+        _log(bet="Gerrit Cole Ks O6.5", bet_type="PROP", game="Tampa Bay Rays @ Boston Red Sox")
+        box = _boxscore(home_stats=[(2, "Gerrit Cole", "pitching", {"strikeOuts": 4})])
+        settled, _ = self._run(box)
+        assert settled[0]["outcome"] == "L"
+
+    def test_k_prop_with_2025_data_flag_still_parses(self):
+        """brain.py appends ' [2025 data]' after the line for some K props --
+        must not break parsing."""
+        _log(bet="Gerrit Cole Ks O6.5 [2025 data]", bet_type="PROP", game="Tampa Bay Rays @ Boston Red Sox")
+        box = _boxscore(home_stats=[(2, "Gerrit Cole", "pitching", {"strikeOuts": 9})])
+        settled, _ = self._run(box)
+        assert settled[0]["outcome"] == "W"
+
+    # ── ER prop (SP earned runs, Over or Under) ──────────────────────────
+    def test_er_prop_over_win(self):
+        _log(bet="Shane Bieber ER O2.5", bet_type="PROP", game="Tampa Bay Rays @ Boston Red Sox")
+        box = _boxscore(home_stats=[(3, "Shane Bieber", "pitching", {"earnedRuns": 4})])
+        settled, _ = self._run(box)
+        assert settled[0]["outcome"] == "W"
+
+    def test_er_prop_under_win(self):
+        _log(bet="Shane Bieber ER U2.5", bet_type="PROP", game="Tampa Bay Rays @ Boston Red Sox")
+        box = _boxscore(home_stats=[(3, "Shane Bieber", "pitching", {"earnedRuns": 1})])
+        settled, _ = self._run(box)
+        assert settled[0]["outcome"] == "W"
+
+    def test_er_prop_push(self):
+        _log(bet="Shane Bieber ER O2", bet_type="PROP", game="Tampa Bay Rays @ Boston Red Sox")
+        box = _boxscore(home_stats=[(3, "Shane Bieber", "pitching", {"earnedRuns": 2})])
+        settled, _ = self._run(box)
+        assert settled[0]["outcome"] == "P"
+
+    # ── Robustness ────────────────────────────────────────────────────────
+    def test_unparseable_prop_format_leaves_bet_pending_no_crash(self, capsys):
+        _log(bet="Aaron Judge Over 1.5 TB", bet_type="PROP", game="Tampa Bay Rays @ Boston Red Sox")
+        settled, mock_send = self._run(_boxscore())
         assert settled == []
         mock_send.assert_not_called()
-        row = db.get_bets()[0]
-        assert row["result"] is None
-        assert "prop settlement not implemented, skipping" in capsys.readouterr().out
+        assert db.get_bets()[0]["result"] is None
+        assert "couldn't parse PROP bet string" in capsys.readouterr().out
+
+    def test_player_not_found_in_boxscore_leaves_bet_pending_no_crash(self, capsys):
+        _log(bet="Aaron Judge TB O1.5", bet_type="PROP", game="Tampa Bay Rays @ Boston Red Sox")
+        box = _boxscore(home_stats=[(1, "Someone Else", "batting", {"totalBases": 3})])
+        settled, mock_send = self._run(box)
+        assert settled == []
+        mock_send.assert_not_called()
+        assert db.get_bets()[0]["result"] is None
+        assert "couldn't find box score stat" in capsys.readouterr().out
+
+    def test_last_name_fallback_matches_when_full_name_differs_slightly(self):
+        """Boxscore fullName formatting can differ slightly from the stored
+        bet string (e.g. suffixes) -- last-name fallback still resolves it."""
+        _log(bet="Judge TB O1.5", bet_type="PROP", game="Tampa Bay Rays @ Boston Red Sox")
+        box = _boxscore(home_stats=[(1, "Aaron Judge", "batting", {"totalBases": 3})])
+        settled, _ = self._run(box)
+        assert settled[0]["outcome"] == "W"
 
     def test_prop_bet_does_not_block_other_bets_in_same_batch(self):
         import telegram_handler as th
-        _log(bet="Aaron Judge Over 1.5 TB", bet_type="PROP", game="NYY @ BOS")
+        _log(bet="Aaron Judge Over 1.5 TB", bet_type="PROP", game="Tampa Bay Rays @ Boston Red Sox")  # unparseable
         _log(bet="Boston Red Sox", bet_type="ML")
 
         with patch.object(th, "_db", db), \
              patch.object(th, "_fetch_final_games", return_value=[_final_game()]), \
-             patch.object(th, "_game_side", return_value="home"), \
+             patch.object(th, "_game_side", side_effect=lambda g, code: "home" if code == "Boston Red Sox" else None), \
              patch.object(th, "_determine_outcome", return_value="W"), \
              patch.object(th, "_fetch_closing_odds", return_value="-115"), \
              patch.object(th, "_send") as mock_send, \
@@ -104,6 +205,67 @@ class TestPropSkip:
         assert len(settled) == 1
         assert settled[0]["type"] == "ML"
         mock_send.assert_called_once()
+
+
+class TestPropBetParsing:
+    """Unit coverage for _parse_prop_bet/_match_prop_game/_find_player_stat
+    in isolation, independent of the full settlement loop."""
+
+    def test_parses_hitter_props_across_all_categories(self):
+        import telegram_handler as th
+        cases = [
+            ("Aaron Judge Hits O1.5", "batting", "hits", "O", 1.5),
+            ("Aaron Judge HR O0.5", "batting", "homeRuns", "O", 0.5),
+            ("Aaron Judge TB O1.5", "batting", "totalBases", "O", 1.5),
+            ("Aaron Judge RBI O0.5", "batting", "rbi", "O", 0.5),
+            ("Aaron Judge SO O0.5", "batting", "strikeOuts", "O", 0.5),
+        ]
+        for bet_str, group, key, direction, line in cases:
+            parsed = th._parse_prop_bet(bet_str)
+            assert parsed == {"player": "Aaron Judge", "stat_group": group,
+                               "stat_key": key, "direction": direction, "line": line}, bet_str
+
+    def test_parses_k_prop(self):
+        import telegram_handler as th
+        parsed = th._parse_prop_bet("Gerrit Cole Ks O7.5")
+        assert parsed == {"player": "Gerrit Cole", "stat_group": "pitching",
+                           "stat_key": "strikeOuts", "direction": "O", "line": 7.5}
+
+    def test_parses_er_prop_both_directions(self):
+        import telegram_handler as th
+        over = th._parse_prop_bet("Shane Bieber ER O2.5")
+        under = th._parse_prop_bet("Shane Bieber ER U2.5")
+        assert over["direction"] == "O" and over["line"] == 2.5
+        assert under["direction"] == "U" and under["line"] == 2.5
+        assert over["stat_group"] == "pitching" and over["stat_key"] == "earnedRuns"
+
+    def test_unparseable_string_returns_none(self):
+        import telegram_handler as th
+        assert th._parse_prop_bet("total nonsense") is None
+        assert th._parse_prop_bet("") is None
+        assert th._parse_prop_bet(None) is None
+
+    def test_match_prop_game_exact_name_match(self):
+        import telegram_handler as th
+        games = [_final_game(away_name="Tampa Bay Rays", home_name="Boston Red Sox")]
+        matched = th._match_prop_game("Tampa Bay Rays @ Boston Red Sox", games)
+        assert matched is games[0]
+
+    def test_match_prop_game_no_match_returns_none(self):
+        import telegram_handler as th
+        games = [_final_game(away_name="Tampa Bay Rays", home_name="Boston Red Sox")]
+        assert th._match_prop_game("New York Yankees @ Houston Astros", games) is None
+
+    def test_find_player_stat_prefers_exact_over_last_name(self):
+        """Two players sharing a surname on opposite teams -- exact full-name
+        match must win over a same-surname player on the other side."""
+        import telegram_handler as th
+        box = _boxscore(
+            away_stats=[(1, "J.D. Martinez", "batting", {"totalBases": 1})],
+            home_stats=[(2, "Victor Martinez", "batting", {"totalBases": 4})],
+        )
+        actual = th._find_player_stat(box, "Victor Martinez", "batting", "totalBases")
+        assert actual == 4.0
 
 
 class TestNotifiedAtGuard:

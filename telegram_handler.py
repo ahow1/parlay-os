@@ -1354,6 +1354,159 @@ def _determine_outcome(bet: dict, game: dict, side: str) -> str | None:
     return None
 
 
+# ── PROP settlement ──────────────────────────────────────────────────────────
+# PROP bets (hitter/K/ER props) are all logged under the generic type="PROP"
+# with the player + stat description baked into the `bet` column itself, in
+# one of three fixed formats brain.py's _norm_k/_norm_h/_norm_er produce:
+#   "{player} ER {O|U}{line}"        -- SP earned runs allowed
+#   "{player} Ks O{line}[ [2025 data]]" -- SP strikeouts (always Over)
+#   "{player} {Hits|HR|TB|RBI|SO} O{line}" -- hitter props (always Over,
+#                                              _HITTER_PROP_LINES' fixed labels)
+_PROP_CATEGORY_PATTERNS = [
+    # (regex, stat_group, stat_key, forced_direction_or_None)
+    (re.compile(r"\bER\s+([OU])(\d+(?:\.\d+)?)\b"), "pitching", "earnedRuns", None),
+    (re.compile(r"\bKs\s+O(\d+(?:\.\d+)?)\b"),        "pitching", "strikeOuts", "O"),
+    (re.compile(r"\bHits\s+O(\d+(?:\.\d+)?)\b"),       "batting",  "hits",       "O"),
+    (re.compile(r"\bHR\s+O(\d+(?:\.\d+)?)\b"),         "batting",  "homeRuns",   "O"),
+    (re.compile(r"\bTB\s+O(\d+(?:\.\d+)?)\b"),         "batting",  "totalBases", "O"),
+    (re.compile(r"\bRBI\s+O(\d+(?:\.\d+)?)\b"),        "batting",  "rbi",        "O"),
+    (re.compile(r"\bSO\s+O(\d+(?:\.\d+)?)\b"),         "batting",  "strikeOuts", "O"),
+]
+
+
+def _parse_prop_bet(bet_str: str) -> dict | None:
+    """Parse a PROP bet's stored `bet` string into player/stat_group/stat_key/
+    direction/line. Returns None if it doesn't match any known prop format
+    (defensive -- a format brain.py changes later shouldn't crash settlement,
+    just leave that bet pending for a human to resolve manually)."""
+    if not bet_str:
+        return None
+    for pattern, stat_group, stat_key, forced_dir in _PROP_CATEGORY_PATTERNS:
+        m = pattern.search(bet_str)
+        if not m:
+            continue
+        player = bet_str[:m.start()].strip()
+        if not player:
+            return None
+        if forced_dir is None:  # ER: direction is captured (group 1), line is group 2
+            direction, line_s = m.group(1), m.group(2)
+        else:                    # Ks / hitter props: direction is fixed, line is group 1
+            direction, line_s = forced_dir, m.group(1)
+        try:
+            line = float(line_s)
+        except ValueError:
+            return None
+        return {"player": player, "stat_group": stat_group, "stat_key": stat_key,
+                "direction": direction, "line": line}
+    return None
+
+
+def _match_prop_game(game_str: str, games: list[dict]) -> dict | None:
+    """Match a PROP bet's stored `game` string -- 'AWAY_NAME @ HOME_NAME',
+    the identical format brain.py uses for every bet type (analysis['away_name']
+    / ['home_name'], which are themselves MLB Stats API's own team.name field)
+    -- against the day's finished games by exact (case-insensitive) team name."""
+    if not game_str or " @ " not in game_str:
+        return None
+    away_name, home_name = (s.strip().lower() for s in game_str.split(" @ ", 1))
+    for g in games:
+        g_away = (g.get("teams", {}).get("away", {}).get("team", {}).get("name", "") or "").lower()
+        g_home = (g.get("teams", {}).get("home", {}).get("team", {}).get("name", "") or "").lower()
+        if g_away == away_name and g_home == home_name:
+            return g
+    return None
+
+
+def _fetch_boxscore(game_pk: int, cache: dict | None = None) -> dict:
+    """cache, when given, is a plain dict the caller keeps for the lifetime
+    of one settlement run -- many PROP bets (K/ER/hitter props from both
+    starters plus several batters) share the same game_pk, so without this
+    a backlog of hundreds of pending props would trigger a redundant
+    identical boxscore fetch per bet instead of one per game."""
+    if cache is not None and game_pk in cache:
+        return cache[game_pk]
+    try:
+        r = _http_get(f"{STATSAPI}/game/{game_pk}/boxscore", timeout=12)
+        r.raise_for_status()
+        box = r.json()
+    except Exception as e:
+        print(f"[AUTO] boxscore fetch error for game {game_pk}: {e}")
+        box = {}
+    if cache is not None:
+        cache[game_pk] = box
+    return box
+
+
+def _find_player_stat(boxscore: dict, player_name: str, stat_group: str, stat_key: str) -> float | None:
+    """Search both teams' boxscore player lists for `player_name` (exact
+    full-name match preferred, last-name fallback -- same fuzzy-matching
+    trade-off _game_side already makes for team names) and return the
+    requested stat, or None if the player/stat isn't found. Trying the
+    exact match first across both teams before falling back to last-name
+    avoids two different players sharing a surname (e.g. two Martinezes,
+    one on each side) resolving to the wrong one's stat line."""
+    target_full = player_name.strip().lower()
+    target_last = target_full.split()[-1] if target_full else ""
+    if not target_last:
+        return None
+
+    exact, by_last = [], []
+    for side in ("away", "home"):
+        players = (boxscore.get("teams", {}).get(side, {}) or {}).get("players", {}) or {}
+        for pdata in players.values():
+            full_name = ((pdata.get("person", {}) or {}).get("fullName", "") or "")
+            if not full_name:
+                continue
+            if full_name.lower() == target_full:
+                exact.append(pdata)
+            elif full_name.lower().split()[-1] == target_last:
+                by_last.append(pdata)
+
+    for pdata in exact + by_last:
+        stats = ((pdata.get("stats", {}) or {}).get(stat_group, {}) or {})
+        if stat_key in stats:
+            try:
+                return float(stats[stat_key])
+            except (TypeError, ValueError):
+                continue
+    return None
+
+
+def _settle_prop_bet(bet: dict, matched_game: dict, boxscore_cache: dict | None = None) -> str | None:
+    """W/L/P for a PROP-type bet using box score player stats. Returns None
+    if the bet string can't be parsed or the stat can't be found (game not
+    final enough / player didn't appear / name mismatch) -- the bet is left
+    pending and retried on the next settlement pass, same as an ML bet whose
+    game isn't final yet."""
+    parsed = _parse_prop_bet(bet.get("bet", ""))
+    if parsed is None:
+        print(f"[AUTO] couldn't parse PROP bet string: {bet.get('bet')!r}")
+        return None
+
+    game_pk = matched_game.get("gamePk")
+    if not game_pk:
+        return None
+    boxscore = _fetch_boxscore(game_pk, cache=boxscore_cache)
+    if not boxscore:
+        return None
+
+    actual = _find_player_stat(boxscore, parsed["player"], parsed["stat_group"], parsed["stat_key"])
+    if actual is None:
+        print(f"[AUTO] couldn't find box score stat for PROP: "
+              f"{parsed['player']} {parsed['stat_group']}.{parsed['stat_key']}")
+        return None
+
+    line = parsed["line"]
+    if parsed["direction"] == "O":
+        if actual > line: return "W"
+        if actual < line: return "L"
+        return "P"
+    else:
+        if actual < line: return "W"
+        if actual > line: return "L"
+        return "P"
+
+
 def _score_str(game: dict) -> str:
     teams  = game.get("teams", {})
     away_t = teams.get("away", {}).get("team", {}).get("abbreviation", "?")
@@ -1438,6 +1591,10 @@ def run_settlement_check(days_back: int | None = None) -> list[dict]:
     backlog  = [b for b in all_bets if b.get("result") and not b.get("notified_at")]
 
     settled_log = []
+    _boxscore_cache: dict = {}  # game_pk -> boxscore JSON, shared across this whole run --
+                                 # many PROP bets (both SPs' K/ER props + several batters'
+                                 # hitter props) share a game_pk, so this collapses what
+                                 # would otherwise be a redundant fetch per bet into one per game
 
     # ── Pass 1: settle still-pending bets ──────────────────────────────
     by_date: dict[str, list] = {}
@@ -1452,26 +1609,29 @@ def run_settlement_check(days_back: int | None = None) -> list[dict]:
 
         for bet in bets:
             bet_type = (bet.get("type") or "ML").strip().upper()
+            team_code = bet["bet"]  # for PROP bets this is the full "player + stat" string
+
             if bet_type == "PROP":
-                print(f"[AUTO] prop settlement not implemented, skipping bet #{bet['id']}")
-                continue
+                matched_game = _match_prop_game(bet.get("game", ""), games)
+                if matched_game is None:
+                    continue  # game not over yet, or name mismatch
+                outcome = _settle_prop_bet(bet, matched_game, boxscore_cache=_boxscore_cache)
+            else:
+                # Find matching final game
+                matched_game = None
+                matched_side = None
+                for g in games:
+                    s = _game_side(g, team_code)
+                    if s:
+                        matched_game = g
+                        matched_side = s
+                        break
 
-            team_code = bet["bet"]
+                if matched_game is None:
+                    continue  # game not over yet
 
-            # Find matching final game
-            matched_game = None
-            matched_side = None
-            for g in games:
-                s = _game_side(g, team_code)
-                if s:
-                    matched_game = g
-                    matched_side = s
-                    break
+                outcome = _determine_outcome(bet, matched_game, matched_side)
 
-            if matched_game is None:
-                continue  # game not over yet
-
-            outcome = _determine_outcome(bet, matched_game, matched_side)
             if outcome is None:
                 print(f"[AUTO] couldn't determine outcome for {team_code} {bet.get('type')}")
                 continue
