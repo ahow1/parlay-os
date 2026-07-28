@@ -82,6 +82,20 @@ def health():
         return jsonify({"ok": False, "error": str(e)}), 503
 
 
+@app.route("/api/monitor")
+def api_monitor():
+    """Agent 1 (THE MONITOR)'s last known state for every check -- read-only
+    view of whatever the --bot process's background loop last observed.
+    Does not run the checks itself (that's the loop's job every 15 min)."""
+    try:
+        from monitor_agent import get_monitor_status
+        status = get_monitor_status()
+        http_status = 200 if status.get("all_ok", True) else 503
+        return jsonify(status), http_status
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 503
+
+
 @app.route("/")
 def index():
     resp = send_from_directory(".", "parlay_dashboard.html")

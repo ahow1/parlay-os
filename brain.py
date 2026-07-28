@@ -6177,6 +6177,16 @@ if __name__ == "__main__":
             # here would have nothing new to act on after Railway's last
             # redeploy (see CLAUDE.md's Deployment section).
             _threading.Thread(target=_db.run_github_bet_sync_loop, name="github-bet-sync", daemon=True).start()
+            # Agent 1 (THE MONITOR) -- rule-based health/data-quality watcher.
+            # Toggle with MONITOR_ENABLED=false.
+            try:
+                import monitor_agent as _monitor_agent
+                if _monitor_agent.is_enabled():
+                    _threading.Thread(target=_monitor_agent.run_monitor_loop, name="monitor-agent", daemon=True).start()
+                else:
+                    print("[MONITOR] disabled via MONITOR_ENABLED")
+            except Exception as e:
+                error_logger.log_error("brain.__bot_monitor_init", e)
             print("Parlay OS bot running (Ctrl-C to stop)...")
             try:
                 _poll_loop()

@@ -206,6 +206,8 @@ GitHub Actions and Railway.
 - `BANKROLL_OVERRIDE`
 - `ODDS_SOURCE=sgo`
 - `ANTHROPIC_API_KEY` ← used by clv_tracker.py's Claude pick reviewer
+- `MONITOR_ENABLED` ← Agent 1 (THE MONITOR), default `true`. Set `false` to disable without a code change.
+- `TELEGRAM_ALERT_CHAT_ID` ← optional, defaults to `TELEGRAM_CHAT_ID`. Where Monitor alerts go.
 
 ---
 

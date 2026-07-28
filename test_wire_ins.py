@@ -453,6 +453,17 @@ class TestWireIn4PreGameClvCapture:
         bot_block = src[src.index('if "--bot" in args:'):src.index('elif "--live" in args:')]
         assert "run_github_bet_sync_loop" in bot_block
 
+    def test_bot_mode_starts_the_monitor_agent_loop_gated_on_is_enabled(self):
+        """Agent 1 (THE MONITOR) must start in --bot mode, but only when
+        MONITOR_ENABLED isn't explicitly turned off."""
+        import inspect
+        import brain
+        src = inspect.getsource(brain)
+        bot_block = src[src.index('if "--bot" in args:'):src.index('elif "--live" in args:')]
+        assert "monitor_agent" in bot_block
+        assert "run_monitor_loop" in bot_block
+        assert "is_enabled()" in bot_block
+
 
 # ── SGO wire-in Step 3: ODDS_SOURCE flag + SGO CLV grading ─────────────────────
 
