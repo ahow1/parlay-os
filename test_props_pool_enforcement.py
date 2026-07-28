@@ -118,7 +118,11 @@ class TestPropsPoolSharedAcrossCategories(_IsolatedDb):
         assert ok is True
         out = capsys.readouterr().out
         assert "Test Hitter" in out
-        assert "Test Pitcher" not in out
+        # Pool-cut picks are now visible on the slip as OVER CAP — info only
+        # (parlay-os Step 4 transparency layer), not silently dropped. The
+        # pool enforcement itself (real stake denied) is what's under test.
+        assert "Test Pitcher" in out
+        assert "OVER CAP — info only" in out
 
     def test_er_prop_admitted_when_pool_has_room_after_hitter_prop(self, capsys):
         hitter_pick = {

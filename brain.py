@@ -1683,6 +1683,7 @@ def _daily_bet_slip(
     all_injuries: list | None = None,
     all_er_props: list | None = None,
     all_runline: list | None = None,
+    all_ml_over_cap: list | None = None,
 ) -> bool:
     """Send the daily bet slip as 3 labeled Telegram messages.
     Returns True only if Part 1 was sent (HTTP 200) AND contained at least 1 bet."""
@@ -1940,110 +1941,64 @@ def _daily_bet_slip(
     gt = growth_tracker()
     dd_status = drawdown_tier()
 
-    # ── PART 1: ML PICKS ──────────────────────────────────────────────────────
-    p1 = [
-        f"PARLAY OS — {today} — {day_cls['color']} {day_cls['emoji']}",
-        "PART 1/3 — ML PICKS",
-        "",
-        # Bankroll status
-        f"💰 Bankroll: ${br:.2f} | Peak: ${peak_bankroll():.2f}",
-    ]
-    if dd_status["pct"] > 0:
-        dd_icon = "🚨" if dd_status["pause"] else ("⚠️" if dd_status["tier"] >= 2 else "📉")
-        p1.append(f"{dd_icon} Drawdown: {dd_status['pct']:.1f}% (tier {dd_status['tier']})"
-                  + (" — PAUSED" if dd_status["pause"] else ""))
-    p1.append(
-        f"📊 Growth: week {gt['week_pct']:+.1f}% | month {gt['month_pct']:+.1f}% "
-        f"| all-time {gt['all_time_pct']:+.1f}% | pace ${gt['monthly_pace']:+.2f}/mo"
-    )
-    p1.append(
-        f"🏦 Pools — ML: ${ml_pool_rem:.2f} | PROPS: ${props_pool_rem:.2f} | "
-        f"PARLAY: ${parlay_pool_rem:.2f} | Budget: ${budget:.2f}"
-    )
-    p1.append(f"ML risk: ${ml_risk:.2f} | To win: ${ml_win:.2f}")
-    p1.append("")
+    # ── UNIFIED TRANSPARENCY SLIP (parlay-os Step 4) ─────────────────────────
+    # Every qualified pick — staked AND over_cap — gets one PLAY block with
+    # full detail; the only difference is the sizing field. slip_picks is
+    # built alongside the existing pool-cap/logging logic below (unchanged),
+    # never replacing it.
+    slip_picks: list = []
 
-    # Best bet of the day (highest edge among all picks)
-    _all_picks = [(a, s) for a, s in locks + flips]
-    if _all_picks:
-        _best_a, _best_s = max(_all_picks, key=lambda x: x[0].get(f"{x[1]}_confidence_score", 0))
-        _best_team   = _best_a.get(f"{_best_s}_name", "")
-        _best_edge   = _best_a.get(f"{_best_s}_edge", 0)
-        _best_conf   = _best_a.get(f"{_best_s}_confidence_score", 0)
-        _best_odds   = _best_a.get(f"best_{_best_s}_odds", "")
-        _best_odds_s = (f"+{_best_odds}" if isinstance(_best_odds, int) and _best_odds > 0 else str(_best_odds or ""))
-        _opp_s       = "home" if _best_s == "away" else "away"
-        _opp_sp      = (_best_a.get(f"{_opp_s}_sp") or {})
-        _best_off    = (_best_a.get(f"{_best_s}_off") or {})
-        # Two-sentence plain English explanation
-        _r1 = f"Model gives {_best_team} a +{_best_edge:.1f}% edge with {_best_conf}/100 confidence score"
-        _osp_name = _opp_sp.get("name", "")
-        _osp_xfip = _opp_sp.get("xfip")
-        _plat_adv = _best_a.get(f"{_best_s}_strong_platoon_adv", False)
-        _h2h      = (_best_a.get("h2h") or {})
-        _h2h_wr   = _h2h.get(f"{_best_s}_win_rate") if _h2h.get("h2h_available") else None
-        if _osp_xfip and _osp_name and not _opp_sp.get("sp_missing"):
-            if _osp_xfip < 4.0:
-                _r2 = f"Facing {_osp_name} (xFIP {_osp_xfip:.2f}) who allows hard contact — run support expected."
-            else:
-                _r2 = f"Opposing {_osp_name} carries ERA-to-xFIP regression risk and weakening peripherals."
-        elif _plat_adv:
-            _r2 = f"Strong platoon advantage ({_best_a.get(f'{_best_s}_platoon_edge', 0):+.0f} wRC+ pts) favors this lineup today."
-        elif _h2h_wr is not None:
-            _r2 = f"H2H history shows {_best_team} wins {_h2h_wr:.0%} of matchups in this series."
-        else:
-            _r2 = f"Recent form and market inefficiency both point toward this play."
-        p1.append(f"⭐ BEST BET TODAY: {_best_team} ML {_best_odds_s} — {_r1}. {_r2}")
-        p1.append("")
+    def _fmt_odds(odds) -> str:
+        if odds is None or odds == "":
+            return ""
+        if isinstance(odds, int):
+            return f"+{odds}" if odds > 0 else str(odds)
+        s = str(odds)
+        return f"+{s}" if s and s[0] not in ("+", "-") else s
 
-    p1.append(f"🔒 LOCKS ({n_locks} — HIGH conviction 7%+ edge):")
-    if locks:
-        for analysis, side in locks:
-            stake  = _ml_stake(analysis, side)
-            odds   = analysis.get(f"best_{side}_odds", "")
-            edge   = analysis.get(f"{side}_edge", 0)
-            team   = analysis.get(f"{side}_name", "")
-            game   = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
-            odds_s = (f"+{odds}" if isinstance(odds, int) and odds > 0 else str(odds or ""))
-            conf = analysis.get(f"{side}_confidence_score", 0)
-            _lu_warn = not (analysis.get("away_lineup_confirmed", True) and analysis.get("home_lineup_confirmed", True))
-            p1.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}% — CONF: {conf}/100"
-                      + (" ⚠️ Lineup unconfirmed — verify before betting" if _lu_warn else ""))
-    else:
-        p1.append("  None today")
-    p1.append("")
+    # ── ML locks/flips/over-cap/parlay ───────────────────────────────────────
+    def _ml_slip_pick(analysis, side, conviction, over_cap, stake=None):
+        opp_side = "home" if side == "away" else "away"
+        return {
+            "bet_type": "ML", "conviction": conviction,
+            "event": f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}",
+            "selection": f"{analysis.get(f'{side}_name','')} ML",
+            "opp_label": analysis.get(f"{opp_side}_name", "the opponent"),
+            "odds_str": _fmt_odds(analysis.get(f"best_{side}_odds", "")),
+            "model_p": analysis.get(f"{side}_model_p"), "market_p": analysis.get(f"{side}_nv"),
+            "edge_pct": analysis.get(f"{side}_edge", 0),
+            "stake": (0.0 if over_cap else (stake if stake is not None else _ml_stake(analysis, side))),
+            "over_cap": over_cap, "game_time_et": analysis.get("game_time_et", ""),
+            "diagnostics": _build_ml_diagnostics(analysis, side),
+        }
 
-    p1.append(f"🪙 COIN FLIPS ({len(flips)} — MEDIUM conviction, edge 4%+):")
-    if flips:
-        for analysis, side in flips:
-            stake  = _ml_stake(analysis, side)
-            odds   = analysis.get(f"best_{side}_odds", "")
-            edge   = analysis.get(f"{side}_edge", 0)
-            team   = analysis.get(f"{side}_name", "")
-            game   = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
-            odds_s = (f"+{odds}" if isinstance(odds, int) and odds > 0 else str(odds or ""))
-            conf = analysis.get(f"{side}_confidence_score", 0)
-            _lu_warn = not (analysis.get("away_lineup_confirmed", True) and analysis.get("home_lineup_confirmed", True))
-            p1.append(f"  {game} — {team} ML {odds_s} — ${stake:.2f} — EDGE: +{edge:.1f}% — CONF: {conf}/100"
-                      + (" ⚠️ Lineup unconfirmed — verify before betting" if _lu_warn else ""))
-    else:
-        p1.append("  None today")
-    p1.append("")
+    for analysis, side in locks:
+        slip_picks.append(_ml_slip_pick(analysis, side, "HIGH", over_cap=False))
+    for analysis, side in flips:
+        slip_picks.append(_ml_slip_pick(analysis, side, "MEDIUM", over_cap=False))
+    for analysis, side, conv in (all_ml_over_cap or []):
+        slip_picks.append(_ml_slip_pick(analysis, side, conv, over_cap=True))
 
     if prl_valid and prl_data:
         leg_parts = []
         for a, s in parlay_candidates:
             t     = a.get(f"{s}_name", "")
             o     = a.get(f"best_{s}_odds", "")
-            o_str = (f"+{o}" if isinstance(o, int) and o > 0 else str(o or ""))
-            leg_parts.append(f"{t} ML {o_str}")
-        p1.append(parlay_label)
-        p1.append(f"  {' + '.join(leg_parts)}")
-        p1.append(f"  ({prl_data['american']}) — ${prl_stake:.2f} — to win ${prl_win:.2f}")
-        p1.append("")
-
+            leg_parts.append(f"{t} ML {_fmt_odds(o)}")
+        _ml_prl_mkt_p = (implied_prob(str(prl_data["american"])) or 0) / 100
+        _ml_prl_diag = {
+            "bet_type": "PARLAY_ML",
+            "legs": [_build_ml_diagnostics(a, s) for a, s in parlay_candidates],
+        }
+        slip_picks.append({
+            "bet_type": "PARLAY", "conviction": "PARLAY",
+            "event": "PARLAY", "selection": " + ".join(leg_parts),
+            "odds_str": str(prl_data["american"]),
+            "model_p": combined_model_p, "market_p": _ml_prl_mkt_p,
+            "edge_pct": round((combined_model_p - _ml_prl_mkt_p) * 100, 1), "stake": prl_stake,
+            "over_cap": False, "game_time_et": "", "diagnostics": _ml_prl_diag,
+        })
         if not DRY_RUN:
-            _ml_prl_mkt_p = (implied_prob(str(prl_data["american"])) or 0) / 100
             _log_pick_with_retry(
                 "PARLAY",
                 date=today_iso, bet=" + ".join(leg_parts), game="PARLAY",
@@ -2051,26 +2006,12 @@ def _daily_bet_slip(
                 model_prob=combined_model_p, market_prob=_ml_prl_mkt_p,
                 edge_pct=round((combined_model_p - _ml_prl_mkt_p) * 100, 1),
                 conviction="PARLAY", stake=prl_stake,
-                diagnostics={
-                    "bet_type": "PARLAY_ML",
-                    "legs": [_build_ml_diagnostics(a, s) for a, s in parlay_candidates],
-                },
+                diagnostics=_ml_prl_diag,
             )
 
-    if injuries:
-        p1.append("⚠️ INJURIES:")
-        for inj in injuries:
-            p1.append(inj)
-        p1.append("")
+    print(f"[SLIP] ML picks collected — locks={len(locks)} flips={len(flips)} over_cap={len(all_ml_over_cap or [])}")
 
-    if day_cls["color"] == "YELLOW":
-        p1.append("⚠ YELLOW day — no ML picks qualified, props only")
-    elif day_cls["color"] == "RED":
-        p1.append("🔴 RED day — no picks of any kind qualified today")
-
-    print(f"[SLIP] Part 1 built — {len(p1)} lines | locks={len(locks)} flips={len(flips)}")
-
-    # ── PART 2: PLAYER PROPS + NRFI/YRFI ─────────────────────────────────────
+    # ── PLAYER PROPS + NRFI/YRFI ──────────────────────────────────────────────
     # Normalise k_bets and hitter_bets into a unified list, sorted by edge desc.
     def _market_odds_str(market_p: float) -> str:
         mp = max(min(market_p, 0.99), 0.01)
@@ -2152,6 +2093,17 @@ def _daily_bet_slip(
     # Enforce max 5 props per day (top 5 by edge, blowout-filtered above)
     all_player_props = all_player_props[:MAX_PROPS_PER_DAY]
 
+    def _prop_slip_pick(_p: dict, over_cap: bool) -> dict:
+        return {
+            "bet_type": "PROP", "conviction": ("LOCK" if _p["edge_pct"] >= 10.0 else "FLIP"),
+            "event": _p.get("game", "") or _p.get("team", ""),
+            "selection": f"{_p['player']} ({_p.get('team','')}) — {_p['stat']}",
+            "odds_str": _fmt_odds(_p["odds_str"]),
+            "model_p": _p["model_p"], "market_p": _p.get("market_p", 0.5),
+            "edge_pct": _p["edge_pct"], "stake": 0.0 if over_cap else _p["stake"],
+            "over_cap": over_cap, "game_time_et": "", "diagnostics": _p.get("diagnostics"),
+        }
+
     if not DRY_RUN:
         for _p in all_player_props:
             _log_pick_with_retry(
@@ -2163,16 +2115,19 @@ def _daily_bet_slip(
                 stake=_p["stake"],
                 diagnostics=_p.get("diagnostics"),
             )
+    for _p in all_player_props:
+        slip_picks.append(_prop_slip_pick(_p, over_cap=False))
 
-        # Same qualifying bar as all_player_props (edge >= 5%) so an over_cap
-        # row means "this would have been a real pick" — just cut by the
-        # props pool budget, not the separate MAX_PROPS_PER_DAY quota.
-        _over_cap_props = (
-            [_norm_k(b) for b in over_cap_k] +
-            [_norm_h(h) for h in over_cap_hitter] +
-            [_norm_er(b) for b in over_cap_er]
-        )
-        _over_cap_props = [p for p in _over_cap_props if p["edge_pct"] >= 5.0]
+    # Same qualifying bar as all_player_props (edge >= 5%) so an over_cap
+    # row means "this would have been a real pick" — just cut by the
+    # props pool budget, not the separate MAX_PROPS_PER_DAY quota.
+    _over_cap_props = (
+        [_norm_k(b) for b in over_cap_k] +
+        [_norm_h(h) for h in over_cap_hitter] +
+        [_norm_er(b) for b in over_cap_er]
+    )
+    _over_cap_props = [p for p in _over_cap_props if p["edge_pct"] >= 5.0]
+    if not DRY_RUN:
         for _p in _over_cap_props:
             _log_pick_with_retry(
                 "PROP",
@@ -2183,6 +2138,8 @@ def _daily_bet_slip(
                 stake=_p["stake"], over_cap=True,
                 diagnostics=_p.get("diagnostics"),
             )
+    for _p in _over_cap_props:
+        slip_picks.append(_prop_slip_pick(_p, over_cap=True))
 
     prop_locks = [p for p in all_player_props if p["edge_pct"] >= 10.0]
     prop_flips = [p for p in all_player_props if 5.0 <= p["edge_pct"] < 10.0]
@@ -2195,17 +2152,16 @@ def _daily_bet_slip(
         print(f"[SLIP] WARNING: displayed risk ${total_risk:.2f} > budget ${cap:.2f} "
               f"— scout cap should have blocked extras")
 
-    has_p2 = bool(nrfi_bets or all_player_props or all_props)
-    p2 = [
-        f"PARLAY OS — {today}",
-        "PART 2/3 — PLAYER PROPS + NRFI/YRFI",
-        "",
-    ]
-
     if nrfi_bets:
-        p2.append(f"🌅 NRFI/YRFI ({len(nrfi_bets)} bets):")
         for bet in nrfi_bets:
-            p2.append(f"  {bet['game']} — {bet['direction']} ({bet['prob']:.1%}) — ${bet['stake']:.2f}")
+            slip_picks.append({
+                "bet_type": "NRFI", "conviction": "PROP", "event": bet["game"],
+                "selection": bet["direction"], "odds_str": "-110",
+                "model_p": bet["prob"], "market_p": (implied_prob("-110") or 0) / 100,
+                "edge_pct": round((bet["prob"] - (implied_prob("-110") or 0) / 100) * 100, 1),
+                "stake": bet["stake"], "over_cap": False,
+                "game_time_et": bet.get("game_time_et", ""), "diagnostics": bet.get("diagnostics"),
+            })
             if not DRY_RUN:
                 _nrfi_mkt_p = (implied_prob("-110") or 0) / 100
                 _log_pick_with_retry(
@@ -2216,11 +2172,18 @@ def _daily_bet_slip(
                     conviction="PROP", stake=bet["stake"],
                     diagnostics=bet.get("diagnostics"),
                 )
-        p2.append("")
 
-    if not DRY_RUN:
-        for bet in over_cap_nrfi:
-            _nrfi_mkt_p = (implied_prob("-110") or 0) / 100
+    for bet in over_cap_nrfi:
+        _nrfi_mkt_p = (implied_prob("-110") or 0) / 100
+        slip_picks.append({
+            "bet_type": "NRFI", "conviction": "PROP", "event": bet["game"],
+            "selection": bet["direction"], "odds_str": "-110",
+            "model_p": bet["prob"], "market_p": _nrfi_mkt_p,
+            "edge_pct": round((bet["prob"] - _nrfi_mkt_p) * 100, 1),
+            "stake": 0.0, "over_cap": True,
+            "game_time_et": bet.get("game_time_et", ""), "diagnostics": bet.get("diagnostics"),
+        })
+        if not DRY_RUN:
             _log_pick_with_retry(
                 "NRFI",
                 date=today_iso, bet=f"{bet['game']} {bet['direction']}", game=bet["game"],
@@ -2246,13 +2209,20 @@ def _daily_bet_slip(
             prl_stake = round(min(br * prl_kelly_pct, 5.0), 2)
             prl_win   = round((combined_dec - 1) * prl_stake, 2)
             legs_str  = " + ".join(leg["leg_label"] for leg in parlay_legs)
-            p2.append(f"PROPS PARLAY (top {len(parlay_legs)} by edge, locks only):")
-            p2.append(f"  {legs_str}")
-            p2.append(f"  Combined odds: {prl['american']} — Stake: ${prl_stake:.2f} — To win: ${prl_win:.2f}")
-            p2.append("")
-
+            _props_prl_mkt_p = (implied_prob(str(prl["american"])) or 0) / 100
+            _props_prl_diag = {
+                "bet_type": "PARLAY_PROPS",
+                "legs": [leg.get("diagnostics") for leg in parlay_legs],
+            }
+            slip_picks.append({
+                "bet_type": "PARLAY", "conviction": "PARLAY",
+                "event": "PROPS PARLAY", "selection": legs_str,
+                "odds_str": str(prl["american"]),
+                "model_p": round(joint_p, 4), "market_p": _props_prl_mkt_p,
+                "edge_pct": round((joint_p - _props_prl_mkt_p) * 100, 1), "stake": prl_stake,
+                "over_cap": False, "game_time_et": "", "diagnostics": _props_prl_diag,
+            })
             if not DRY_RUN:
-                _props_prl_mkt_p = (implied_prob(str(prl["american"])) or 0) / 100
                 _log_pick_with_retry(
                     "PARLAY",
                     date=today_iso, bet=legs_str, game="PROPS PARLAY",
@@ -2260,68 +2230,42 @@ def _daily_bet_slip(
                     model_prob=round(joint_p, 4), market_prob=_props_prl_mkt_p,
                     edge_pct=round((joint_p - _props_prl_mkt_p) * 100, 1),
                     conviction="PARLAY", stake=prl_stake,
-                    diagnostics={
-                        "bet_type": "PARLAY_PROPS",
-                        "legs": [leg.get("diagnostics") for leg in parlay_legs],
-                    },
+                    diagnostics=_props_prl_diag,
                 )
 
-    def _prop_line(p: dict) -> str:
-        odds_s = p["odds_str"]
-        if odds_s and odds_s[0] not in ("+", "-"):
-            odds_s = f"+{odds_s}"
-        return (
-            f"  {p['player']} ({p['team']}) — {p['stat']} {odds_s} — "
-            f"${p['stake']:.2f} — EDGE: +{p['edge_pct']:.1f}% — MODEL: {p['model_pct']:.1f}%"
-        )
-
-    if prop_locks:
-        p2.append(f"🔒 LOCKS ({len(prop_locks)} — edge 10%+):")
-        for prop in prop_locks:
-            p2.append(_prop_line(prop))
-        p2.append("")
-
-    if prop_flips:
-        p2.append(f"🪙 COIN FLIPS ({len(prop_flips)} — edge 5-10%):")
-        for prop in prop_flips:
-            p2.append(_prop_line(prop))
-        p2.append("")
-
     if all_props:
-        p2.append(f"🔗 SAME-GAME PARLAY ({len(all_props[:2])}):")
         for prop in all_props[:2]:
             legs_str = " + ".join(str(l) for l in prop.get("legs", [])[:2])
             stake    = prop.get("kelly_stake", 0) or 0
             ev       = prop.get("ev", 0) or 0
             ptype    = prop.get("type", "SGP")
-            p2.append(f"  [{ptype}] {legs_str} — ${stake:.2f} — EV: {ev:+.4f}")
+            _sgp_diag = {"bet_type": "SGP", "sgp": prop}
+            slip_picks.append({
+                "bet_type": "PARLAY", "conviction": "PARLAY",
+                "event": f"SGP:{ptype}", "selection": legs_str, "odds_str": "",
+                "model_p": prop.get("joint_prob"), "market_p": None,
+                "edge_pct": ev, "stake": stake,
+                "over_cap": False, "game_time_et": "", "diagnostics": _sgp_diag,
+            })
             if not DRY_RUN:
                 _log_pick_with_retry(
                     "PARLAY",
                     date=today_iso, bet=legs_str, game=f"SGP:{ptype}",
                     bet_odds="", model_prob=prop.get("joint_prob"), market_prob=None,
                     edge_pct=ev, conviction="PARLAY", stake=stake,
-                    diagnostics={"bet_type": "SGP", "sgp": prop},
+                    diagnostics=_sgp_diag,
                 )
-        p2.append("")
 
-    if not has_p2:
-        p2.append("No props with edge today.")
-
-    # ── PART 3: TOTALS + FADES + RISK SUMMARY ────────────────────────────────
-    p3 = [
-        f"PARLAY OS — {today}",
-        "PART 3/3 — TOTALS + FADES + RISK",
-        "",
-    ]
-
+    # ── TOTALS + RUNLINE + FADES + RISK SUMMARY ──────────────────────────────
     if totals_bets:
-        p3.append(f"📊 TOTALS ({len(totals_bets)} bets):")
         for bet in totals_bets:
-            p3.append(
-                f"  {bet['game']} — {bet['direction']} {bet['line']} ({bet['prob']:.1%}) — "
-                f"${bet['stake']:.2f} — EDGE: +{bet['edge_pct']:.1f}%"
-            )
+            slip_picks.append({
+                "bet_type": "TOTAL", "conviction": "PROP", "event": bet["game"],
+                "selection": f"{bet['direction']} {bet['line']}", "odds_str": _fmt_odds(bet.get("odds", "-110")),
+                "model_p": bet["prob"], "market_p": bet["market_p"], "edge_pct": bet["edge_pct"],
+                "stake": bet["stake"], "over_cap": False,
+                "game_time_et": bet.get("game_time_et", ""), "diagnostics": bet.get("diagnostics"),
+            })
             if not DRY_RUN:
                 _log_pick_with_retry(
                     "TOTAL",
@@ -2331,13 +2275,16 @@ def _daily_bet_slip(
                     edge_pct=bet["edge_pct"], conviction="PROP", stake=bet["stake"],
                     diagnostics=bet.get("diagnostics"),
                 )
-        p3.append("")
-    else:
-        p3.append("📊 TOTALS: None today")
-        p3.append("")
 
-    if not DRY_RUN:
-        for bet in over_cap_totals:
+    for bet in over_cap_totals:
+        slip_picks.append({
+            "bet_type": "TOTAL", "conviction": "PROP", "event": bet["game"],
+            "selection": f"{bet['direction']} {bet['line']}", "odds_str": _fmt_odds(bet.get("odds", "-110")),
+            "model_p": bet["prob"], "market_p": bet["market_p"], "edge_pct": bet["edge_pct"],
+            "stake": 0.0, "over_cap": True,
+            "game_time_et": bet.get("game_time_et", ""), "diagnostics": bet.get("diagnostics"),
+        })
+        if not DRY_RUN:
             _log_pick_with_retry(
                 "TOTAL",
                 date=today_iso, bet=f"{bet['game']} {bet['direction']} {bet['line']}",
@@ -2348,12 +2295,14 @@ def _daily_bet_slip(
             )
 
     if runline_bets:
-        p3.append(f"🎯 RUN LINE ({len(runline_bets)} bets):")
         for bet in runline_bets:
-            p3.append(
-                f"  {bet['game']} — {bet['team']} {bet['line']:+.1f} ({bet['prob']:.1%}) — "
-                f"${bet['stake']:.2f} — EDGE: +{bet['edge_pct']:.1f}%"
-            )
+            slip_picks.append({
+                "bet_type": bet["bet_type"], "conviction": bet["conviction"], "event": bet["game"],
+                "selection": f"{bet['team']} {bet['line']:+.1f}", "odds_str": _fmt_odds(bet["odds"]),
+                "model_p": bet["prob"], "market_p": bet["market_p"], "edge_pct": bet["edge_pct"],
+                "stake": bet["stake"], "over_cap": False,
+                "game_time_et": bet.get("game_time_et", ""), "diagnostics": bet.get("diagnostics"),
+            })
             if not DRY_RUN:
                 _log_pick_with_retry(
                     bet["bet_type"],
@@ -2363,10 +2312,16 @@ def _daily_bet_slip(
                     edge_pct=bet["edge_pct"], conviction=bet["conviction"], stake=bet["stake"],
                     diagnostics=bet.get("diagnostics"),
                 )
-        p3.append("")
 
-    if not DRY_RUN:
-        for bet in over_cap_runline:
+    for bet in over_cap_runline:
+        slip_picks.append({
+            "bet_type": bet["bet_type"], "conviction": bet["conviction"], "event": bet["game"],
+            "selection": f"{bet['team']} {bet['line']:+.1f}", "odds_str": _fmt_odds(bet["odds"]),
+            "model_p": bet["prob"], "market_p": bet["market_p"], "edge_pct": bet["edge_pct"],
+            "stake": 0.0, "over_cap": True,
+            "game_time_et": bet.get("game_time_et", ""), "diagnostics": bet.get("diagnostics"),
+        })
+        if not DRY_RUN:
             _log_pick_with_retry(
                 bet["bet_type"],
                 date=today_iso, bet=bet["team"],
@@ -2375,42 +2330,6 @@ def _daily_bet_slip(
                 edge_pct=bet["edge_pct"], conviction=bet["conviction"], stake=bet["stake"], over_cap=True,
                 diagnostics=bet.get("diagnostics"),
             )
-
-    if all_fades:
-        p3.append("❌ FADES:")
-        seen_fade_teams:   set = set()
-        seen_fade_reasons: set = set()
-        count = 0
-        for analysis, side, reason in all_fades:
-            team = analysis.get(f"{side}_name", "")
-            if team in seen_fade_teams or reason in seen_fade_reasons or count >= 4:
-                continue
-            seen_fade_teams.add(team)
-            seen_fade_reasons.add(reason)
-            p3.append(f"  {team} — {reason}")
-            count += 1
-        p3.append("")
-
-    risk_cap_pct = round(total_risk / br * 100, 1) if br > 0 else 0
-    cap_exceeded = total_risk > cap
-    budget_tier  = round(daily_budget_pct(br) * 100) if br > 0 else 15
-    p3.append(
-        f"Daily risk: ${total_risk:.2f} ({risk_cap_pct:.1f}% of bankroll) | "
-        f"Budget: ${cap:.2f} ({budget_tier:.0f}% tier)"
-    )
-    _parlay_shown = round(prl_stake, 2) if prl_valid else 0.0
-    p3.append(
-        f"  ML: ${ml_risk:.2f} | Props: ${round(nrfi_risk + totals_risk + player_props_risk, 2):.2f} "
-        f"| Parlay: ${_parlay_shown:.2f}"
-    )
-
-    if cap_exceeded:
-        if override_cap:
-            p3.append(f"⚠️ BUDGET OVERRIDE ACTIVE — ${total_risk:.2f} exceeds ${cap:.2f}")
-        else:
-            p3.append(f"🚨 BUDGET HIT — ${total_risk:.2f} > ${cap:.2f} — extras were blocked")
-    else:
-        p3.append(f"✅ Within daily budget (${cap:.2f})")
 
     # ── Gate: never send an empty or status-only slip ─────────────────────────
     # A "qualified pick" is any ML lock/flip/parlay, prop lock/flip, SGP, or
@@ -2428,18 +2347,98 @@ def _daily_bet_slip(
         )
         return False
 
-    print(f"[SLIP] Sending PART 1/3 ({len(p1)} lines)...")
-    _p1_ok = _send_telegram("\n".join(p1))
-    print(f"[SLIP] Sending PART 2/3 ({len(p2)} lines)...")
-    _send_telegram("\n".join(p2))
-    print(f"[SLIP] Sending PART 3/3 ({len(p3)} lines)...")
-    _send_telegram("\n".join(p3))
+    risk_cap_pct = round(total_risk / br * 100, 1) if br > 0 else 0
+    cap_exceeded = total_risk > cap
+    budget_tier  = round(daily_budget_pct(br) * 100) if br > 0 else 15
 
-    if _p1_ok:
-        print("[SLIP] All 3 parts sent — qualified picks confirmed.")
+    # ── Header ────────────────────────────────────────────────────────────────
+    n_staked   = sum(1 for p in slip_picks if not p["over_cap"])
+    n_over_cap = sum(1 for p in slip_picks if p["over_cap"])
+    _staked_picks = [p for p in slip_picks if not p["over_cap"]]
+    _edges = [p.get("edge_pct", 0) or 0 for p in _staked_picks]
+    _models = [p.get("model_p") for p in _staked_picks if isinstance(p.get("model_p"), (int, float))]
+    avg_edge = round(sum(_edges) / len(_edges), 1) if _edges else 0.0
+    avg_model_p = round(sum(_models) / len(_models) * 100, 1) if _models else 0.0
+    total_stake_shown = round(sum(p.get("stake", 0) or 0 for p in _staked_picks), 2)
+    total_units_shown = round(total_stake_shown / 20.0, 1)
+
+    header_lines = [
+        "⚾ PARLAY-OS BET SLIP",
+        "━━━━━━━━━━━━━━━━━━",
+        f"📅 {today}  |  🎯 {n_staked} staked + {n_over_cap} over cap",
+        f"📊 Avg edge {avg_edge}%  |  Avg model {avg_model_p}%",
+        f"💰 Exposure: ${total_stake_shown:.2f} ({total_units_shown:.1f}u) within ${cap:.2f} cap",
+        "━━━━━━━━━━━━━━━━━━",
+        "",
+    ]
+    if day_cls["color"] == "YELLOW":
+        header_lines.insert(1, "⚠ YELLOW day — no ML picks qualified, props only")
+    elif day_cls["color"] == "RED":
+        header_lines.insert(1, "🔴 RED day — no picks of any kind qualified today")
+    if injuries:
+        header_lines.append("⚠️ INJURIES:")
+        header_lines.extend(injuries)
+        header_lines.append("")
+
+    # ── Slate summary ────────────────────────────────────────────────────────
+    def _pick_label(p: dict) -> str:
+        return f"{p.get('selection','')} ({p.get('bet_type','')})"
+
+    summary_lines = []
+    _high_conv = [p for p in _staked_picks if p.get("conviction") in ("HIGH", "LOCK")]
+    if _high_conv:
+        _best_conv = max(_high_conv, key=lambda p: p.get("edge_pct", 0) or 0)
+        summary_lines.append(f"🔥 Highest conviction: {_pick_label(_best_conv)}")
+    if _staked_picks:
+        _best_edge_pick = max(_staked_picks, key=lambda p: p.get("edge_pct", 0) or 0)
+        summary_lines.append(f"💎 Best edge: {_pick_label(_best_edge_pick)} (+{_best_edge_pick.get('edge_pct', 0):.1f}%)")
+    _over_cap_picks = [p for p in slip_picks if p["over_cap"]]
+    if _over_cap_picks:
+        _best_clv = max(_over_cap_picks, key=lambda p: p.get("edge_pct", 0) or 0)
+        summary_lines.append(f"🎯 Best CLV opportunity: {_pick_label(_best_clv)} (over-cap, +{_best_clv.get('edge_pct', 0):.1f}%)")
+    summary_lines.append(f"💰 Total staked: ${total_stake_shown:.2f} ({total_units_shown:.1f}u) — within ${cap:.2f} cap")
+    if _over_cap_picks:
+        _oc_edges = [p.get("edge_pct", 0) or 0 for p in _over_cap_picks]
+        summary_lines.append(f"📊 Over-cap tracking: {len(_over_cap_picks)} picks, avg edge {round(sum(_oc_edges)/len(_oc_edges), 1)}% (grading enabled)")
     else:
-        print("[SLIP] WARNING: Part 1 send failed (non-200 or exception) — slip will NOT be marked as sent.")
-    return _p1_ok
+        summary_lines.append("📊 Over-cap tracking: 0 picks today")
+    if cap_exceeded:
+        if override_cap:
+            summary_lines.append(f"⚠️ BUDGET OVERRIDE ACTIVE — ${total_risk:.2f} exceeds ${cap:.2f}")
+        else:
+            summary_lines.append(f"🚨 BUDGET HIT — ${total_risk:.2f} > ${cap:.2f} — extras were blocked")
+    else:
+        summary_lines.append(f"✅ Within daily budget (${cap:.2f}, {budget_tier:.0f}% tier)")
+    if all_fades:
+        seen_fade_teams:   set = set()
+        seen_fade_reasons: set = set()
+        count = 0
+        fade_lines = []
+        for analysis, side, reason in all_fades:
+            team = analysis.get(f"{side}_name", "")
+            if team in seen_fade_teams or reason in seen_fade_reasons or count >= 4:
+                continue
+            seen_fade_teams.add(team)
+            seen_fade_reasons.add(reason)
+            fade_lines.append(f"  {team} — {reason}")
+            count += 1
+        if fade_lines:
+            summary_lines.append("❌ FADES:")
+            summary_lines.extend(fade_lines)
+
+    chunks = _render_slip_picks(slip_picks, today, day_cls, header_lines, summary_lines)
+
+    print(f"[SLIP] Sending unified slip — {len(chunks)} message(s), {len(slip_picks)} picks "
+          f"({n_staked} staked + {n_over_cap} over cap)...")
+    _first_ok = _send_telegram(chunks[0])
+    for chunk in chunks[1:]:
+        _send_telegram(chunk)
+
+    if _first_ok:
+        print("[SLIP] Slip sent — qualified picks confirmed.")
+    else:
+        print("[SLIP] WARNING: first message failed (non-200 or exception) — slip will NOT be marked as sent.")
+    return _first_ok
 
 
 def _send_slip_update(
@@ -3171,6 +3170,379 @@ def _build_game_diagnostics(analysis: dict, bet_type: str, extra: dict | None = 
     return d
 
 
+# ── TRANSPARENCY LAYER — per-pick "Why" + key drivers (parlay-os Step 4) ─────
+# Draws exclusively from the factor data _weighted_win_prob()/_build_ml_diagnostics()
+# and _build_game_diagnostics() already computed for this pick — no new engine
+# calls, no new analysis beyond what actually produced the edge.
+
+_ML_FACTOR_LABELS = {
+    "sp_xwoba":            "SP quality",
+    "pitch_quality":       "Pitch quality",
+    "rolling_form":        "Rolling form",
+    "bullpen":             "Bullpen",
+    "offense":             "Offense",
+    "pythagorean_homedog":  "Pythagorean/home-dog",
+    "platoon_arm_angle":   "Platoon/arm angle",
+    "park_weather_of":     "Park/weather/OF defense",
+    "momentum_yoy":        "Momentum",
+    "abs_tempo":           "ABS/tempo",
+    "baserunning_sprint":  "Baserunning/sprint",
+    "h2h":                 "Head-to-head",
+}
+
+
+def _ml_factor_value_and_fallback(name: str, raw: dict, side: str, flags: dict) -> tuple[str, bool]:
+    """Return (human value string with real numbers, is_neutral_fallback) for
+    one ML factor, side-aware (side = the picked team's side, 'away'/'home')."""
+    opp = "home" if side == "away" else "away"
+
+    if name == "sp_xwoba":
+        our_xfip = raw.get(f"{side}_xfip")
+        opp_xfip = raw.get(f"{opp}_xfip")
+        our_xwoba = raw.get(f"{side}_xwoba_against")
+        opp_xwoba = raw.get(f"{opp}_xwoba_against")
+        fallback = bool(flags.get("sp_missing") or flags.get("opp_sp_missing") or raw.get("xwoba_fallback_used"))
+        if our_xwoba is not None and opp_xwoba is not None:
+            val = f"our SP xwOBA-against {our_xwoba:.3f} vs their {opp_xwoba:.3f}"
+        elif our_xfip is not None and opp_xfip is not None:
+            val = f"our SP xFIP {our_xfip:.2f} vs their {opp_xfip:.2f}"
+        else:
+            val = "SP data unavailable"
+            fallback = True
+        return val, fallback
+
+    if name == "pitch_quality":
+        our_adj = raw.get(f"{side}_pitch_quality_adj", 0.0) or 0.0
+        opp_adj = raw.get(f"{opp}_pitch_quality_adj", 0.0) or 0.0
+        return f"arsenal run-value edge {our_adj - opp_adj:+.3f}", (our_adj == 0.0 and opp_adj == 0.0)
+
+    if name == "rolling_form":
+        our_t = raw.get(f"{side}_rolling_tier", "UNKNOWN")
+        opp_t = raw.get(f"{opp}_rolling_tier", "UNKNOWN")
+        return f"rolling xwOBA form {our_t} vs {opp_t}", (our_t == "UNKNOWN" or opp_t == "UNKNOWN")
+
+    if name == "bullpen":
+        our_fat = raw.get(f"{side}_bp_fatigue")
+        opp_fat = raw.get(f"{opp}_bp_fatigue")
+        fallback = not raw.get("data_ok", True)
+        our_rel = raw.get(f"{side}_key_reliever_avail")
+        opp_rel = raw.get(f"{opp}_key_reliever_avail")
+        rel_note = ""
+        if our_rel is False:
+            rel_note = " — our key reliever unavailable"
+        elif opp_rel is False:
+            rel_note = " — their key reliever unavailable"
+        if our_fat is None or opp_fat is None:
+            return "bullpen data unavailable", True
+        return f"bullpen fatigue {our_fat:.1f}/10 vs {opp_fat:.1f}/10{rel_note}", fallback
+
+    if name == "offense":
+        our_wrc = raw.get(f"{side}_wrc")
+        opp_wrc = raw.get(f"{opp}_wrc")
+        fallback = not raw.get("data_ok", True)
+        if our_wrc is None or opp_wrc is None:
+            return "offense data unavailable", True
+        return f"wRC+ {our_wrc:.0f} vs {opp_wrc:.0f}", fallback
+
+    if name == "pythagorean_homedog":
+        pyth_away = raw.get("pyth_away_p", 0.5)
+        pyth_our = pyth_away if side == "away" else round(1 - pyth_away, 4)
+        hdog = raw.get("home_dog_add", 0.0) or 0.0
+        note = " (home-dog structural edge)" if (side == "home" and hdog > 0) else ""
+        return f"Pythagorean win% {pyth_our:.1%}{note}", False
+
+    if name == "platoon_arm_angle":
+        our_p = raw.get(f"{side}_platoon_edge", 0.0) or 0.0
+        opp_p = raw.get(f"{opp}_platoon_edge", 0.0) or 0.0
+        return f"platoon edge {our_p - opp_p:+.0f} wRC+ pts", (our_p == 0.0 and opp_p == 0.0)
+
+    if name == "park_weather_of":
+        adj = raw.get("park_of_adj", 0.0) or 0.0
+        return f"park/OF-defense adj {adj:+.3f}", (adj == 0.0)
+
+    if name == "momentum_yoy":
+        our_m = raw.get(f"{side}_momentum_score", 0.0) or 0.0
+        opp_m = raw.get(f"{opp}_momentum_score", 0.0) or 0.0
+        return f"momentum {our_m:+.1f} vs {opp_m:+.1f} (last 7g, opponent-quality weighted)", (our_m == 0.0 and opp_m == 0.0)
+
+    if name == "abs_tempo":
+        our_f = raw.get(f"{side}_fps_adj", 0.0) or 0.0
+        opp_f = raw.get(f"{opp}_fps_adj", 0.0) or 0.0
+        return f"ABS/FPS adj {our_f - opp_f:+.3f}", (our_f == 0.0 and opp_f == 0.0)
+
+    if name == "baserunning_sprint":
+        our_s = raw.get(f"{side}_sprint_adj", 0.0) or 0.0
+        opp_s = raw.get(f"{opp}_sprint_adj", 0.0) or 0.0
+        return f"baserunning/sprint adj {our_s - opp_s:+.3f}", (our_s == 0.0 and opp_s == 0.0)
+
+    if name == "h2h":
+        h2h_p = raw.get("h2h_away_p", 0.5)
+        return f"H2H win rate {h2h_p:.0%}", (h2h_p == 0.50)
+
+    return name, False
+
+
+def _rank_ml_factors(diagnostics: dict, top_n: int = 3) -> list[dict]:
+    """Rank this ML pick's factors by |weight*(p-0.5)*100| — the signed
+    percentage-point push toward or away from the picked side. Returns the
+    top_n as {label, value, edge_pct, is_fallback}."""
+    side  = diagnostics.get("side", "away")
+    flags = diagnostics.get("flags", {})
+    ranked = []
+    for f in diagnostics.get("factors", []):
+        edge_pct = round(f["weight"] * (f["p"] - 0.5) * 100, 2)
+        value, is_fallback = _ml_factor_value_and_fallback(f["name"], f.get("raw", {}), side, flags)
+        ranked.append({
+            "label":       _ML_FACTOR_LABELS.get(f["name"], f["name"]),
+            "value":       value,
+            "edge_pct":    edge_pct,
+            "is_fallback": is_fallback,
+        })
+    ranked.sort(key=lambda x: abs(x["edge_pct"]), reverse=True)
+    return ranked[:top_n]
+
+
+def _ml_why_text(team: str, opp_team: str, top_factors: list[dict]) -> str:
+    """2-3 sentence reasoning from the top-3 contributing factors."""
+    if not top_factors:
+        return f"{team} qualified on model edge alone — no single factor dominated the blend."
+    lead = top_factors[0]
+    sentence1 = f"{team}'s edge over {opp_team} is led by {lead['label'].lower()} ({lead['value']})."
+    rest = top_factors[1:]
+    if rest:
+        parts = "; ".join(f"{r['label'].lower()} ({r['value']})" for r in rest)
+        sentence2 = f"Supporting factors: {parts}."
+    else:
+        sentence2 = ""
+    fallback_names = [f["label"] for f in top_factors if f["is_fallback"]]
+    sentence3 = f" Note: {', '.join(fallback_names)} used a neutral/fallback value, not real data." if fallback_names else ""
+    return " ".join(p for p in (sentence1, sentence2, sentence3.strip()) if p)
+
+
+def _game_bet_top_drivers(bet_type: str, diagnostics: dict, top_n: int = 3) -> list[dict]:
+    """Non-ML bets (TOTAL/NRFI/RUNLINE) have no per-factor weight blend --
+    game_total_prob()/nrfi_prob()/run_line_prob() are direct run-expectancy
+    math, not a weighted factor sum. Surface the same underlying engine
+    inputs (SP, bullpen, offense, weather) the model actually consulted,
+    ranked by how far each sits from a neutral/league-average value, with
+    real numbers instead of a fabricated weight breakdown."""
+    away_sp  = diagnostics.get("away_sp") or {}
+    home_sp  = diagnostics.get("home_sp") or {}
+    away_bp  = diagnostics.get("away_bp") or {}
+    home_bp  = diagnostics.get("home_bp") or {}
+    away_off = diagnostics.get("away_off") or {}
+    home_off = diagnostics.get("home_off") or {}
+    weather  = diagnostics.get("weather") or {}
+    flags    = diagnostics.get("flags", {})
+
+    candidates = []
+
+    a_xfip, h_xfip = away_sp.get("xfip"), home_sp.get("xfip")
+    if a_xfip is not None and h_xfip is not None:
+        candidates.append({
+            "label": "SP quality", "score": abs(h_xfip - a_xfip),
+            "value": f"away SP xFIP {a_xfip:.2f} vs home SP xFIP {h_xfip:.2f}",
+            "is_fallback": bool(flags.get("away_sp_missing") or flags.get("home_sp_missing")),
+        })
+    else:
+        candidates.append({"label": "SP quality", "score": -1,
+                            "value": "SP data unavailable", "is_fallback": True})
+
+    a_fat, h_fat = away_bp.get("avg_fatigue"), home_bp.get("avg_fatigue")
+    if a_fat is not None and h_fat is not None:
+        candidates.append({
+            "label": "Bullpen", "score": max(a_fat, h_fat),
+            "value": f"away bullpen {away_bp.get('fatigue_tier','?')} ({a_fat:.1f}/10) "
+                     f"vs home bullpen {home_bp.get('fatigue_tier','?')} ({h_fat:.1f}/10)",
+            "is_fallback": not (away_bp.get("data_ok", True) and home_bp.get("data_ok", True)),
+        })
+
+    wind = weather.get("wind_mph")
+    run_adj = weather.get("run_adjustment", 0.0) or 0.0
+    if wind is not None:
+        candidates.append({
+            "label": "Weather", "score": abs(run_adj) * 10 + 0.01,
+            "value": f"{weather.get('wind_label') or f'{wind:.0f}mph'} — run adj {run_adj:+.2f}",
+            "is_fallback": False,
+        })
+
+    a_wrc, h_wrc = away_off.get("wrc_plus"), home_off.get("wrc_plus")
+    if a_wrc is not None and h_wrc is not None:
+        candidates.append({
+            "label": "Offense", "score": abs(h_wrc - a_wrc) / 20.0,
+            "value": f"away wRC+ {a_wrc:.0f} vs home wRC+ {h_wrc:.0f}",
+            "is_fallback": bool(away_off.get("offense_missing") or home_off.get("offense_missing")),
+        })
+
+    candidates.sort(key=lambda x: x["score"], reverse=True)
+    return candidates[:top_n]
+
+
+def _game_bet_why_text(bet_type: str, selection: str, top_drivers: list[dict]) -> str:
+    if not top_drivers:
+        return f"{selection} qualified on model edge alone — no single input dominated."
+    lead = top_drivers[0]
+    sentence1 = f"{selection} is led by {lead['label'].lower()} ({lead['value']})."
+    rest = top_drivers[1:]
+    sentence2 = ""
+    if rest:
+        parts = "; ".join(f"{r['label'].lower()} ({r['value']})" for r in rest)
+        sentence2 = f"Also factored: {parts}."
+    fallback_names = [d["label"] for d in top_drivers if d["is_fallback"]]
+    sentence3 = f" Note: {', '.join(fallback_names)} used a neutral/fallback value, not real data." if fallback_names else ""
+    return " ".join(p for p in (sentence1, sentence2, sentence3.strip()) if p)
+
+
+def _pick_narrative(bet_type: str, diagnostics: dict | None, selection: str = "This pick",
+                     opp_label: str = "the opponent") -> dict:
+    """Common entry point: returns {'why': str, 'drivers': [{'label','value',
+    'edge_pct' or None}], 'neutral_fallbacks': [str,...]}. Never raises --
+    missing/malformed diagnostics degrade to a plain 'no diagnostic data'
+    line rather than blocking the slip (4e: no crashes on missing factors).
+    selection/opp_label come from the caller's own pick record (team/bet
+    name) -- diagnostics itself carries pitcher/game data, not team labels."""
+    try:
+        if not diagnostics:
+            return {"why": "No diagnostic data captured for this pick.", "drivers": [], "neutral_fallbacks": []}
+        if diagnostics.get("bet_type") == "SGP":
+            sgp = diagnostics.get("sgp") or {}
+            legs = sgp.get("legs") or []
+            if legs:
+                why = f"{selection} is a correlated same-game parlay: " + "; ".join(str(l) for l in legs) + "."
+            else:
+                why = f"{selection} is a correlated same-game parlay; no leg detail was captured."
+            drivers = [{"label": f"Leg {i+1}", "value": str(l), "edge_pct": None} for i, l in enumerate(legs[:3])]
+            return {"why": why, "drivers": drivers, "neutral_fallbacks": []}
+        if "legs" in diagnostics:
+            # Multi-leg ML/props parlay -- diagnostics["legs"] is a list of
+            # each leg's own diagnostics dict (ML or game-level shape).
+            leg_summaries: list[str] = []
+            drivers: list[dict] = []
+            fallbacks: list[str] = []
+            for i, leg_diag in enumerate(diagnostics.get("legs") or []):
+                if not leg_diag:
+                    continue
+                if leg_diag.get("bet_type") == "ML" or "factors" in leg_diag:
+                    leg_top = _rank_ml_factors(leg_diag, top_n=1)
+                elif "away_sp" in leg_diag or "home_sp" in leg_diag:
+                    leg_top = _game_bet_top_drivers(leg_diag.get("bet_type", ""), leg_diag, top_n=1)
+                else:
+                    leg_top = []
+                if leg_top:
+                    f = leg_top[0]
+                    leg_summaries.append(f"leg {i+1} — {f['label'].lower()} ({f['value']})")
+                    drivers.append({"label": f"Leg {i+1}: {f['label']}", "value": f["value"], "edge_pct": f.get("edge_pct")})
+                    if f.get("is_fallback"):
+                        fallbacks.append(f"Leg {i+1} {f['label']}")
+            if leg_summaries:
+                why = f"{selection} combines {len(leg_summaries)} legs: " + "; ".join(leg_summaries) + "."
+            else:
+                why = f"{selection} is a multi-leg parlay; no per-leg factor breakdown was available."
+            return {"why": why, "drivers": drivers[:3], "neutral_fallbacks": fallbacks}
+        if diagnostics.get("bet_type") == "ML" or "factors" in diagnostics:
+            top = _rank_ml_factors(diagnostics)
+            why = _ml_why_text(selection, opp_label, top)
+            drivers = [{"label": f["label"], "value": f["value"], "edge_pct": f["edge_pct"]} for f in top]
+            fallbacks = [f["label"] for f in top if f["is_fallback"]]
+            return {"why": why, "drivers": drivers, "neutral_fallbacks": fallbacks}
+        else:
+            top = _game_bet_top_drivers(bet_type, diagnostics)
+            why = _game_bet_why_text(bet_type, selection, top)
+            drivers = [{"label": d["label"], "value": d["value"], "edge_pct": None} for d in top]
+            fallbacks = [d["label"] for d in top if d["is_fallback"]]
+            return {"why": why, "drivers": drivers, "neutral_fallbacks": fallbacks}
+    except Exception as e:
+        print(f"  [NARRATIVE] error building pick narrative: {e}")
+        return {"why": "Reasoning unavailable (narrative build error).", "drivers": [], "neutral_fallbacks": []}
+
+
+_MODEL_VERSION = "v1"
+_TG_MSG_SOFT_LIMIT = 3500  # Telegram hard cap is 4096 -- leave headroom for HTML entities
+
+
+def _render_slip_picks(slip_picks: list, today: str, day_cls: dict, header_lines: list[str],
+                        summary_extra_lines: list[str]) -> list[str]:
+    """Build the unified transparency slip as a list of Telegram message
+    chunks (each under _TG_MSG_SOFT_LIMIT chars). Never raises -- a
+    malformed pick degrades to a minimal block rather than dropping the
+    whole slip (4e: no crashes on missing factors)."""
+    staked   = sorted([p for p in slip_picks if not p["over_cap"]], key=lambda p: p.get("edge_pct", 0) or 0, reverse=True)
+    over_cap = sorted([p for p in slip_picks if p["over_cap"]], key=lambda p: p.get("edge_pct", 0) or 0, reverse=True)
+    ordered  = staked + over_cap
+
+    def _pct(v) -> str:
+        return f"{v * 100:.1f}" if isinstance(v, (int, float)) else "?"
+
+    def _play_block(n: int, p: dict) -> list[str]:
+        lines = []
+        tag = "  ⚠ OVER CAP" if p["over_cap"] else ""
+        lines.append(f"🎯 PLAY #{n} — {p.get('conviction','')}{tag}")
+        time_s = f"  ({p['game_time_et']} ET)" if p.get("game_time_et") else ""
+        lines.append(f"⚾ {p.get('event','')}{time_s}")
+        lines.append(f"✅ {p.get('bet_type','')}: {p.get('selection','')}  ({p.get('odds_str','')})")
+        if p["over_cap"]:
+            lines.append("💵 Stake: OVER CAP — info only")
+        else:
+            stake = p.get("stake") or 0
+            units = round(stake / 20.0, 1)
+            lines.append(f"💵 Stake: ${stake:.2f} ({units:.1f}u)")
+        lines.append(f"📊 Model {_pct(p.get('model_p'))}%  |  Market {_pct(p.get('market_p'))}%  |  Edge +{p.get('edge_pct', 0):.1f}%")
+        lines.append("")
+
+        try:
+            selection = p.get("selection", "this pick")
+            opp_label = p.get("opp_label", "the opponent")
+            narrative = _pick_narrative(p.get("bet_type", ""), p.get("diagnostics"), selection, opp_label)
+        except Exception as e:
+            narrative = {"why": f"Reasoning unavailable ({e}).", "drivers": [], "neutral_fallbacks": []}
+
+        lines.append("🧠 Why")
+        lines.append(narrative["why"])
+        lines.append("")
+        lines.append("⚙️  Key drivers")
+        if narrative["drivers"]:
+            for d in narrative["drivers"]:
+                edge_s = f"  ({d['edge_pct']:+.1f}%)" if d.get("edge_pct") is not None else ""
+                lines.append(f"- {d['label']}: {d['value']}{edge_s}")
+        else:
+            lines.append("- (no factor breakdown available)")
+        fb = narrative.get("neutral_fallbacks") or []
+        lines.append(f"⚠  Neutral fallbacks: {', '.join(fb) if fb else 'none'}")
+        lines.append("")
+        lines.append("━━━━━━━━━━━━━━━━━━")
+        lines.append("")
+        return lines
+
+    play_blocks: list[list[str]] = []
+    for i, p in enumerate(ordered, start=1):
+        try:
+            play_blocks.append(_play_block(i, p))
+        except Exception as e:
+            play_blocks.append([f"🎯 PLAY #{i} — (error rendering this pick: {e})", "━━━━━━━━━━━━━━━━━━", ""])
+
+    footer_lines = ["📋 SLATE SUMMARY"] + summary_extra_lines + [
+        "━━━━━━━━━━━━━━━━━━",
+        f"🤖 Parlay-OS  |  Model {_MODEL_VERSION}",
+    ]
+
+    # ── Chunk into Telegram-safe messages, splitting only between whole
+    # PLAY blocks (never mid-block) ──────────────────────────────────────────
+    chunks: list[str] = []
+    current: list[str] = list(header_lines)
+    current_has_block = False
+    for block in play_blocks:
+        prospective_len = sum(len(l) + 1 for l in current) + sum(len(l) + 1 for l in block)
+        if current_has_block and prospective_len > _TG_MSG_SOFT_LIMIT:
+            chunks.append("\n".join(current))
+            current = []
+            current_has_block = False
+        current.extend(block)
+        current_has_block = True
+    current.extend(footer_lines)
+    chunks.append("\n".join(current))
+    return chunks
+
+
 def _log_bet_with_retry(today: str, analysis: dict, side: str, conv: str, over_cap: bool = False) -> bool:
     """Persist a bet to the DB, retrying once on failure. Returns True if
     stored, False if it failed twice. Caller must suppress the Telegram/
@@ -3735,6 +4107,7 @@ def run_daily_scout(window: str = "all"):
     # Daily slip collections
     all_locks:    list = []   # (analysis, side) — HIGH conviction, edge ≥ 7%
     all_flips:    list = []   # (analysis, side) — MEDIUM conviction, edge ≥ 4%
+    all_ml_over_cap: list = []   # (analysis, side, conv) — qualified but cut by daily/ML-pool cap
     all_fades:    list = []   # (analysis, side, reason)
     all_sgp:      list = []   # correlated SGP suggestions across all games
     all_nrfi:         list = []   # {game, direction, prob, stake}
@@ -4149,6 +4522,7 @@ def run_daily_scout(window: str = "all"):
                 stake = kelly_stake(prob, "-110", "PROP")
                 all_nrfi.append({
                     "game": game_lbl, "direction": direction, "prob": prob, "stake": stake,
+                    "game_time_et": analysis.get("game_time_et", ""),
                     "diagnostics": _build_game_diagnostics(analysis, "NRFI", {"nrfi": nrfi_r_g}),
                 })
 
@@ -4191,6 +4565,7 @@ def run_daily_scout(window: str = "all"):
                             "edge_pct":  round(edge * 100, 1),
                             "stake":     kelly_stake(model_p, str(mkt_odds), "PROP"),
                             "odds":      str(mkt_odds),
+                            "game_time_et": analysis.get("game_time_et", ""),
                             "diagnostics": _build_game_diagnostics(analysis, "TOTAL", {"total": total_r_g}),
                         }
                 if best_total_bet and best_total_bet["stake"] > 0:
@@ -4263,6 +4638,7 @@ def run_daily_scout(window: str = "all"):
                             "stake":      _rl_stake,
                             "odds":       str(_rl_o),
                             "bet_type":   f"RUNLINE{_rl_line[_rl_side]:+.1f}",
+                            "game_time_et": analysis.get("game_time_et", ""),
                             "diagnostics": _build_game_diagnostics(analysis, "RUNLINE", {
                                 "run_line_probs": _rl_probs, "market_consensus": _rl_consensus,
                                 "side": _rl_side,
@@ -4304,6 +4680,7 @@ def run_daily_scout(window: str = "all"):
                 f"ML pool spent ${_ml_pool_spent:.2f})"
             )
             _cap_blocked_teams.append(_team)
+            all_ml_over_cap.append((analysis, side, conv))
             if not DRY_RUN:
                 _log_bet_with_retry(today, analysis, side, conv, over_cap=True)
             continue
@@ -4667,6 +5044,7 @@ def run_daily_scout(window: str = "all"):
                 all_locks, all_flips, all_sgp, all_fades, br,
                 all_nrfi, all_totals, all_hitter_props, all_k_props, all_injuries,
                 all_er_props=all_er_props, all_runline=all_runline,
+                all_ml_over_cap=all_ml_over_cap,
             )
         except Exception as slip_err:
             print(f"Daily slip EXCEPTION: {slip_err}")

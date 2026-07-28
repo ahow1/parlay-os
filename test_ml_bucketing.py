@@ -90,24 +90,7 @@ class TestSlipFormattingIncludesHighEdgeMedium:
             flips.append((analysis, side))
         return locks, flips
 
-    @staticmethod
-    def _section(part1_text: str, header_marker: str, next_marker: str | None) -> str:
-        """Slice out one labeled section of Part 1's text -- from the line
-        containing header_marker up to (not including) the line containing
-        next_marker, or to the end if next_marker is None/absent. Needed
-        because Part 1 is one big joined string -- a naive 'X in message'
-        check can't tell which section a team name actually appears under."""
-        lines = part1_text.split("\n")
-        start = next(i for i, l in enumerate(lines) if header_marker in l)
-        end = len(lines)
-        if next_marker:
-            for i in range(start + 1, len(lines)):
-                if next_marker in lines[i]:
-                    end = i
-                    break
-        return "\n".join(lines[start:end])
-
-    def test_medium_high_edge_pick_appears_in_coin_flips_section(self):
+    def test_medium_high_edge_pick_appears_with_medium_conviction_tag(self):
         analysis = self._mk_analysis(edge=9.2, model_p=0.494)
         conv = brain._conviction(9.2, 0.494, {}, {})
         assert conv == "MEDIUM"  # sanity: this is the Rays case
@@ -118,31 +101,16 @@ class TestSlipFormattingIncludesHighEdgeMedium:
         with patch("brain._send_telegram", side_effect=lambda m: (sent.append(m), True)[1]):
             brain._daily_bet_slip(locks, flips, [], [], 1000.0)
 
-        part1 = next(m for m in sent if "COIN FLIPS" in m)
-        flips_section = self._section(part1, "COIN FLIPS", None)
-        assert "Tampa Bay Rays" in flips_section, (
-            "a MEDIUM pick with edge >= 7% must render under COIN FLIPS, not "
+        full_text = "\n".join(sent)
+        assert "Tampa Bay Rays" in full_text, (
+            "a MEDIUM pick with edge >= 7% must render on the slip, not "
             "silently vanish the way the Rays pick did"
         )
-        locks_section = self._section(part1, "🔒 LOCKS (", "COIN FLIPS")
-        assert "Tampa Bay Rays" not in locks_section
+        play_line = next(l for l in full_text.split("\n") if "PLAY #" in l)
+        assert "MEDIUM" in play_line
+        assert "HIGH" not in play_line
 
-    def test_coin_flips_header_no_longer_claims_an_upper_edge_bound(self):
-        """The header text used to hardcode 'MEDIUM conviction 4-7% edge' --
-        misleading now that flips can carry edge >= 7%. Must not regress."""
-        analysis = self._mk_analysis(edge=9.2, model_p=0.494)
-        conv = brain._conviction(9.2, 0.494, {}, {})
-        locks, flips = self._bucket_into(analysis, "away", conv)
-
-        sent = []
-        with patch("brain._send_telegram", side_effect=lambda m: (sent.append(m), True)[1]):
-            brain._daily_bet_slip(locks, flips, [], [], 1000.0)
-
-        part1 = next(m for m in sent if "COIN FLIPS" in m)
-        header_line = next(l for l in part1.split("\n") if "COIN FLIPS" in l)
-        assert "4-7%" not in header_line
-
-    def test_high_pick_appears_in_locks_section_not_flips(self):
+    def test_high_pick_appears_with_high_conviction_tag(self):
         analysis = self._mk_analysis(edge=8.0, model_p=0.55)
         conv = brain._conviction(8.0, 0.55, {}, {})
         assert conv == "HIGH"
@@ -153,8 +121,8 @@ class TestSlipFormattingIncludesHighEdgeMedium:
         with patch("brain._send_telegram", side_effect=lambda m: (sent.append(m), True)[1]):
             brain._daily_bet_slip(locks, flips, [], [], 1000.0)
 
-        part1 = next(m for m in sent if "🔒 LOCKS (" in m)
-        locks_section = self._section(part1, "🔒 LOCKS (", "COIN FLIPS")
-        flips_section = self._section(part1, "COIN FLIPS", None)
-        assert "Tampa Bay Rays" in locks_section
-        assert "Tampa Bay Rays" not in flips_section
+        full_text = "\n".join(sent)
+        assert "Tampa Bay Rays" in full_text
+        play_line = next(l for l in full_text.split("\n") if "PLAY #" in l)
+        assert "HIGH" in play_line
+        assert "MEDIUM" not in play_line

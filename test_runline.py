@@ -110,7 +110,7 @@ class TestRunlineReachesSlipWithStake:
             )
         assert ok is True
         out = capsys.readouterr().out
-        assert "RUN LINE" in out
+        assert "RUNLINE" in out
         assert "New York Yankees -1.5" in out
         assert "$35.00" in out
 
@@ -217,8 +217,8 @@ class TestExistingBetTypesUnaffected:
             )
         assert ok is True
         out = capsys.readouterr().out
-        assert "TOTALS (1 bets):" in out
-        assert "RUN LINE" not in out
+        assert "✅ TOTAL:" in out
+        assert "RUNLINE" not in out
 
 
 # ── Auto-settlement: margin vs +/-1.5 ───────────────────────────────────────

@@ -362,12 +362,13 @@ class TestWireIn3AllBetTypesLogged:
 
     def test_telegram_message_text_unchanged_by_logging(self, _isolated_db, capsys):
         """DB writes must be a side effect only — the printed (DRY_RUN)
-        Telegram message text must not reference logging at all."""
+        Telegram message text must show every pick type (transparency slip,
+        parlay-os Step 4) regardless of the logging side effect underneath."""
         self._call_slip()
         out = capsys.readouterr().out
-        assert "LOCKS (2" in out
-        assert "NRFI/YRFI (1 bets):" in out
-        assert "TOTALS (1 bets):" in out
+        assert out.count("🎯 PLAY #") >= 2  # at least the 2 ML locks
+        assert "✅ NRFI:" in out
+        assert "✅ TOTAL:" in out
 
 
 # ── TIER 3 WIRE-IN 4: pre-game CLV capture ───────────────────────────────────
