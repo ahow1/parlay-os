@@ -443,6 +443,16 @@ class TestWireIn4PreGameClvCapture:
         bot_block = src[src.index('if "--bot" in args:'):src.index('elif "--live" in args:')]
         assert "run_pre_game_clv_loop" in bot_block
 
+    def test_bot_mode_starts_the_github_bet_sync_loop(self):
+        """Railway's --bot process has no git integration -- without this
+        loop pulling picks GitHub Actions committed, settlement/CLV capture
+        (both moved to Railway) would have nothing new to act on."""
+        import inspect
+        import brain
+        src = inspect.getsource(brain)
+        bot_block = src[src.index('if "--bot" in args:'):src.index('elif "--live" in args:')]
+        assert "run_github_bet_sync_loop" in bot_block
+
 
 # ── SGO wire-in Step 3: ODDS_SOURCE flag + SGO CLV grading ─────────────────────
 

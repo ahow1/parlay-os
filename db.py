@@ -585,6 +585,21 @@ def sync_pending_bets_from_github(repo: str = "ahow1/parlay-os", branch: str = "
                 pass
 
 
+def run_github_bet_sync_loop(stop_event=None) -> None:
+    """Background loop: calls sync_pending_bets_from_github() every 15 min
+    (same cadence as run_pre_game_clv_loop) so Railway's --bot process
+    keeps picking up new picks GitHub Actions generates and commits. Meant
+    to run as a daemon thread started by brain.py in --bot mode."""
+    import threading
+    _stop = stop_event or threading.Event()
+    while not _stop.is_set():
+        try:
+            sync_pending_bets_from_github()
+        except Exception as e:
+            print(f"[SYNC] bet sync loop error: {e}")
+        _stop.wait(900)  # 15-minute cadence
+
+
 def reset_daily_exposure(date: str | None = None) -> int:
     """
     Delete all pending (unsettled) bets for the given date.

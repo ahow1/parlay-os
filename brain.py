@@ -6172,6 +6172,11 @@ if __name__ == "__main__":
             _sp_mon = SPMonitor(send_fn=_send_telegram)
             _threading.Thread(target=_sp_mon.run, name="sp-monitor", daemon=True).start()
             _threading.Thread(target=run_pre_game_clv_loop, name="clv-capture", daemon=True).start()
+            # GitHub Actions is the authoritative source for picks and has no
+            # git integration on Railway's side -- without this, settlement/CLV
+            # here would have nothing new to act on after Railway's last
+            # redeploy (see CLAUDE.md's Deployment section).
+            _threading.Thread(target=_db.run_github_bet_sync_loop, name="github-bet-sync", daemon=True).start()
             print("Parlay OS bot running (Ctrl-C to stop)...")
             try:
                 _poll_loop()
