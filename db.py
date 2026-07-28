@@ -496,6 +496,95 @@ def get_pick_by_hash(verify_hash: str) -> dict | None:
     return dict(row) if row else None
 
 
+def sync_pending_bets_from_github(repo: str = "ahow1/parlay-os", branch: str = "main",
+                                   timeout: int = 15) -> int:
+    """One-way pull: GitHub Actions is the authoritative source for picks
+    (see CLAUDE.md's Deployment section) but Railway's --bot process has no
+    git integration and never sees anything GitHub commits after Railway's
+    last redeploy -- without this, Railway's settlement/CLV loops silently
+    have nothing new to act on. Fetches the latest parlay_os.db committed to
+    GitHub and inserts any PENDING bet (result IS NULL) not already present
+    locally, matched by verify_hash (a stable SHA256 computed once at
+    log_bet() time, so it round-trips safely across the two databases).
+
+    Never overwrites or touches an existing local row -- this database
+    stays authoritative for settlement/CLV results once a bet has arrived
+    here; only new picks flow one-way from GitHub in.
+
+    Never raises -- a fetch/parse failure just means nothing new synced
+    this tick, not a crash of the caller's loop. Returns the number of new
+    rows inserted."""
+    import tempfile
+    import requests
+
+    url = f"https://raw.githubusercontent.com/{repo}/{branch}/parlay_os.db"
+    try:
+        resp = requests.get(url, timeout=timeout)
+        resp.raise_for_status()
+    except Exception as e:
+        print(f"[SYNC] fetch from GitHub failed: {e}")
+        return 0
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
+            tmp.write(resp.content)
+            tmp_path = tmp.name
+
+        try:
+            remote_conn = sqlite3.connect(f"file:{tmp_path}?mode=ro", uri=True)
+            remote_conn.row_factory = sqlite3.Row
+            remote_cols = {r[1] for r in remote_conn.execute("PRAGMA table_info(bets)")}
+        except Exception as e:
+            print(f"[SYNC] couldn't open fetched db: {e}")
+            return 0
+
+        with _conn() as local_conn:
+            local_cols = {r[1] for r in local_conn.execute("PRAGMA table_info(bets)")}
+        shared_cols = sorted(remote_cols & local_cols)
+        if "verify_hash" not in shared_cols or "id" not in shared_cols:
+            print("[SYNC] schema mismatch (missing verify_hash/id) — aborting sync")
+            remote_conn.close()
+            return 0
+
+        select_cols = ", ".join(shared_cols)
+        remote_pending = remote_conn.execute(
+            f"SELECT {select_cols} FROM bets WHERE result IS NULL"
+        ).fetchall()
+        remote_conn.close()
+
+        insert_cols = [c for c in shared_cols if c != "id"]
+        placeholders = ", ".join("?" for _ in insert_cols)
+        insert_sql = f"INSERT INTO bets ({', '.join(insert_cols)}) VALUES ({placeholders})"
+
+        inserted = 0
+        with _conn() as conn:
+            existing_hashes = {r[0] for r in conn.execute("SELECT verify_hash FROM bets")}
+            for row in remote_pending:
+                vh = row["verify_hash"]
+                if not vh or vh in existing_hashes:
+                    continue
+                values = [row[c] for c in insert_cols]
+                try:
+                    conn.execute(insert_sql, values)
+                    inserted += 1
+                    existing_hashes.add(vh)
+                except Exception as e:
+                    print(f"[SYNC] insert failed for verify_hash={vh}: {e}")
+        if inserted:
+            print(f"[SYNC] pulled {inserted} new pending bet(s) from GitHub")
+        return inserted
+    except Exception as e:
+        print(f"[SYNC] sync error: {e}")
+        return 0
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+
+
 def reset_daily_exposure(date: str | None = None) -> int:
     """
     Delete all pending (unsettled) bets for the given date.
