@@ -82,7 +82,7 @@ $27 while Kelly stakes stay at $9 — the daily cap ($3.32) blocks every bet on 
   if `BANKROLL_OVERRIDE` changes. Set 2026-07-07 with Aidan's explicit sign-off.
 - xwOBA: working — uses `est_woba` column from Savant leaderboard
 - Rolling form: fixed — uses `rolling_xwoba_tier` key
-- Auto-settlement: working for ML bets — runs on Railway's `_settler_loop` (see Deployment). PROP-type bets have no automated settlement path at all (`run_settlement_check()` explicitly skips them) — 557 PROP bets were stranded pending as of 2026-07-28 for this reason, not a days_back/scheduling issue. Needs its own implementation in a future session.
+- Auto-settlement: working for ML/TOTAL/RUNLINE **and PROP** bets (hitter/K/ER props settle via MLB Stats API box scores as of 2026-07-28) — runs on Railway's `_settler_loop` (see Deployment). 1,136 PROP bets were stranded pending as of 2026-07-28 before this shipped; a single manual pass cleared 84 (52 W / 31 L / 1 P), with the remainder mostly blocked by a separate pre-existing data gap — ~1,035 older PROP rows have an empty `game` column and can't be matched to a game at all (not a settlement-logic bug; there's no reliable way to reconstruct which game those historical rows belonged to). New PROP picks logged going forward always populate `game`, so this shouldn't recur.
 - Learning loop: needs wiring to `calibration_buckets`
 - CLV capture: working — runs on Railway's `run_pre_game_clv_loop` (see Deployment)
 
