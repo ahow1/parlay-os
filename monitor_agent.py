@@ -38,7 +38,7 @@ ODDS_API_KEY  = os.getenv("ODDS_API_KEY", "")
 
 # ── Module state (read by get_monitor_status() / the /api/monitor endpoint) ──
 _check_state: dict = {}
-_last_alerted: dict[str, float] = {}
+_last_alerted: dict[str, float | None] = {}
 _state_lock = threading.Lock()
 
 
@@ -252,8 +252,13 @@ def _maybe_alert(name: str, result: dict) -> None:
         return
     now = time.monotonic()
     with _state_lock:
-        last = _last_alerted.get(name, 0.0)
-        if now - last < ALERT_COOLDOWN_SEC:
+        last = _last_alerted.get(name)
+        # last=None means "never alerted this process" -- must always fire,
+        # not be compared against 0.0. time.monotonic() is not epoch time;
+        # it commonly starts near zero at boot, so a 0.0 sentinel silently
+        # suppressed every check's first alert for up to ALERT_COOLDOWN_SEC
+        # after every process restart (i.e. every Railway deploy).
+        if last is not None and now - last < ALERT_COOLDOWN_SEC:
             return
         _last_alerted[name] = now
     _send_alert(f"⚠️ MONITOR: {name} — {result.get('detail', 'check failed')}")

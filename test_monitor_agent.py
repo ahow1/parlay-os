@@ -205,6 +205,18 @@ class TestErrorSpike:
 
 
 class TestAlertDedupCooldown:
+    def test_first_alert_ever_fires_even_when_monotonic_clock_is_near_zero(self):
+        """Regression: time.monotonic() is not epoch time -- it commonly
+        starts near zero at process boot. A 0.0 default for "never alerted"
+        made `now - 0.0 < ALERT_COOLDOWN_SEC` true right after a fresh
+        process start, silently suppressing the very first alert for a
+        given check for up to ALERT_COOLDOWN_SEC after every Railway
+        deploy. The sentinel must be None, not 0.0."""
+        with patch.object(mon, "_send_alert", return_value=True) as mock_send, \
+             patch.object(mon.time, "monotonic", return_value=5.0):
+            mon._maybe_alert("brand_new_check", {"ok": False, "detail": "boom"})
+        mock_send.assert_called_once()
+
     def test_failing_check_alerts_once_then_cools_down(self):
         with patch.object(mon, "_send_alert", return_value=True) as mock_send:
             mon._maybe_alert("fake_check", {"ok": False, "detail": "boom"})
