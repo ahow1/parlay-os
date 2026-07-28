@@ -79,9 +79,9 @@ $27 while Kelly stakes stay at $9 — the daily cap ($3.32) blocks every bet on 
   if `BANKROLL_OVERRIDE` changes. Set 2026-07-07 with Aidan's explicit sign-off.
 - xwOBA: working — uses `est_woba` column from Savant leaderboard
 - Rolling form: fixed — uses `rolling_xwoba_tier` key
-- Auto-settlement: working
+- Auto-settlement: working for ML bets — runs on Railway's `_settler_loop` (see Deployment). PROP-type bets have no automated settlement path at all (`run_settlement_check()` explicitly skips them) — 557 PROP bets were stranded pending as of 2026-07-28 for this reason, not a days_back/scheduling issue. Needs its own implementation in a future session.
 - Learning loop: needs wiring to `calibration_buckets`
-- CLV capture: needs implementation
+- CLV capture: working — runs on Railway's `run_pre_game_clv_loop` (see Deployment)
 
 ---
 
@@ -158,20 +158,54 @@ python3 -c "from bankroll_engine import sizing_bankroll; print(f'sizing_bankroll
 
 ## Deployment
 
-- **Railway**: runs `brain.py --bot` 24/7
-- **GitHub Actions**: `mega_scout.yml` fires at 11am / 4pm / 7:30pm ET (day/evening/west windows)
+Railway is a permanent, paid, always-on host as of 2026-07-28. The system is
+split so each function runs in **exactly one place** — no job runs on both
+GitHub Actions and Railway.
+
+- **GitHub Actions** (`mega_scout.yml`): **pick generation only** —
+  `daily_brain_day` (11am ET), `daily_brain_evening` (4pm ET),
+  `daily_brain_west` (6:30pm ET), plus `line_movement`, `live_engine`,
+  `daily_debrief`, `weekly_roi`, `morning_planner`. One-shot, scheduled,
+  proven. Each job checks out fresh from git, runs, commits its outputs
+  (`last_scout.json` / `props_output.json` / `parlay_os.db`), and pushes
+  back — **GitHub's copy of `parlay_os.db` is the authoritative record for
+  picks** (what got recommended, at what stake, with what edge).
+- **Railway** (`brain.py --bot`, persistent worker): **all continuous loops**
+  — CLV capture (`run_pre_game_clv_loop`, every 15 min), settlement
+  (`_settler_loop`, every 30 min 4pm–1am ET, no `days_back` bound), SP
+  monitor, hedge monitor, and the Telegram command handler (`/win` `/loss`
+  `/push` `/bet` `/scout` etc). Railway's worker never touches git —
+  **Railway's copy of `parlay_os.db` is the authoritative record for
+  settlement results and CLV grading** (whether a pick actually won, and
+  what the closing line was).
+- **This is a deliberate two-database split, not the accidental drift from
+  before.** Each `parlay_os.db` copy has a defined, non-overlapping role:
+  GitHub's copy is ground truth for *what was picked*; Railway's copy is
+  ground truth for *what happened to it*. They are never merged or synced
+  with each other — don't try to reconcile them into one file. If you need
+  a full settled history, pull it from Railway's copy (via its dashboard/DB
+  export), not GitHub's.
+- `brain.py --capture-clv` and `brain.py --settle` (the one-shot CLI modes)
+  still exist and are still wired into `mega_scout.yml` as
+  `workflow_dispatch`-only manual fallbacks — trigger them from the Actions
+  tab if Railway is ever down. They no longer run on a schedule.
 - **Dashboard**: web-production-4366d.up.railway.app
 - **Seed bets to Railway**: `POST /api/reset_bets`
 
 ### GitHub Actions Required Secrets
-All three must be set in GitHub repo secrets:
 - `ODDS_API_KEY`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 - `BANKROLL_OVERRIDE` ← critical, without this stakes collapse
 
 ### Railway Required Env Vars
-Same four as above, plus `ANTHROPIC_API_KEY`.
+- `TELEGRAM_BOT_TOKEN` ← must match the GitHub secret exactly (same bot, one chat)
+- `TELEGRAM_CHAT_ID`
+- `ODDS_API_KEY`
+- `SPORTSGAMEODDS_API_KEY` ← needed now that CLV capture runs here (SGO no-vig consensus)
+- `BANKROLL_OVERRIDE`
+- `ODDS_SOURCE=sgo`
+- `ANTHROPIC_API_KEY` ← used by clv_tracker.py's Claude pick reviewer
 
 ---
 
