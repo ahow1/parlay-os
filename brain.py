@@ -1173,12 +1173,25 @@ def _conviction(edge_pct: float, model_p: float, bp: dict, market: dict) -> str:
     # Value underdog exception: +10% edge on a big underdog, floor lowered to 0.40.
     # Market at +200 implies 33% — our 40% model is still a real edge, not a flip.
     if edge_pct >= CONVICTION_VALUE_DOG_EDGE_MIN and model_p >= CONVICTION_VALUE_DOG_MODEL_MIN:
-        return "HIGH" if edge_pct >= CONVICTION_VALUE_DOG_HIGH_EDGE else "MEDIUM"
-    if edge_pct >= CONVICTION_HIGH_EDGE_MIN and model_p >= CONVICTION_HIGH_MODEL_MIN:
-        return "HIGH"
-    if edge_pct >= CONVICTION_MEDIUM_EDGE_MIN and model_p >= CONVICTION_MEDIUM_MODEL_MIN:
-        return "MEDIUM"
-    return "PASS"
+        tier = "HIGH" if edge_pct >= CONVICTION_VALUE_DOG_HIGH_EDGE else "MEDIUM"
+    elif edge_pct >= CONVICTION_HIGH_EDGE_MIN and model_p >= CONVICTION_HIGH_MODEL_MIN:
+        tier = "HIGH"
+    elif edge_pct >= CONVICTION_MEDIUM_EDGE_MIN and model_p >= CONVICTION_MEDIUM_MODEL_MIN:
+        tier = "MEDIUM"
+    else:
+        tier = "PASS"
+
+    # bp was always meant to gate HIGH conviction (the original _conviction()
+    # required fatigue_tier in FRESH/MODERATE for HIGH) but that check was
+    # dropped in a later refactor while every call site kept passing bp
+    # unchanged -- a tired pen currently has zero effect on conviction tier.
+    # Restore it: a TIRED bullpen behind an otherwise-HIGH pick caps at
+    # MEDIUM rather than disqualifying the pick outright (the edge is still
+    # real -- just not our top stake tier with an exposed pen behind it).
+    if tier == "HIGH" and bp.get("data_ok", True) and bp.get("fatigue_tier") == "TIRED":
+        tier = "MEDIUM"
+
+    return tier
 
 
 def _ml_bucket(conv: str) -> str | None:
@@ -1318,13 +1331,23 @@ def _weighted_win_prob(
     roll_away_p = roll_away_q / roll_denom if roll_denom > 0 else 0.5
 
     # Factor 4 — Bullpen (xFIP fatigue + stuff_plus) (15%)
+    # KEY_RELIEVER_FATIGUE_PENALTY: key_reliever_available (CL or top-usage RP
+    # threw 25+ pitches yesterday) was computed by bullpen_engine and threaded
+    # all the way through this function's parameters but never read here --
+    # the average-fatigue score can mask one specific gassed high-leverage arm.
+    # Folded into the existing 15% bullpen weight (same fatigue-point scale)
+    # rather than added as a new top-level factor, so no other factor weight
+    # needs to be rebalanced.
+    KEY_RELIEVER_FATIGUE_PENALTY = 2.0
     if not away_bp_data_ok or not home_bp_data_ok:
         # Bullpen fetch failed for one/both sides — exclude the fatigue signal
         # entirely (neutral 0.5) rather than trust a fabricated "rested" default.
         bp_away_p = 0.5
     else:
-        away_bp_q  = 1.0 / (1.0 + max(away_bp_fatigue, 0)) + away_bp_stuff_adj
-        home_bp_q  = 1.0 / (1.0 + max(home_bp_fatigue, 0)) + home_bp_stuff_adj
+        away_fatigue_eff = away_bp_fatigue + (KEY_RELIEVER_FATIGUE_PENALTY if away_key_reliever_avail is False else 0.0)
+        home_fatigue_eff = home_bp_fatigue + (KEY_RELIEVER_FATIGUE_PENALTY if home_key_reliever_avail is False else 0.0)
+        away_bp_q  = 1.0 / (1.0 + max(away_fatigue_eff, 0)) + away_bp_stuff_adj
+        home_bp_q  = 1.0 / (1.0 + max(home_fatigue_eff, 0)) + home_bp_stuff_adj
         bp_denom   = away_bp_q + home_bp_q
         bp_away_p  = away_bp_q / bp_denom if bp_denom > 0 else 0.5
 
@@ -1403,6 +1426,8 @@ def _weighted_win_prob(
         {"name": "bullpen", "weight": 0.15, "away_p": round(bp_away_p, 4),
          "raw": {"away_bp_fatigue": away_bp_fatigue, "home_bp_fatigue": home_bp_fatigue,
                  "away_bp_stuff_adj": away_bp_stuff_adj, "home_bp_stuff_adj": home_bp_stuff_adj,
+                 "away_key_reliever_avail": away_key_reliever_avail,
+                 "home_key_reliever_avail": home_key_reliever_avail,
                  "data_ok": away_bp_data_ok and home_bp_data_ok}},
         {"name": "offense", "weight": 0.13, "away_p": round(off_away_p, 4),
          "raw": {"away_wrc": away_wrc, "home_wrc": home_wrc,

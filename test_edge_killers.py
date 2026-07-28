@@ -294,6 +294,101 @@ class TestNeutralDefaultMasking:
         )
 
 
+# ── parlay-os Step 3 diagnostic: bullpen signals computed but discarded ───────
+
+class TestKeyRelieverWiredIntoWinProb:
+    """Step 3 diagnostic found key_reliever_available threaded all the way
+    from bullpen_engine through _weighted_win_prob's parameters and never
+    read in the function body -- the average fatigue score can mask one
+    specific gassed high-leverage arm. Fixed: folded into the existing 15%
+    bullpen weight as a fatigue-point penalty (no other factor rebalanced)."""
+
+    def _common(self, **overrides):
+        base = dict(
+            away_xfip=4.35, home_xfip=4.35,
+            away_bp_fatigue=2.0, home_bp_fatigue=2.0,
+            home_dog_add=0.0, pyth_away_p=0.5,
+            lm_direction="", lm_magnitude=0.0,
+            away_platoon_edge=0.0, home_platoon_edge=0.0,
+            away_momentum_score=0.0, home_momentum_score=0.0,
+        )
+        base.update(overrides)
+        return base
+
+    def test_away_key_reliever_unavailable_lowers_away_win_prob(self):
+        from brain import _weighted_win_prob
+        away_p_avail, _, _ = _weighted_win_prob(
+            away_wrc=90.0, home_wrc=90.0,
+            away_key_reliever_avail=True, home_key_reliever_avail=True,
+            **self._common(),
+        )
+        away_p_unavail, _, _ = _weighted_win_prob(
+            away_wrc=90.0, home_wrc=90.0,
+            away_key_reliever_avail=False, home_key_reliever_avail=True,
+            **self._common(),
+        )
+        assert away_p_unavail < away_p_avail
+
+    def test_key_reliever_available_true_matches_default_behavior(self):
+        """The common (all-True) baseline must be unaffected -- this is an
+        additive penalty only for the unavailable side, not a rescale."""
+        from brain import _weighted_win_prob
+        away_p_default, _, _ = _weighted_win_prob(
+            away_wrc=90.0, home_wrc=90.0,
+            **self._common(),
+        )
+        away_p_explicit_true, _, _ = _weighted_win_prob(
+            away_wrc=90.0, home_wrc=90.0,
+            away_key_reliever_avail=True, home_key_reliever_avail=True,
+            **self._common(),
+        )
+        assert away_p_default == away_p_explicit_true
+
+    def test_bullpen_factor_raw_dict_records_key_reliever_flags(self):
+        from brain import _weighted_win_prob
+        _, _, factors = _weighted_win_prob(
+            away_wrc=90.0, home_wrc=90.0,
+            away_key_reliever_avail=False, home_key_reliever_avail=True,
+            **self._common(),
+        )
+        bp_factor = next(f for f in factors if f["name"] == "bullpen")
+        assert bp_factor["raw"]["away_key_reliever_avail"] is False
+        assert bp_factor["raw"]["home_key_reliever_avail"] is True
+
+
+class TestConvictionBullpenGateRestored:
+    """Step 3 diagnostic found _conviction() accepted bp/market parameters
+    but never referenced them -- git history shows the original _conviction()
+    required fatigue_tier in (FRESH, MODERATE) for HIGH, dropped in a later
+    refactor while every call site kept passing bp unchanged. Restored: a
+    TIRED bullpen caps an otherwise-HIGH pick at MEDIUM."""
+
+    def test_tired_bullpen_caps_high_at_medium(self):
+        from brain import _conviction, CONVICTION_HIGH_EDGE_MIN, CONVICTION_HIGH_MODEL_MIN
+        fresh_bp = {"data_ok": True, "fatigue_tier": "FRESH"}
+        tired_bp = {"data_ok": True, "fatigue_tier": "TIRED"}
+        assert _conviction(CONVICTION_HIGH_EDGE_MIN, CONVICTION_HIGH_MODEL_MIN, fresh_bp, {}) == "HIGH"
+        assert _conviction(CONVICTION_HIGH_EDGE_MIN, CONVICTION_HIGH_MODEL_MIN, tired_bp, {}) == "MEDIUM"
+
+    def test_tired_bullpen_with_data_not_ok_does_not_gate(self):
+        """An UNKNOWN bullpen (fetch failure, data_ok=False) must not be
+        treated as tired -- absence of data isn't evidence of fatigue."""
+        from brain import _conviction, CONVICTION_HIGH_EDGE_MIN, CONVICTION_HIGH_MODEL_MIN
+        unknown_bp = {"data_ok": False, "fatigue_tier": "UNKNOWN"}
+        assert _conviction(CONVICTION_HIGH_EDGE_MIN, CONVICTION_HIGH_MODEL_MIN, unknown_bp, {}) == "HIGH"
+
+    def test_empty_bp_dict_unaffected(self):
+        """Existing test_fixes.py / test_ml_bucketing.py callers pass {} for
+        bp -- must keep behaving exactly as before this fix."""
+        from brain import _conviction, CONVICTION_HIGH_EDGE_MIN, CONVICTION_HIGH_MODEL_MIN
+        assert _conviction(CONVICTION_HIGH_EDGE_MIN, CONVICTION_HIGH_MODEL_MIN, {}, {}) == "HIGH"
+
+    def test_medium_tier_unaffected_by_tired_bullpen(self):
+        from brain import _conviction, CONVICTION_MEDIUM_EDGE_MIN, CONVICTION_MEDIUM_MODEL_MIN
+        tired_bp = {"data_ok": True, "fatigue_tier": "TIRED"}
+        assert _conviction(CONVICTION_MEDIUM_EDGE_MIN, CONVICTION_MEDIUM_MODEL_MIN, tired_bp, {}) == "MEDIUM"
+
+
 # ── M3, M4: silent factor failures not logged ─────────────────────────────────
 
 class TestSilentFactorFailuresLogged:
