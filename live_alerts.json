@@ -1,1 +1,106 @@
-[]
+{
+  "last_updated": "2026-07-27T22:46:09.449679-04:00",
+  "in_progress": [
+    {
+      "game_pk": 822868,
+      "label": "Seattle Mariners @ Texas Rangers",
+      "score": "3-7",
+      "inning": "T9",
+      "pitcher": "Jacob Latz",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824245,
+      "label": "Baltimore Orioles @ Detroit Tigers",
+      "score": "8-5",
+      "inning": "B9",
+      "pitcher": "Rico Garcia",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823353,
+      "label": "Arizona Diamondbacks @ Pittsburgh Pirates",
+      "score": "2-3",
+      "inning": "B10",
+      "pitcher": "Taylor Clarke",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823839,
+      "label": "Philadelphia Phillies @ Miami Marlins",
+      "score": "7-8",
+      "inning": "B9",
+      "pitcher": "Jhoan Duran",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 822705,
+      "label": "Toronto Blue Jays @ Washington Nationals",
+      "score": "3-2",
+      "inning": "B9",
+      "pitcher": "Louis Varland",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823597,
+      "label": "Atlanta Braves @ New York Mets",
+      "score": "3-14",
+      "inning": "T9",
+      "pitcher": "Daniel Duarte",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824570,
+      "label": "New York Yankees @ Chicago White Sox",
+      "score": "6-4",
+      "inning": "T8",
+      "pitcher": "Sean Newcomb",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823025,
+      "label": "Chicago Cubs @ St. Louis Cardinals",
+      "score": "3-1",
+      "inning": "B4",
+      "pitcher": "David Peterson",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824001,
+      "label": "Houston Astros @ Los Angeles Angels",
+      "score": "0-2",
+      "inning": "B3",
+      "pitcher": "AJ Blubaugh",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824977,
+      "label": "Boston Red Sox @ Athletics",
+      "score": "0-1",
+      "inning": "B4",
+      "pitcher": "Payton Tolle",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823195,
+      "label": "Milwaukee Brewers @ San Francisco Giants",
+      "score": "0-1",
+      "inning": "B4",
+      "pitcher": "Brandon Sproat",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    }
+  ],
+  "active_alerts": [],
+  "recent_alerts": []
+}
