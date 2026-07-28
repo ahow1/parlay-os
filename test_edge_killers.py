@@ -297,11 +297,15 @@ class TestNeutralDefaultMasking:
 # ── parlay-os Step 3 diagnostic: bullpen signals computed but discarded ───────
 
 class TestKeyRelieverWiredIntoWinProb:
-    """Step 3 diagnostic found key_reliever_available threaded all the way
-    from bullpen_engine through _weighted_win_prob's parameters and never
-    read in the function body -- the average fatigue score can mask one
-    specific gassed high-leverage arm. Fixed: folded into the existing 15%
-    bullpen weight as a fatigue-point penalty (no other factor rebalanced)."""
+    """Step 3 diagnostic found key_reliever_available/key_relievers_flagged
+    threaded from bullpen_engine but never read (key_reliever_available) or
+    never even passed as a parameter (key_relievers_flagged) in
+    _weighted_win_prob. Fixed as two separate, small, documented additive
+    adjustments applied OUTSIDE the 12-factor weighted blend (not folded
+    into Factor 4/avg_fatigue, to avoid double-counting the same signal
+    twice): -1.2pp when a team's key reliever (CL or top-usage RP) is
+    unavailable, plus -0.5pp per additional flagged reliever beyond the
+    closer (capped at -1.5pp for that term alone)."""
 
     def _common(self, **overrides):
         base = dict(
@@ -315,7 +319,7 @@ class TestKeyRelieverWiredIntoWinProb:
         base.update(overrides)
         return base
 
-    def test_away_key_reliever_unavailable_lowers_away_win_prob(self):
+    def test_away_closer_unavailable_moves_model_p_by_expected_amount(self):
         from brain import _weighted_win_prob
         away_p_avail, _, _ = _weighted_win_prob(
             away_wrc=90.0, home_wrc=90.0,
@@ -327,24 +331,136 @@ class TestKeyRelieverWiredIntoWinProb:
             away_key_reliever_avail=False, home_key_reliever_avail=True,
             **self._common(),
         )
-        assert away_p_unavail < away_p_avail
+        # Symmetric adjustment: away's own penalty (-1.2pp) subtracted from
+        # away_p, home's penalty (0) added -- net delta is exactly -0.012.
+        assert round(away_p_avail - away_p_unavail, 4) == 0.012
 
-    def test_key_reliever_available_true_matches_default_behavior(self):
-        """The common (all-True) baseline must be unaffected -- this is an
-        additive penalty only for the unavailable side, not a rescale."""
+    def test_home_closer_unavailable_helps_away_by_expected_amount(self):
         from brain import _weighted_win_prob
-        away_p_default, _, _ = _weighted_win_prob(
-            away_wrc=90.0, home_wrc=90.0,
-            **self._common(),
-        )
-        away_p_explicit_true, _, _ = _weighted_win_prob(
+        away_p_baseline, _, _ = _weighted_win_prob(
             away_wrc=90.0, home_wrc=90.0,
             away_key_reliever_avail=True, home_key_reliever_avail=True,
             **self._common(),
         )
-        assert away_p_default == away_p_explicit_true
+        away_p_home_out, _, _ = _weighted_win_prob(
+            away_wrc=90.0, home_wrc=90.0,
+            away_key_reliever_avail=True, home_key_reliever_avail=False,
+            **self._common(),
+        )
+        assert round(away_p_home_out - away_p_baseline, 4) == 0.012
 
-    def test_bullpen_factor_raw_dict_records_key_reliever_flags(self):
+    def test_flagged_count_beyond_closer_adds_on_top(self):
+        """count=1 (just the closer) contributes only the base -1.2pp;
+        count=2 (closer + top-usage RP both flagged) adds the extra
+        -0.5pp per-arm term on top."""
+        from brain import _weighted_win_prob
+        away_p_one_flagged, _, _ = _weighted_win_prob(
+            away_wrc=90.0, home_wrc=90.0,
+            away_key_reliever_avail=False, home_key_reliever_avail=True,
+            away_key_relievers_flagged_count=1,
+            **self._common(),
+        )
+        away_p_two_flagged, _, _ = _weighted_win_prob(
+            away_wrc=90.0, home_wrc=90.0,
+            away_key_reliever_avail=False, home_key_reliever_avail=True,
+            away_key_relievers_flagged_count=2,
+            **self._common(),
+        )
+        assert round(away_p_one_flagged - away_p_two_flagged, 4) == 0.005
+
+    def test_extra_flagged_term_is_capped(self):
+        """The -0.5pp-per-extra-arm term caps at -1.5pp (i.e. 3 extra arms,
+        count=4) -- count=4 and count=100 must produce identical away_p."""
+        from brain import _weighted_win_prob
+        away_p_at_cap, _, _ = _weighted_win_prob(
+            away_wrc=90.0, home_wrc=90.0,
+            away_key_reliever_avail=False, home_key_reliever_avail=True,
+            away_key_relievers_flagged_count=4,
+            **self._common(),
+        )
+        away_p_huge, _, _ = _weighted_win_prob(
+            away_wrc=90.0, home_wrc=90.0,
+            away_key_reliever_avail=False, home_key_reliever_avail=True,
+            away_key_relievers_flagged_count=100,
+            **self._common(),
+        )
+        # Extra-arm term caps at -1.5pp total regardless of how large the
+        # count gets -- capped total penalty is 1.2 (base) + 1.5 (cap) = 2.7pp.
+        assert away_p_at_cap == away_p_huge
+
+    def test_both_teams_signals_stay_within_documented_caps(self):
+        from brain import _weighted_win_prob
+        away_p_default, _, _ = _weighted_win_prob(
+            away_wrc=90.0, home_wrc=90.0, **self._common(),
+        )
+        away_p_worst_case, _, _ = _weighted_win_prob(
+            away_wrc=90.0, home_wrc=90.0,
+            away_key_reliever_avail=False, home_key_reliever_avail=True,
+            away_key_relievers_flagged_count=100, home_key_relievers_flagged_count=0,
+            **self._common(),
+        )
+        # Max possible single-side swing: 1.2pp base + 1.5pp capped extra = 2.7pp
+        assert round(away_p_default - away_p_worst_case, 4) == 0.027
+
+    def test_missing_bullpen_data_applies_no_penalty(self):
+        """away_bp_data_ok=False must not fabricate a penalty from
+        key_reliever_avail/flagged_count -- absence of data isn't evidence
+        of an unavailable reliever."""
+        from brain import _weighted_win_prob
+        away_p_ok, _, _ = _weighted_win_prob(
+            away_wrc=90.0, home_wrc=90.0,
+            away_key_reliever_avail=True, home_key_reliever_avail=True,
+            away_bp_data_ok=True, home_bp_data_ok=True,
+            **self._common(),
+        )
+        away_p_missing, _, _ = _weighted_win_prob(
+            away_wrc=90.0, home_wrc=90.0,
+            away_key_reliever_avail=False, home_key_reliever_avail=True,
+            away_key_relievers_flagged_count=2,
+            away_bp_data_ok=False, home_bp_data_ok=True,
+            **self._common(),
+        )
+        # away_bp_data_ok=False already neutralizes Factor 4 (bp_away_p=0.5)
+        # AND must neutralize the key-reliever penalty -- both sides should
+        # land on the same away_p once Factor 4 itself is neutral on both.
+        away_p_both_missing_but_avail, _, _ = _weighted_win_prob(
+            away_wrc=90.0, home_wrc=90.0,
+            away_key_reliever_avail=True, home_key_reliever_avail=True,
+            away_bp_data_ok=False, home_bp_data_ok=True,
+            **self._common(),
+        )
+        assert away_p_missing == away_p_both_missing_but_avail
+
+    def test_key_reliever_availability_factor_present_in_diagnostics(self):
+        from brain import _weighted_win_prob
+        _, _, factors = _weighted_win_prob(
+            away_wrc=90.0, home_wrc=90.0,
+            away_key_reliever_avail=False, home_key_reliever_avail=True,
+            away_key_relievers_flagged_count=2,
+            **self._common(),
+        )
+        f = next(x for x in factors if x["name"] == "key_reliever_availability")
+        assert f["raw"]["away_key_reliever_avail"] is False
+        assert f["raw"]["home_key_reliever_avail"] is True
+        assert f["raw"]["away_key_relievers_flagged_count"] == 2
+        assert f["raw"]["away_penalty_pp"] == 1.7  # 1.2 base + 0.5 extra (count-1=1 arm)
+        assert f["raw"]["home_penalty_pp"] == 0.0
+
+    def test_key_reliever_availability_factor_flags_missing_data(self):
+        from brain import _weighted_win_prob
+        _, _, factors = _weighted_win_prob(
+            away_wrc=90.0, home_wrc=90.0,
+            away_bp_data_ok=False, home_bp_data_ok=True,
+            **self._common(),
+        )
+        f = next(x for x in factors if x["name"] == "key_reliever_availability")
+        assert f["raw"]["data_ok"] is False
+
+    def test_bullpen_factor_no_longer_carries_key_reliever_fields(self):
+        """The key-reliever signal is now its own separate diagnostic
+        factor -- the bullpen (fatigue) factor's raw dict should not
+        duplicate it, to keep the two signals visibly distinct in the
+        transparency layer and avoid implying they're double-counted."""
         from brain import _weighted_win_prob
         _, _, factors = _weighted_win_prob(
             away_wrc=90.0, home_wrc=90.0,
@@ -352,8 +468,8 @@ class TestKeyRelieverWiredIntoWinProb:
             **self._common(),
         )
         bp_factor = next(f for f in factors if f["name"] == "bullpen")
-        assert bp_factor["raw"]["away_key_reliever_avail"] is False
-        assert bp_factor["raw"]["home_key_reliever_avail"] is True
+        assert "away_key_reliever_avail" not in bp_factor["raw"]
+        assert "home_key_reliever_avail" not in bp_factor["raw"]
 
 
 class TestConvictionBullpenGateRestored:

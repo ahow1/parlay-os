@@ -66,11 +66,21 @@ class TestPickNarrativeML:
         assert "SP quality" in n["neutral_fallbacks"]
         assert "SP quality" in n["why"]
 
-    def test_key_reliever_unavailable_surfaces_in_bullpen_value(self):
-        diag = brain._build_ml_diagnostics(_ml_analysis(), "away")
+    def test_key_reliever_unavailable_surfaces_as_its_own_driver(self):
+        """key_reliever_availability is a separate diagnostic factor from
+        Bullpen (fatigue) -- the two signals must stay visibly distinct."""
+        factors = _ml_factors() + [
+            {"name": "key_reliever_availability", "weight": 1.0, "away_p": 0.512,
+             "raw": {"away_key_reliever_avail": False, "home_key_reliever_avail": True,
+                     "away_key_relievers_flagged_count": 1, "home_key_relievers_flagged_count": 0,
+                     "away_penalty_pp": 1.2, "home_penalty_pp": 0.0, "data_ok": True}},
+        ]
+        analysis = _ml_analysis(**{"ml_factors": factors})
+        diag = brain._build_ml_diagnostics(analysis, "away")
         n = brain._pick_narrative("ML", diag, selection="Boston Red Sox", opp_label="New York Yankees")
-        bullpen = next(d for d in n["drivers"] if d["label"] == "Bullpen")
-        assert "key reliever unavailable" in bullpen["value"]
+        key_rel = next(d for d in n["drivers"] if d["label"] == "Key reliever availability")
+        assert "our key reliever unavailable" in key_rel["value"]
+        assert "-1.2pp" in key_rel["value"]
 
 
 class TestPickNarrativeNonML:

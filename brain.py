@@ -404,6 +404,8 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         away_key_rel_avail = True
     if home_key_rel_avail is None:
         home_key_rel_avail = True
+    away_key_relievers_flagged_count = len(away_bp.get("key_relievers_flagged") or [])
+    home_key_relievers_flagged_count = len(home_bp.get("key_relievers_flagged") or [])
 
     # ── Factor 11: Catcher framing ────────────────────────────────────────────
     away_framing_runs = get_team_framing(away_code)
@@ -572,6 +574,8 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         home_framing_adj       = _home_framing_adj,
         away_key_reliever_avail = away_key_rel_avail,
         home_key_reliever_avail = home_key_rel_avail,
+        away_key_relievers_flagged_count = away_key_relievers_flagged_count,
+        home_key_relievers_flagged_count = home_key_relievers_flagged_count,
         ump_home_win_adj       = ump_home_win_adj,
         # New Savant-powered factors
         away_xwoba_against     = _away_xwoba,
@@ -1255,6 +1259,8 @@ def _weighted_win_prob(
     home_framing_adj: float = 0.0,
     away_key_reliever_avail: bool = True,
     home_key_reliever_avail: bool = True,
+    away_key_relievers_flagged_count: int = 0,   # len(key_relievers_flagged) from analyze_bullpen()
+    home_key_relievers_flagged_count: int = 0,
     away_bp_data_ok: bool = True,   # False → bullpen fetch failed; exclude Factor 4
     home_bp_data_ok: bool = True,
     away_off_data_ok: bool = True,  # False → offense fetch failed; exclude Factor 5
@@ -1331,25 +1337,40 @@ def _weighted_win_prob(
     roll_away_p = roll_away_q / roll_denom if roll_denom > 0 else 0.5
 
     # Factor 4 — Bullpen (xFIP fatigue + stuff_plus) (15%)
-    # KEY_RELIEVER_FATIGUE_PENALTY: key_reliever_available (CL or top-usage RP
-    # threw 25+ pitches yesterday) was computed by bullpen_engine and threaded
-    # all the way through this function's parameters but never read here --
-    # the average-fatigue score can mask one specific gassed high-leverage arm.
-    # Folded into the existing 15% bullpen weight (same fatigue-point scale)
-    # rather than added as a new top-level factor, so no other factor weight
-    # needs to be rebalanced.
-    KEY_RELIEVER_FATIGUE_PENALTY = 2.0
     if not away_bp_data_ok or not home_bp_data_ok:
         # Bullpen fetch failed for one/both sides — exclude the fatigue signal
         # entirely (neutral 0.5) rather than trust a fabricated "rested" default.
         bp_away_p = 0.5
     else:
-        away_fatigue_eff = away_bp_fatigue + (KEY_RELIEVER_FATIGUE_PENALTY if away_key_reliever_avail is False else 0.0)
-        home_fatigue_eff = home_bp_fatigue + (KEY_RELIEVER_FATIGUE_PENALTY if home_key_reliever_avail is False else 0.0)
-        away_bp_q  = 1.0 / (1.0 + max(away_fatigue_eff, 0)) + away_bp_stuff_adj
-        home_bp_q  = 1.0 / (1.0 + max(home_fatigue_eff, 0)) + home_bp_stuff_adj
+        away_bp_q  = 1.0 / (1.0 + max(away_bp_fatigue, 0)) + away_bp_stuff_adj
+        home_bp_q  = 1.0 / (1.0 + max(home_bp_fatigue, 0)) + home_bp_stuff_adj
         bp_denom   = away_bp_q + home_bp_q
         bp_away_p  = away_bp_q / bp_denom if bp_denom > 0 else 0.5
+
+    # ── Key reliever availability — structural addition, applied OUTSIDE the
+    # 12-factor weighted blend (not folded into Factor 4/bp_away_p) so it
+    # never rebalances or double-weights against avg_fatigue's existing 15%.
+    # avg_fatigue already includes the closer's own pitch-count fatigue score
+    # (rp_list in bullpen_engine.py includes CL), diluted across every
+    # reliever on the roster -- a lopsided team average can mask one
+    # specific high-leverage arm being gassed. This nudge restores that
+    # specific signal without re-deriving what avg_fatigue already covers.
+    # Magnitudes are conservative placeholders -- tune only after graded
+    # CLV data supports a different weight.
+    KEY_RELIEVER_UNAVAILABLE_ADJ    = 0.012  # -1.2pp against a team whose key reliever (CL/top-usage RP) is unavailable
+    KEY_RELIEVER_EXTRA_FLAGGED_ADJ  = 0.005  # -0.5pp per additional flagged reliever beyond the closer
+    KEY_RELIEVER_EXTRA_FLAGGED_CAP  = 0.015  # cap on the per-additional-arm term alone (today's max flagged count is 2, so this caps at 1 increment = -0.5pp in practice)
+
+    def _key_reliever_penalty(available: bool, flagged_count: int, data_ok: bool) -> float:
+        if not data_ok:
+            return 0.0  # bullpen data missing entirely -- no fabricated penalty
+        penalty = KEY_RELIEVER_UNAVAILABLE_ADJ if available is False else 0.0
+        penalty += min(max(flagged_count - 1, 0) * KEY_RELIEVER_EXTRA_FLAGGED_ADJ, KEY_RELIEVER_EXTRA_FLAGGED_CAP)
+        return penalty
+
+    away_key_penalty = _key_reliever_penalty(away_key_reliever_avail, away_key_relievers_flagged_count, away_bp_data_ok)
+    home_key_penalty = _key_reliever_penalty(home_key_reliever_avail, home_key_relievers_flagged_count, home_bp_data_ok)
+    key_reliever_away_adj = home_key_penalty - away_key_penalty  # home's issue helps away, and vice versa
 
     # Factor 5 — Offense (wRC+ + bat tracking) (13%)
     if not away_off_data_ok or not home_off_data_ok:
@@ -1409,6 +1430,7 @@ def _weighted_win_prob(
         0.03 * sprint_away_p +
         0.02 * h2h_away_p_clamped
     )
+    away_p += key_reliever_away_adj
     away_p = round(max(0.15, min(0.85, away_p)), 4)
 
     # Factor breakdown for diagnostic archiving (parlay-os archive project,
@@ -1426,8 +1448,17 @@ def _weighted_win_prob(
         {"name": "bullpen", "weight": 0.15, "away_p": round(bp_away_p, 4),
          "raw": {"away_bp_fatigue": away_bp_fatigue, "home_bp_fatigue": home_bp_fatigue,
                  "away_bp_stuff_adj": away_bp_stuff_adj, "home_bp_stuff_adj": home_bp_stuff_adj,
-                 "away_key_reliever_avail": away_key_reliever_avail,
+                 "data_ok": away_bp_data_ok and home_bp_data_ok}},
+        # Structural addition (not part of the 12-factor 1.0 weight sum -- shown
+        # at weight=1.0 purely so this list's existing weight*(p-0.5)*100 edge_pct
+        # formula reproduces the exact pp adjustment actually applied to away_p).
+        {"name": "key_reliever_availability", "weight": 1.0, "away_p": round(0.5 + key_reliever_away_adj, 4),
+         "raw": {"away_key_reliever_avail": away_key_reliever_avail,
                  "home_key_reliever_avail": home_key_reliever_avail,
+                 "away_key_relievers_flagged_count": away_key_relievers_flagged_count,
+                 "home_key_relievers_flagged_count": home_key_relievers_flagged_count,
+                 "away_penalty_pp": round(away_key_penalty * 100, 2),
+                 "home_penalty_pp": round(home_key_penalty * 100, 2),
                  "data_ok": away_bp_data_ok and home_bp_data_ok}},
         {"name": "offense", "weight": 0.13, "away_p": round(off_away_p, 4),
          "raw": {"away_wrc": away_wrc, "home_wrc": home_wrc,
@@ -3180,6 +3211,7 @@ _ML_FACTOR_LABELS = {
     "pitch_quality":       "Pitch quality",
     "rolling_form":        "Rolling form",
     "bullpen":             "Bullpen",
+    "key_reliever_availability": "Key reliever availability",
     "offense":             "Offense",
     "pythagorean_homedog":  "Pythagorean/home-dog",
     "platoon_arm_angle":   "Platoon/arm angle",
@@ -3225,16 +3257,28 @@ def _ml_factor_value_and_fallback(name: str, raw: dict, side: str, flags: dict) 
         our_fat = raw.get(f"{side}_bp_fatigue")
         opp_fat = raw.get(f"{opp}_bp_fatigue")
         fallback = not raw.get("data_ok", True)
-        our_rel = raw.get(f"{side}_key_reliever_avail")
-        opp_rel = raw.get(f"{opp}_key_reliever_avail")
-        rel_note = ""
-        if our_rel is False:
-            rel_note = " — our key reliever unavailable"
-        elif opp_rel is False:
-            rel_note = " — their key reliever unavailable"
         if our_fat is None or opp_fat is None:
             return "bullpen data unavailable", True
-        return f"bullpen fatigue {our_fat:.1f}/10 vs {opp_fat:.1f}/10{rel_note}", fallback
+        return f"bullpen fatigue {our_fat:.1f}/10 vs {opp_fat:.1f}/10", fallback
+
+    if name == "key_reliever_availability":
+        fallback = not raw.get("data_ok", True)
+        our_avail  = raw.get(f"{side}_key_reliever_avail")
+        opp_avail  = raw.get(f"{opp}_key_reliever_avail")
+        our_flag_n = raw.get(f"{side}_key_relievers_flagged_count", 0) or 0
+        opp_flag_n = raw.get(f"{opp}_key_relievers_flagged_count", 0) or 0
+        our_pp     = raw.get(f"{side}_penalty_pp", 0.0) or 0.0
+        opp_pp     = raw.get(f"{opp}_penalty_pp", 0.0) or 0.0
+        if fallback:
+            return "bullpen data unavailable", True
+        parts = []
+        if our_avail is False:
+            parts.append(f"our key reliever unavailable (-{our_pp:.1f}pp, {our_flag_n} flagged)")
+        if opp_avail is False:
+            parts.append(f"their key reliever unavailable (+{opp_pp:.1f}pp for us, {opp_flag_n} flagged)")
+        if not parts:
+            return "both key relievers available", False
+        return "; ".join(parts), False
 
     if name == "offense":
         our_wrc = raw.get(f"{side}_wrc")
