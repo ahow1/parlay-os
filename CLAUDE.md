@@ -51,6 +51,9 @@ grep -E 'BET |SLIP|day=|locks=|flips=|has_bets|Scout done|POOL|ERROR|BLOCK' runl
 | `constants.py` | Team maps, park factors, weights |
 | `brain_weights.json` | Current learned model weights |
 | `last_scout.json` | Scout output + slip dedup state (`slip_sent` flag) |
+| `monitor_agent.py` | Agent 1 (THE MONITOR) — rule-based 24/7 health/data-quality watcher, zero LLM cost |
+| `analyst_agent.py` | Agent 2 (THE ANALYST) — daily Claude-powered reflection agent; observes and builds evidence only, never changes model weights/thresholds |
+| `agent_memory/` | Agent 2's local, gitignored institutional memory (`knowledge_base.json`, `open_questions.json`, `daily_debriefs/`) — persists on Railway's filesystem across deploys, never committed to git |
 
 ---
 
@@ -62,7 +65,7 @@ grep -E 'BET |SLIP|day=|locks=|flips=|has_bets|Scout done|POOL|ERROR|BLOCK' runl
 | `TELEGRAM_BOT_TOKEN` | secret | Bot auth |
 | `TELEGRAM_CHAT_ID` | `7852968108` | Aidan's chat |
 | `ODDS_API_KEY` | secret | The Odds API |
-| `ANTHROPIC_API_KEY` | secret | Used by clv_tracker.py for Claude pick reviewer |
+| `ANTHROPIC_API_KEY` | secret | Used by clv_tracker.py's Claude pick reviewer AND Agent 2 (THE ANALYST)'s daily debrief call |
 
 **Critical**: `BANKROLL_OVERRIDE` must be set in GitHub Actions secrets AND Railway environment vars.
 Without it, `current_bankroll()` computes from the DB (deducting pending bets) and can collapse to
@@ -205,9 +208,44 @@ GitHub Actions and Railway.
 - `SPORTSGAMEODDS_API_KEY` ← needed now that CLV capture runs here (SGO no-vig consensus)
 - `BANKROLL_OVERRIDE`
 - `ODDS_SOURCE=sgo`
-- `ANTHROPIC_API_KEY` ← used by clv_tracker.py's Claude pick reviewer
+- `ANTHROPIC_API_KEY` ← used by clv_tracker.py's Claude pick reviewer AND Agent 2 (THE ANALYST)
 - `MONITOR_ENABLED` ← Agent 1 (THE MONITOR), default `true`. Set `false` to disable without a code change.
 - `TELEGRAM_ALERT_CHAT_ID` ← optional, defaults to `TELEGRAM_CHAT_ID`. Where Monitor alerts go.
+- `ANALYST_ENABLED` ← Agent 2 (THE ANALYST), default `true`. Set `false` to disable without a code change.
+
+### Agent 1 (THE MONITOR) — rule-based, zero LLM cost
+24/7 daemon thread in `--bot` mode, checks every 15 min: scout freshness, odds
+feed connectivity, abnormal neutral-fallback rates, stuck pending bets (>48h),
+CLV capture activity, error spikes. Sends `⚠️ MONITOR: ...` Telegram alerts,
+deduped with a 2-hour cooldown per check. `GET /api/monitor` exposes its last
+known state as JSON.
+
+### Agent 2 (THE ANALYST) — daily, Claude-powered, adaptive memory
+Fires once/day at 1:30am ET in `--bot` mode (after Railway's last settle
+pass), or manually via `python brain.py --debrief-agent`. Reads its own prior
+findings (`agent_memory/knowledge_base.json`) and open questions
+(`agent_memory/open_questions.json`), reads that day's staked + over_cap picks
+with results/CLV/diagnostics, makes **exactly one** Claude API call
+(`claude-sonnet-4-6`, `max_tokens=3000`) to analyze what happened, then writes
+a debrief file (`agent_memory/daily_debriefs/YYYY-MM-DD.md`), appends new
+findings to the knowledge base and the `analyst_findings` DB table, updates
+open questions, and sends a condensed Telegram summary.
+- **Cost**: `claude-sonnet-4-6` is $3/$15 per MTok in/out. With `max_tokens=3000`
+  and input growing from ~3K tokens (early) toward ~10-15K tokens/day as the
+  knowledge base fills (context is capped at the most recent 50 entries +
+  all high-confidence ones once the KB passes 100 total — see
+  `KB_CONTEXT_CAP_THRESHOLD` in `analyst_agent.py`), each call costs roughly
+  $0.03-$0.08 — well under the $0.50-1.00/day upper bound this feature was
+  originally scoped against. Realistic run rate: **~$1-3/month**.
+- **Safety**: the Analyst OBSERVES and BUILDS EVIDENCE ONLY — it can never
+  recommend or make a weight/threshold change. This isn't just a system-prompt
+  instruction: `contains_weight_change_language()` scans every free-text field
+  in Claude's response and redacts anything that reads like a tuning
+  recommendation before it can reach Telegram or memory, regardless of what
+  the model actually said. Covered by
+  `test_analyst_agent.py::TestWeightChangeSafety`.
+- `agent_memory/` is gitignored — local institutional memory, not code.
+  Railway's persistent filesystem keeps it safe across deploys.
 
 ---
 

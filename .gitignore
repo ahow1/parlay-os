@@ -10,3 +10,8 @@ data_cache/
 *.swp
 runlog.txt
 sgo_cache.json
+
+# Agent 2 (THE ANALYST)'s local institutional memory -- potentially
+# sensitive pick data, not code. Railway's persistent filesystem keeps
+# it safe across deploys; it must never land in the git-committed DB.
+agent_memory/

@@ -6187,6 +6187,17 @@ if __name__ == "__main__":
                     print("[MONITOR] disabled via MONITOR_ENABLED")
             except Exception as e:
                 error_logger.log_error("brain.__bot_monitor_init", e)
+            # Agent 2 (THE ANALYST) -- daily Claude-powered reflection agent.
+            # Fires once/day at 1:30am ET (after the last settle pass).
+            # Toggle with ANALYST_ENABLED=false.
+            try:
+                import analyst_agent as _analyst_agent
+                if _analyst_agent.is_enabled():
+                    _threading.Thread(target=_analyst_agent.run_analyst_daily_loop, name="analyst-agent", daemon=True).start()
+                else:
+                    print("[ANALYST] disabled via ANALYST_ENABLED")
+            except Exception as e:
+                error_logger.log_error("brain.__bot_analyst_init", e)
             print("Parlay OS bot running (Ctrl-C to stop)...")
             try:
                 _poll_loop()
@@ -6222,6 +6233,12 @@ if __name__ == "__main__":
 
     elif "--settle" in args:
         _run_settle()
+
+    elif "--debrief-agent" in args:
+        import analyst_agent as _analyst_agent
+        result = _analyst_agent.run_analyst_once()
+        print(f"[ANALYST] {result}")
+        sys.exit(0 if result.get("ok") else 1)
 
     else:
         # Scout-only mode: no listener, no polling — just run the scout and send via direct HTTP

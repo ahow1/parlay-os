@@ -464,6 +464,27 @@ class TestWireIn4PreGameClvCapture:
         assert "run_monitor_loop" in bot_block
         assert "is_enabled()" in bot_block
 
+    def test_bot_mode_starts_the_analyst_agent_loop_gated_on_is_enabled(self):
+        """Agent 2 (THE ANALYST) must start in --bot mode, but only when
+        ANALYST_ENABLED isn't explicitly turned off."""
+        import inspect
+        import brain
+        src = inspect.getsource(brain)
+        bot_block = src[src.index('if "--bot" in args:'):src.index('elif "--live" in args:')]
+        assert "analyst_agent" in bot_block
+        assert "run_analyst_daily_loop" in bot_block
+        assert bot_block.count("is_enabled()") >= 2  # both Monitor and Analyst gated
+
+    def test_debrief_agent_cli_mode_runs_once_and_exits(self):
+        """--debrief-agent is Agent 2's one-shot CLI mode (spec 2.5)."""
+        import inspect
+        import brain
+        src = inspect.getsource(brain)
+        assert '"--debrief-agent" in args' in src
+        idx = src.index('"--debrief-agent" in args')
+        block = src[idx:idx + 300]
+        assert "run_analyst_once" in block
+
 
 # ── SGO wire-in Step 3: ODDS_SOURCE flag + SGO CLV grading ─────────────────────
 

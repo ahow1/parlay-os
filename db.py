@@ -374,6 +374,20 @@ def init_db():
             rolling_clv   REAL,
             UNIQUE(model_name, version)
         );
+
+        CREATE TABLE IF NOT EXISTS analyst_findings (
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            date              TEXT NOT NULL,
+            finding           TEXT NOT NULL,
+            evidence          TEXT,
+            confidence        TEXT,
+            category          TEXT,
+            status            TEXT DEFAULT 'open',
+            related_questions TEXT,
+            created_at        TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_analyst_findings_date
+            ON analyst_findings(date);
         """)
     # Migrations for existing DBs that predate schema additions
     with _conn() as conn:
@@ -826,6 +840,33 @@ def clv_log_exists(date: str, bet: str, bet_type: str) -> bool:
             (date, bet, bet_type),
         ).fetchone()
     return row is not None
+
+
+# ─── ANALYST FINDINGS (Agent 2) ────────────────────────────────────────────────
+# Mirrors agent_memory/knowledge_base.json (the append-only source of truth the
+# agent itself reads/writes) so a future Validation agent can query findings via
+# SQL instead of parsing JSON files. Never updated in place except `status`
+# (open -> confirmed/rejected) -- finding/evidence text is append-only, same
+# rule as the JSON file.
+
+def log_analyst_finding(date, finding, evidence, confidence, category,
+                         status="open", related_questions=None):
+    now = datetime.now(ET).isoformat()
+    with _conn() as conn:
+        conn.execute("""
+            INSERT INTO analyst_findings
+              (date, finding, evidence, confidence, category, status,
+               related_questions, created_at)
+            VALUES (?,?,?,?,?,?,?,?)
+        """, (date, finding, evidence, confidence, category, status,
+              json.dumps(related_questions or []), now))
+
+
+def get_analyst_findings(days=30):
+    with _conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM analyst_findings ORDER BY date DESC LIMIT ?", (days * 10,))
+        return [dict(r) for r in rows]
 
 
 # ─── CALIBRATION ──────────────────────────────────────────────────────────────
