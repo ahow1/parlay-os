@@ -455,6 +455,7 @@ def handle_settle(result: str, identifier: str) -> str:
         result=result,
         game_score="",
     )
+    _db.mark_notified(bet["id"])
     sync_scout_json()
 
     bd = _bankroll_display()

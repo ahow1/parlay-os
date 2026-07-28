@@ -289,6 +289,95 @@ class TestDaysBackFilter:
         mock_send.assert_called_once()
 
 
+class TestManualSettlePaths:
+    """handle_settle() (/win /loss /push Telegram commands) and the
+    dashboard /api/settle + /api/resolve endpoints all resolve a bet
+    outside the automated settle_bets flow. Each must stamp notified_at
+    itself -- otherwise the next settle_bets run finds a resolved bet
+    with notified_at still NULL and fires a spurious AUTO-SETTLE ping
+    through the backlog-notify pass."""
+
+    def test_handle_settle_stamps_notified_at(self):
+        import telegram_handler as th
+        _log()
+        row = db.get_bets()[0]
+
+        with patch.object(th, "_db", db), \
+             patch.object(th, "_fetch_closing_odds", return_value="-115"), \
+             patch.object(th, "sync_scout_json"):
+            th.handle_settle("W", str(row["id"]))
+
+        settled = db.get_bets()[0]
+        assert settled["result"] == "W"
+        assert settled["notified_at"] is not None
+
+        # A subsequent settle_bets run must not re-notify via the backlog pass.
+        with patch.object(th, "_db", db), \
+             patch.object(th, "_fetch_final_games", return_value=[]), \
+             patch.object(th, "_send") as mock_send, \
+             patch.object(th, "_update_clv_log"):
+            backlog_settled = th.run_settlement_check()
+
+        assert backlog_settled == []
+        mock_send.assert_not_called()
+
+    def test_api_settle_stamps_notified_at(self):
+        import api
+
+        _log()
+        row = db.get_bets()[0]
+
+        with patch.object(api, "_db", db):
+            client = api.app.test_client()
+            resp = client.post("/api/settle", json={
+                "bet_id": row["id"], "result": "W",
+            })
+
+        assert resp.status_code == 200
+        settled = db.get_bets()[0]
+        assert settled["result"] == "W"
+        assert settled["notified_at"] is not None
+
+    def test_api_resolve_stamps_notified_at(self):
+        import api
+
+        _log()
+        row = db.get_bets()[0]
+
+        with patch.object(api, "_db", db):
+            client = api.app.test_client()
+            resp = client.post("/api/resolve", json={
+                "bet": row["bet"], "date": row["date"], "result": "win",
+            })
+
+        assert resp.status_code == 200
+        settled = db.get_bets()[0]
+        assert settled["result"] == "W"
+        assert settled["notified_at"] is not None
+
+    def test_backlog_pass_does_not_refire_after_any_manual_path(self):
+        """settle_bets is the AUTO-SETTLE source -- once notified_at is
+        stamped by any manual path, the backlog pass must skip the bet."""
+        import telegram_handler as th
+        import api
+
+        _log()
+        row = db.get_bets()[0]
+        with patch.object(api, "_db", db):
+            api.app.test_client().post("/api/settle", json={
+                "bet_id": row["id"], "result": "L",
+            })
+
+        with patch.object(th, "_db", db), \
+             patch.object(th, "_fetch_final_games", return_value=[]), \
+             patch.object(th, "_send") as mock_send, \
+             patch.object(th, "_update_clv_log"):
+            settled = th.run_settlement_check()
+
+        assert settled == []
+        mock_send.assert_not_called()
+
+
 class TestRunSettleOneShot:
     """brain._run_settle() -- the --settle CLI entrypoint."""
 

@@ -592,6 +592,7 @@ def api_settle():
             result=result,
             game_score=data.get("game_score", ""),
             notes=data.get("notes", ""),
+            mark_notified=True,
         )
         return jsonify({"ok": True})
     except Exception as e:
@@ -623,14 +624,20 @@ def api_resolve():
     raw_result = data.get("result", "")
     result = _result_map.get(str(raw_result).lower(), str(raw_result).upper())
     try:
+        bet_name = data.get("bet", "")
+        pending = [b for b in _db.get_bets(date=date)
+                   if b.get("bet") == bet_name and not b.get("result")]
+        bet_id = pending[0]["id"] if pending else None
         _db.resolve_bet(
-            bet=data.get("bet", ""),
+            bet=bet_name,
             date=date,
             closing_odds=data.get("closing_odds", ""),
             result=result,
             game_score=data.get("game_score", ""),
             notes=data.get("notes", ""),
         )
+        if bet_id is not None:
+            _db.mark_notified(bet_id)
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
