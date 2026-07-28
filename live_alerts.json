@@ -1,48 +1,48 @@
 {
-  "last_updated": "2026-07-23T22:55:17.697327-04:00",
+  "last_updated": "2026-07-27T19:58:18.373051-04:00",
   "in_progress": [
     {
-      "game_pk": 824893,
-      "label": "San Diego Padres @ Atlanta Braves",
-      "score": "5-6",
+      "game_pk": 822868,
+      "label": "Seattle Mariners @ Texas Rangers",
+      "score": "3-7",
       "inning": "T9",
-      "pitcher": "Raisel Iglesias",
+      "pitcher": "Jacob Latz",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
-      "game_pk": 824406,
-      "label": "Minnesota Twins @ Cleveland Guardians",
-      "score": "3-1",
-      "inning": "B12",
-      "pitcher": "Jack Anderson",
+      "game_pk": 824245,
+      "label": "Baltimore Orioles @ Detroit Tigers",
+      "score": "4-1",
+      "inning": "B4",
+      "pitcher": "Kyle Bradish",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
-      "game_pk": 822785,
-      "label": "Tampa Bay Rays @ Toronto Blue Jays",
+      "game_pk": 823839,
+      "label": "Philadelphia Phillies @ Miami Marlins",
+      "score": "2-5",
+      "inning": "B4",
+      "pitcher": "Kyle Backhus",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 822705,
+      "label": "Toronto Blue Jays @ Washington Nationals",
+      "score": "2-1",
+      "inning": "T4",
+      "pitcher": "Andrew Alvarez",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823597,
+      "label": "Atlanta Braves @ New York Mets",
       "score": "1-3",
-      "inning": "T9",
-      "pitcher": "Louis Varland",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823042,
-      "label": "Arizona Diamondbacks @ St. Louis Cardinals",
-      "score": "10-6",
-      "inning": "B9",
-      "pitcher": "Ryan Thompson",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824247,
-      "label": "Kansas City Royals @ Detroit Tigers",
-      "score": "3-4",
-      "inning": "T9",
-      "pitcher": "Kyle Finnegan",
+      "inning": "B3",
+      "pitcher": "Mart\u00edn P\u00e9rez",
       "quality_score": 4.5,
       "trailing": "AWAY"
     }
