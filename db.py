@@ -891,6 +891,26 @@ def get_calibration():
             "SELECT * FROM calibration_buckets ORDER BY bucket")]
 
 
+def feed_calibration_from_bet(model_prob, result: str) -> None:
+    """Bucket a single settled bet's model_prob into calibration_buckets --
+    same 0.05-wide bucketing scheme brain.py's _feed_brain_from_settled uses
+    (e.g. model_prob=0.57 -> bucket '0.55-0.60'). Pushes don't inform
+    calibration accuracy, so only W/L feed it, matching that function.
+
+    Called directly at settlement time (telegram_handler.run_settlement_check)
+    rather than waiting for the once-daily debrief batch: Railway settles
+    every bet now (see CLAUDE.md's Deployment section), but the debrief job
+    that used to call _feed_brain_from_settled only runs on GitHub Actions,
+    which never sees Railway's settlement results -- so calibration_buckets
+    was going permanently unfed for every bet type, not just PROP."""
+    if model_prob is None or result not in ("W", "L"):
+        return
+    mp = float(model_prob)
+    lo = round(int(mp * 20) * 0.05, 2)
+    hi = round(lo + 0.05, 2)
+    update_calibration(f"{lo:.2f}-{hi:.2f}", win=(result == "W"))
+
+
 def set_weight_adj(bucket, adj):
     now = datetime.now(ET).isoformat()
     with _conn() as conn:

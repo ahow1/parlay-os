@@ -553,3 +553,159 @@ class TestRunSettleOneShot:
         import brain
         with patch("telegram_handler.run_settlement_check", side_effect=RuntimeError("boom")):
             brain._run_settle()  # must not raise
+
+
+class TestCalibrationFeedAtSettlement:
+    """calibration_buckets used to only get fed once/day via brain._run_debrief,
+    which runs on GitHub Actions and never sees Railway's settlement results
+    (Railway never touches git -- see CLAUDE.md's Deployment section). Since
+    Railway is where every bet actually settles now, run_settlement_check()
+    feeds calibration directly at the moment each bet gets a result, in both
+    passes."""
+
+    def test_pass1_auto_settled_bet_feeds_calibration(self):
+        import telegram_handler as th
+        _log(model_prob=0.57)
+
+        with patch.object(th, "_db", db), \
+             patch.object(th, "_fetch_final_games", return_value=[_final_game()]), \
+             patch.object(th, "_game_side", return_value="home"), \
+             patch.object(th, "_determine_outcome", return_value="W"), \
+             patch.object(th, "_fetch_closing_odds", return_value="-115"), \
+             patch.object(th, "_send"), \
+             patch.object(th, "sync_scout_json"), \
+             patch.object(th, "_update_clv_log"):
+            th.run_settlement_check()
+
+        cal = db.get_calibration()
+        assert any(c["bucket"] == "0.55-0.60" and c["wins"] == 1 for c in cal)
+
+    def test_pass2_backlog_bet_feeds_calibration(self):
+        """A bet resolved through some other path (manual /settle) that never
+        got a Telegram ping -- Pass 2 must still feed calibration for it."""
+        import telegram_handler as th
+        _log(model_prob=0.62)
+        db.resolve_bet("Boston Red Sox", "2026-07-19", "-110", "L", "2-5")
+
+        with patch.object(th, "_db", db), \
+             patch.object(th, "_fetch_final_games", return_value=[]), \
+             patch.object(th, "_send"), \
+             patch.object(th, "sync_scout_json"), \
+             patch.object(th, "_update_clv_log"):
+            th.run_settlement_check()
+
+        cal = db.get_calibration()
+        assert any(c["bucket"] == "0.60-0.65" and c["total_bets"] == 1 and c["wins"] == 0 for c in cal)
+
+    def test_push_does_not_feed_calibration(self):
+        import telegram_handler as th
+        _log(model_prob=0.55)
+
+        with patch.object(th, "_db", db), \
+             patch.object(th, "_fetch_final_games", return_value=[_final_game()]), \
+             patch.object(th, "_game_side", return_value="home"), \
+             patch.object(th, "_determine_outcome", return_value="P"), \
+             patch.object(th, "_fetch_closing_odds", return_value=None), \
+             patch.object(th, "_send"), \
+             patch.object(th, "sync_scout_json"), \
+             patch.object(th, "_update_clv_log"):
+            th.run_settlement_check()
+
+        assert db.get_calibration() == []
+
+    def test_over_cap_bet_still_feeds_calibration(self):
+        """over_cap picks were never staked, but their model_prob accuracy
+        is still real calibration signal -- must not be skipped."""
+        import telegram_handler as th
+        _log(model_prob=0.66, over_cap=True, stake=0.0)
+
+        with patch.object(th, "_db", db), \
+             patch.object(th, "_fetch_final_games", return_value=[_final_game()]), \
+             patch.object(th, "_game_side", return_value="home"), \
+             patch.object(th, "_determine_outcome", return_value="W"), \
+             patch.object(th, "_fetch_closing_odds", return_value=None), \
+             patch.object(th, "_send") as mock_send, \
+             patch.object(th, "sync_scout_json"), \
+             patch.object(th, "_update_clv_log"):
+            th.run_settlement_check()
+
+        mock_send.assert_not_called()  # over_cap: no Telegram ping owed
+        cal = db.get_calibration()
+        assert any(c["bucket"] == "0.65-0.70" and c["wins"] == 1 for c in cal)
+
+    def test_settled_prop_bet_feeds_calibration_via_settlement_not_just_debrief(self):
+        """FIX 2 integration: a PROP bet settled through the new prop
+        settlement path must also feed calibration immediately, not just
+        when/if a debrief job eventually runs."""
+        import telegram_handler as th
+        _log(bet="Aaron Judge TB O1.5", bet_type="PROP",
+             game="Tampa Bay Rays @ Boston Red Sox", model_prob=0.58)
+        box = _boxscore(home_stats=[(1, "Aaron Judge", "batting", {"totalBases": 3})])
+
+        with patch.object(th, "_db", db), \
+             patch.object(th, "_fetch_final_games", return_value=[_final_game()]), \
+             patch.object(th, "_fetch_boxscore", return_value=box), \
+             patch.object(th, "_fetch_closing_odds", return_value=None), \
+             patch.object(th, "_send"), \
+             patch.object(th, "sync_scout_json"), \
+             patch.object(th, "_update_clv_log"):
+            th.run_settlement_check()
+
+        cal = db.get_calibration()
+        assert any(c["bucket"] == "0.55-0.60" and c["wins"] == 1 for c in cal)
+
+    def test_running_settlement_twice_does_not_double_feed_calibration(self):
+        """The same notified_at idempotency guard that prevents a duplicate
+        Telegram send must also prevent a bet from feeding calibration twice."""
+        import telegram_handler as th
+        _log(model_prob=0.57)
+
+        with patch.object(th, "_db", db), \
+             patch.object(th, "_fetch_final_games", return_value=[_final_game()]), \
+             patch.object(th, "_game_side", return_value="home"), \
+             patch.object(th, "_determine_outcome", return_value="W"), \
+             patch.object(th, "_fetch_closing_odds", return_value="-115"), \
+             patch.object(th, "_send"), \
+             patch.object(th, "sync_scout_json"), \
+             patch.object(th, "_update_clv_log"):
+            th.run_settlement_check()
+            th.run_settlement_check()
+
+        cal = db.get_calibration()
+        bucket = next(c for c in cal if c["bucket"] == "0.55-0.60")
+        assert bucket["total_bets"] == 1
+
+
+class TestFeedCalibrationFromBetUnit:
+    """db.feed_calibration_from_bet() in isolation."""
+
+    def test_buckets_model_prob_correctly(self):
+        db.feed_calibration_from_bet(0.57, "W")
+        cal = db.get_calibration()
+        assert cal[0]["bucket"] == "0.55-0.60"
+        assert cal[0]["wins"] == 1
+        assert cal[0]["total_bets"] == 1
+
+    def test_loss_increments_total_but_not_wins(self):
+        db.feed_calibration_from_bet(0.72, "L")
+        cal = db.get_calibration()
+        assert cal[0]["bucket"] == "0.70-0.75"
+        assert cal[0]["wins"] == 0
+        assert cal[0]["total_bets"] == 1
+
+    def test_none_model_prob_is_a_noop(self):
+        db.feed_calibration_from_bet(None, "W")
+        assert db.get_calibration() == []
+
+    def test_push_is_a_noop(self):
+        db.feed_calibration_from_bet(0.55, "P")
+        assert db.get_calibration() == []
+
+    def test_multiple_bets_in_same_bucket_accumulate(self):
+        db.feed_calibration_from_bet(0.56, "W")
+        db.feed_calibration_from_bet(0.58, "L")
+        db.feed_calibration_from_bet(0.59, "W")
+        cal = db.get_calibration()
+        bucket = next(c for c in cal if c["bucket"] == "0.55-0.60")
+        assert bucket["total_bets"] == 3
+        assert bucket["wins"] == 2

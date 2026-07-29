@@ -5,6 +5,7 @@ Run: python -m pytest test_monitor_agent.py -v
 
 import json
 import time
+from datetime import datetime, timezone
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -32,7 +33,13 @@ def _reset_monitor_state():
 
 
 def _log(d, bet="Boston Red Sox", game="Tampa Bay Rays @ Boston Red Sox",
-         bet_type="ML", date="2026-07-28", stake=25.0, diagnostic_json=None, **overrides):
+         bet_type="ML", date=None, stake=25.0, diagnostic_json=None, **overrides):
+    # Defaults to today (UTC) rather than a hardcoded date -- check_neutral_fallback_rate()
+    # and similar checks filter on the literal current UTC date, so a fixed
+    # string here would silently stop matching "today" once the real
+    # calendar date moves past it (this broke once already: 2026-07-28
+    # hardcoded, test failed the moment the clock rolled to 2026-07-29).
+    date = date or datetime.now(timezone.utc).date().isoformat()
     kwargs = dict(
         date=date, bet=bet, bet_type=bet_type, game=game,
         sp="", park="BOS", umpire="", bet_odds="-120",

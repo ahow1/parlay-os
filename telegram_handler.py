@@ -1653,6 +1653,14 @@ def run_settlement_check(days_back: int | None = None) -> list[dict]:
                 mark_notified=True,
             )
 
+            # Feed the calibration_buckets learning loop right at the moment
+            # of settlement -- this used to happen once/day via _run_debrief,
+            # but that job only runs on GitHub Actions, which never sees
+            # Railway's settlement results (Railway never touches git).
+            # Since Railway is where every bet actually settles now, this is
+            # the only place left where "a bet just got a result" is true.
+            _db.feed_calibration_from_bet(bet.get("model_prob"), outcome)
+
             # P&L for message
             stake   = float(bet.get("stake") or 0)
             to_win  = _to_win(stake, str(bet.get("bet_odds", "")))
@@ -1686,6 +1694,14 @@ def run_settlement_check(days_back: int | None = None) -> list[dict]:
         bet_id  = bet["id"]
         result  = bet.get("result")
         r_lab   = {"W": "WIN", "L": "LOSS", "P": "PUSH"}.get(result)
+
+        # These bets got a result through some other path (manual /settle,
+        # api_settle/api_resolve) that never fed calibration either -- do it
+        # here, once, regardless of over_cap (an over_cap pick's model_prob
+        # accuracy is still real calibration signal even though it was never
+        # staked) or whether a Telegram notification actually goes out below.
+        if r_lab is not None:
+            _db.feed_calibration_from_bet(bet.get("model_prob"), result)
 
         if bet.get("over_cap") or r_lab is None:
             # over_cap: no ping owed by design. Unrecognized result: don't
