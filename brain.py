@@ -239,8 +239,8 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         print(f"  SKIP [{away_name} @ {home_name}]: unknown team code — away={away_code} home={home_code}")
         return None
 
-    # Resolve game_pk from schedule
-    game_pk   = _resolve_game_pk(away_name, game_date)
+    # Resolve game_pk from schedule (commence_utc disambiguates doubleheaders)
+    game_pk   = _resolve_game_pk(away_name, game_date, event.get("commence_utc", ""))
 
     # ── Market ───────────────────────────────────────────────────────────────
     market = full_market_snapshot(
@@ -3805,18 +3805,55 @@ def _post_public_channel(locks: list, flips: list, today: str) -> None:
 
 # ── HELPERS ───────────────────────────────────────────────────────────────────
 
-def _resolve_game_pk(team_name: str, game_date: str) -> int | None:
+def _resolve_game_pk(team_name: str, game_date: str, commence_utc: str = "") -> int | None:
+    """
+    On a genuine doubleheader day, MLB's schedule endpoint returns two
+    distinct games (gameNumber 1/2, different gamePk, different real
+    starters/lineups) for the same team pair. Without commence_utc this
+    returned the FIRST match unconditionally, so The Odds API's two
+    distinct events for the DH (different IDs, commence_time ~6h apart —
+    confirmed 2026-07-29 for an ATL@NYM doubleheader, Chris Sale/Christian
+    Scott vs AJ Smith-Shawver/Sean Manaea) both resolved to Game 1's
+    gamePk. Game 2 then got Game 1's lineups/pitchers/props analyzed a
+    second time under its own event, producing picks byte-for-byte
+    identical to Game 1's real ones — exactly what looked like "the same
+    game analyzed twice" in the scout log, and what the slip-assembly
+    dedup guard (_daily_bet_slip) was silently (and, for this case,
+    WRONGLY) dropping as duplicates, since Game 2 never got its own real
+    analysis at all.
+    """
     try:
         r = _http_get(
             f"{STATSAPI}/schedule?sportId=1&date={game_date}&hydrate=game",
             timeout=8
         )
+        matches = []
         for gd in r.json().get("dates", []):
             for g in gd.get("games", []):
                 at = g.get("teams", {}).get("away", {}).get("team", {}).get("name", "")
                 ht = g.get("teams", {}).get("home", {}).get("team", {}).get("name", "")
                 if team_name in at or at in team_name or team_name in ht or ht in team_name:
-                    return g.get("gamePk")
+                    matches.append(g)
+        if not matches:
+            return None
+        if len(matches) == 1 or not commence_utc:
+            return matches[0].get("gamePk")
+
+        # Multiple games for this team-pair today (doubleheader) — pick the
+        # one whose actual start time is closest to this event's commence_utc.
+        try:
+            target = datetime.fromisoformat(commence_utc.replace("Z", "+00:00"))
+        except Exception:
+            return matches[0].get("gamePk")
+
+        def _time_delta(g: dict) -> float:
+            try:
+                gt = datetime.fromisoformat(g.get("gameDate", "").replace("Z", "+00:00"))
+                return abs((gt - target).total_seconds())
+            except Exception:
+                return float("inf")
+
+        return min(matches, key=_time_delta).get("gamePk")
     except Exception:
         pass
     return None
