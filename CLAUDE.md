@@ -117,6 +117,7 @@ $27 while Kelly stakes stay at $9 — the daily cap ($3.32) blocks every bet on 
 | Stake mismatch | brain.py daily cap uses `sizing_bankroll()` — Kelly and cap must use same basis |
 | Telegram spam (empty/status-only sends) | `_daily_bet_slip` sent all 3 parts unconditionally, checked `has_bets` only after sending; near-miss "no qualifying bets" message also fired every empty run. Fixed 2026-07-07: gated all sends behind a real `_has_any_pick` check (locks/flips/parlay/nrfi/totals/props), near-miss message now log-only, never sent to Telegram |
 | Daily cap / props pool too small for new stake bands | Raising stake bands without raising `daily_budget_pct` and `POOL_PROPS` reintroduces the "cap blocks everything" bug — the two must move together |
+| Railway config-as-code is per-service, not shared | A single `railway.json` with a top-level `deploy.startCommand` applies to **every** Railway service that doesn't have its own config path set — there is no `services` array in Railway's schema. This meant `worker` and `health` had no service-specific config path set in their dashboard Settings, so both silently fell back to reading root `railway.json` and ran `python api.py` (the `web` command) instead of their real commands. **Practical effect: none of Railway's continuous loops — CLV capture, settlement, the Monitor, the Analyst, and the sync bridge — had ever actually run in production**, discovered 2026-07-29. Fixed by splitting into `railway.json` (web, default path — no dashboard change needed), `railway.worker.json`, and `railway.health.json`, with `worker`'s and `health`'s dashboard Config-as-code Path pointed at their respective files. If someone edits `railway.json` in the future assuming it's global, this regresses silently — always check whether the change needs to land in all three files. |
 
 ---
 
@@ -219,6 +220,14 @@ GitHub Actions and Railway.
   tab if Railway is ever down. They no longer run on a schedule.
 - **Dashboard**: web-production-4366d.up.railway.app
 - **Seed bets to Railway**: `POST /api/reset_bets`
+- **Config-as-code is split per service** (see Known Bugs table for why): `railway.json`
+  (repo root, default path → `web` service, `python api.py`), `railway.worker.json`
+  (→ `worker` service, `python brain.py --bot`), `railway.health.json` (→ `health`
+  service, `python health_check.py --loop`). Each of `worker` and `health`'s Railway
+  dashboard **Settings → Config-as-code Path** must point at its matching file — this
+  is a per-service dashboard setting, not something a repo file alone can control. If
+  you add a 4th service or rename one, it needs both a new file here AND the dashboard
+  path set, or it silently inherits `web`'s command.
 
 ### GitHub Actions Required Secrets
 - `ODDS_API_KEY`
