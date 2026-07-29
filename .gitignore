@@ -8,9 +8,21 @@ __pycache__/
 .pytest_cache/
 data_cache/
 *.log
+errors.log.*
 *.swp
 runlog.txt
 sgo_cache.json
+
+# archive_engine.write_archive_json()'s daily pick/analysis snapshots --
+# local-only, never committed by any GH Actions job (unlike last_scout.json/
+# props_output.json/clv_log.json, which are), and carries the same real
+# pick/stake sensitivity as parlay_os.db.
+archives/
+
+# DB backups taken before destructive/live operations -- same real
+# financial-data sensitivity as parlay_os.db itself (already caught by
+# *.db above, listed explicitly for clarity).
+backups/
 
 # Agent 2 (THE ANALYST)'s local institutional memory -- potentially
 # sensitive pick data, not code. Railway's persistent filesystem keeps
