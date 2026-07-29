@@ -499,6 +499,7 @@ def log_bet(date, bet, bet_type, game, sp, park, umpire,
               situations_triggered, abs_score,
               sharp_checklist_results, confidence_engine_score,
               1 if over_cap else 0, diagnostic_json))
+    return verify_hash
 
 
 def get_pick_by_hash(verify_hash: str) -> dict | None:
@@ -510,108 +511,74 @@ def get_pick_by_hash(verify_hash: str) -> dict | None:
     return dict(row) if row else None
 
 
-def sync_pending_bets_from_github(repo: str = "ahow1/parlay-os", branch: str = "main",
-                                   timeout: int = 15) -> int:
-    """One-way pull: GitHub Actions is the authoritative source for picks
-    (see CLAUDE.md's Deployment section) but Railway's --bot process has no
-    git integration and never sees anything GitHub commits after Railway's
-    last redeploy -- without this, Railway's settlement/CLV loops silently
-    have nothing new to act on. Fetches the latest parlay_os.db committed to
-    GitHub and inserts any PENDING bet (result IS NULL) not already present
-    locally, matched by verify_hash (a stable SHA256 computed once at
-    log_bet() time, so it round-trips safely across the two databases).
+def push_bet_to_railway(bet_row: dict, timeout: int = 8) -> bool:
+    """One-way push: called right after a bet is logged locally during a
+    GitHub Actions scout run (see brain.py's _log_bet_with_retry /
+    _log_pick_with_retry), POSTs the just-inserted row to Railway's
+    /api/sync_bet endpoint so Railway's settlement/CLV loops see it without
+    waiting for Railway's next redeploy -- Railway's --bot process never
+    touches git (see CLAUDE.md's Deployment section), so it otherwise has
+    no way to learn about a pick GitHub Actions just generated.
 
-    Never overwrites or touches an existing local row -- this database
-    stays authoritative for settlement/CLV results once a bet has arrived
-    here; only new picks flow one-way from GitHub in.
+    Replaces the old pull-based sync_pending_bets_from_github(), which
+    fetched parlay_os.db from a public raw.githubusercontent.com URL --
+    dead since parlay_os.db stopped being committed to git for privacy
+    reasons (this repo is public; see the commit that added *.db to
+    .gitignore).
 
-    Never raises -- a fetch/parse failure just means nothing new synced
-    this tick, not a crash of the caller's loop. Returns the number of new
-    rows inserted."""
-    import tempfile
+    No-op (returns False, no request made) unless both RAILWAY_SYNC_URL and
+    SYNC_SECRET are configured -- e.g. on Railway itself, which never needs
+    to push to itself, or in local/dev runs. Never raises -- a failed push
+    just means this one pick doesn't reach Railway yet; nothing else in the
+    scout run depends on it."""
     import requests
 
-    url = f"https://raw.githubusercontent.com/{repo}/{branch}/parlay_os.db"
+    base_url = os.environ.get("RAILWAY_SYNC_URL", "").rstrip("/")
+    secret   = os.environ.get("SYNC_SECRET", "")
+    if not base_url or not secret:
+        return False
     try:
-        resp = requests.get(url, timeout=timeout)
-        resp.raise_for_status()
+        resp = requests.post(
+            f"{base_url}/api/sync_bet",
+            json=bet_row,
+            headers={"Authorization": f"Bearer {secret}"},
+            timeout=timeout,
+        )
+        if resp.status_code != 200:
+            print(f"[SYNC] push failed: HTTP {resp.status_code} {resp.text[:200]}")
+            return False
+        return bool(resp.json().get("inserted"))
     except Exception as e:
-        print(f"[SYNC] fetch from GitHub failed: {e}")
-        return 0
+        print(f"[SYNC] push error: {e}")
+        return False
 
-    tmp_path = None
-    try:
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
-            tmp.write(resp.content)
-            tmp_path = tmp.name
 
-        try:
-            remote_conn = sqlite3.connect(f"file:{tmp_path}?mode=ro", uri=True)
-            remote_conn.row_factory = sqlite3.Row
-            remote_cols = {r[1] for r in remote_conn.execute("PRAGMA table_info(bets)")}
-        except Exception as e:
-            print(f"[SYNC] couldn't open fetched db: {e}")
-            return 0
-
-        with _conn() as local_conn:
-            local_cols = {r[1] for r in local_conn.execute("PRAGMA table_info(bets)")}
-        shared_cols = sorted(remote_cols & local_cols)
-        if "verify_hash" not in shared_cols or "id" not in shared_cols:
-            print("[SYNC] schema mismatch (missing verify_hash/id) — aborting sync")
-            remote_conn.close()
-            return 0
-
-        select_cols = ", ".join(shared_cols)
-        remote_pending = remote_conn.execute(
-            f"SELECT {select_cols} FROM bets WHERE result IS NULL"
-        ).fetchall()
-        remote_conn.close()
-
-        insert_cols = [c for c in shared_cols if c != "id"]
+def insert_synced_bet(row: dict) -> bool:
+    """Receiving side of push_bet_to_railway() -- called by api.py's
+    POST /api/sync_bet endpoint. Inserts the row exactly as received,
+    reusing its original verify_hash/timestamp rather than recomputing them
+    (recomputing would use a fresh timestamp and produce a different hash
+    than the sender already has, breaking dedup). Never overwrites an
+    existing row -- if a row with this verify_hash is already present
+    locally (already synced, or settled independently on this side), this
+    is a no-op. Returns True if a new row was inserted."""
+    vh = row.get("verify_hash")
+    if not vh:
+        return False
+    with _conn() as conn:
+        existing = conn.execute("SELECT 1 FROM bets WHERE verify_hash=?", (vh,)).fetchone()
+        if existing:
+            return False
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(bets)")}
+        insert_cols = [c for c in row.keys() if c in cols and c != "id"]
+        if "verify_hash" not in insert_cols or "date" not in insert_cols:
+            return False
         placeholders = ", ".join("?" for _ in insert_cols)
-        insert_sql = f"INSERT INTO bets ({', '.join(insert_cols)}) VALUES ({placeholders})"
-
-        inserted = 0
-        with _conn() as conn:
-            existing_hashes = {r[0] for r in conn.execute("SELECT verify_hash FROM bets")}
-            for row in remote_pending:
-                vh = row["verify_hash"]
-                if not vh or vh in existing_hashes:
-                    continue
-                values = [row[c] for c in insert_cols]
-                try:
-                    conn.execute(insert_sql, values)
-                    inserted += 1
-                    existing_hashes.add(vh)
-                except Exception as e:
-                    print(f"[SYNC] insert failed for verify_hash={vh}: {e}")
-        if inserted:
-            print(f"[SYNC] pulled {inserted} new pending bet(s) from GitHub")
-        return inserted
-    except Exception as e:
-        print(f"[SYNC] sync error: {e}")
-        return 0
-    finally:
-        if tmp_path and os.path.exists(tmp_path):
-            try:
-                os.remove(tmp_path)
-            except Exception:
-                pass
-
-
-def run_github_bet_sync_loop(stop_event=None) -> None:
-    """Background loop: calls sync_pending_bets_from_github() every 15 min
-    (same cadence as run_pre_game_clv_loop) so Railway's --bot process
-    keeps picking up new picks GitHub Actions generates and commits. Meant
-    to run as a daemon thread started by brain.py in --bot mode."""
-    import threading
-    _stop = stop_event or threading.Event()
-    while not _stop.is_set():
-        try:
-            sync_pending_bets_from_github()
-        except Exception as e:
-            print(f"[SYNC] bet sync loop error: {e}")
-        _stop.wait(900)  # 15-minute cadence
+        conn.execute(
+            f"INSERT OR IGNORE INTO bets ({', '.join(insert_cols)}) VALUES ({placeholders})",
+            [row[c] for c in insert_cols],
+        )
+        return True
 
 
 def reset_daily_exposure(date: str | None = None) -> int:

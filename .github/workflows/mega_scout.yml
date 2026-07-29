@@ -70,6 +70,8 @@ jobs:
           TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
           BANKROLL_OVERRIDE:    ${{ secrets.BANKROLL_OVERRIDE }}
+          RAILWAY_SYNC_URL:     ${{ secrets.RAILWAY_SYNC_URL }}
+          SYNC_SECRET:          ${{ secrets.SYNC_SECRET }}
         run: python brain.py --window day
 
       - name: Commit scout outputs
@@ -103,6 +105,8 @@ jobs:
           TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
           BANKROLL_OVERRIDE:    ${{ secrets.BANKROLL_OVERRIDE }}
+          RAILWAY_SYNC_URL:     ${{ secrets.RAILWAY_SYNC_URL }}
+          SYNC_SECRET:          ${{ secrets.SYNC_SECRET }}
         run: python brain.py --window evening
 
       - name: Commit scout outputs
@@ -136,6 +140,8 @@ jobs:
           TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
           BANKROLL_OVERRIDE:    ${{ secrets.BANKROLL_OVERRIDE }}
+          RAILWAY_SYNC_URL:     ${{ secrets.RAILWAY_SYNC_URL }}
+          SYNC_SECRET:          ${{ secrets.SYNC_SECRET }}
         run: python brain.py --window west
 
       - name: Commit scout outputs

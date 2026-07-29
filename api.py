@@ -613,6 +613,34 @@ def api_settle():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/sync_bet", methods=["POST"])
+def api_sync_bet():
+    """Receiving side of the GitHub Actions -> Railway pick sync (replaces
+    the old pull-based db.sync_pending_bets_from_github(), dead since
+    parlay_os.db stopped being committed to git). GH Actions' scout
+    workflow POSTs each newly-logged pending bet here right after logging
+    it locally -- see brain.py's _push_synced_pick / db.push_bet_to_railway.
+
+    Auth: Authorization: Bearer <SYNC_SECRET> -- shared secret, must match
+    the SYNC_SECRET env var configured on both sides. Not optional: this
+    endpoint can insert arbitrary bet rows, so an unauthenticated version
+    would let anyone who finds the dashboard URL inject fake pending bets."""
+    secret = os.environ.get("SYNC_SECRET", "")
+    auth = request.headers.get("Authorization", "")
+    provided = auth[len("Bearer "):] if auth.startswith("Bearer ") else ""
+    if not secret or provided != secret:
+        return jsonify({"error": "unauthorized"}), 401
+
+    data = request.get_json(silent=True) or {}
+    if not data.get("verify_hash"):
+        return jsonify({"error": "verify_hash required"}), 400
+    try:
+        inserted = _db.insert_synced_bet(data)
+        return jsonify({"ok": True, "inserted": inserted})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/update", methods=["POST"])
 def api_update():
     data = request.get_json(silent=True) or {}

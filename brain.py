@@ -3587,6 +3587,23 @@ def _render_slip_picks(slip_picks: list, today: str, day_cls: dict, header_lines
     return chunks
 
 
+def _push_synced_pick(verify_hash: str | None) -> None:
+    """After a successful local log_bet(), push the just-inserted row to
+    Railway over HTTP (db.push_bet_to_railway) -- a no-op unless
+    RAILWAY_SYNC_URL/SYNC_SECRET are configured, so this is safe to call
+    unconditionally from every pick-logging call site. Never lets a sync
+    failure affect the caller -- the pick is already safely stored locally
+    (and will still reach Telegram) regardless of whether this succeeds."""
+    if not verify_hash:
+        return
+    try:
+        row = _db.get_pick_by_hash(verify_hash)
+        if row:
+            _db.push_bet_to_railway(row)
+    except Exception as e:
+        error_logger.log_error("brain._push_synced_pick", e)
+
+
 def _log_bet_with_retry(today: str, analysis: dict, side: str, conv: str, over_cap: bool = False) -> bool:
     """Persist a bet to the DB, retrying once on failure. Returns True if
     stored, False if it failed twice. Caller must suppress the Telegram/
@@ -3606,7 +3623,7 @@ def _log_bet_with_retry(today: str, analysis: dict, side: str, conv: str, over_c
             _ump_e_log   = analysis.get("ump_edge") or {}
             _hd_log      = analysis.get("home_dog") or {}
             _sharp_s     = analysis.get("market_sharp_signal", "")
-            _db.log_bet(
+            _verify_hash = _db.log_bet(
                 date=today,
                 bet=analysis.get(f"{side}_name", ""),
                 bet_type="ML",
@@ -3632,6 +3649,7 @@ def _log_bet_with_retry(today: str, analysis: dict, side: str, conv: str, over_c
                 over_cap=over_cap,
                 diagnostic_json=_safe_diagnostic_json(_build_ml_diagnostics(analysis, side)),
             )
+            _push_synced_pick(_verify_hash)
             return True
         except Exception as e:
             print(f"  DB log error (attempt {attempt}/2): {e}")
@@ -3657,7 +3675,7 @@ def _log_pick_with_retry(bet_type: str, *, date: str, bet: str, game: str,
     daily archive project."""
     for attempt in (1, 2):
         try:
-            _db.log_bet(
+            _verify_hash = _db.log_bet(
                 date=date, bet=bet, bet_type=bet_type, game=game,
                 sp="", park="", umpire="", bet_odds=bet_odds,
                 model_prob=model_prob, market_prob=market_prob,
@@ -3666,6 +3684,7 @@ def _log_pick_with_retry(bet_type: str, *, date: str, bet: str, game: str,
                 over_cap=over_cap,
                 diagnostic_json=_safe_diagnostic_json(diagnostics),
             )
+            _push_synced_pick(_verify_hash)
             return True
         except Exception as e:
             print(f"  DB log error [{bet_type}] (attempt {attempt}/2): {e}")
@@ -6172,11 +6191,11 @@ if __name__ == "__main__":
             _sp_mon = SPMonitor(send_fn=_send_telegram)
             _threading.Thread(target=_sp_mon.run, name="sp-monitor", daemon=True).start()
             _threading.Thread(target=run_pre_game_clv_loop, name="clv-capture", daemon=True).start()
-            # GitHub Actions is the authoritative source for picks and has no
-            # git integration on Railway's side -- without this, settlement/CLV
-            # here would have nothing new to act on after Railway's last
-            # redeploy (see CLAUDE.md's Deployment section).
-            _threading.Thread(target=_db.run_github_bet_sync_loop, name="github-bet-sync", daemon=True).start()
+            # Picks reach Railway via a push, not a pull -- GitHub Actions
+            # POSTs each newly-logged bet to POST /api/sync_bet (api.py)
+            # right after logging it locally (see brain.py's
+            # _push_synced_pick / db.push_bet_to_railway). No loop needed
+            # on Railway's side for this anymore.
             # Agent 1 (THE MONITOR) -- rule-based health/data-quality watcher.
             # Toggle with MONITOR_ENABLED=false.
             try:

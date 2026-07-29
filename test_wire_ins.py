@@ -443,15 +443,38 @@ class TestWireIn4PreGameClvCapture:
         bot_block = src[src.index('if "--bot" in args:'):src.index('elif "--live" in args:')]
         assert "run_pre_game_clv_loop" in bot_block
 
-    def test_bot_mode_starts_the_github_bet_sync_loop(self):
-        """Railway's --bot process has no git integration -- without this
-        loop pulling picks GitHub Actions committed, settlement/CLV capture
-        (both moved to Railway) would have nothing new to act on."""
+    def test_bot_mode_no_longer_starts_the_dead_pull_based_sync_loop(self):
+        """The old pull-based bridge (fetching parlay_os.db from a public
+        raw.githubusercontent.com URL) is dead since the db stopped being
+        committed to git -- replaced by a push-based path (GH Actions POSTs
+        each new pick to Railway's /api/sync_bet right after logging it),
+        which needs no loop on Railway's side at all."""
         import inspect
         import brain
         src = inspect.getsource(brain)
         bot_block = src[src.index('if "--bot" in args:'):src.index('elif "--live" in args:')]
-        assert "run_github_bet_sync_loop" in bot_block
+        assert "run_github_bet_sync_loop" not in bot_block
+
+    def test_pick_logging_pushes_to_railway_after_a_successful_local_log(self):
+        """Both ML and non-ML pick-logging paths must call _push_synced_pick
+        right after db.log_bet() succeeds -- the actual send-side of the new
+        push-based sync bridge (see test_github_bet_sync.py for full
+        coverage of the push/receive mechanics themselves)."""
+        import inspect
+        import brain
+        ml_src   = inspect.getsource(brain._log_bet_with_retry)
+        pick_src = inspect.getsource(brain._log_pick_with_retry)
+        assert "_push_synced_pick" in ml_src
+        assert "_push_synced_pick" in pick_src
+
+    def test_sync_bet_endpoint_exists_and_requires_auth(self):
+        """The receiving side of the push bridge -- POST /api/sync_bet in
+        api.py -- must exist and must reject unauthenticated requests
+        (it can insert arbitrary bet rows)."""
+        import api
+        client = api.app.test_client()
+        resp = client.post("/api/sync_bet", json={"verify_hash": "x", "date": "2026-07-28"})
+        assert resp.status_code == 401
 
     def test_bot_mode_starts_the_monitor_agent_loop_gated_on_is_enabled(self):
         """Agent 1 (THE MONITOR) must start in --bot mode, but only when
