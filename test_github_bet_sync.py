@@ -8,7 +8,8 @@ after logging it locally.
 
 Covers, in order: db.log_bet()'s verify_hash return, db.insert_synced_bet()
 (the receiving-side insert/dedup logic), db.push_bet_to_railway() (the
-sending-side HTTP call), api.py's /api/sync_bet endpoint (auth + wiring),
+sending-side HTTP call), brain.py's /api/sync_bet endpoint (auth + wiring
+-- moved here from api.py/web since web and worker don't share storage),
 and brain.py's _push_synced_pick() integration point.
 
 Run: python -m pytest test_github_bet_sync.py -v
@@ -183,17 +184,20 @@ class TestPushBetToRailway:
 
 
 class TestSyncBetEndpoint:
-    """POST /api/sync_bet in api.py -- the receiving side, as Railway's
-    Flask process actually exposes it."""
+    """POST /api/sync_bet in brain.py -- worker's only HTTP route, as
+    Railway's worker process actually exposes it. Moved off web (api.py)
+    because web and worker don't share storage -- a pick synced into
+    web's local db would never reach worker's settlement/CLV/Monitor/
+    Analyst loops, which all read worker's own separate local database."""
 
     @pytest.fixture(autouse=True)
     def _isolated_db(self, tmp_path, monkeypatch):
-        import api
-        tmp_db = str(tmp_path / "api_sync_test.db")
+        import brain
+        tmp_db = str(tmp_path / "worker_sync_test.db")
         monkeypatch.setenv("SYNC_SECRET", "test-secret")
-        with patch.object(db, "DB_PATH", tmp_db), patch.object(api, "_db", db):
+        with patch.object(db, "DB_PATH", tmp_db), patch.object(brain, "_db", db):
             db.init_db()
-            self.client = api.app.test_client()
+            self.client = brain._build_sync_bet_app().test_client()
             yield db
 
     def _payload(self, **overrides):
@@ -279,14 +283,20 @@ class TestPushSyncedPickIntegration:
 
 class TestEndToEndGhActionsToRailway:
     """Full path: a bet logged via the GH Actions pick-generation flow
-    (log_bet -> verify_hash) reaches Railway's local db through the new
-    endpoint, exercised as two separate processes/databases would see it."""
+    (log_bet -> verify_hash) reaches worker's local db through the new
+    endpoint, exercised as two separate processes/databases would see it.
 
-    def test_bet_logged_on_gh_actions_side_reaches_railway_via_endpoint(self, tmp_path, monkeypatch):
-        import api
+    Critically, "worker's local db" here is the SAME db.DB_PATH the
+    settlement/CLV/Monitor/Analyst loops would read in the real process --
+    not a separate isolated test db merely pretending to be shared. That's
+    the exact bug this whole change fixes: a pick landing in a database
+    those loops don't read is as good as lost."""
 
-        gh_db_path = str(tmp_path / "gh_actions.db")
-        railway_db_path = str(tmp_path / "railway.db")
+    def test_bet_logged_on_gh_actions_side_reaches_worker_via_endpoint(self, tmp_path, monkeypatch):
+        import brain
+
+        gh_db_path     = str(tmp_path / "gh_actions.db")
+        worker_db_path = str(tmp_path / "worker.db")
 
         # "GitHub Actions" logs a bet locally.
         with patch.object(db, "DB_PATH", gh_db_path):
@@ -295,20 +305,29 @@ class TestEndToEndGhActionsToRailway:
             gh_row = db.get_pick_by_hash(vh)
 
         # It gets pushed over HTTP -- we simulate the network hop by handing
-        # the row straight to "Railway"'s Flask endpoint via its test client.
-        with patch.object(db, "DB_PATH", railway_db_path), patch.object(api, "_db", db):
+        # the row straight to worker's Flask endpoint via its test client.
+        # patch.object(db, "DB_PATH", ...) is what makes this THE SAME
+        # database instance worker's own settlement/CLV loops read from in
+        # the real process (they all go through db.py's module-level
+        # DB_PATH) -- not a second, disconnected "pretend shared" db.
+        with patch.object(db, "DB_PATH", worker_db_path), patch.object(brain, "_db", db):
             db.init_db()
             monkeypatch.setenv("SYNC_SECRET", "shared-secret")
-            client = api.app.test_client()
+            client = brain._build_sync_bet_app().test_client()
             resp = client.post("/api/sync_bet", json=dict(gh_row),
                                 headers={"Authorization": "Bearer shared-secret"})
             assert resp.status_code == 200
             assert resp.get_json()["inserted"] is True
 
-            railway_row = db.get_pick_by_hash(vh)
-            assert railway_row is not None
-            assert railway_row["bet"] == "Boston Red Sox"
-            assert railway_row["result"] is None  # arrives pending
+            # Read back through the exact same path the settlement loop
+            # uses (db.get_bets() / db.get_pick_by_hash()), proving the
+            # inserted row is visible to worker's own queries, not just
+            # to the endpoint that wrote it.
+            worker_row = db.get_pick_by_hash(vh)
+            assert worker_row is not None
+            assert worker_row["bet"] == "Boston Red Sox"
+            assert worker_row["result"] is None  # arrives pending
+            assert worker_row in db.get_bets()
 
             # Duplicate POST (e.g. a retried request) must not double-insert.
             resp2 = client.post("/api/sync_bet", json=dict(gh_row),

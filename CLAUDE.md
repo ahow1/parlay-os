@@ -194,16 +194,41 @@ GitHub Actions and Railway.
   with a push: right after `brain.py`'s `_log_bet_with_retry` /
   `_log_pick_with_retry` successfully log a pick locally on a GH Actions
   scout run, `brain._push_synced_pick()` fetches that just-inserted row
-  and calls `db.push_bet_to_railway()`, which `POST`s it to Railway's
-  `POST /api/sync_bet` endpoint (`api.py`), auth'd with a shared
-  `SYNC_SECRET` bearer token. The receiving side, `db.insert_synced_bet()`,
-  dedupes by `verify_hash` (reusing the sender's original hash/timestamp,
-  never recomputing them) and only ever inserts — it never overwrites an
-  existing local row, same guarantee the old bridge made. No loop runs on
-  Railway's side anymore; the push happens once per pick, at log time.
+  and calls `db.push_bet_to_railway()`, which `POST`s it to
+  `POST /api/sync_bet`, auth'd with a shared `SYNC_SECRET` bearer token.
+  The receiving side, `db.insert_synced_bet()`, dedupes by `verify_hash`
+  (reusing the sender's original hash/timestamp, never recomputing them)
+  and only ever inserts — it never overwrites an existing local row, same
+  guarantee the old bridge made. No loop runs on the receiving side
+  anymore; the push happens once per pick, at log time.
   `push_bet_to_railway()` no-ops (no HTTP call) unless both
   `RAILWAY_SYNC_URL` and `SYNC_SECRET` are set — true on Railway itself,
   which never needs to push to itself.
+- **`POST /api/sync_bet` lives on `worker` (`brain.py`), not `web` (`api.py`)
+  — moved 2026-07-29.** It was originally added to `api.py` since that's
+  the service with an HTTP surface, but `web` and `worker` are separate
+  Railway services that **do not share storage** (Railway doesn't support
+  attaching one volume to multiple services) — each has its own local
+  `parlay_os.db`. A pick synced into `web`'s db was invisible to every
+  `worker`-side loop (settlement, CLV capture, the Monitor, the Analyst),
+  which all read `worker`'s own separate database — so the sync bridge
+  was, in effect, writing picks nobody ever read. Fixed by moving the
+  route itself onto `worker`: `brain.py`'s `--bot` mode now also starts a
+  minimal Flask listener (`_build_sync_bet_app` / `_run_sync_bet_listener`,
+  its own daemon thread, `0.0.0.0:$PORT`) exposing exactly this one route,
+  reusing the identical auth/insert logic. `api.py` no longer has this
+  route at all — one source of truth, not two routes that look the same
+  but write to different databases.
+  - **`RAILWAY_SYNC_URL` must point at `worker`'s URL now, not `web`'s.**
+    `worker` had no public HTTP surface before this change (it was pure
+    background threads) — it needs a Railway-generated public domain
+    (Railway → `worker` service → Settings → Networking → Generate
+    Domain) before GitHub Actions can reach it. Update the
+    `RAILWAY_SYNC_URL` GitHub secret to that new domain once generated.
+  - **Known trade-off**: `worker` now has a public HTTP endpoint purely
+    to receive this one sync call — not a general-purpose web service,
+    just the minimum surface needed so pushed picks land in the same
+    database the continuous loops actually read.
 - **Railway** (`brain.py --bot`, persistent worker): **all continuous loops**
   — CLV capture (`run_pre_game_clv_loop`, every 15 min), settlement
   (`_settler_loop`, every 30 min 4pm–1am ET, no `days_back` bound), SP
@@ -237,16 +262,18 @@ GitHub Actions and Railway.
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 - `BANKROLL_OVERRIDE` ← critical, without this stakes collapse
-- `RAILWAY_SYNC_URL` ← Railway dashboard base URL (e.g. `https://web-production-4366d.up.railway.app`), used by the 3 scout jobs (day/evening/west) to push newly-logged picks to Railway
-- `SYNC_SECRET` ← shared bearer-token secret for `POST /api/sync_bet`; must match Railway's `SYNC_SECRET` exactly
+- `RAILWAY_SYNC_URL` ← **`worker`'s** Railway domain (not `web`'s — the sync route moved 2026-07-29, see Deployment), used by the 3 scout jobs (day/evening/west) to push newly-logged picks. `worker` needs a Railway-generated public domain first (it had none before this change) — update this secret to that domain once generated.
+- `SYNC_SECRET` ← shared bearer-token secret for `POST /api/sync_bet`; must match `worker`'s `SYNC_SECRET` exactly
 
 ### Railway Required Env Vars
+These apply to the `worker` service — it's the one running `brain.py --bot`,
+the continuous loops, and (as of 2026-07-29) the `POST /api/sync_bet` listener.
 - `TELEGRAM_BOT_TOKEN` ← must match the GitHub secret exactly (same bot, one chat)
 - `TELEGRAM_CHAT_ID`
 - `ODDS_API_KEY`
 - `SPORTSGAMEODDS_API_KEY` ← needed now that CLV capture runs here (SGO no-vig consensus)
 - `BANKROLL_OVERRIDE`
-- `SYNC_SECRET` ← must match the GitHub secret exactly; auths incoming `POST /api/sync_bet` requests. Do NOT also set `RAILWAY_SYNC_URL` here — that would make Railway try to push picks to itself.
+- `SYNC_SECRET` ← must match the GitHub secret exactly; auths incoming `POST /api/sync_bet` requests. Do NOT also set `RAILWAY_SYNC_URL` on `worker` — that would make it try to push picks to itself.
 - `ODDS_SOURCE=sgo`
 - `ANTHROPIC_API_KEY` ← used by clv_tracker.py's Claude pick reviewer AND Agent 2 (THE ANALYST)
 - `MONITOR_ENABLED` ← Agent 1 (THE MONITOR), default `true`. Set `false` to disable without a code change.

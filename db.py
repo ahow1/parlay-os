@@ -554,9 +554,11 @@ def push_bet_to_railway(bet_row: dict, timeout: int = 8) -> bool:
 
 
 def insert_synced_bet(row: dict) -> bool:
-    """Receiving side of push_bet_to_railway() -- called by api.py's
-    POST /api/sync_bet endpoint. Inserts the row exactly as received,
-    reusing its original verify_hash/timestamp rather than recomputing them
+    """Receiving side of push_bet_to_railway() -- called by brain.py's
+    POST /api/sync_bet endpoint (worker's only HTTP route; moved from
+    api.py/web since web and worker don't share storage). Inserts the row
+    exactly as received, reusing its original verify_hash/timestamp rather
+    than recomputing them
     (recomputing would use a fresh timestamp and produce a different hash
     than the sender already has, breaking dedup). Never overwrites an
     existing row -- if a row with this verify_hash is already present

@@ -6219,6 +6219,58 @@ def _run_morning_planner():
     _send_telegram(msg)
 
 
+# ── SYNC-BET LISTENER (worker's only HTTP surface) ────────────────────────────
+
+def _build_sync_bet_app():
+    """
+    Builds the Flask app for POST /api/sync_bet without binding a port --
+    kept separate from _run_sync_bet_listener() so tests can drive it with
+    Flask's test_client() instead of opening a real socket.
+
+    Moved here from api.py (web) because web and worker don't share
+    storage -- Railway doesn't support attaching one volume to multiple
+    services. A pick synced into web's local db was invisible to every
+    worker-side loop (settlement, CLV capture, Monitor, Analyst), which
+    all read worker's own separate local database. This is the only place
+    this route exists now; api.py's copy has been removed.
+
+    Auth/insert logic is unchanged from the original api.py version:
+    Authorization: Bearer <SYNC_SECRET>, insert via db.insert_synced_bet()
+    (dedupes on the sender's own verify_hash, never overwrites an existing
+    row).
+    """
+    from flask import Flask, jsonify, request
+
+    app = Flask("parlay_os_sync")
+
+    @app.route("/api/sync_bet", methods=["POST"])
+    def _sync_bet():
+        secret = os.environ.get("SYNC_SECRET", "")
+        auth = request.headers.get("Authorization", "")
+        provided = auth[len("Bearer "):] if auth.startswith("Bearer ") else ""
+        if not secret or provided != secret:
+            return jsonify({"error": "unauthorized"}), 401
+
+        data = request.get_json(silent=True) or {}
+        if not data.get("verify_hash"):
+            return jsonify({"error": "verify_hash required"}), 400
+        try:
+            inserted = _db.insert_synced_bet(data)
+            return jsonify({"ok": True, "inserted": inserted})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    return app
+
+
+def _run_sync_bet_listener():
+    """Runs the sync-bet Flask app, bound to 0.0.0.0:$PORT (Railway injects
+    PORT for any service with an exposed public domain). Blocking call --
+    always start this in its own daemon thread."""
+    port = int(os.environ.get("PORT", 5000))
+    _build_sync_bet_app().run(host="0.0.0.0", port=port, threaded=True, use_reloader=False)
+
+
 # ── ENTRY POINT ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -6272,11 +6324,16 @@ if __name__ == "__main__":
             _sp_mon = SPMonitor(send_fn=_send_telegram)
             _threading.Thread(target=_sp_mon.run, name="sp-monitor", daemon=True).start()
             _threading.Thread(target=run_pre_game_clv_loop, name="clv-capture", daemon=True).start()
-            # Picks reach Railway via a push, not a pull -- GitHub Actions
-            # POSTs each newly-logged bet to POST /api/sync_bet (api.py)
-            # right after logging it locally (see brain.py's
-            # _push_synced_pick / db.push_bet_to_railway). No loop needed
-            # on Railway's side for this anymore.
+            # Picks reach worker via a push, not a pull -- GitHub Actions
+            # POSTs each newly-logged bet to POST /api/sync_bet right after
+            # logging it locally (see brain.py's _push_synced_pick /
+            # db.push_bet_to_railway). This route lives on worker, not web
+            # (see _build_sync_bet_app) -- web and worker don't share
+            # storage, so a pick synced to web's db would never reach the
+            # settlement/CLV/Monitor/Analyst loops below, which all read
+            # worker's own local database. RAILWAY_SYNC_URL must point at
+            # worker's own Railway domain, not web's.
+            _threading.Thread(target=_run_sync_bet_listener, name="sync-bet-listener", daemon=True).start()
             # Agent 1 (THE MONITOR) -- rule-based health/data-quality watcher.
             # Toggle with MONITOR_ENABLED=false.
             try:

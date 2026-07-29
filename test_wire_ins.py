@@ -447,13 +447,24 @@ class TestWireIn4PreGameClvCapture:
         """The old pull-based bridge (fetching parlay_os.db from a public
         raw.githubusercontent.com URL) is dead since the db stopped being
         committed to git -- replaced by a push-based path (GH Actions POSTs
-        each new pick to Railway's /api/sync_bet right after logging it),
-        which needs no loop on Railway's side at all."""
+        each new pick to worker's own /api/sync_bet right after logging
+        it), which needs no polling loop on worker's side."""
         import inspect
         import brain
         src = inspect.getsource(brain)
         bot_block = src[src.index('if "--bot" in args:'):src.index('elif "--live" in args:')]
         assert "run_github_bet_sync_loop" not in bot_block
+
+    def test_bot_mode_starts_the_sync_bet_listener(self):
+        """web and worker don't share storage -- a pick synced into web's
+        local db is invisible to worker's settlement/CLV/Monitor/Analyst
+        loops. worker must run its own /api/sync_bet listener so pushed
+        picks land in the same database those loops read."""
+        import inspect
+        import brain
+        src = inspect.getsource(brain)
+        bot_block = src[src.index('if "--bot" in args:'):src.index('elif "--live" in args:')]
+        assert "_run_sync_bet_listener" in bot_block
 
     def test_pick_logging_pushes_to_railway_after_a_successful_local_log(self):
         """Both ML and non-ML pick-logging paths must call _push_synced_pick
@@ -468,13 +479,25 @@ class TestWireIn4PreGameClvCapture:
         assert "_push_synced_pick" in pick_src
 
     def test_sync_bet_endpoint_exists_and_requires_auth(self):
-        """The receiving side of the push bridge -- POST /api/sync_bet in
-        api.py -- must exist and must reject unauthenticated requests
-        (it can insert arbitrary bet rows)."""
+        """The receiving side of the push bridge -- POST /api/sync_bet,
+        now living on worker (brain.py), not web (api.py) -- must exist
+        and must reject unauthenticated requests (it can insert arbitrary
+        bet rows)."""
+        import brain
+        client = brain._build_sync_bet_app().test_client()
+        resp = client.post("/api/sync_bet", json={"verify_hash": "x", "date": "2026-07-28"})
+        assert resp.status_code == 401
+
+    def test_sync_bet_endpoint_removed_from_web(self):
+        """web and worker don't share storage (Railway doesn't support
+        attaching one volume to multiple services) -- a pick synced into
+        web's local db would be invisible to every worker-side loop
+        (settlement, CLV, Monitor, Analyst), which all read worker's own
+        database. The route must exist in exactly one place now."""
         import api
         client = api.app.test_client()
         resp = client.post("/api/sync_bet", json={"verify_hash": "x", "date": "2026-07-28"})
-        assert resp.status_code == 401
+        assert resp.status_code == 404
 
     def test_bot_mode_starts_the_monitor_agent_loop_gated_on_is_enabled(self):
         """Agent 1 (THE MONITOR) must start in --bot mode, but only when
