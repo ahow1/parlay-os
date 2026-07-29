@@ -13,20 +13,78 @@ import pytz
 class TestDrawdownProtection:
     """FIX 7: drawdown_tier must track against real settled P&L, not BANKROLL_OVERRIDE."""
 
-    def test_real_peak_bankroll_ignores_override(self):
-        """real_peak_bankroll() must return settled P&L peak, never the override."""
-        from bankroll_engine import real_peak_bankroll
-        # With override set to a large value, real_peak_bankroll should still
-        # return a value based on actual bet results, not the env var.
+    def _fresh_db(self, tmp_path, monkeypatch):
+        """Same isolation pattern TestBankrollAnchorSelfHeal already uses --
+        db.DB_PATH is read from PARLAY_DB at import time, so an isolated db
+        needs a real module reload, not just patch.object(db, 'DB_PATH', ...).
+        Also resets bankroll_engine's module-level _anchor_healed guard,
+        which otherwise makes ensure_bankroll_anchor() a permanent no-op
+        after its first call anywhere in this pytest process."""
+        db_path = str(tmp_path / "test_drawdown.db")
+        monkeypatch.setenv("PARLAY_DB", db_path)
+        import importlib
+        import db as _db
+        importlib.reload(_db)
+        _db.init_db()
+        import bankroll_engine as be
+        be._anchor_healed = False
+        return _db, be
+
+    def test_real_peak_bankroll_ignores_override(self, tmp_path, monkeypatch):
+        """real_peak_bankroll() must return settled P&L peak, never the
+        override. Previously this test called real_peak_bankroll() against
+        whatever parlay_os.db was in the working tree (no fixture at all)
+        and only passed because the committed db always had real data and
+        an existing anchor -- now seeded explicitly against an isolated db."""
+        _db, be = self._fresh_db(tmp_path, monkeypatch)
+        _db.set_bankroll_anchor(300.0, note="test anchor")
+        anchor_date = _db.get_bankroll_anchor()[1]
+        after = (date.fromisoformat(anchor_date) + timedelta(days=1)).isoformat()
+
+        _db.log_bet(date=after, bet="Winner", bet_type="ML", game="A @ B",
+                    sp="", park="", umpire="", bet_odds="+150",
+                    model_prob=0.6, market_prob=0.5, edge_pct=10.0,
+                    conviction="HIGH", stake=20.0)
+        row = _db.get_bets()[0]
+        _db.resolve_bet_by_id(bet_id=row["id"], closing_odds="+150",
+                               result="W", game_score="5-3")
+
         with patch.dict(os.environ, {"BANKROLL_OVERRIDE": "9999"}):
-            result = real_peak_bankroll()
+            result = be.real_peak_bankroll()
+
+        # 300 anchor + one win at +150/$20 stake -> +$30 profit -> peak 330
+        assert result == 330.0
         assert result < 9999, "real_peak_bankroll must not use BANKROLL_OVERRIDE"
 
-    def test_real_sizing_bankroll_ignores_override(self):
-        """real_sizing_bankroll() must return settled P&L, never the override."""
-        from bankroll_engine import real_sizing_bankroll
+    def test_real_sizing_bankroll_ignores_override(self, tmp_path, monkeypatch):
+        """real_sizing_bankroll() must return settled P&L, never the
+        override. Same fixture gap as test_real_peak_bankroll_ignores_override."""
+        _db, be = self._fresh_db(tmp_path, monkeypatch)
+        _db.set_bankroll_anchor(300.0, note="test anchor")
+        anchor_date = _db.get_bankroll_anchor()[1]
+        after = (date.fromisoformat(anchor_date) + timedelta(days=1)).isoformat()
+
+        _db.log_bet(date=after, bet="Winner", bet_type="ML", game="A @ B",
+                    sp="", park="", umpire="", bet_odds="+150",
+                    model_prob=0.6, market_prob=0.5, edge_pct=10.0,
+                    conviction="HIGH", stake=20.0)
+        win_row = _db.get_bets()[0]
+        _db.resolve_bet_by_id(bet_id=win_row["id"], closing_odds="+150",
+                               result="W", game_score="5-3")
+
+        _db.log_bet(date=after, bet="Loser", bet_type="ML", game="C @ D",
+                    sp="", park="", umpire="", bet_odds="-110",
+                    model_prob=0.55, market_prob=0.5, edge_pct=5.0,
+                    conviction="MEDIUM", stake=15.0)
+        loss_row = next(b for b in _db.get_bets() if b["bet"] == "Loser")
+        _db.resolve_bet_by_id(bet_id=loss_row["id"], closing_odds="-110",
+                               result="L", game_score="2-6")
+
         with patch.dict(os.environ, {"BANKROLL_OVERRIDE": "9999"}):
-            result = real_sizing_bankroll()
+            result = be.real_sizing_bankroll()
+
+        # 300 anchor + $30 win - $15 loss = 315
+        assert result == 315.0
         assert result < 9999, "real_sizing_bankroll must not use BANKROLL_OVERRIDE"
 
     def test_drawdown_tier_uses_real_pnl_not_override(self):
