@@ -127,7 +127,7 @@ class TestOutputShapeUnchanged:
     key off this exact dict shape -- wiring in real market data must never
     add, remove, or rename a field."""
 
-    EXPECTED_KEYS = {"player", "team", "prop", "line", "lam", "model_prob",
+    EXPECTED_KEYS = {"player", "team", "game", "prop", "line", "lam", "model_prob",
                       "market_p", "edge_pct", "stake", "n_games", "diagnostics"}
 
     def test_keys_unchanged_without_sgo_event(self):

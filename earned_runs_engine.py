@@ -21,6 +21,15 @@ import logging
 
 log = logging.getLogger(__name__)
 
+# How hard to pull model_p_over toward the market baseline when xFIP came
+# from sp_engine's ERA/BB9/K9/HR9 formula fallback rather than a real
+# FanGraphs/pybaseball lookup. 0.35 means edge_pct roughly two-thirds of
+# what an identical real-xFIP pick would show — enough that most marginal
+# fallback-driven picks fail the existing edge_pct>=8 / confidence>=60
+# gates, without blocking a genuinely huge signal outright.
+XFIP_ESTIMATE_SHRINK    = 0.35
+XFIP_ESTIMATE_CONF_CAP  = 72
+
 
 # ── SP quality tiers ──────────────────────────────────────────────────────────
 
@@ -194,6 +203,20 @@ def analyze_earned_runs(
         - market_line provided but gap < 0.5 (insufficient signal)
         - edge_pct < 8% vs -110 market
         - confidence < 60
+
+    xFIP provenance: sp_engine tags every sp dict with "xfip_source" —
+    "fangraphs"/"pybaseball" (real) or "estimated" (FanGraphs/pybaseball
+    both missed this pitcher; xfip is sp_engine's own ERA/BB9/K9/HR9
+    formula fallback). This whole engine's edge thesis is "we price off
+    xFIP, not ERA" — an estimated xFIP undermines that thesis directly, so
+    unlike the generic SP-missing case (fully gated above), an estimated
+    xFIP doesn't block the pick but does pull model_p_over toward the
+    market baseline before edge/confidence are computed (XFIP_ESTIMATE_SHRINK
+    below), the same "downgrade, don't silently trust" pattern brain.py
+    already uses for SP-unknown moneyline picks. A dict with no
+    "xfip_source" key at all (e.g. hand-built test/self-test fixtures) is
+    treated as real — only sp_engine's explicit "estimated"/"unavailable"
+    tags trigger the shrink.
     """
     if not sp or sp.get("sp_missing"):
         return None
@@ -202,6 +225,7 @@ def analyze_earned_runs(
     xfip = sp.get("xfip", 4.35)
     if xfip is None:
         xfip = era or 4.35
+    xfip_is_estimated = sp.get("xfip_source", "fangraphs") not in ("fangraphs", "pybaseball")
 
     opp_wrc  = float(opp_off.get("adj_wrc_plus", opp_off.get("wrc_plus", 100.0)) or 100.0)
     ttop     = bool(sp.get("ttop"))
@@ -239,6 +263,14 @@ def analyze_earned_runs(
 
     # Model probability
     model_p_over = _er_over_prob(projected, market_line)
+
+    # xFIP is estimated, not real (see docstring) — shrink model_p_over
+    # toward the market baseline before edge/confidence are derived from
+    # it, same "downgrade, don't silently trust" pattern as the SP-unknown
+    # moneyline reduction in brain.py.
+    if xfip_is_estimated:
+        model_p_over = round(0.524 + (1 - XFIP_ESTIMATE_SHRINK) * (model_p_over - 0.524), 4)
+
     model_p = model_p_over if direction == "OVER" else (1.0 - model_p_over)
 
     edge_pct = _er_edge_pct(model_p_over, direction)
@@ -247,6 +279,8 @@ def analyze_earned_runs(
         return None
 
     confidence = _er_confidence(projected, market_line, edge_pct, opp_wrc, ttop, direction)
+    if xfip_is_estimated:
+        confidence = min(confidence, XFIP_ESTIMATE_CONF_CAP)
     if confidence < 60:
         return None
 
@@ -261,6 +295,8 @@ def analyze_earned_runs(
         reasoning += f" | wRC+ adj {wrc_adj:+.2f} ER"
     if regression_note:
         reasoning += f" | {regression_note}"
+    if xfip_is_estimated:
+        reasoning += " | xFIP estimated (not FanGraphs/pybaseball) — conviction downgraded"
 
     return {
         "direction":    direction,
@@ -279,6 +315,7 @@ def analyze_earned_runs(
         "confidence":   confidence,
         "reasoning":    reasoning,
         "regression_note": regression_note,
+        "xfip_is_estimated": xfip_is_estimated,
         "sp_name":      sp.get("name", "SP"),
     }
 
@@ -296,10 +333,11 @@ def er_prop_telegram_line(er: dict) -> str:
     dirn = er.get("direction", "")
     edge = er.get("edge_pct", 0)
     ttop = " TTOP" if er.get("ttop") else ""
+    est  = " [xFIP~est]" if er.get("xfip_is_estimated") else ""
     return (
         f"📊 ER PROP — {sp} {dirn} {line} "
         f"(proj {proj:.1f}, xFIP {xfip:.2f}, gap {gap:+.2f})"
-        f"{ttop} | edge {edge:+.1f}% | conf={conf}/100"
+        f"{ttop} | edge {edge:+.1f}% | conf={conf}/100{est}"
     )
 
 

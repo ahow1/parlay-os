@@ -165,7 +165,39 @@ def get_mlb_events() -> list:
         }
         events.append(event)
 
-    return events
+    return _dedup_events(events)
+
+
+# A real doubleheader's two games are hours apart (day/night); The Odds API
+# occasionally lists the exact same real-world game twice under two
+# different event IDs, ~minutes apart (confirmed 2026-07-29 — ATL@NYM was
+# analyzed twice in one scout run with the same probable starters, which
+# fanned out into 6 exact-duplicate hitter-prop picks each writing its own
+# CLV/calibration row). Collapsing same-team-pair entries within this
+# window is safe and won't merge a legitimate doubleheader.
+_DEDUP_WINDOW_MINUTES = 90
+
+
+def _dedup_events(events: list) -> list:
+    deduped: list = []
+    for ev in events:
+        dup = False
+        for kept in deduped:
+            if (ev["away"], ev["home"]) != (kept["away"], kept["home"]):
+                continue
+            try:
+                t1 = datetime.fromisoformat(ev["commence_utc"].replace("Z", "+00:00"))
+                t2 = datetime.fromisoformat(kept["commence_utc"].replace("Z", "+00:00"))
+            except Exception:
+                continue
+            if abs((t1 - t2).total_seconds()) <= _DEDUP_WINDOW_MINUTES * 60:
+                dup = True
+                print(f"[MKT] DEDUP {ev['away']} @ {ev['home']}: duplicate event id "
+                      f"{ev['id']} ({ev['commence_utc']}) — kept {kept['id']} ({kept['commence_utc']})")
+                break
+        if not dup:
+            deduped.append(ev)
+    return deduped
 
 
 _SLATE_ODDS_CACHE = {}

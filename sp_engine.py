@@ -25,7 +25,15 @@ FG_PITCHING_URL = (
     "https://www.fangraphs.com/api/leaders/major-league/data"
     f"?age=&pos=all&stats=pit&lg=all&qual=0"
     f"&season={FG_SEASON}&season1={FG_SEASON}&ind=0&team=0&rost=0&players=&type=8"
+    f"&pageitems=2000000"
 )
+# Without pageitems, FanGraphs silently paginates to its default page size (30
+# rows, sorted by WAR desc) while reporting totalCount=761 elsewhere in the
+# same response — every non-page-1 starter then misses get_real_xfip() and
+# falls through to _xfip_estimate(), even though the feed itself is "live".
+# Confirmed 2026-07-29: 21/26 of that night's actual starters (81%), including
+# established names like Tarik Skubal and Logan Webb, were missing from the
+# unpaginated 30-row response purely because they weren't top-30 by WAR.
 
 # Thread-safe in-process cache for FanGraphs leaderboard
 _fg_lock    = threading.Lock()

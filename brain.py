@@ -2063,7 +2063,14 @@ def _daily_bet_slip(
             "odds_str":  "-110",
             "model_pct": round(b["p_over"] * 100, 1),
             "model_p":   b["p_over"],
-            "market_p":  0.5,   # K props use -110 baseline → 0.5 market_p
+            # Real SGO odds-implied market_p when the K-prop collection loop found
+            # one for this exact SP/line (see brain.py's _real_k_mp) — falls back
+            # to the -110 baseline only when SGO had no market for this prop.
+            # Previously this was hardcoded to 0.5 unconditionally, discarding the
+            # real value the edge_pct calc upstream already used, which corrupted
+            # the stored market_prob column for anything reading it directly later
+            # (backtesting, calibration audits).
+            "market_p":  b.get("market_p", 0.5),
             "edge_pct":  b["edge_pct"],
             "stake":     b["stake"],
             "leg_label": leg,
@@ -2084,6 +2091,7 @@ def _daily_bet_slip(
         return {
             "player":    h["player"],
             "team":      h.get("team", ""),
+            "game":      h.get("game", ""),
             "stat":      prop,
             "odds_str":  _market_odds_str(mp),
             "model_pct": round(h["model_prob"] * 100, 1),
@@ -2119,6 +2127,24 @@ def _daily_bet_slip(
         [_norm_h(h) for h in hitter_bets] +
         [_norm_er(b) for b in er_bets]
     )
+    # Dedup guard: same player + same prop type/line (both encoded in "stat",
+    # e.g. "Ks O6.5") + same game = one entry only. Primarily defends against
+    # get_mlb_events() ever again feeding the scout the same real-world game
+    # twice under two different event IDs (root-caused and fixed 2026-07-29
+    # in market_engine._dedup_events — this is the belt to that suspenders):
+    # each duplicate game produced its own identical prop pick, and each one
+    # would otherwise write its own bets-table row and CLV/calibration entry,
+    # double-weighting that pick in model-accuracy stats.
+    _seen_prop_keys: set = set()
+    _deduped_props: list = []
+    for _pp in all_player_props:
+        _pp_key = (_pp["player"], _pp["stat"], _pp.get("game", "") or _pp.get("team", ""))
+        if _pp_key in _seen_prop_keys:
+            print(f"[PROPS] DEDUP {_pp['player']} {_pp['stat']} — duplicate pick dropped")
+            continue
+        _seen_prop_keys.add(_pp_key)
+        _deduped_props.append(_pp)
+    all_player_props = _deduped_props
     all_player_props = sorted(all_player_props, key=lambda x: x["edge_pct"], reverse=True)
     all_player_props = [p for p in all_player_props if p["edge_pct"] >= 5.0]
     # Enforce max 5 props per day (top 5 by edge, blowout-filtered above)
@@ -2158,6 +2184,16 @@ def _daily_bet_slip(
         [_norm_er(b) for b in over_cap_er]
     )
     _over_cap_props = [p for p in _over_cap_props if p["edge_pct"] >= 5.0]
+    _seen_over_cap_keys: set = set()
+    _deduped_over_cap: list = []
+    for _pp in _over_cap_props:
+        _pp_key = (_pp["player"], _pp["stat"], _pp.get("game", "") or _pp.get("team", ""))
+        if _pp_key in _seen_over_cap_keys:
+            print(f"[PROPS] DEDUP {_pp['player']} {_pp['stat']} — duplicate over-cap pick dropped")
+            continue
+        _seen_over_cap_keys.add(_pp_key)
+        _deduped_over_cap.append(_pp)
+    _over_cap_props = _deduped_over_cap
     if not DRY_RUN:
         for _p in _over_cap_props:
             _log_pick_with_retry(
@@ -3963,6 +3999,7 @@ def _scan_hitter_props(
     opp_sp: dict,
     br: float,
     sgo_event: dict | None = None,
+    game: str = "",
 ) -> list:
     """
     Evaluate prop markets for one batter using Poisson model vs. market baseline.
@@ -4025,6 +4062,7 @@ def _scan_hitter_props(
         recs.append({
             "player":     player_name,
             "team":       team,
+            "game":       game,
             "prop":       label,
             "line":       line,
             "lam":        round(lam, 3),
@@ -4053,6 +4091,7 @@ def _fetch_game_hitter_props(
     home_sp: dict,
     br: float,
     sgo_event: dict | None = None,
+    game: str = "",
 ) -> list:
     """
     Fetch confirmed lineup + 14-day stats for each starter.
@@ -4083,7 +4122,7 @@ def _fetch_game_hitter_props(
                 continue
             if not stats:
                 continue
-            recs = _scan_hitter_props(name, team, stats, opp_sp, br, sgo_event)
+            recs = _scan_hitter_props(name, team, stats, opp_sp, br, sgo_event, game=game)
             all_props.extend(recs)
 
     return all_props
@@ -4363,6 +4402,7 @@ def run_daily_scout(window: str = "all"):
 
         # ── Hitter props for this game ────────────────────────────────────────
         try:
+            _game_lbl_hp = f"{analysis.get('away_name','')} @ {analysis.get('home_name','')}"
             game_hitter_props = _fetch_game_hitter_props(
                 analysis.get("game_pk"),
                 analysis["away"], analysis["home"],
@@ -4370,6 +4410,7 @@ def run_daily_scout(window: str = "all"):
                 analysis.get("home_sp") or {},
                 br,
                 _sgo_event,
+                game=_game_lbl_hp,
             )
             all_hitter_props.extend(game_hitter_props)
         except Exception as hp_err:
@@ -4510,7 +4551,10 @@ def run_daily_scout(window: str = "all"):
                                 "bet_type": "ER_PROP", "model": _er_res,
                                 "sp": _er_sp, "opp_off": _er_opp_off, "opp_bp": _er_bp,
                                 "market_source": "baseline_-110",
-                                "flags": {"sp_missing": bool(_er_sp.get("sp_missing"))},
+                                "flags": {
+                                    "sp_missing": bool(_er_sp.get("sp_missing")),
+                                    "xfip_is_estimated": bool(_er_res.get("xfip_is_estimated")),
+                                },
                             },
                         })
                 except Exception as _er_err:
