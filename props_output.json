@@ -1,129 +1,129 @@
 {
   "date": "2026-07-30",
-  "timestamp": "2026-07-30T12:26:13.421682-04:00",
+  "timestamp": "2026-07-30T17:12:05.543971-04:00",
   "games": [
     {
-      "away": "KC",
-      "home": "MIN",
-      "away_name": "Kansas City Royals",
-      "home_name": "Minnesota Twins",
-      "time": "1:41 PM ET",
-      "asp": "Noah Cameron",
-      "hsp": "Bailey Ober",
+      "away": "PIT",
+      "home": "CIN",
+      "away_name": "Pittsburgh Pirates",
+      "home_name": "Cincinnati Reds",
+      "time": "7:11 PM ET",
+      "asp": "Yohan Ram\u00edrez",
+      "hsp": "Rhett Lowder",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Noah Cameron",
+          "sp": "Yohan Ram\u00edrez",
           "sp_side": "away",
-          "model_line": 4.6,
-          "p_over": 0.6047,
+          "model_line": 5.5,
+          "p_over": 0.5682,
           "recommendation": "BET"
         },
         {
           "type": "K_PROP",
-          "sp": "Bailey Ober",
+          "sp": "Rhett Lowder",
           "sp_side": "home",
-          "model_line": 3.7,
-          "p_over": 0.5669,
-          "recommendation": "BET"
+          "model_line": 4.2,
+          "p_over": 0.4363,
+          "recommendation": "PASS"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.3679,
-          "p_yrfi": 0.6321,
+          "p_nrfi": 0.3447,
+          "p_yrfi": 0.6553,
           "recommendation": "YRFI"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.96,
-          "market_line": 9.0,
-          "p_over": 0.2783,
-          "p_under": 0.7217,
-          "recommendation": "UNDER 9.0"
+          "model_total": 8.81,
+          "market_line": 9.5,
+          "p_over": 0.3878,
+          "p_under": 0.6122,
+          "recommendation": "UNDER 9.5"
         }
       ],
       "sgp": []
     },
     {
-      "away": "NYY",
-      "home": "CWS",
-      "away_name": "New York Yankees",
-      "home_name": "Chicago White Sox",
-      "time": "2:11 PM ET",
-      "asp": "Ryan Weathers",
-      "hsp": "Sean Burke",
+      "away": "MIA",
+      "home": "NYM",
+      "away_name": "Miami Marlins",
+      "home_name": "New York Mets",
+      "time": "7:11 PM ET",
+      "asp": "Eury P\u00e9rez",
+      "hsp": "Nolan McLean",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Ryan Weathers",
+          "sp": "Eury P\u00e9rez",
           "sp_side": "away",
-          "model_line": 5.7,
-          "p_over": 0.5706,
-          "recommendation": "BET"
+          "model_line": 5.4,
+          "p_over": 0.5368,
+          "recommendation": "PASS"
         },
         {
           "type": "K_PROP",
-          "sp": "Sean Burke",
+          "sp": "Nolan McLean",
           "sp_side": "home",
-          "model_line": 5.5,
-          "p_over": 0.7742,
-          "recommendation": "BET"
+          "model_line": 6.0,
+          "p_over": 0.514,
+          "recommendation": "PASS"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4661,
-          "p_yrfi": 0.5339,
+          "p_nrfi": 0.4467,
+          "p_yrfi": 0.5533,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.31,
-          "market_line": 7.5,
-          "p_over": 0.448,
-          "p_under": 0.552,
-          "recommendation": "UNDER 7.5"
+          "model_total": 8.44,
+          "market_line": 7.0,
+          "p_over": 0.6066,
+          "p_under": 0.3934,
+          "recommendation": "OVER 7.0"
         }
       ],
       "sgp": []
     },
     {
-      "away": "CHC",
-      "home": "STL",
-      "away_name": "Chicago Cubs",
-      "home_name": "St. Louis Cardinals",
-      "time": "2:16 PM ET",
-      "asp": "Javier Assad",
-      "hsp": "Andre Pallante",
+      "away": "WAS",
+      "home": "ATL",
+      "away_name": "Washington Nationals",
+      "home_name": "Atlanta Braves",
+      "time": "7:16 PM ET",
+      "asp": "Jake Irvin",
+      "hsp": "Grant Holmes",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Javier Assad",
+          "sp": "Jake Irvin",
           "sp_side": "away",
-          "model_line": 3.2,
-          "p_over": 0.6582,
-          "recommendation": "BET"
+          "model_line": 5.6,
+          "p_over": 0.432,
+          "recommendation": "PASS"
         },
         {
           "type": "K_PROP",
-          "sp": "Andre Pallante",
+          "sp": "Grant Holmes",
           "sp_side": "home",
-          "model_line": 3.7,
-          "p_over": 0.5951,
-          "recommendation": "BET"
+          "model_line": 4.3,
+          "p_over": 0.4419,
+          "recommendation": "PASS"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.3935,
-          "p_yrfi": 0.6065,
+          "p_nrfi": 0.3853,
+          "p_yrfi": 0.6147,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.8,
-          "market_line": 8.0,
-          "p_over": 0.5172,
-          "p_under": 0.4828,
-          "recommendation": "PASS"
+          "model_total": 9.89,
+          "market_line": 10.0,
+          "p_over": 0.403,
+          "p_under": 0.597,
+          "recommendation": "UNDER 10.0"
         }
       ],
       "sgp": []
