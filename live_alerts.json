@@ -1,111 +1,48 @@
 {
-  "last_updated": "2026-07-29T21:11:14.721221-04:00",
+  "last_updated": "2026-07-30T19:56:05.291169-04:00",
   "in_progress": [
     {
-      "game_pk": 823837,
-      "label": "Philadelphia Phillies @ Miami Marlins",
-      "score": "6-8",
-      "inning": "T9",
-      "pitcher": "Pete Fairbanks",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823351,
-      "label": "Arizona Diamondbacks @ Pittsburgh Pirates",
-      "score": "3-0",
-      "inning": "B9",
-      "pitcher": "Brandyn Garcia",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 822702,
-      "label": "Toronto Blue Jays @ Washington Nationals",
-      "score": "5-2",
-      "inning": "B9",
-      "pitcher": "Louis Varland",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824242,
-      "label": "Baltimore Orioles @ Detroit Tigers",
-      "score": "10-9",
-      "inning": "B12",
-      "pitcher": "Andrew Kittredge",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 823596,
-      "label": "Atlanta Braves @ New York Mets",
-      "score": "2-3",
-      "inning": "T9",
-      "pitcher": "Devin Williams",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823598,
-      "label": "Atlanta Braves @ New York Mets",
-      "score": "1-0",
-      "inning": "B7",
-      "pitcher": "Didier Fuentes",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 823192,
-      "label": "Milwaukee Brewers @ San Francisco Giants",
-      "score": "3-16",
-      "inning": "T9",
-      "pitcher": "Keaton Winn",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823273,
-      "label": "Colorado Rockies @ San Diego Padres",
-      "score": "1-3",
-      "inning": "T9",
-      "pitcher": "Mason Miller",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 822947,
+      "game_pk": 822946,
       "label": "Texas Rangers @ Tampa Bay Rays",
-      "score": "0-3",
+      "score": "2-3",
       "inning": "T9",
       "pitcher": "Bryan Baker",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
-      "game_pk": 824487,
-      "label": "Cleveland Guardians @ Cincinnati Reds",
-      "score": "4-0",
-      "inning": "B6",
-      "pitcher": "Franco Aleman",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 823677,
+      "game_pk": 823674,
       "label": "Kansas City Royals @ Minnesota Twins",
-      "score": "4-0",
-      "inning": "T6",
-      "pitcher": "Joe Ryan",
+      "score": "3-4",
+      "inning": "B9",
+      "pitcher": "Matt Strahm",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824568,
+      "label": "New York Yankees @ Chicago White Sox",
+      "score": "1-2",
+      "inning": "B11",
+      "pitcher": "Fernando Cruz",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823023,
+      "label": "Chicago Cubs @ St. Louis Cardinals",
+      "score": "4-2",
+      "inning": "B10",
+      "pitcher": "Aaron Civale",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
-      "game_pk": 824567,
-      "label": "New York Yankees @ Chicago White Sox",
-      "score": "4-0",
-      "inning": "B5",
-      "pitcher": "Cam Schlittler",
+      "game_pk": 824894,
+      "label": "Washington Nationals @ Atlanta Braves",
+      "score": "2-0",
+      "inning": "B3",
+      "pitcher": "Grant Holmes",
       "quality_score": 4.5,
       "trailing": "HOME"
     }
