@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-07-30T19:56:05.291169-04:00",
+  "last_updated": "2026-07-30T21:22:09.938817-04:00",
   "in_progress": [
     {
       "game_pk": 822946,
@@ -38,13 +38,22 @@
       "trailing": "HOME"
     },
     {
-      "game_pk": 824894,
-      "label": "Washington Nationals @ Atlanta Braves",
-      "score": "2-0",
-      "inning": "B3",
-      "pitcher": "Grant Holmes",
+      "game_pk": 823595,
+      "label": "Miami Marlins @ New York Mets",
+      "score": "1-0",
+      "inning": "B4",
+      "pitcher": "Eury P\u00e9rez",
       "quality_score": 4.5,
       "trailing": "HOME"
+    },
+    {
+      "game_pk": 824894,
+      "label": "Washington Nationals @ Atlanta Braves",
+      "score": "4-5",
+      "inning": "T8",
+      "pitcher": "Dylan Lee",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
     }
   ],
   "active_alerts": [],
