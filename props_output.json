@@ -1,128 +1,44 @@
 {
-  "date": "2026-07-30",
-  "timestamp": "2026-07-30T21:11:39.717767-04:00",
+  "date": "2026-07-31",
+  "timestamp": "2026-07-31T12:33:06.248852-04:00",
   "games": [
     {
-      "away": "BOS",
-      "home": "ATH",
-      "away_name": "Boston Red Sox",
-      "home_name": "Athletics",
-      "time": "9:41 PM ET",
-      "asp": "Sonny Gray",
-      "hsp": "Mason Barnett",
+      "away": "NYY",
+      "home": "CHC",
+      "away_name": "New York Yankees",
+      "home_name": "Chicago Cubs",
+      "time": "2:21 PM ET",
+      "asp": "Will Warren",
+      "hsp": "Shota Imanaga",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Sonny Gray",
+          "sp": "Will Warren",
           "sp_side": "away",
-          "model_line": 4.4,
-          "p_over": 0.5414,
+          "model_line": 5.0,
+          "p_over": 0.4016,
           "recommendation": "PASS"
         },
         {
           "type": "K_PROP",
-          "sp": "Mason Barnett",
+          "sp": "Shota Imanaga",
           "sp_side": "home",
           "model_line": 4.7,
-          "p_over": 0.5815,
+          "p_over": 0.6232,
           "recommendation": "BET"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.3983,
-          "p_yrfi": 0.6017,
+          "p_nrfi": 0.3865,
+          "p_yrfi": 0.6135,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.96,
-          "market_line": 10.0,
-          "p_over": 0.1799,
-          "p_under": 0.8201,
-          "recommendation": "UNDER 10.0"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "SF",
-      "home": "SD",
-      "away_name": "San Francisco Giants",
-      "home_name": "San Diego Padres",
-      "time": "9:41 PM ET",
-      "asp": "Robbie Ray",
-      "hsp": "JP Sears",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Robbie Ray",
-          "sp_side": "away",
-          "model_line": 4.3,
-          "p_over": 0.5684,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "JP Sears",
-          "sp_side": "home",
-          "model_line": 4.1,
-          "p_over": 0.4864,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3787,
-          "p_yrfi": 0.6213,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 9.9,
-          "market_line": 8.5,
-          "p_over": 0.6555,
-          "p_under": 0.3445,
-          "recommendation": "OVER 8.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "SEA",
-      "home": "LAD",
-      "away_name": "Seattle Mariners",
-      "home_name": "Los Angeles Dodgers",
-      "time": "10:11 PM ET",
-      "asp": "Bryan Woo",
-      "hsp": "Roki Sasaki",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Bryan Woo",
-          "sp_side": "away",
-          "model_line": 4.9,
-          "p_over": 0.6729,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Roki Sasaki",
-          "sp_side": "home",
-          "model_line": 5.0,
-          "p_over": 0.4231,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4196,
-          "p_yrfi": 0.5804,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.75,
-          "market_line": 8.5,
-          "p_over": 0.5117,
-          "p_under": 0.4883,
+          "model_total": 9.33,
+          "market_line": 9.0,
+          "p_over": 0.4562,
+          "p_under": 0.5438,
           "recommendation": "PASS"
         }
       ],
