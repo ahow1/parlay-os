@@ -1,57 +1,57 @@
 {
-  "last_updated": "2026-07-30T21:22:09.938817-04:00",
+  "last_updated": "2026-07-31T19:56:51.968400-04:00",
   "in_progress": [
     {
-      "game_pk": 822946,
-      "label": "Texas Rangers @ Tampa Bay Rays",
-      "score": "2-3",
-      "inning": "T9",
-      "pitcher": "Bryan Baker",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823674,
-      "label": "Kansas City Royals @ Minnesota Twins",
-      "score": "3-4",
+      "game_pk": 824651,
+      "label": "New York Yankees @ Chicago Cubs",
+      "score": "2-0",
       "inning": "B9",
-      "pitcher": "Matt Strahm",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824568,
-      "label": "New York Yankees @ Chicago White Sox",
-      "score": "1-2",
-      "inning": "B11",
-      "pitcher": "Fernando Cruz",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823023,
-      "label": "Chicago Cubs @ St. Louis Cardinals",
-      "score": "4-2",
-      "inning": "B10",
-      "pitcher": "Aaron Civale",
+      "pitcher": "David Bednar",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
-      "game_pk": 823595,
-      "label": "Miami Marlins @ New York Mets",
-      "score": "1-0",
-      "inning": "B4",
-      "pitcher": "Eury P\u00e9rez",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824894,
-      "label": "Washington Nationals @ Atlanta Braves",
+      "game_pk": 824486,
+      "label": "Pittsburgh Pirates @ Cincinnati Reds",
       "score": "4-5",
-      "inning": "T8",
-      "pitcher": "Dylan Lee",
+      "inning": "T6",
+      "pitcher": "Antwone Kelly",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824809,
+      "label": "Philadelphia Phillies @ Baltimore Orioles",
+      "score": "3-2",
+      "inning": "B3",
+      "pitcher": "Andrew Painter",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824407,
+      "label": "Arizona Diamondbacks @ Cleveland Guardians",
+      "score": "0-1",
+      "inning": "B3",
+      "pitcher": "Mitch Bratt",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 822945,
+      "label": "Chicago White Sox @ Tampa Bay Rays",
+      "score": "4-0",
+      "inning": "B3",
+      "pitcher": "Erick Fedde",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824892,
+      "label": "Washington Nationals @ Atlanta Braves",
+      "score": "0-2",
+      "inning": "T3",
+      "pitcher": "Bryce Elder",
       "quality_score": 4.5,
       "trailing": "AWAY"
     }
