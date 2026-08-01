@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-07-31T19:56:51.968400-04:00",
+  "last_updated": "2026-07-31T21:24:04.634143-04:00",
   "in_progress": [
     {
       "game_pk": 824651,
@@ -13,45 +13,63 @@
     {
       "game_pk": 824486,
       "label": "Pittsburgh Pirates @ Cincinnati Reds",
-      "score": "4-5",
-      "inning": "T6",
-      "pitcher": "Antwone Kelly",
+      "score": "7-8",
+      "inning": "T9",
+      "pitcher": "Emilio Pag\u00e1n",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 824809,
       "label": "Philadelphia Phillies @ Baltimore Orioles",
-      "score": "3-2",
-      "inning": "B3",
-      "pitcher": "Andrew Painter",
+      "score": "4-6",
+      "inning": "B7",
+      "pitcher": "Tim Mayza",
       "quality_score": 4.5,
-      "trailing": "HOME"
+      "trailing": "AWAY"
     },
     {
       "game_pk": 824407,
       "label": "Arizona Diamondbacks @ Cleveland Guardians",
       "score": "0-1",
-      "inning": "B3",
-      "pitcher": "Mitch Bratt",
+      "inning": "T8",
+      "pitcher": "Erik Sabrowski",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 822945,
       "label": "Chicago White Sox @ Tampa Bay Rays",
-      "score": "4-0",
-      "inning": "B3",
-      "pitcher": "Erick Fedde",
+      "score": "6-1",
+      "inning": "B8",
+      "pitcher": "Tyler Schweitzer",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823593,
+      "label": "Miami Marlins @ New York Mets",
+      "score": "5-2",
+      "inning": "B7",
+      "pitcher": "Tyler Zuber",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
       "game_pk": 824892,
       "label": "Washington Nationals @ Atlanta Braves",
-      "score": "0-2",
-      "inning": "T3",
-      "pitcher": "Bryce Elder",
+      "score": "1-6",
+      "inning": "B7",
+      "pitcher": "Trevor Williams",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824164,
+      "label": "Texas Rangers @ Houston Astros",
+      "score": "0-3",
+      "inning": "T4",
+      "pitcher": "Hunter Brown",
       "quality_score": 4.5,
       "trailing": "AWAY"
     }
