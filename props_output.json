@@ -1,297 +1,255 @@
 {
   "date": "2026-07-31",
-  "timestamp": "2026-07-31T17:15:05.634664-04:00",
+  "timestamp": "2026-07-31T21:17:40.265128-04:00",
   "games": [
     {
-      "away": "PIT",
-      "home": "CIN",
-      "away_name": "Pittsburgh Pirates",
-      "home_name": "Cincinnati Reds",
-      "time": "6:11 PM ET",
-      "asp": "Paul Skenes",
-      "hsp": "Hunter Greene",
+      "away": "MIL",
+      "home": "LAA",
+      "away_name": "Milwaukee Brewers",
+      "home_name": "Los Angeles Angels",
+      "time": "9:39 PM ET",
+      "asp": "Shane Drohan",
+      "hsp": "Ryan Johnson",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Paul Skenes",
+          "sp": "Shane Drohan",
           "sp_side": "away",
-          "model_line": 6.2,
-          "p_over": 0.5159,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Hunter Greene",
-          "sp_side": "home",
-          "model_line": 6.7,
-          "p_over": 0.5887,
+          "model_line": 5.0,
+          "p_over": 0.6993,
           "recommendation": "BET"
         },
         {
+          "type": "K_PROP",
+          "sp": "Ryan Johnson",
+          "sp_side": "home",
+          "model_line": 4.1,
+          "p_over": 0.4201,
+          "recommendation": "PASS"
+        },
+        {
           "type": "NRFI",
-          "p_nrfi": 0.4874,
-          "p_yrfi": 0.5126,
+          "p_nrfi": 0.3826,
+          "p_yrfi": 0.6174,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.63,
+          "model_total": 9.23,
+          "market_line": 9.0,
+          "p_over": 0.4427,
+          "p_under": 0.5573,
+          "recommendation": "UNDER 9.0"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "DET",
+      "home": "ATH",
+      "away_name": "Detroit Tigers",
+      "home_name": "Athletics",
+      "time": "9:41 PM ET",
+      "asp": "Tyler Holton",
+      "hsp": "Jeffrey Springs",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Tyler Holton",
+          "sp_side": "away",
+          "model_line": 3.9,
+          "p_over": 0.7956,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Jeffrey Springs",
+          "sp_side": "home",
+          "model_line": 4.1,
+          "p_over": 0.3895,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3988,
+          "p_yrfi": 0.6012,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.89,
+          "market_line": 11.0,
+          "p_over": 0.1866,
+          "p_under": 0.8134,
+          "recommendation": "UNDER 11.0"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "KC",
+      "home": "COL",
+      "away_name": "Kansas City Royals",
+      "home_name": "Colorado Rockies",
+      "time": "9:41 PM ET",
+      "asp": "Michael Wacha",
+      "hsp": "Tomoyuki Sugano",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Michael Wacha",
+          "sp_side": "away",
+          "model_line": 3.9,
+          "p_over": 0.7277,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Tomoyuki Sugano",
+          "sp_side": "home",
+          "model_line": 2.9,
+          "p_over": 0.6012,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3111,
+          "p_yrfi": 0.6889,
+          "recommendation": "YRFI"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.78,
+          "market_line": 11.0,
+          "p_over": 0.2783,
+          "p_under": 0.7217,
+          "recommendation": "UNDER 11.0"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "SF",
+      "home": "SD",
+      "away_name": "San Francisco Giants",
+      "home_name": "San Diego Padres",
+      "time": "9:46 PM ET",
+      "asp": "Carson Whisenhunt",
+      "hsp": "Bradgley Rodriguez",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Carson Whisenhunt",
+          "sp_side": "away",
+          "model_line": 4.2,
+          "p_over": 0.4381,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Bradgley Rodriguez",
+          "sp_side": "home",
+          "model_line": 5.1,
+          "p_over": 0.712,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4043,
+          "p_yrfi": 0.5957,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.11,
+          "market_line": 8.5,
+          "p_over": 0.5593,
+          "p_under": 0.4407,
+          "recommendation": "OVER 8.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "BOS",
+      "home": "LAD",
+      "away_name": "Boston Red Sox",
+      "home_name": "Los Angeles Dodgers",
+      "time": "10:11 PM ET",
+      "asp": "Ranger Suarez",
+      "hsp": "Edgardo Henriquez",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Ranger Suarez",
+          "sp_side": "away",
+          "model_line": 5.4,
+          "p_over": 0.508,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Edgardo Henriquez",
+          "sp_side": "home",
+          "model_line": 5.0,
+          "p_over": 0.4711,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4511,
+          "p_yrfi": 0.5489,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.66,
           "market_line": 8.0,
-          "p_over": 0.3566,
-          "p_under": 0.6434,
+          "p_over": 0.3601,
+          "p_under": 0.6399,
           "recommendation": "UNDER 8.0"
         }
       ],
       "sgp": []
     },
     {
-      "away": "PHI",
-      "home": "BAL",
-      "away_name": "Philadelphia Phillies",
-      "home_name": "Baltimore Orioles",
-      "time": "7:06 PM ET",
-      "asp": "Andrew Painter",
-      "hsp": "Brandon Young",
+      "away": "MIN",
+      "home": "SEA",
+      "away_name": "Minnesota Twins",
+      "home_name": "Seattle Mariners",
+      "time": "10:11 PM ET",
+      "asp": "Zebby Matthews",
+      "hsp": "Bryce Miller",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Andrew Painter",
+          "sp": "Zebby Matthews",
           "sp_side": "away",
-          "model_line": 4.1,
-          "p_over": 0.4523,
-          "recommendation": "PASS"
+          "model_line": 3.9,
+          "p_over": 0.6646,
+          "recommendation": "BET"
         },
         {
           "type": "K_PROP",
-          "sp": "Brandon Young",
+          "sp": "Bryce Miller",
           "sp_side": "home",
-          "model_line": 4.1,
-          "p_over": 0.5065,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3541,
-          "p_yrfi": 0.6459,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.56,
-          "market_line": 8.5,
-          "p_over": 0.4851,
-          "p_under": 0.5149,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "STL",
-      "home": "TOR",
-      "away_name": "St. Louis Cardinals",
-      "home_name": "Toronto Blue Jays",
-      "time": "7:08 PM ET",
-      "asp": "Kyle Leahy",
-      "hsp": "Dylan Cease",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Kyle Leahy",
-          "sp_side": "away",
-          "model_line": 4.3,
-          "p_over": 0.449,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Dylan Cease",
-          "sp_side": "home",
-          "model_line": 7.4,
-          "p_over": 0.6505,
+          "model_line": 5.2,
+          "p_over": 0.6253,
           "recommendation": "BET"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4782,
-          "p_yrfi": 0.5218,
+          "p_nrfi": 0.4301,
+          "p_yrfi": 0.5699,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.51,
+          "model_total": 7.65,
           "market_line": 7.5,
-          "p_over": 0.4774,
-          "p_under": 0.5226,
+          "p_over": 0.4976,
+          "p_under": 0.5024,
           "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "AZ",
-      "home": "CLE",
-      "away_name": "Arizona Diamondbacks",
-      "home_name": "Cleveland Guardians",
-      "time": "7:11 PM ET",
-      "asp": "Mitch Bratt",
-      "hsp": "Tanner Bibee",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Mitch Bratt",
-          "sp_side": "away",
-          "model_line": 3.2,
-          "p_over": 0.2431,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Tanner Bibee",
-          "sp_side": "home",
-          "model_line": 3.9,
-          "p_over": 0.6418,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3035,
-          "p_yrfi": 0.6965,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.96,
-          "market_line": 8.5,
-          "p_over": 0.4017,
-          "p_under": 0.5983,
-          "recommendation": "UNDER 8.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "CWS",
-      "home": "TB",
-      "away_name": "Chicago White Sox",
-      "home_name": "Tampa Bay Rays",
-      "time": "7:11 PM ET",
-      "asp": "Erick Fedde",
-      "hsp": "Nick Martinez",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Erick Fedde",
-          "sp_side": "away",
-          "model_line": 3.5,
-          "p_over": 0.7195,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Nick Martinez",
-          "sp_side": "home",
-          "model_line": 2.9,
-          "p_over": 0.6505,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3629,
-          "p_yrfi": 0.6371,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 9.52,
-          "market_line": 8.5,
-          "p_over": 0.6104,
-          "p_under": 0.3896,
-          "recommendation": "OVER 8.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "MIA",
-      "home": "NYM",
-      "away_name": "Miami Marlins",
-      "home_name": "New York Mets",
-      "time": "7:11 PM ET",
-      "asp": "Janson Junk",
-      "hsp": "Kodai Senga",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Janson Junk",
-          "sp_side": "away",
-          "model_line": 3.9,
-          "p_over": 0.5803,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Kodai Senga",
-          "sp_side": "home",
-          "model_line": 6.0,
-          "p_over": 0.5507,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3597,
-          "p_yrfi": 0.6403,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 9.49,
-          "market_line": 8.5,
-          "p_over": 0.6065,
-          "p_under": 0.3935,
-          "recommendation": "OVER 8.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "WAS",
-      "home": "ATL",
-      "away_name": "Washington Nationals",
-      "home_name": "Atlanta Braves",
-      "time": "7:16 PM ET",
-      "asp": "Foster Griffin",
-      "hsp": "Bryce Elder",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Foster Griffin",
-          "sp_side": "away",
-          "model_line": 4.6,
-          "p_over": 0.6235,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Bryce Elder",
-          "sp_side": "home",
-          "model_line": 4.3,
-          "p_over": 0.5421,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4356,
-          "p_yrfi": 0.5644,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.73,
-          "market_line": 9.0,
-          "p_over": 0.3769,
-          "p_under": 0.6231,
-          "recommendation": "UNDER 9.0"
         }
       ],
       "sgp": []
