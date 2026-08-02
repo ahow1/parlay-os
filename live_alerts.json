@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-01T19:52:18.831988-04:00",
+  "last_updated": "2026-08-01T21:21:41.552943-04:00",
   "in_progress": [
     {
       "game_pk": 822781,
@@ -40,47 +40,74 @@
     {
       "game_pk": 824485,
       "label": "Pittsburgh Pirates @ Cincinnati Reds",
-      "score": "3-0",
-      "inning": "B4",
+      "score": "4-1",
+      "inning": "B6",
       "pitcher": "Braxton Ashcraft",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824808,
+      "label": "Philadelphia Phillies @ Baltimore Orioles",
+      "score": "1-0",
+      "inning": "B7",
+      "pitcher": "Jonathan Bowlan",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
       "game_pk": 824162,
       "label": "Texas Rangers @ Houston Astros",
-      "score": "0-1",
-      "inning": "T3",
-      "pitcher": "Ronel Blanco",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824405,
-      "label": "Arizona Diamondbacks @ Cleveland Guardians",
-      "score": "0-2",
-      "inning": "B2",
-      "pitcher": "Kohl Drake",
+      "score": "4-5",
+      "inning": "T6",
+      "pitcher": "Tyler Alexander",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 824890,
       "label": "Washington Nationals @ Atlanta Braves",
-      "score": "0-3",
-      "inning": "B3",
-      "pitcher": "Miles Mikolas",
+      "score": "0-8",
+      "inning": "T8",
+      "pitcher": "Danny Young",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 824649,
       "label": "New York Yankees @ Chicago Cubs",
-      "score": "0-1",
-      "inning": "B2",
-      "pitcher": "David Peterson",
+      "score": "2-1",
+      "inning": "T7",
+      "pitcher": "Angel Chivilli",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824326,
+      "label": "Kansas City Royals @ Colorado Rockies",
+      "score": "4-6",
+      "inning": "T4",
+      "pitcher": "Ryan Feltner",
       "quality_score": 4.5,
       "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823269,
+      "label": "San Francisco Giants @ San Diego Padres",
+      "score": "0-2",
+      "inning": "B2",
+      "pitcher": "Walker Buehler",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823920,
+      "label": "Boston Red Sox @ Los Angeles Dodgers",
+      "score": "1-0",
+      "inning": "T1",
+      "pitcher": "Payton Tolle",
+      "quality_score": 4.5,
+      "trailing": "HOME"
     }
   ],
   "active_alerts": [],
