@@ -1,48 +1,5 @@
 {
   "date": "2026-08-02",
-  "timestamp": "2026-08-02T16:52:14.764177-04:00",
-  "games": [
-    {
-      "away": "BOS",
-      "home": "LAD",
-      "away_name": "Boston Red Sox",
-      "home_name": "Los Angeles Dodgers",
-      "time": "7:21 PM ET",
-      "asp": "Jake Bennett",
-      "hsp": "Emmet Sheehan",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Jake Bennett",
-          "sp_side": "away",
-          "model_line": 3.5,
-          "p_over": 0.6011,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Emmet Sheehan",
-          "sp_side": "home",
-          "model_line": 5.6,
-          "p_over": 0.4668,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4217,
-          "p_yrfi": 0.5783,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.3,
-          "market_line": 8.5,
-          "p_over": 0.4494,
-          "p_under": 0.5506,
-          "recommendation": "UNDER 8.5"
-        }
-      ],
-      "sgp": []
-    }
-  ]
+  "timestamp": "2026-08-02T21:07:18.371652-04:00",
+  "games": []
 }

@@ -1,52 +1,12 @@
 {
-  "timestamp": "2026-08-02T20:50:22Z",
+  "timestamp": "2026-08-03T01:07:17Z",
   "date": "2026-08-02",
-  "window": "evening",
+  "window": "west",
   "bankroll": 300.0,
-  "games": [
-    {
-      "away": "BOS",
-      "home": "LAD",
-      "away_model": 0.4828,
-      "home_model": 0.5122,
-      "away_edge": 10.57,
-      "home_edge": -11.07,
-      "away_xr": 3.963,
-      "home_xr": 4.338
-    }
-  ],
-  "bets": [
-    {
-      "team": "Boston Red Sox",
-      "side": "away",
-      "game": "Boston Red Sox @ Los Angeles Dodgers",
-      "odds": 160,
-      "book": "betrivers",
-      "model_prob": 0.4828,
-      "market_prob": 0.3771,
-      "edge_pct": 10.57,
-      "stake": 25.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 84,
-      "sp": "Jake Bennett",
-      "sp_era": 2.74,
-      "sp_xfip": 3.87,
-      "sp_yrfi_lean": true,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": -13.7,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 8,
-        "away_win_rate": 0.5,
-        "home_win_rate": 0.5,
-        "avg_total": 8.88,
-        "over_rate": 0.375
-      }
-    }
-  ],
+  "games": [],
+  "bets": [],
   "passes": [],
-  "slip_sent": true,
+  "slip_sent": false,
   "sent_pick_ids": [
     "ER:Jake Bennett:2.0:OVER",
     "HITTER:Ceddanne Rafaela:BOS:HR O0.5",
@@ -62,18 +22,9 @@
     "KPROP:Jake Bennett:3.5",
     "ML:Boston Red Sox:160"
   ],
-  "slip_quality": "good",
+  "slip_quality": "bad",
   "data_health": {
-    "odds": "live",
-    "fangraphs_sp": "live",
-    "savant": "degraded",
-    "lineups": "live",
-    "savant_bullpen_stuff": "live",
-    "savant_bat_tracking": "live",
-    "savant_park_of_defense": "live",
-    "savant_sprint_baserunning": "live",
-    "savant_arm_angle": "live",
-    "h2h": "live"
+    "odds": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],
