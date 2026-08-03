@@ -1,27 +1,13 @@
 {
-  "timestamp": "2026-08-03T01:07:17Z",
-  "date": "2026-08-02",
-  "window": "west",
+  "timestamp": "2026-08-03T17:04:51Z",
+  "date": "2026-08-03",
+  "window": "day",
   "bankroll": 300.0,
   "games": [],
   "bets": [],
   "passes": [],
   "slip_sent": false,
-  "sent_pick_ids": [
-    "ER:Jake Bennett:2.0:OVER",
-    "HITTER:Ceddanne Rafaela:BOS:HR O0.5",
-    "HITTER:Ceddanne Rafaela:BOS:RBI O0.5",
-    "HITTER:Ceddanne Rafaela:BOS:SO O0.5",
-    "HITTER:Ceddanne Rafaela:BOS:TB O1.5",
-    "HITTER:Nick Sogard:BOS:SO O0.5",
-    "HITTER:Shohei Ohtani:LAD:RBI O0.5",
-    "HITTER:Tommy Edman:LAD:RBI O0.5",
-    "HITTER:Willson Contreras:BOS:SO O0.5",
-    "HITTER:Willson Contreras:BOS:TB O1.5",
-    "HITTER:Wilyer Abreu:BOS:SO O0.5",
-    "KPROP:Jake Bennett:3.5",
-    "ML:Boston Red Sox:160"
-  ],
+  "sent_pick_ids": [],
   "slip_quality": "bad",
   "data_health": {
     "odds": "live"
