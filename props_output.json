@@ -1,128 +1,44 @@
 {
   "date": "2026-08-03",
-  "timestamp": "2026-08-03T17:05:20.387858-04:00",
+  "timestamp": "2026-08-03T21:03:17.878452-04:00",
   "games": [
     {
-      "away": "WAS",
-      "home": "PHI",
-      "away_name": "Washington Nationals",
-      "home_name": "Philadelphia Phillies",
-      "time": "6:41 PM ET",
-      "asp": "Andrew Alvarez",
-      "hsp": "Aaron Nola",
+      "away": "SD",
+      "home": "AZ",
+      "away_name": "San Diego Padres",
+      "home_name": "Arizona Diamondbacks",
+      "time": "9:41 PM ET",
+      "asp": "Michael King",
+      "hsp": "Brandon Pfaadt",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Andrew Alvarez",
+          "sp": "Michael King",
           "sp_side": "away",
-          "model_line": 5.0,
-          "p_over": 0.7042,
+          "model_line": 4.3,
+          "p_over": 0.5516,
           "recommendation": "BET"
         },
         {
           "type": "K_PROP",
-          "sp": "Aaron Nola",
+          "sp": "Brandon Pfaadt",
           "sp_side": "home",
-          "model_line": 5.1,
-          "p_over": 0.432,
-          "recommendation": "PASS"
+          "model_line": 3.4,
+          "p_over": 0.7009,
+          "recommendation": "BET"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4152,
-          "p_yrfi": 0.5848,
-          "recommendation": "PASS"
+          "p_nrfi": 0.3587,
+          "p_yrfi": 0.6413,
+          "recommendation": "YRFI"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.58,
+          "model_total": 9.75,
           "market_line": 9.0,
-          "p_over": 0.3578,
-          "p_under": 0.6422,
-          "recommendation": "UNDER 9.0"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "STL",
-      "home": "NYY",
-      "away_name": "St. Louis Cardinals",
-      "home_name": "New York Yankees",
-      "time": "7:06 PM ET",
-      "asp": "Michael McGreevy",
-      "hsp": "Cam Schlittler",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Michael McGreevy",
-          "sp_side": "away",
-          "model_line": 3.3,
-          "p_over": 0.4892,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Cam Schlittler",
-          "sp_side": "home",
-          "model_line": 6.0,
-          "p_over": 0.5765,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4845,
-          "p_yrfi": 0.5155,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.25,
-          "market_line": 7.5,
-          "p_over": 0.4389,
-          "p_under": 0.5611,
-          "recommendation": "UNDER 7.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "PIT",
-      "home": "MIL",
-      "away_name": "Pittsburgh Pirates",
-      "home_name": "Milwaukee Brewers",
-      "time": "7:41 PM ET",
-      "asp": "Bubba Chandler",
-      "hsp": "Brandon Sproat",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Bubba Chandler",
-          "sp_side": "away",
-          "model_line": 4.4,
-          "p_over": 0.4967,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Brandon Sproat",
-          "sp_side": "home",
-          "model_line": 5.2,
-          "p_over": 0.4423,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3845,
-          "p_yrfi": 0.6155,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.8,
-          "market_line": 8.5,
-          "p_over": 0.5179,
-          "p_under": 0.4821,
+          "p_over": 0.5104,
+          "p_under": 0.4896,
           "recommendation": "PASS"
         }
       ],
