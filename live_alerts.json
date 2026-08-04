@@ -1,111 +1,21 @@
 {
-  "last_updated": "2026-08-01T21:21:41.552943-04:00",
+  "last_updated": "2026-08-03T20:01:49.502086-04:00",
   "in_progress": [
     {
-      "game_pk": 822781,
-      "label": "St. Louis Cardinals @ Toronto Blue Jays",
-      "score": "1-5",
-      "inning": "T9",
-      "pitcher": "Tyler Rogers",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823109,
-      "label": "Minnesota Twins @ Seattle Mariners",
-      "score": "3-4",
-      "inning": "B9",
-      "pitcher": "Andrew Morris",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 822944,
-      "label": "Chicago White Sox @ Tampa Bay Rays",
-      "score": "0-1",
-      "inning": "T9",
-      "pitcher": "Bryan Baker",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823594,
-      "label": "Miami Marlins @ New York Mets",
-      "score": "6-2",
-      "inning": "B9",
-      "pitcher": "Lake Bachar",
+      "game_pk": 823431,
+      "label": "Washington Nationals @ Philadelphia Phillies",
+      "score": "3-0",
+      "inning": "B5",
+      "pitcher": "Andrew Alvarez",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
-      "game_pk": 824485,
-      "label": "Pittsburgh Pirates @ Cincinnati Reds",
-      "score": "4-1",
-      "inning": "B6",
-      "pitcher": "Braxton Ashcraft",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824808,
-      "label": "Philadelphia Phillies @ Baltimore Orioles",
-      "score": "1-0",
-      "inning": "B7",
-      "pitcher": "Jonathan Bowlan",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824162,
-      "label": "Texas Rangers @ Houston Astros",
-      "score": "4-5",
-      "inning": "T6",
-      "pitcher": "Tyler Alexander",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824890,
-      "label": "Washington Nationals @ Atlanta Braves",
-      "score": "0-8",
-      "inning": "T8",
-      "pitcher": "Danny Young",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824649,
-      "label": "New York Yankees @ Chicago Cubs",
-      "score": "2-1",
-      "inning": "T7",
-      "pitcher": "Angel Chivilli",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824326,
-      "label": "Kansas City Royals @ Colorado Rockies",
-      "score": "4-6",
-      "inning": "T4",
-      "pitcher": "Ryan Feltner",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823269,
-      "label": "San Francisco Giants @ San Diego Padres",
-      "score": "0-2",
+      "game_pk": 823520,
+      "label": "St. Louis Cardinals @ New York Yankees",
+      "score": "3-0",
       "inning": "B2",
-      "pitcher": "Walker Buehler",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823920,
-      "label": "Boston Red Sox @ Los Angeles Dodgers",
-      "score": "1-0",
-      "inning": "T1",
-      "pitcher": "Payton Tolle",
+      "pitcher": "Cam Schlittler",
       "quality_score": 4.5,
       "trailing": "HOME"
     }
