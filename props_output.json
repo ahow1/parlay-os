@@ -1,48 +1,5 @@
 {
-  "date": "2026-08-03",
-  "timestamp": "2026-08-03T21:03:17.878452-04:00",
-  "games": [
-    {
-      "away": "SD",
-      "home": "AZ",
-      "away_name": "San Diego Padres",
-      "home_name": "Arizona Diamondbacks",
-      "time": "9:41 PM ET",
-      "asp": "Michael King",
-      "hsp": "Brandon Pfaadt",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Michael King",
-          "sp_side": "away",
-          "model_line": 4.3,
-          "p_over": 0.5516,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Brandon Pfaadt",
-          "sp_side": "home",
-          "model_line": 3.4,
-          "p_over": 0.7009,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3587,
-          "p_yrfi": 0.6413,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 9.75,
-          "market_line": 9.0,
-          "p_over": 0.5104,
-          "p_under": 0.4896,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    }
-  ]
+  "date": "2026-08-04",
+  "timestamp": "2026-08-04T12:46:32.704354-04:00",
+  "games": []
 }
