@@ -1,23 +1,77 @@
 {
-  "last_updated": "2026-08-03T20:01:49.502086-04:00",
+  "last_updated": "2026-08-03T22:46:53.923197-04:00",
   "in_progress": [
     {
       "game_pk": 823431,
       "label": "Washington Nationals @ Philadelphia Phillies",
-      "score": "3-0",
-      "inning": "B5",
-      "pitcher": "Andrew Alvarez",
+      "score": "3-6",
+      "inning": "T9",
+      "pitcher": "Jhoan Duran",
       "quality_score": 4.5,
-      "trailing": "HOME"
+      "trailing": "AWAY"
     },
     {
       "game_pk": 823520,
       "label": "St. Louis Cardinals @ New York Yankees",
-      "score": "3-0",
-      "inning": "B2",
-      "pitcher": "Cam Schlittler",
+      "score": "13-7",
+      "inning": "B9",
+      "pitcher": "Gordon Graceffo",
       "quality_score": 4.5,
       "trailing": "HOME"
+    },
+    {
+      "game_pk": 823757,
+      "label": "Pittsburgh Pirates @ Milwaukee Brewers",
+      "score": "4-3",
+      "inning": "B9",
+      "pitcher": "Mason Montgomery",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824647,
+      "label": "Los Angeles Dodgers @ Chicago Cubs",
+      "score": "5-10",
+      "inning": "T9",
+      "pitcher": "Jake Woodford",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 822867,
+      "label": "San Francisco Giants @ Texas Rangers",
+      "score": "5-0",
+      "inning": "T9",
+      "pitcher": "Nolan Kingham",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824160,
+      "label": "Toronto Blue Jays @ Houston Astros",
+      "score": "3-1",
+      "inning": "B9",
+      "pitcher": "Tyler Rogers",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824324,
+      "label": "Tampa Bay Rays @ Colorado Rockies",
+      "score": "10-4",
+      "inning": "T8",
+      "pitcher": "Tanner Gordon",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 825095,
+      "label": "San Diego Padres @ Arizona Diamondbacks",
+      "score": "0-3",
+      "inning": "B4",
+      "pitcher": "Brandon Pfaadt",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
     }
   ],
   "active_alerts": [],
