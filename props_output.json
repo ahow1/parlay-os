@@ -1,87 +1,127 @@
 {
-  "date": "2026-08-04",
-  "timestamp": "2026-08-04T20:59:54.960384-04:00",
+  "date": "2026-08-05",
+  "timestamp": "2026-08-05T12:31:50.573101-04:00",
   "games": [
     {
-      "away": "SD",
-      "home": "AZ",
-      "away_name": "San Diego Padres",
-      "home_name": "Arizona Diamondbacks",
-      "time": "9:41 PM ET",
-      "asp": "Randy V\u00e1squez",
-      "hsp": "Eduardo Rodriguez",
+      "away": "TOR",
+      "home": "HOU",
+      "away_name": "Toronto Blue Jays",
+      "home_name": "Houston Astros",
+      "time": "2:10 PM ET",
+      "asp": "Jameson Taillon",
+      "hsp": "Hunter Brown",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Randy V\u00e1squez",
+          "sp": "Jameson Taillon",
           "sp_side": "away",
-          "model_line": 3.4,
-          "p_over": 0.5189,
+          "model_line": 4.5,
+          "p_over": 0.474,
           "recommendation": "PASS"
         },
         {
           "type": "K_PROP",
-          "sp": "Eduardo Rodriguez",
+          "sp": "Hunter Brown",
           "sp_side": "home",
-          "model_line": 3.4,
-          "p_over": 0.5665,
+          "model_line": 5.2,
+          "p_over": 0.4718,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3783,
+          "p_yrfi": 0.6217,
+          "recommendation": "YRFI"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.58,
+          "market_line": 8.0,
+          "p_over": 0.6176,
+          "p_under": 0.3824,
+          "recommendation": "OVER 8.0"
+        }
+      ],
+      "sgp": [
+        {
+          "type": "OFFENSE_EXPLOSION",
+          "legs": [
+            "HOME ML (57.5%)",
+            "Game OVER 8.0 (61.8%)",
+            "HOME first to score (62.8%)"
+          ],
+          "joint_prob": 0.3089,
+          "kelly_stake": 0.0,
+          "ev": -0.15
+        }
+      ]
+    },
+    {
+      "away": "LAD",
+      "home": "CHC",
+      "away_name": "Los Angeles Dodgers",
+      "home_name": "Chicago Cubs",
+      "time": "2:21 PM ET",
+      "asp": "Eric Lauer",
+      "hsp": "Shota Imanaga",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Eric Lauer",
+          "sp_side": "away",
+          "model_line": 3.2,
+          "p_over": 0.5669,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Shota Imanaga",
+          "sp_side": "home",
+          "model_line": 4.7,
+          "p_over": 0.6284,
           "recommendation": "BET"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.3838,
-          "p_yrfi": 0.6162,
-          "recommendation": "PASS"
+          "p_nrfi": 0.3454,
+          "p_yrfi": 0.6546,
+          "recommendation": "YRFI"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.62,
-          "market_line": 9.0,
-          "p_over": 0.3629,
-          "p_under": 0.6371,
-          "recommendation": "UNDER 9.0"
+          "model_total": 10.15,
+          "market_line": 10.0,
+          "p_over": 0.4353,
+          "p_under": 0.5647,
+          "recommendation": "UNDER 10.0"
         }
       ],
       "sgp": []
     },
     {
-      "away": "DET",
-      "home": "SEA",
-      "away_name": "Detroit Tigers",
-      "home_name": "Seattle Mariners",
-      "time": "9:41 PM ET",
-      "asp": "Troy Melton",
-      "hsp": "Emerson Hancock",
+      "away": "SF",
+      "home": "TEX",
+      "away_name": "San Francisco Giants",
+      "home_name": "Texas Rangers",
+      "time": "2:36 PM ET",
+      "asp": "Carson Whisenhunt",
+      "hsp": "Cody Bradford",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Troy Melton",
+          "sp": "Carson Whisenhunt",
           "sp_side": "away",
-          "model_line": 4.5,
-          "p_over": 0.6354,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Emerson Hancock",
-          "sp_side": "home",
-          "model_line": 4.6,
-          "p_over": 0.5765,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4699,
-          "p_yrfi": 0.5301,
+          "model_line": 4.2,
+          "p_over": 0.3714,
           "recommendation": "PASS"
         },
         {
+          "type": "NRFI",
+          "recommendation": "SP_MISSING"
+        },
+        {
           "type": "TOTAL",
-          "model_total": 8.64,
-          "market_line": 7.5,
-          "p_over": 0.6328,
-          "p_under": 0.3672,
-          "recommendation": "OVER 7.5"
+          "recommendation": "SP_MISSING"
         }
       ],
       "sgp": []
