@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-05T19:54:10.858060-04:00",
+  "last_updated": "2026-08-05T21:12:55.648200-04:00",
   "in_progress": [
     {
       "game_pk": 824158,
@@ -40,45 +40,54 @@
     {
       "game_pk": 824806,
       "label": "Los Angeles Angels @ Baltimore Orioles",
-      "score": "0-3",
-      "inning": "T5",
-      "pitcher": "Trevor Rogers",
+      "score": "2-5",
+      "inning": "T9",
+      "pitcher": "Andrew Kittredge",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 824402,
       "label": "New York Mets @ Cleveland Guardians",
-      "score": "3-1",
-      "inning": "B4",
-      "pitcher": "Christian Scott",
+      "score": "4-5",
+      "inning": "T8",
+      "pitcher": "Hunter Gaddis",
       "quality_score": 4.5,
-      "trailing": "HOME"
+      "trailing": "AWAY"
     },
     {
-      "game_pk": 823429,
-      "label": "Washington Nationals @ Philadelphia Phillies",
-      "score": "1-2",
-      "inning": "T3",
-      "pitcher": "Andrew Painter",
+      "game_pk": 824482,
+      "label": "Athletics @ Cincinnati Reds",
+      "score": "2-3",
+      "inning": "T9",
+      "pitcher": "Emilio Pag\u00e1n",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 824728,
       "label": "Chicago White Sox @ Boston Red Sox",
-      "score": "0-1",
-      "inning": "T3",
-      "pitcher": "Sonny Gray",
+      "score": "0-2",
+      "inning": "B7",
+      "pitcher": "Sean Newcomb",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 824889,
       "label": "Miami Marlins @ Atlanta Braves",
+      "score": "1-4",
+      "inning": "B7",
+      "pitcher": "Cade Gibson",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823753,
+      "label": "Pittsburgh Pirates @ Milwaukee Brewers",
       "score": "0-3",
-      "inning": "B2",
-      "pitcher": "Bryce Elder",
+      "inning": "T6",
+      "pitcher": "Chad Patrick",
       "quality_score": 4.5,
       "trailing": "AWAY"
     }
