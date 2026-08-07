@@ -1,93 +1,21 @@
 {
-  "last_updated": "2026-08-06T22:49:49.819681-04:00",
+  "last_updated": "2026-08-07T19:26:52.257800-04:00",
   "in_progress": [
     {
-      "game_pk": 824804,
-      "label": "Los Angeles Angels @ Baltimore Orioles",
-      "score": "4-1",
-      "inning": "B9",
-      "pitcher": "Samy Natera Jr.",
+      "game_pk": 823349,
+      "label": "New York Mets @ Pittsburgh Pirates",
+      "score": "1-0",
+      "inning": "T3",
+      "pitcher": "Carmen Mlodzinski",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
-      "game_pk": 824481,
-      "label": "Athletics @ Cincinnati Reds",
-      "score": "5-6",
-      "inning": "T9",
-      "pitcher": "Brock Burke",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824401,
-      "label": "New York Mets @ Cleveland Guardians",
-      "score": "13-6",
-      "inning": "B9",
-      "pitcher": "Xzavion Curry",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 823754,
-      "label": "Pittsburgh Pirates @ Milwaukee Brewers",
-      "score": "2-5",
-      "inning": "T9",
-      "pitcher": "Chad Patrick",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824664,
-      "label": "Toronto Blue Jays @ Chicago Cubs",
-      "score": "2-3",
-      "inning": "B11",
-      "pitcher": "Brendon Little",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823105,
-      "label": "Detroit Tigers @ Seattle Mariners",
-      "score": "11-0",
-      "inning": "B9",
-      "pitcher": "Brenan Hanifee",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 823430,
-      "label": "Washington Nationals @ Philadelphia Phillies",
-      "score": "3-7",
-      "inning": "T9",
-      "pitcher": "Jhoan Duran",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824885,
-      "label": "Miami Marlins @ Atlanta Braves",
-      "score": "2-8",
-      "inning": "T8",
-      "pitcher": "Brent Suter",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824080,
-      "label": "Minnesota Twins @ Kansas City Royals",
-      "score": "4-3",
-      "inning": "B9",
-      "pitcher": "Yoendrys G\u00f3mez",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 825053,
-      "label": "San Diego Padres @ Arizona Diamondbacks",
-      "score": "3-1",
-      "inning": "T4",
-      "pitcher": "Kohl Drake",
+      "game_pk": 823836,
+      "label": "Los Angeles Angels @ Miami Marlins",
+      "score": "1-0",
+      "inning": "B1",
+      "pitcher": "Tyler Phillips",
       "quality_score": 4.5,
       "trailing": "HOME"
     }
