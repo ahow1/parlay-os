@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-07T19:26:52.257800-04:00",
+  "last_updated": "2026-08-07T19:57:38.317566-04:00",
   "in_progress": [
     {
       "game_pk": 823349,
@@ -11,13 +11,40 @@
       "trailing": "HOME"
     },
     {
+      "game_pk": 824727,
+      "label": "Athletics @ Boston Red Sox",
+      "score": "0-5",
+      "inning": "T3",
+      "pitcher": "Payton Tolle",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
       "game_pk": 823836,
       "label": "Los Angeles Angels @ Miami Marlins",
       "score": "1-0",
-      "inning": "B1",
-      "pitcher": "Tyler Phillips",
+      "inning": "T3",
+      "pitcher": "George Klassen",
       "quality_score": 4.5,
       "trailing": "HOME"
+    },
+    {
+      "game_pk": 824566,
+      "label": "Cleveland Guardians @ Chicago White Sox",
+      "score": "2-0",
+      "inning": "T1",
+      "pitcher": "Noah Schultz",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823750,
+      "label": "Minnesota Twins @ Milwaukee Brewers",
+      "score": "0-1",
+      "inning": "B1",
+      "pitcher": "Zebby Matthews",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
     }
   ],
   "active_alerts": [],
