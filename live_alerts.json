@@ -1,93 +1,93 @@
 {
-  "last_updated": "2026-08-05T21:12:55.648200-04:00",
+  "last_updated": "2026-08-06T21:43:32.486870-04:00",
   "in_progress": [
     {
-      "game_pk": 824158,
-      "label": "Toronto Blue Jays @ Houston Astros",
-      "score": "5-4",
-      "inning": "B10",
-      "pitcher": "Chase Lee",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824646,
-      "label": "Los Angeles Dodgers @ Chicago Cubs",
-      "score": "6-7",
-      "inning": "T9",
-      "pitcher": "Jacob Webb",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 822866,
-      "label": "San Francisco Giants @ Texas Rangers",
-      "score": "0-6",
-      "inning": "T9",
-      "pitcher": "Cole Winn",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824322,
-      "label": "Tampa Bay Rays @ Colorado Rockies",
-      "score": "4-0",
-      "inning": "B9",
-      "pitcher": "Cam Booser",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824806,
+      "game_pk": 824804,
       "label": "Los Angeles Angels @ Baltimore Orioles",
+      "score": "4-1",
+      "inning": "B9",
+      "pitcher": "Samy Natera Jr.",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824481,
+      "label": "Athletics @ Cincinnati Reds",
+      "score": "5-6",
+      "inning": "T9",
+      "pitcher": "Brock Burke",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824401,
+      "label": "New York Mets @ Cleveland Guardians",
+      "score": "13-6",
+      "inning": "B9",
+      "pitcher": "Xzavion Curry",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823754,
+      "label": "Pittsburgh Pirates @ Milwaukee Brewers",
       "score": "2-5",
       "inning": "T9",
-      "pitcher": "Andrew Kittredge",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824402,
-      "label": "New York Mets @ Cleveland Guardians",
-      "score": "4-5",
-      "inning": "T8",
-      "pitcher": "Hunter Gaddis",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824482,
-      "label": "Athletics @ Cincinnati Reds",
-      "score": "2-3",
-      "inning": "T9",
-      "pitcher": "Emilio Pag\u00e1n",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824728,
-      "label": "Chicago White Sox @ Boston Red Sox",
-      "score": "0-2",
-      "inning": "B7",
-      "pitcher": "Sean Newcomb",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824889,
-      "label": "Miami Marlins @ Atlanta Braves",
-      "score": "1-4",
-      "inning": "B7",
-      "pitcher": "Cade Gibson",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823753,
-      "label": "Pittsburgh Pirates @ Milwaukee Brewers",
-      "score": "0-3",
-      "inning": "T6",
       "pitcher": "Chad Patrick",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824664,
+      "label": "Toronto Blue Jays @ Chicago Cubs",
+      "score": "2-3",
+      "inning": "B11",
+      "pitcher": "Brendon Little",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823105,
+      "label": "Detroit Tigers @ Seattle Mariners",
+      "score": "11-0",
+      "inning": "B9",
+      "pitcher": "Brenan Hanifee",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823430,
+      "label": "Washington Nationals @ Philadelphia Phillies",
+      "score": "3-7",
+      "inning": "T9",
+      "pitcher": "Jhoan Duran",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824729,
+      "label": "Chicago White Sox @ Boston Red Sox",
+      "score": "7-6",
+      "inning": "B7",
+      "pitcher": "Grant Taylor",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824885,
+      "label": "Miami Marlins @ Atlanta Braves",
+      "score": "0-2",
+      "inning": "T5",
+      "pitcher": "Victor Mederos",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824080,
+      "label": "Minnesota Twins @ Kansas City Royals",
+      "score": "1-3",
+      "inning": "B7",
+      "pitcher": "Kody Funderburk",
       "quality_score": 4.5,
       "trailing": "AWAY"
     }
