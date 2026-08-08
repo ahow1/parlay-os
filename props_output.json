@@ -1,91 +1,7 @@
 {
   "date": "2026-08-08",
-  "timestamp": "2026-08-08T15:25:51.277169-04:00",
+  "timestamp": "2026-08-08T16:39:32.950156-04:00",
   "games": [
-    {
-      "away": "ATH",
-      "home": "BOS",
-      "away_name": "Athletics",
-      "home_name": "Boston Red Sox",
-      "time": "4:11 PM ET",
-      "asp": "Gage Jump",
-      "hsp": "Jake Bennett",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Gage Jump",
-          "sp_side": "away",
-          "model_line": 5.5,
-          "p_over": 0.4917,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Jake Bennett",
-          "sp_side": "home",
-          "model_line": 3.5,
-          "p_over": 0.5983,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3937,
-          "p_yrfi": 0.6063,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 9.85,
-          "market_line": 9.0,
-          "p_over": 0.5233,
-          "p_under": 0.4767,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "LAA",
-      "home": "MIA",
-      "away_name": "Los Angeles Angels",
-      "home_name": "Miami Marlins",
-      "time": "4:11 PM ET",
-      "asp": "Walbert Ure\u00f1a",
-      "hsp": "Sandy Alcantara",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Walbert Ure\u00f1a",
-          "sp_side": "away",
-          "model_line": 4.8,
-          "p_over": 0.6069,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Sandy Alcantara",
-          "sp_side": "home",
-          "model_line": 3.8,
-          "p_over": 0.7347,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4009,
-          "p_yrfi": 0.5991,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.42,
-          "market_line": 7.5,
-          "p_over": 0.4633,
-          "p_under": 0.5367,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
     {
       "away": "TOR",
       "home": "PHI",
@@ -155,16 +71,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4212,
-          "p_yrfi": 0.5788,
+          "p_nrfi": 0.4173,
+          "p_yrfi": 0.5827,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.44,
+          "model_total": 8.5,
           "market_line": 9.0,
-          "p_over": 0.3392,
-          "p_under": 0.6608,
+          "p_over": 0.347,
+          "p_under": 0.653,
           "recommendation": "UNDER 9.0"
         }
       ],
@@ -281,16 +197,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4032,
-          "p_yrfi": 0.5968,
+          "p_nrfi": 0.4071,
+          "p_yrfi": 0.5929,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.07,
+          "model_total": 7.99,
           "market_line": 8.0,
-          "p_over": 0.4178,
-          "p_under": 0.5822,
+          "p_over": 0.4058,
+          "p_under": 0.5942,
           "recommendation": "UNDER 8.0"
         }
       ],
@@ -372,10 +288,10 @@
         {
           "type": "TOTAL",
           "model_total": 8.19,
-          "market_line": 7.5,
+          "market_line": 7.0,
           "p_over": 0.5736,
           "p_under": 0.4264,
-          "recommendation": "OVER 7.5"
+          "recommendation": "OVER 7.0"
         }
       ],
       "sgp": []
@@ -477,101 +393,17 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.3954,
-          "p_yrfi": 0.6046,
+          "p_nrfi": 0.3915,
+          "p_yrfi": 0.6085,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 9.92,
+          "model_total": 10.03,
           "market_line": 8.0,
-          "p_over": 0.6582,
-          "p_under": 0.3418,
+          "p_over": 0.6703,
+          "p_under": 0.3297,
           "recommendation": "OVER 8.0"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "LAD",
-      "home": "AZ",
-      "away_name": "Los Angeles Dodgers",
-      "home_name": "Arizona Diamondbacks",
-      "time": "8:11 PM ET",
-      "asp": "Yoshinobu Yamamoto",
-      "hsp": "Brandon Pfaadt",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Yoshinobu Yamamoto",
-          "sp_side": "away",
-          "model_line": 4.5,
-          "p_over": 0.7221,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Brandon Pfaadt",
-          "sp_side": "home",
-          "model_line": 3.3,
-          "p_over": 0.6788,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4043,
-          "p_yrfi": 0.5957,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 9.04,
-          "market_line": 8.5,
-          "p_over": 0.5495,
-          "p_under": 0.4505,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "TB",
-      "home": "SEA",
-      "away_name": "Tampa Bay Rays",
-      "home_name": "Seattle Mariners",
-      "time": "9:50 PM ET",
-      "asp": "Griffin Jax",
-      "hsp": "George Kirby",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Griffin Jax",
-          "sp_side": "away",
-          "model_line": 5.5,
-          "p_over": 0.4812,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "George Kirby",
-          "sp_side": "home",
-          "model_line": 4.3,
-          "p_over": 0.6007,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4709,
-          "p_yrfi": 0.5291,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.01,
-          "market_line": 7.0,
-          "p_over": 0.5487,
-          "p_under": 0.4513,
-          "recommendation": "PASS"
         }
       ],
       "sgp": []
