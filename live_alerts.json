@@ -1,50 +1,59 @@
 {
-  "last_updated": "2026-08-07T19:57:38.317566-04:00",
+  "last_updated": "2026-08-07T20:48:09.960253-04:00",
   "in_progress": [
     {
       "game_pk": 823349,
       "label": "New York Mets @ Pittsburgh Pirates",
-      "score": "1-0",
-      "inning": "T3",
-      "pitcher": "Carmen Mlodzinski",
+      "score": "6-0",
+      "inning": "T5",
+      "pitcher": "Yohan Ram\u00edrez",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
       "game_pk": 824727,
       "label": "Athletics @ Boston Red Sox",
-      "score": "0-5",
-      "inning": "T3",
-      "pitcher": "Payton Tolle",
+      "score": "1-9",
+      "inning": "B5",
+      "pitcher": "Luis Medina",
       "quality_score": 4.5,
       "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823836,
-      "label": "Los Angeles Angels @ Miami Marlins",
-      "score": "1-0",
-      "inning": "T3",
-      "pitcher": "George Klassen",
-      "quality_score": 4.5,
-      "trailing": "HOME"
     },
     {
       "game_pk": 824566,
       "label": "Cleveland Guardians @ Chicago White Sox",
-      "score": "2-0",
-      "inning": "T1",
-      "pitcher": "Noah Schultz",
+      "score": "2-1",
+      "inning": "B4",
+      "pitcher": "Parker Messick",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
-      "game_pk": 823750,
-      "label": "Minnesota Twins @ Milwaukee Brewers",
-      "score": "0-1",
-      "inning": "B1",
-      "pitcher": "Zebby Matthews",
+      "game_pk": 824081,
+      "label": "Chicago Cubs @ Kansas City Royals",
+      "score": "4-1",
+      "inning": "B2",
+      "pitcher": "Kevin Gausman",
       "quality_score": 4.5,
-      "trailing": "AWAY"
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823024,
+      "label": "Colorado Rockies @ St. Louis Cardinals",
+      "score": "1-0",
+      "inning": "B2",
+      "pitcher": "Ryan Feltner",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 822863,
+      "label": "Baltimore Orioles @ Texas Rangers",
+      "score": "1-0",
+      "inning": "B2",
+      "pitcher": "Shane Baz",
+      "quality_score": 4.5,
+      "trailing": "HOME"
     }
   ],
   "active_alerts": [],
