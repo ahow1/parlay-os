@@ -1,6 +1,6 @@
 {
   "date": "2026-08-09",
-  "timestamp": "2026-08-09T10:04:55.971835-04:00",
+  "timestamp": "2026-08-09T11:38:59.842255-04:00",
   "games": [
     {
       "away": "CIN",
@@ -36,10 +36,10 @@
         {
           "type": "TOTAL",
           "model_total": 8.65,
-          "market_line": 9.5,
+          "market_line": 9.0,
           "p_over": 0.367,
           "p_under": 0.633,
-          "recommendation": "UNDER 9.5"
+          "recommendation": "UNDER 9.0"
         }
       ],
       "sgp": []
@@ -51,7 +51,7 @@
       "home_name": "Boston Red Sox",
       "time": "1:35 PM ET",
       "asp": "J.T. Ginn",
-      "hsp": "",
+      "hsp": "Erik Miller",
       "props": [
         {
           "type": "K_PROP",
@@ -62,12 +62,26 @@
           "recommendation": "BET"
         },
         {
+          "type": "K_PROP",
+          "sp": "Erik Miller",
+          "sp_side": "home",
+          "model_line": 7.0,
+          "p_over": 0.5044,
+          "recommendation": "PASS"
+        },
+        {
           "type": "NRFI",
-          "recommendation": "SP_MISSING"
+          "p_nrfi": 0.4056,
+          "p_yrfi": 0.5944,
+          "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "recommendation": "SP_MISSING"
+          "model_total": 9.0,
+          "market_line": 9.5,
+          "p_over": 0.4121,
+          "p_under": 0.5879,
+          "recommendation": "UNDER 9.5"
         }
       ],
       "sgp": []
@@ -99,16 +113,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4271,
-          "p_yrfi": 0.5729,
+          "p_nrfi": 0.4349,
+          "p_yrfi": 0.5651,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.5,
+          "model_total": 8.46,
           "market_line": 8.5,
-          "p_over": 0.4766,
-          "p_under": 0.5234,
+          "p_over": 0.4715,
+          "p_under": 0.5285,
           "recommendation": "PASS"
         }
       ],
@@ -149,8 +163,8 @@
           "type": "TOTAL",
           "model_total": 8.05,
           "market_line": 8.0,
-          "p_over": 0.4146,
-          "p_under": 0.5854,
+          "p_over": 0.4139,
+          "p_under": 0.5861,
           "recommendation": "UNDER 8.0"
         }
       ],
@@ -183,16 +197,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.3915,
-          "p_yrfi": 0.6085,
+          "p_nrfi": 0.3994,
+          "p_yrfi": 0.6006,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.71,
+          "model_total": 8.6,
           "market_line": 8.5,
-          "p_over": 0.505,
-          "p_under": 0.495,
+          "p_over": 0.4901,
+          "p_under": 0.5099,
           "recommendation": "PASS"
         }
       ],
@@ -231,10 +245,10 @@
         },
         {
           "type": "TOTAL",
-          "model_total": 7.79,
+          "model_total": 7.72,
           "market_line": 8.5,
-          "p_over": 0.3775,
-          "p_under": 0.6225,
+          "p_over": 0.368,
+          "p_under": 0.632,
           "recommendation": "UNDER 8.5"
         }
       ],
@@ -267,17 +281,17 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.3547,
-          "p_yrfi": 0.6453,
+          "p_nrfi": 0.3622,
+          "p_yrfi": 0.6378,
           "recommendation": "YRFI"
         },
         {
           "type": "TOTAL",
-          "model_total": 9.41,
-          "market_line": 10.0,
-          "p_over": 0.3431,
-          "p_under": 0.6569,
-          "recommendation": "UNDER 10.0"
+          "model_total": 9.21,
+          "market_line": 10.5,
+          "p_over": 0.3198,
+          "p_under": 0.6802,
+          "recommendation": "UNDER 10.5"
         }
       ],
       "sgp": []
@@ -309,16 +323,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4106,
-          "p_yrfi": 0.5894,
+          "p_nrfi": 0.3954,
+          "p_yrfi": 0.6046,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.41,
+          "model_total": 8.77,
           "market_line": 8.5,
-          "p_over": 0.465,
-          "p_under": 0.535,
+          "p_over": 0.5137,
+          "p_under": 0.4863,
           "recommendation": "PASS"
         }
       ],
@@ -351,16 +365,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4929,
-          "p_yrfi": 0.5071,
+          "p_nrfi": 0.5,
+          "p_yrfi": 0.5,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.65,
-          "market_line": 7.5,
-          "p_over": 0.4969,
-          "p_under": 0.5031,
+          "model_total": 7.56,
+          "market_line": 7.0,
+          "p_over": 0.4846,
+          "p_under": 0.5154,
           "recommendation": "PASS"
         }
       ],
@@ -399,10 +413,10 @@
         },
         {
           "type": "TOTAL",
-          "model_total": 8.97,
+          "model_total": 8.87,
           "market_line": 9.0,
-          "p_over": 0.4093,
-          "p_under": 0.5907,
+          "p_over": 0.3957,
+          "p_under": 0.6043,
           "recommendation": "UNDER 9.0"
         }
       ],
@@ -435,172 +449,20 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.3618,
-          "p_yrfi": 0.6382,
+          "p_nrfi": 0.3774,
+          "p_yrfi": 0.6226,
           "recommendation": "YRFI"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.6,
+          "model_total": 8.25,
           "market_line": 8.0,
-          "p_over": 0.4911,
-          "p_under": 0.5089,
-          "recommendation": "PASS"
+          "p_over": 0.4419,
+          "p_under": 0.5581,
+          "recommendation": "UNDER 8.0"
         }
       ],
       "sgp": []
-    },
-    {
-      "away": "DET",
-      "home": "SF",
-      "away_name": "Detroit Tigers",
-      "home_name": "San Francisco Giants",
-      "time": "4:05 PM ET",
-      "asp": "Troy Melton",
-      "hsp": "Logan Webb",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Troy Melton",
-          "sp_side": "away",
-          "model_line": 4.3,
-          "p_over": 0.6155,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Logan Webb",
-          "sp_side": "home",
-          "model_line": 4.0,
-          "p_over": 0.5681,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4492,
-          "p_yrfi": 0.5508,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.66,
-          "market_line": 7.5,
-          "p_over": 0.6349,
-          "p_under": 0.3651,
-          "recommendation": "OVER 7.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "LAD",
-      "home": "AZ",
-      "away_name": "Los Angeles Dodgers",
-      "home_name": "Arizona Diamondbacks",
-      "time": "4:10 PM ET",
-      "asp": "Justin Wrobleski",
-      "hsp": "Eduardo Rodriguez",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Justin Wrobleski",
-          "sp_side": "away",
-          "model_line": 3.9,
-          "p_over": 0.7427,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Eduardo Rodriguez",
-          "sp_side": "home",
-          "model_line": 3.4,
-          "p_over": 0.5659,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3726,
-          "p_yrfi": 0.6274,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 9.58,
-          "market_line": 9.0,
-          "p_over": 0.488,
-          "p_under": 0.512,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "TB",
-      "home": "SEA",
-      "away_name": "Tampa Bay Rays",
-      "home_name": "Seattle Mariners",
-      "time": "4:11 PM ET",
-      "asp": "",
-      "hsp": "Emerson Hancock",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Emerson Hancock",
-          "sp_side": "home",
-          "model_line": 4.6,
-          "p_over": 0.5844,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "recommendation": "SP_MISSING"
-        },
-        {
-          "type": "TOTAL",
-          "recommendation": "SP_MISSING"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "HOU",
-      "home": "SD",
-      "away_name": "Houston Astros",
-      "home_name": "San Diego Padres",
-      "time": "8:20 PM ET",
-      "asp": "Cristian Javier",
-      "hsp": "",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Cristian Javier",
-          "sp_side": "away",
-          "model_line": 4.2,
-          "p_over": 0.4853,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "recommendation": "SP_MISSING"
-        },
-        {
-          "type": "TOTAL",
-          "recommendation": "SP_MISSING"
-        }
-      ],
-      "sgp": [
-        {
-          "type": "OFFENSE_EXPLOSION",
-          "legs": [
-            "AWAY ML (56.1%)",
-            "Game OVER 8.5 (71.1%)",
-            "AWAY first to score (49.1%)"
-          ],
-          "joint_prob": 0.2796,
-          "kelly_stake": 0.0,
-          "ev": -0.15
-        }
-      ]
     }
   ]
 }
