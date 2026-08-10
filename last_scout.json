@@ -1,16 +1,294 @@
 {
-  "timestamp": "2026-08-10T15:51:59Z",
+  "timestamp": "2026-08-10T18:27:47Z",
   "date": "2026-08-10",
-  "window": "day",
+  "window": "all",
   "bankroll": 300.0,
-  "games": [],
-  "bets": [],
-  "passes": [],
-  "slip_sent": false,
-  "sent_pick_ids": [],
-  "slip_quality": "bad",
+  "games": [
+    {
+      "away": "BOS",
+      "home": "TOR",
+      "away_model": 0.5328,
+      "home_model": 0.5032,
+      "away_edge": -5.89,
+      "home_edge": 9.49,
+      "away_xr": 5.442,
+      "home_xr": 3.602
+    },
+    {
+      "away": "NYM",
+      "home": "ATL",
+      "away_model": 0.5197,
+      "home_model": 0.4938,
+      "away_edge": 9.72,
+      "home_edge": -8.37,
+      "away_xr": 4.739,
+      "home_xr": 4.366
+    },
+    {
+      "away": "BAL",
+      "home": "MIN",
+      "away_model": 0.5025,
+      "home_model": 0.493,
+      "away_edge": -2.38,
+      "home_edge": 1.93,
+      "away_xr": 4.173,
+      "home_xr": 3.729
+    },
+    {
+      "away": "PHI",
+      "home": "STL",
+      "away_model": 0.496,
+      "home_model": 0.522,
+      "away_edge": -2.8,
+      "home_edge": 4.6,
+      "away_xr": 4.226,
+      "home_xr": 4.654
+    },
+    {
+      "away": "TEX",
+      "home": "LAA",
+      "away_model": 0.5163,
+      "home_model": 0.5017,
+      "away_edge": -0.55,
+      "home_edge": 2.35,
+      "away_xr": 3.939,
+      "home_xr": 3.5
+    },
+    {
+      "away": "COL",
+      "home": "AZ",
+      "away_model": 0.4819,
+      "home_model": 0.5136,
+      "away_edge": 13.31,
+      "home_edge": -13.76,
+      "away_xr": 4.148,
+      "home_xr": 4.043
+    },
+    {
+      "away": "TB",
+      "home": "ATH",
+      "away_model": 0.4879,
+      "home_model": 0.5076,
+      "away_edge": -11.02,
+      "home_edge": 10.57,
+      "away_xr": 5.064,
+      "home_xr": 3.88
+    },
+    {
+      "away": "MIL",
+      "home": "SD",
+      "away_model": 0.5023,
+      "home_model": 0.5157,
+      "away_edge": -2.61,
+      "home_edge": 4.41,
+      "away_xr": 4.379,
+      "home_xr": 4.006
+    },
+    {
+      "away": "HOU",
+      "home": "SF",
+      "away_model": 0.4569,
+      "home_model": 0.5386,
+      "away_edge": -11.64,
+      "home_edge": 11.19,
+      "away_xr": 4.616,
+      "home_xr": 3.832
+    },
+    {
+      "away": "KC",
+      "home": "LAD",
+      "away_model": 0.484,
+      "home_model": 0.534,
+      "away_edge": 19.51,
+      "home_edge": -17.71,
+      "away_xr": 3.5,
+      "home_xr": 4.008
+    }
+  ],
+  "bets": [
+    {
+      "team": "Kansas City Royals",
+      "side": "away",
+      "game": "Kansas City Royals @ Los Angeles Dodgers",
+      "odds": 250,
+      "book": "betrivers",
+      "model_prob": 0.484,
+      "market_prob": 0.2889,
+      "edge_pct": 19.51,
+      "stake": 40.0,
+      "conviction": "HIGH",
+      "confidence_score": 74,
+      "sp": "Noah Cameron",
+      "sp_era": 4.37,
+      "sp_xfip": 3.97,
+      "sp_yrfi_lean": false,
+      "bullpen_tier": null,
+      "weather_adj": null,
+      "platoon_edge": -0.7,
+      "h2h": {
+        "h2h_available": true,
+        "n_games": 6,
+        "away_win_rate": 0.333,
+        "home_win_rate": 0.667,
+        "avg_total": 8.0,
+        "over_rate": 0.5
+      }
+    },
+    {
+      "team": "Colorado Rockies",
+      "side": "away",
+      "game": "Colorado Rockies @ Arizona Diamondbacks",
+      "odds": 180,
+      "book": "draftkings",
+      "model_prob": 0.4819,
+      "market_prob": 0.3488,
+      "edge_pct": 13.31,
+      "stake": 25.0,
+      "conviction": "MEDIUM",
+      "confidence_score": 75,
+      "sp": "Gabriel Hughes",
+      "sp_era": 4.25,
+      "sp_xfip": 3.75,
+      "sp_yrfi_lean": false,
+      "bullpen_tier": null,
+      "weather_adj": null,
+      "platoon_edge": 7.0,
+      "h2h": {
+        "h2h_available": true,
+        "n_games": 10,
+        "away_win_rate": 0.5,
+        "home_win_rate": 0.5,
+        "avg_total": 9.2,
+        "over_rate": 0.6
+      }
+    },
+    {
+      "team": "San Francisco Giants",
+      "side": "home",
+      "game": "Houston Astros @ San Francisco Giants",
+      "odds": 135,
+      "book": "betrivers",
+      "model_prob": 0.5386,
+      "market_prob": 0.4267,
+      "edge_pct": 11.19,
+      "stake": 25.0,
+      "conviction": "MEDIUM",
+      "confidence_score": 91,
+      "sp": "Blade Tidwell",
+      "sp_era": 3.18,
+      "sp_xfip": 4.32,
+      "sp_yrfi_lean": false,
+      "bullpen_tier": null,
+      "weather_adj": null,
+      "platoon_edge": 7.9,
+      "h2h": {
+        "h2h_available": true,
+        "n_games": 6,
+        "away_win_rate": 0.167,
+        "home_win_rate": 0.833,
+        "avg_total": 6.83,
+        "over_rate": 0.333
+      }
+    }
+  ],
+  "passes": [
+    {
+      "game": "Boston Red Sox @ Toronto Blue Jays",
+      "edges": {
+        "away": -5.89,
+        "home": 9.49
+      }
+    },
+    {
+      "game": "New York Mets @ Atlanta Braves",
+      "edges": {
+        "away": 9.72,
+        "home": -8.37
+      }
+    },
+    {
+      "game": "Baltimore Orioles @ Minnesota Twins",
+      "edges": {
+        "away": -2.38,
+        "home": 1.93
+      }
+    },
+    {
+      "game": "Philadelphia Phillies @ St. Louis Cardinals",
+      "edges": {
+        "away": -2.8,
+        "home": 4.6
+      }
+    },
+    {
+      "game": "Texas Rangers @ Los Angeles Angels",
+      "edges": {
+        "away": -0.55,
+        "home": 2.35
+      }
+    },
+    {
+      "game": "Tampa Bay Rays @ Athletics",
+      "edges": {
+        "away": -11.02,
+        "home": 10.57
+      }
+    },
+    {
+      "game": "Milwaukee Brewers @ San Diego Padres",
+      "edges": {
+        "away": -2.61,
+        "home": 4.41
+      }
+    }
+  ],
+  "slip_sent": true,
+  "sent_pick_ids": [
+    "ER:Andrew Painter:4.0:UNDER",
+    "ER:Blade Tidwell:2.0:OVER",
+    "ER:Dean Kremer:3.5:UNDER",
+    "ER:Freddy Peralta:3.0:UNDER",
+    "ER:Hunter Dobbins:2.5:OVER",
+    "ER:Jameson Taillon:3.5:UNDER",
+    "KPROP:Blade Tidwell:3.8",
+    "KPROP:Casey Mize:4.8",
+    "KPROP:Dean Kremer:4.9",
+    "KPROP:Freddy Peralta:4.9",
+    "KPROP:Gabriel Hughes:4.7",
+    "KPROP:Hayden Wesneski:3.4",
+    "KPROP:Hunter Dobbins:4.5",
+    "KPROP:Jacob Lopez:4.7",
+    "KPROP:MacKenzie Gore:5.4",
+    "KPROP:Michael Soroka:4.8",
+    "KPROP:Noah Cameron:4.7",
+    "KPROP:Reid Detmers:5.8",
+    "KPROP:Sonny Gray:4.4",
+    "KPROP:Tarik Skubal:5.9",
+    "ML:Colorado Rockies:180",
+    "ML:Kansas City Royals:250",
+    "ML:San Francisco Giants:135",
+    "NRFI:Tampa Bay Rays @ Athletics:YRFI",
+    "TOT:Baltimore Orioles @ Minnesota Twins:UNDER:8.5",
+    "TOT:Boston Red Sox @ Toronto Blue Jays:OVER:8.5",
+    "TOT:Colorado Rockies @ Arizona Diamondbacks:UNDER:8.5",
+    "TOT:Milwaukee Brewers @ San Diego Padres:OVER:7.0",
+    "TOT:New York Mets @ Atlanta Braves:OVER:8.5",
+    "TOT:Philadelphia Phillies @ St. Louis Cardinals:UNDER:9.0",
+    "TOT:Tampa Bay Rays @ Athletics:UNDER:10.0",
+    "TOT:Texas Rangers @ Los Angeles Angels:UNDER:8.0"
+  ],
+  "slip_quality": "good",
   "data_health": {
-    "odds": "live"
+    "odds": "live",
+    "fangraphs_sp": "live",
+    "savant": "degraded",
+    "lineups": "failed",
+    "savant_bullpen_stuff": "live",
+    "savant_bat_tracking": "live",
+    "savant_park_of_defense": "live",
+    "savant_sprint_baserunning": "live",
+    "savant_arm_angle": "live",
+    "h2h": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],
