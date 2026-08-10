@@ -1,57 +1,12 @@
 {
-  "last_updated": "2026-08-08T19:23:00.061463-04:00",
+  "last_updated": "2026-08-10T19:29:07.137966-04:00",
   "in_progress": [
     {
-      "game_pk": 823514,
-      "label": "Atlanta Braves @ New York Yankees",
-      "score": "4-5",
-      "inning": "T9",
-      "pitcher": "David Bednar",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824726,
-      "label": "Athletics @ Boston Red Sox",
-      "score": "7-3",
-      "inning": "B9",
-      "pitcher": "Hogan Harris",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 823834,
-      "label": "Los Angeles Angels @ Miami Marlins",
-      "score": "0-7",
-      "inning": "T9",
-      "pitcher": "Pete Fairbanks",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823426,
-      "label": "Toronto Blue Jays @ Philadelphia Phillies",
-      "score": "2-0",
-      "inning": "T4",
-      "pitcher": "Aaron Nola",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 823348,
-      "label": "New York Mets @ Pittsburgh Pirates",
-      "score": "0-3",
-      "inning": "B2",
-      "pitcher": "Bubba Chandler",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823021,
-      "label": "Colorado Rockies @ St. Louis Cardinals",
+      "game_pk": 824887,
+      "label": "New York Mets @ Atlanta Braves",
       "score": "1-0",
       "inning": "T1",
-      "pitcher": "Matthew Liberatore",
+      "pitcher": "Bryce Elder",
       "quality_score": 4.5,
       "trailing": "HOME"
     }
