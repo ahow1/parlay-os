@@ -1,48 +1,5 @@
 {
-  "date": "2026-08-09",
-  "timestamp": "2026-08-09T20:01:00.635488-04:00",
-  "games": [
-    {
-      "away": "HOU",
-      "home": "SD",
-      "away_name": "Houston Astros",
-      "home_name": "San Diego Padres",
-      "time": "8:20 PM ET",
-      "asp": "Cristian Javier",
-      "hsp": "Randy V\u00e1squez",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Cristian Javier",
-          "sp_side": "away",
-          "model_line": 4.2,
-          "p_over": 0.4853,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Randy V\u00e1squez",
-          "sp_side": "home",
-          "model_line": 3.2,
-          "p_over": 0.4869,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3219,
-          "p_yrfi": 0.6781,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 10.49,
-          "market_line": 9.0,
-          "p_over": 0.6013,
-          "p_under": 0.3987,
-          "recommendation": "OVER 9.0"
-        }
-      ],
-      "sgp": []
-    }
-  ]
+  "date": "2026-08-10",
+  "timestamp": "2026-08-10T11:52:00.067496-04:00",
+  "games": []
 }
