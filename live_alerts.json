@@ -1,11 +1,11 @@
 {
-  "last_updated": "2026-08-10T19:29:07.137966-04:00",
+  "last_updated": "2026-08-10T20:01:39.538412-04:00",
   "in_progress": [
     {
       "game_pk": 824887,
       "label": "New York Mets @ Atlanta Braves",
-      "score": "1-0",
-      "inning": "T1",
+      "score": "5-2",
+      "inning": "T2",
       "pitcher": "Bryce Elder",
       "quality_score": 4.5,
       "trailing": "HOME"
