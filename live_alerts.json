@@ -1,12 +1,66 @@
 {
-  "last_updated": "2026-08-10T20:01:39.538412-04:00",
+  "last_updated": "2026-08-10T21:56:59.460284-04:00",
   "in_progress": [
+    {
+      "game_pk": 822780,
+      "label": "Boston Red Sox @ Toronto Blue Jays",
+      "score": "1-2",
+      "inning": "T9",
+      "pitcher": "Louis Varland",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
     {
       "game_pk": 824887,
       "label": "New York Mets @ Atlanta Braves",
-      "score": "5-2",
+      "score": "7-5",
+      "inning": "B8",
+      "pitcher": "Daniel Duarte",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823675,
+      "label": "Baltimore Orioles @ Minnesota Twins",
+      "score": "2-7",
+      "inning": "T8",
+      "pitcher": "Travis Adams",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823018,
+      "label": "Philadelphia Phillies @ St. Louis Cardinals",
+      "score": "4-2",
+      "inning": "T7",
+      "pitcher": "Gordon Graceffo",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823998,
+      "label": "Texas Rangers @ Los Angeles Angels",
+      "score": "0-1",
       "inning": "T2",
-      "pitcher": "Bryce Elder",
+      "pitcher": "Reid Detmers",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 825048,
+      "label": "Colorado Rockies @ Arizona Diamondbacks",
+      "score": "0-1",
+      "inning": "B1",
+      "pitcher": "Gabriel Hughes",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823189,
+      "label": "Houston Astros @ San Francisco Giants",
+      "score": "1-0",
+      "inning": "T1",
+      "pitcher": "Hayden Wesneski",
       "quality_score": 4.5,
       "trailing": "HOME"
     }
