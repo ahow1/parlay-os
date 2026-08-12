@@ -1,59 +1,77 @@
 {
-  "last_updated": "2026-08-11T20:10:59.778018-04:00",
+  "last_updated": "2026-08-12T19:35:14.787954-04:00",
   "in_progress": [
     {
-      "game_pk": 824240,
-      "label": "Cleveland Guardians @ Detroit Tigers",
-      "score": "1-4",
-      "inning": "T6",
-      "pitcher": "Tanner Bibee",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823832,
-      "label": "Pittsburgh Pirates @ Miami Marlins",
-      "score": "0-2",
-      "inning": "T6",
-      "pitcher": "Paul Skenes",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 822697,
-      "label": "Chicago Cubs @ Washington Nationals",
-      "score": "5-3",
-      "inning": "B4",
-      "pitcher": "Tom Cosgrove",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 822778,
-      "label": "Boston Red Sox @ Toronto Blue Jays",
-      "score": "2-1",
-      "inning": "T4",
-      "pitcher": "Dylan Cease",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 823673,
+      "game_pk": 823672,
       "label": "Baltimore Orioles @ Minnesota Twins",
-      "score": "2-0",
-      "inning": "T2",
-      "pitcher": "Bailey Ober",
+      "score": "5-7",
+      "inning": "T9",
+      "pitcher": "Yoendrys G\u00f3mez",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823017,
+      "label": "Philadelphia Phillies @ St. Louis Cardinals",
+      "score": "1-7",
+      "inning": "T9",
+      "pitcher": "Luis Gastelum",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824967,
+      "label": "Tampa Bay Rays @ Athletics",
+      "score": "8-4",
+      "inning": "B9",
+      "pitcher": "Michael Grove",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
-      "game_pk": 824563,
-      "label": "Cincinnati Reds @ Chicago White Sox",
-      "score": "0-2",
-      "inning": "B2",
-      "pitcher": "Nick Lodolo",
+      "game_pk": 825047,
+      "label": "Colorado Rockies @ Arizona Diamondbacks",
+      "score": "6-4",
+      "inning": "B9",
+      "pitcher": "Jordan Romano",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823187,
+      "label": "Houston Astros @ San Francisco Giants",
+      "score": "2-1",
+      "inning": "B9",
+      "pitcher": "Josh Hader",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824241,
+      "label": "Cleveland Guardians @ Detroit Tigers",
+      "score": "2-3",
+      "inning": "B3",
+      "pitcher": "Foster Griffin",
       "quality_score": 4.5,
       "trailing": "AWAY"
+    },
+    {
+      "game_pk": 822698,
+      "label": "Chicago Cubs @ Washington Nationals",
+      "score": "0-1",
+      "inning": "B3",
+      "pitcher": "David Peterson",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823511,
+      "label": "Seattle Mariners @ New York Yankees",
+      "score": "3-0",
+      "inning": "T2",
+      "pitcher": "Will Warren",
+      "quality_score": 4.5,
+      "trailing": "HOME"
     }
   ],
   "active_alerts": [],
