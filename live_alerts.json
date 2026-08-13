@@ -1,77 +1,59 @@
 {
-  "last_updated": "2026-08-12T19:35:14.787954-04:00",
+  "last_updated": "2026-08-13T19:33:26.798098-04:00",
   "in_progress": [
     {
-      "game_pk": 823672,
-      "label": "Baltimore Orioles @ Minnesota Twins",
-      "score": "5-7",
-      "inning": "T9",
-      "pitcher": "Yoendrys G\u00f3mez",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823017,
-      "label": "Philadelphia Phillies @ St. Louis Cardinals",
-      "score": "1-7",
-      "inning": "T9",
-      "pitcher": "Luis Gastelum",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824967,
-      "label": "Tampa Bay Rays @ Athletics",
-      "score": "8-4",
-      "inning": "B9",
-      "pitcher": "Michael Grove",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 825047,
-      "label": "Colorado Rockies @ Arizona Diamondbacks",
-      "score": "6-4",
-      "inning": "B9",
-      "pitcher": "Jordan Romano",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 823187,
-      "label": "Houston Astros @ San Francisco Giants",
-      "score": "2-1",
-      "inning": "B9",
-      "pitcher": "Josh Hader",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824241,
+      "game_pk": 824238,
       "label": "Cleveland Guardians @ Detroit Tigers",
-      "score": "2-3",
-      "inning": "B3",
-      "pitcher": "Foster Griffin",
+      "score": "0-3",
+      "inning": "T9",
+      "pitcher": "Kenley Jansen",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
-      "game_pk": 822698,
-      "label": "Chicago Cubs @ Washington Nationals",
-      "score": "0-1",
-      "inning": "B3",
-      "pitcher": "David Peterson",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823511,
-      "label": "Seattle Mariners @ New York Yankees",
-      "score": "3-0",
-      "inning": "T2",
-      "pitcher": "Will Warren",
+      "game_pk": 824561,
+      "label": "Cincinnati Reds @ Chicago White Sox",
+      "score": "9-8",
+      "inning": "B9",
+      "pitcher": "Julian Garcia",
       "quality_score": 4.5,
       "trailing": "HOME"
+    },
+    {
+      "game_pk": 823829,
+      "label": "Pittsburgh Pirates @ Miami Marlins",
+      "score": "13-1",
+      "inning": "B9",
+      "pitcher": "Braxton Ashcraft",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823508,
+      "label": "Seattle Mariners @ New York Yankees",
+      "score": "1-0",
+      "inning": "B9",
+      "pitcher": "Andr\u00e9s Mu\u00f1oz",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 822776,
+      "label": "Boston Red Sox @ Toronto Blue Jays",
+      "score": "7-0",
+      "inning": "B9",
+      "pitcher": "Greg Weissert",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 822696,
+      "label": "Chicago Cubs @ Washington Nationals",
+      "score": "0-7",
+      "inning": "T9",
+      "pitcher": "Clayton Beeter",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
     }
   ],
   "active_alerts": [],
