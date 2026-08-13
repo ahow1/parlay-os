@@ -1,91 +1,7 @@
 {
   "date": "2026-08-13",
-  "timestamp": "2026-08-13T13:40:01.747868-04:00",
+  "timestamp": "2026-08-13T16:40:05.812063-04:00",
   "games": [
-    {
-      "away": "BOS",
-      "home": "TOR",
-      "away_name": "Boston Red Sox",
-      "home_name": "Toronto Blue Jays",
-      "time": "3:08 PM ET",
-      "asp": "Payton Tolle",
-      "hsp": "Max Scherzer",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Payton Tolle",
-          "sp_side": "away",
-          "model_line": 5.8,
-          "p_over": 0.6347,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Max Scherzer",
-          "sp_side": "home",
-          "model_line": 3.8,
-          "p_over": 0.3528,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3741,
-          "p_yrfi": 0.6259,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.4,
-          "market_line": 8.0,
-          "p_over": 0.4637,
-          "p_under": 0.5363,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "CHC",
-      "home": "WAS",
-      "away_name": "Chicago Cubs",
-      "home_name": "Washington Nationals",
-      "time": "4:06 PM ET",
-      "asp": "Kevin Gausman",
-      "hsp": "Cade Cavalli",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Kevin Gausman",
-          "sp_side": "away",
-          "model_line": 4.9,
-          "p_over": 0.6361,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Cade Cavalli",
-          "sp_side": "home",
-          "model_line": 5.5,
-          "p_over": 0.4949,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4478,
-          "p_yrfi": 0.5522,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 9.59,
-          "market_line": 8.5,
-          "p_over": 0.6192,
-          "p_under": 0.3808,
-          "recommendation": "OVER 8.5"
-        }
-      ],
-      "sgp": []
-    },
     {
       "away": "PHI",
       "home": "MIN",
@@ -119,95 +35,11 @@
         },
         {
           "type": "TOTAL",
-          "model_total": 8.37,
+          "model_total": 8.46,
           "market_line": 8.5,
-          "p_over": 0.4583,
-          "p_under": 0.5417,
+          "p_over": 0.4717,
+          "p_under": 0.5283,
           "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "TEX",
-      "home": "LAA",
-      "away_name": "Texas Rangers",
-      "home_name": "Los Angeles Angels",
-      "time": "10:08 PM ET",
-      "asp": "Jacob deGrom",
-      "hsp": "Walbert Ure\u00f1a",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Jacob deGrom",
-          "sp_side": "away",
-          "model_line": 6.1,
-          "p_over": 0.4807,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Walbert Ure\u00f1a",
-          "sp_side": "home",
-          "model_line": 4.8,
-          "p_over": 0.5784,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4443,
-          "p_yrfi": 0.5557,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.21,
-          "market_line": 7.5,
-          "p_over": 0.4325,
-          "p_under": 0.5675,
-          "recommendation": "UNDER 7.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "MIL",
-      "home": "LAD",
-      "away_name": "Milwaukee Brewers",
-      "home_name": "Los Angeles Dodgers",
-      "time": "10:10 PM ET",
-      "asp": "Shane Drohan",
-      "hsp": "Roki Sasaki",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Shane Drohan",
-          "sp_side": "away",
-          "model_line": 5.0,
-          "p_over": 0.6993,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Roki Sasaki",
-          "sp_side": "home",
-          "model_line": 5.1,
-          "p_over": 0.4369,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4245,
-          "p_yrfi": 0.5755,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.3,
-          "market_line": 8.5,
-          "p_over": 0.4487,
-          "p_under": 0.5513,
-          "recommendation": "UNDER 8.5"
         }
       ],
       "sgp": []

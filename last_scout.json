@@ -1,163 +1,31 @@
 {
-  "timestamp": "2026-08-13T17:30:25Z",
+  "timestamp": "2026-08-13T20:37:40Z",
   "date": "2026-08-13",
-  "window": "all",
+  "window": "evening",
   "bankroll": 300.0,
   "games": [
     {
-      "away": "BOS",
-      "home": "TOR",
-      "away_model": 0.5189,
-      "home_model": 0.4961,
-      "away_edge": -4.35,
-      "home_edge": 5.85,
-      "away_xr": 4.904,
-      "home_xr": 3.5
-    },
-    {
-      "away": "CHC",
-      "home": "WAS",
-      "away_model": 0.4961,
-      "home_model": 0.5354,
-      "away_edge": -7.9,
-      "home_edge": 11.05,
-      "away_xr": 4.625,
-      "home_xr": 4.965
-    },
-    {
       "away": "PHI",
       "home": "MIN",
-      "away_model": 0.5022,
-      "home_model": 0.4932,
-      "away_edge": -0.01,
-      "home_edge": -0.45,
-      "away_xr": 4.016,
-      "home_xr": 4.349
-    },
-    {
-      "away": "TEX",
-      "home": "LAA",
-      "away_model": 0.5008,
-      "home_model": 0.5127,
-      "away_edge": -8.19,
-      "home_edge": 9.54,
-      "away_xr": 3.71,
-      "home_xr": 3.5
-    },
-    {
-      "away": "MIL",
-      "home": "LAD",
-      "away_model": 0.5221,
-      "home_model": 0.4734,
-      "away_edge": 9.37,
-      "home_edge": -9.82,
-      "away_xr": 4.195,
-      "home_xr": 4.101
+      "away_model": 0.5027,
+      "home_model": 0.4923,
+      "away_edge": 0.73,
+      "home_edge": -1.23,
+      "away_xr": 4.064,
+      "home_xr": 4.398
     }
   ],
-  "bets": [
-    {
-      "team": "Washington Nationals",
-      "side": "home",
-      "game": "Chicago Cubs @ Washington Nationals",
-      "odds": 136,
-      "book": "fanduel",
-      "model_prob": 0.5354,
-      "market_prob": 0.4249,
-      "edge_pct": 11.05,
-      "stake": 25.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 77,
-      "sp": "Cade Cavalli",
-      "sp_era": 3.57,
-      "sp_xfip": 3.39,
-      "sp_yrfi_lean": true,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": -3.8,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.5,
-        "home_win_rate": 0.5,
-        "avg_total": 10.5,
-        "over_rate": 0.7
-      }
-    },
-    {
-      "team": "Los Angeles Angels",
-      "side": "home",
-      "game": "Texas Rangers @ Los Angeles Angels",
-      "odds": 138,
-      "book": "fanduel",
-      "model_prob": 0.5127,
-      "market_prob": 0.4173,
-      "edge_pct": 9.54,
-      "stake": 25.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 62,
-      "sp": "Walbert Ure\u00f1a",
-      "sp_era": 2.83,
-      "sp_xfip": 4.29,
-      "sp_yrfi_lean": true,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": -2.7,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.4,
-        "home_win_rate": 0.6,
-        "avg_total": 10.3,
-        "over_rate": 0.5
-      }
-    },
-    {
-      "team": "Milwaukee Brewers",
-      "side": "away",
-      "game": "Milwaukee Brewers @ Los Angeles Dodgers",
-      "odds": 131,
-      "book": "draftkings",
-      "model_prob": 0.5221,
-      "market_prob": 0.4284,
-      "edge_pct": 9.37,
-      "stake": 30.7,
-      "conviction": "HIGH",
-      "confidence_score": 79,
-      "sp": "Shane Drohan",
-      "sp_era": 3.87,
-      "sp_xfip": 3.78,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 7.7,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.8,
-        "home_win_rate": 0.2,
-        "avg_total": 8.3,
-        "over_rate": 0.5
-      }
-    }
-  ],
+  "bets": [],
   "passes": [
-    {
-      "game": "Boston Red Sox @ Toronto Blue Jays",
-      "edges": {
-        "away": -4.35,
-        "home": 5.85
-      }
-    },
     {
       "game": "Philadelphia Phillies @ Minnesota Twins",
       "edges": {
-        "away": -0.01,
-        "home": -0.45
+        "away": 0.73,
+        "home": -1.23
       }
     }
   ],
-  "slip_sent": true,
+  "slip_sent": false,
   "sent_pick_ids": [
     "ER:Aaron Nola:3.0:UNDER",
     "ER:Jacob deGrom:2.5:UNDER",
@@ -197,12 +65,12 @@
     "TOT:Chicago Cubs @ Washington Nationals:OVER:8.5",
     "TOT:Texas Rangers @ Los Angeles Angels:UNDER:7.5"
   ],
-  "slip_quality": "good",
+  "slip_quality": "bad",
   "data_health": {
     "odds": "live",
     "fangraphs_sp": "live",
     "savant": "degraded",
-    "lineups": "degraded",
+    "lineups": "live",
     "savant_bullpen_stuff": "live",
     "savant_bat_tracking": "live",
     "savant_park_of_defense": "live",
