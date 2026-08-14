@@ -1,66 +1,30 @@
 {
-  "last_updated": "2026-08-13T22:09:31.601593-04:00",
+  "last_updated": "2026-08-14T19:15:39.151467-04:00",
   "in_progress": [
     {
-      "game_pk": 824238,
-      "label": "Cleveland Guardians @ Detroit Tigers",
+      "game_pk": 824643,
+      "label": "St. Louis Cardinals @ Chicago Cubs",
       "score": "0-3",
       "inning": "T9",
-      "pitcher": "Kenley Jansen",
+      "pitcher": "Jacob Webb",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
-      "game_pk": 824561,
-      "label": "Cincinnati Reds @ Chicago White Sox",
-      "score": "9-8",
-      "inning": "B9",
-      "pitcher": "Julian Garcia",
+      "game_pk": 823346,
+      "label": "Boston Red Sox @ Pittsburgh Pirates",
+      "score": "0-1",
+      "inning": "T3",
+      "pitcher": "Bubba Chandler",
       "quality_score": 4.5,
-      "trailing": "HOME"
+      "trailing": "AWAY"
     },
     {
-      "game_pk": 823829,
-      "label": "Pittsburgh Pirates @ Miami Marlins",
-      "score": "13-1",
-      "inning": "B9",
-      "pitcher": "Braxton Ashcraft",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 823508,
-      "label": "Seattle Mariners @ New York Yankees",
+      "game_pk": 824237,
+      "label": "Chicago White Sox @ Detroit Tigers",
       "score": "1-0",
-      "inning": "B9",
-      "pitcher": "Andr\u00e9s Mu\u00f1oz",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 822776,
-      "label": "Boston Red Sox @ Toronto Blue Jays",
-      "score": "7-0",
-      "inning": "B9",
-      "pitcher": "Greg Weissert",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 822696,
-      "label": "Chicago Cubs @ Washington Nationals",
-      "score": "0-7",
-      "inning": "T9",
-      "pitcher": "Clayton Beeter",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823669,
-      "label": "Philadelphia Phillies @ Minnesota Twins",
-      "score": "7-1",
-      "inning": "B8",
-      "pitcher": "Orion Kerkering",
+      "inning": "B2",
+      "pitcher": "Jos\u00e9 Urquidy",
       "quality_score": 4.5,
       "trailing": "HOME"
     }
