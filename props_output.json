@@ -1,44 +1,86 @@
 {
   "date": "2026-08-13",
-  "timestamp": "2026-08-13T16:40:05.812063-04:00",
+  "timestamp": "2026-08-13T20:13:19.013809-04:00",
   "games": [
     {
-      "away": "PHI",
-      "home": "MIN",
-      "away_name": "Philadelphia Phillies",
-      "home_name": "Minnesota Twins",
-      "time": "7:30 PM ET",
-      "asp": "Aaron Nola",
-      "hsp": "Taj Bradley",
+      "away": "TEX",
+      "home": "LAA",
+      "away_name": "Texas Rangers",
+      "home_name": "Los Angeles Angels",
+      "time": "10:08 PM ET",
+      "asp": "Jacob deGrom",
+      "hsp": "Walbert Ure\u00f1a",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Aaron Nola",
+          "sp": "Jacob deGrom",
           "sp_side": "away",
-          "model_line": 5.2,
-          "p_over": 0.4497,
+          "model_line": 6.1,
+          "p_over": 0.4807,
           "recommendation": "PASS"
         },
         {
           "type": "K_PROP",
-          "sp": "Taj Bradley",
+          "sp": "Walbert Ure\u00f1a",
           "sp_side": "home",
-          "model_line": 5.6,
-          "p_over": 0.622,
+          "model_line": 4.8,
+          "p_over": 0.5784,
           "recommendation": "BET"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4163,
-          "p_yrfi": 0.5837,
+          "p_nrfi": 0.429,
+          "p_yrfi": 0.571,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.46,
-          "market_line": 8.5,
-          "p_over": 0.4717,
-          "p_under": 0.5283,
+          "model_total": 7.28,
+          "market_line": 7.5,
+          "p_over": 0.4425,
+          "p_under": 0.5575,
+          "recommendation": "UNDER 7.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "MIL",
+      "home": "LAD",
+      "away_name": "Milwaukee Brewers",
+      "home_name": "Los Angeles Dodgers",
+      "time": "10:10 PM ET",
+      "asp": "Shane Drohan",
+      "hsp": "Roki Sasaki",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Shane Drohan",
+          "sp_side": "away",
+          "model_line": 5.0,
+          "p_over": 0.6993,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Roki Sasaki",
+          "sp_side": "home",
+          "model_line": 5.1,
+          "p_over": 0.4369,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.409,
+          "p_yrfi": 0.591,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.49,
+          "market_line": 8.0,
+          "p_over": 0.4759,
+          "p_under": 0.5241,
           "recommendation": "PASS"
         }
       ],
