@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-13T19:33:26.798098-04:00",
+  "last_updated": "2026-08-13T22:09:31.601593-04:00",
   "in_progress": [
     {
       "game_pk": 824238,
@@ -54,6 +54,15 @@
       "pitcher": "Clayton Beeter",
       "quality_score": 4.5,
       "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823669,
+      "label": "Philadelphia Phillies @ Minnesota Twins",
+      "score": "7-1",
+      "inning": "B8",
+      "pitcher": "Orion Kerkering",
+      "quality_score": 4.5,
+      "trailing": "HOME"
     }
   ],
   "active_alerts": [],
