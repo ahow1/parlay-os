@@ -1,87 +1,45 @@
 {
-  "date": "2026-08-13",
-  "timestamp": "2026-08-13T20:13:19.013809-04:00",
+  "date": "2026-08-14",
+  "timestamp": "2026-08-14T11:45:19.172597-04:00",
   "games": [
     {
-      "away": "TEX",
-      "home": "LAA",
-      "away_name": "Texas Rangers",
-      "home_name": "Los Angeles Angels",
-      "time": "10:08 PM ET",
-      "asp": "Jacob deGrom",
-      "hsp": "Walbert Ure\u00f1a",
+      "away": "STL",
+      "home": "CHC",
+      "away_name": "St. Louis Cardinals",
+      "home_name": "Chicago Cubs",
+      "time": "2:20 PM ET",
+      "asp": "Matthew Liberatore",
+      "hsp": "Clay Holmes",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Jacob deGrom",
+          "sp": "Matthew Liberatore",
           "sp_side": "away",
-          "model_line": 6.1,
-          "p_over": 0.4807,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Walbert Ure\u00f1a",
-          "sp_side": "home",
           "model_line": 4.8,
-          "p_over": 0.5784,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.429,
-          "p_yrfi": 0.571,
+          "p_over": 0.5208,
           "recommendation": "PASS"
         },
         {
-          "type": "TOTAL",
-          "model_total": 7.28,
-          "market_line": 7.5,
-          "p_over": 0.4425,
-          "p_under": 0.5575,
-          "recommendation": "UNDER 7.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "MIL",
-      "home": "LAD",
-      "away_name": "Milwaukee Brewers",
-      "home_name": "Los Angeles Dodgers",
-      "time": "10:10 PM ET",
-      "asp": "Shane Drohan",
-      "hsp": "Roki Sasaki",
-      "props": [
-        {
           "type": "K_PROP",
-          "sp": "Shane Drohan",
-          "sp_side": "away",
-          "model_line": 5.0,
-          "p_over": 0.6993,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Roki Sasaki",
+          "sp": "Clay Holmes",
           "sp_side": "home",
-          "model_line": 5.1,
-          "p_over": 0.4369,
+          "model_line": 4.1,
+          "p_over": 0.4877,
           "recommendation": "PASS"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.409,
-          "p_yrfi": 0.591,
+          "p_nrfi": 0.3948,
+          "p_yrfi": 0.6052,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.49,
+          "model_total": 9.67,
           "market_line": 8.0,
-          "p_over": 0.4759,
-          "p_under": 0.5241,
-          "recommendation": "PASS"
+          "p_over": 0.6285,
+          "p_under": 0.3715,
+          "recommendation": "OVER 8.0"
         }
       ],
       "sgp": []
