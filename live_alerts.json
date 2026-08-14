@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-14T19:38:20.413352-04:00",
+  "last_updated": "2026-08-14T19:57:06.710686-04:00",
   "in_progress": [
     {
       "game_pk": 824643,
@@ -11,38 +11,56 @@
       "trailing": "AWAY"
     },
     {
+      "game_pk": 824479,
+      "label": "Miami Marlins @ Cincinnati Reds",
+      "score": "0-1",
+      "inning": "T7",
+      "pitcher": "Sandy Alcantara",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
       "game_pk": 823346,
       "label": "Boston Red Sox @ Pittsburgh Pirates",
-      "score": "0-1",
-      "inning": "B4",
-      "pitcher": "Jake Bennett",
+      "score": "0-4",
+      "inning": "T5",
+      "pitcher": "Bubba Chandler",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 824237,
       "label": "Chicago White Sox @ Detroit Tigers",
-      "score": "1-3",
-      "inning": "B3",
-      "pitcher": "Jackson Jobe",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 822942,
-      "label": "Baltimore Orioles @ Tampa Bay Rays",
-      "score": "1-0",
-      "inning": "T2",
-      "pitcher": "Jesse Scholtens",
+      "score": "6-3",
+      "inning": "T4",
+      "pitcher": "Jos\u00e9 Urquidy",
       "quality_score": 4.5,
       "trailing": "HOME"
+    },
+    {
+      "game_pk": 823591,
+      "label": "Washington Nationals @ New York Mets",
+      "score": "1-0",
+      "inning": "B3",
+      "pitcher": "Robert Stock",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824399,
+      "label": "San Diego Padres @ Cleveland Guardians",
+      "score": "0-2",
+      "inning": "B3",
+      "pitcher": "Michael King",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
     },
     {
       "game_pk": 824882,
       "label": "Arizona Diamondbacks @ Atlanta Braves",
       "score": "1-0",
-      "inning": "B1",
-      "pitcher": "Brandon Pfaadt",
+      "inning": "T3",
+      "pitcher": "Chris Sale",
       "quality_score": 4.5,
       "trailing": "HOME"
     }
