@@ -1,91 +1,7 @@
 {
   "date": "2026-08-15",
-  "timestamp": "2026-08-15T11:46:15.194020-04:00",
+  "timestamp": "2026-08-15T14:57:22.689764-04:00",
   "games": [
-    {
-      "away": "CWS",
-      "home": "DET",
-      "away_name": "Chicago White Sox",
-      "home_name": "Detroit Tigers",
-      "time": "1:10 PM ET",
-      "asp": "Anthony Kay",
-      "hsp": "Troy Melton",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Anthony Kay",
-          "sp_side": "away",
-          "model_line": 4.1,
-          "p_over": 0.424,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Troy Melton",
-          "sp_side": "home",
-          "model_line": 4.3,
-          "p_over": 0.6115,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3932,
-          "p_yrfi": 0.6068,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 9.42,
-          "market_line": 7.5,
-          "p_over": 0.7226,
-          "p_under": 0.2774,
-          "recommendation": "OVER 7.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "STL",
-      "home": "CHC",
-      "away_name": "St. Louis Cardinals",
-      "home_name": "Chicago Cubs",
-      "time": "2:21 PM ET",
-      "asp": "Michael McGreevy",
-      "hsp": "Matthew Boyd",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Michael McGreevy",
-          "sp_side": "away",
-          "model_line": 3.4,
-          "p_over": 0.5048,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Matthew Boyd",
-          "sp_side": "home",
-          "model_line": 4.1,
-          "p_over": 0.5089,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3767,
-          "p_yrfi": 0.6233,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 9.28,
-          "market_line": 9.0,
-          "p_over": 0.45,
-          "p_under": 0.55,
-          "recommendation": "UNDER 9.0"
-        }
-      ],
-      "sgp": []
-    },
     {
       "away": "NYY",
       "home": "TOR",
@@ -113,16 +29,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4371,
-          "p_yrfi": 0.5629,
+          "p_nrfi": 0.441,
+          "p_yrfi": 0.559,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.58,
+          "model_total": 7.54,
           "market_line": 7.5,
-          "p_over": 0.4873,
-          "p_under": 0.5127,
+          "p_over": 0.4811,
+          "p_under": 0.5189,
           "recommendation": "PASS"
         }
       ],
@@ -239,16 +155,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4345,
-          "p_yrfi": 0.5655,
+          "p_nrfi": 0.4422,
+          "p_yrfi": 0.5578,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 9.28,
+          "model_total": 9.08,
           "market_line": 7.5,
-          "p_over": 0.7079,
-          "p_under": 0.2921,
+          "p_over": 0.6853,
+          "p_under": 0.3147,
           "recommendation": "OVER 7.5"
         }
       ],
@@ -281,16 +197,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.3627,
-          "p_yrfi": 0.6373,
+          "p_nrfi": 0.3705,
+          "p_yrfi": 0.6295,
           "recommendation": "YRFI"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.52,
+          "model_total": 8.34,
           "market_line": 9.0,
-          "p_over": 0.349,
-          "p_under": 0.651,
+          "p_over": 0.3257,
+          "p_under": 0.6743,
           "recommendation": "UNDER 9.0"
         }
       ],
@@ -351,17 +267,17 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.385,
-          "p_yrfi": 0.615,
+          "p_nrfi": 0.3928,
+          "p_yrfi": 0.6072,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.39,
+          "model_total": 8.21,
           "market_line": 8.5,
-          "p_over": 0.4614,
-          "p_under": 0.5386,
-          "recommendation": "PASS"
+          "p_over": 0.4369,
+          "p_under": 0.5631,
+          "recommendation": "UNDER 8.5"
         }
       ],
       "sgp": []
@@ -477,16 +393,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.5005,
-          "p_yrfi": 0.4995,
+          "p_nrfi": 0.5078,
+          "p_yrfi": 0.4922,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.41,
+          "model_total": 7.33,
           "market_line": 7.5,
-          "p_over": 0.4623,
-          "p_under": 0.5377,
+          "p_over": 0.4502,
+          "p_under": 0.5498,
           "recommendation": "PASS"
         }
       ],
@@ -519,16 +435,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4347,
-          "p_yrfi": 0.5653,
+          "p_nrfi": 0.4424,
+          "p_yrfi": 0.5576,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.34,
+          "model_total": 8.16,
           "market_line": 7.5,
-          "p_over": 0.5931,
-          "p_under": 0.4069,
+          "p_over": 0.5694,
+          "p_under": 0.4306,
           "recommendation": "OVER 7.5"
         }
       ],
@@ -561,16 +477,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4048,
-          "p_yrfi": 0.5952,
+          "p_nrfi": 0.4126,
+          "p_yrfi": 0.5874,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.56,
+          "model_total": 7.4,
           "market_line": 8.0,
-          "p_over": 0.3462,
-          "p_under": 0.6538,
+          "p_over": 0.3243,
+          "p_under": 0.6757,
           "recommendation": "UNDER 8.0"
         }
       ],
@@ -603,16 +519,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.418,
-          "p_yrfi": 0.582,
+          "p_nrfi": 0.4257,
+          "p_yrfi": 0.5743,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.89,
+          "model_total": 7.78,
           "market_line": 9.5,
-          "p_over": 0.2695,
-          "p_under": 0.7305,
+          "p_over": 0.256,
+          "p_under": 0.744,
           "recommendation": "UNDER 9.5"
         }
       ],
