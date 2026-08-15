@@ -1,133 +1,7 @@
 {
   "date": "2026-08-15",
-  "timestamp": "2026-08-15T14:57:22.689764-04:00",
+  "timestamp": "2026-08-15T16:29:57.727345-04:00",
   "games": [
-    {
-      "away": "NYY",
-      "home": "TOR",
-      "away_name": "New York Yankees",
-      "home_name": "Toronto Blue Jays",
-      "time": "3:08 PM ET",
-      "asp": "Cam Schlittler",
-      "hsp": "Braydon Fisher",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Cam Schlittler",
-          "sp_side": "away",
-          "model_line": 6.2,
-          "p_over": 0.5916,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Braydon Fisher",
-          "sp_side": "home",
-          "model_line": 4.7,
-          "p_over": 0.7809,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.441,
-          "p_yrfi": 0.559,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.54,
-          "market_line": 7.5,
-          "p_over": 0.4811,
-          "p_under": 0.5189,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "COL",
-      "home": "SF",
-      "away_name": "Colorado Rockies",
-      "home_name": "San Francisco Giants",
-      "time": "4:06 PM ET",
-      "asp": "Michael Lorenzen",
-      "hsp": "Logan Webb",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Michael Lorenzen",
-          "sp_side": "away",
-          "model_line": 3.6,
-          "p_over": 0.4364,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Logan Webb",
-          "sp_side": "home",
-          "model_line": 3.9,
-          "p_over": 0.7214,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4055,
-          "p_yrfi": 0.5945,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.63,
-          "market_line": 7.5,
-          "p_over": 0.4937,
-          "p_under": 0.5063,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "WAS",
-      "home": "NYM",
-      "away_name": "Washington Nationals",
-      "home_name": "New York Mets",
-      "time": "4:11 PM ET",
-      "asp": "Brad Lord",
-      "hsp": "Sean Manaea",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Brad Lord",
-          "sp_side": "away",
-          "model_line": 4.5,
-          "p_over": 0.7595,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Sean Manaea",
-          "sp_side": "home",
-          "model_line": 5.1,
-          "p_over": 0.7101,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4272,
-          "p_yrfi": 0.5728,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.88,
-          "market_line": 8.0,
-          "p_over": 0.5284,
-          "p_under": 0.4716,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
     {
       "away": "BAL",
       "home": "TB",
@@ -218,9 +92,17 @@
       "away_name": "San Diego Padres",
       "home_name": "Cleveland Guardians",
       "time": "7:11 PM ET",
-      "asp": "",
+      "asp": "Wandy Peralta",
       "hsp": "Joey Cantillo",
       "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Wandy Peralta",
+          "sp_side": "away",
+          "model_line": 3.1,
+          "p_over": 0.6341,
+          "recommendation": "BET"
+        },
         {
           "type": "K_PROP",
           "sp": "Joey Cantillo",
@@ -231,11 +113,17 @@
         },
         {
           "type": "NRFI",
-          "recommendation": "SP_MISSING"
+          "p_nrfi": 0.4007,
+          "p_yrfi": 0.5993,
+          "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "recommendation": "SP_MISSING"
+          "model_total": 9.04,
+          "market_line": 8.5,
+          "p_over": 0.55,
+          "p_under": 0.45,
+          "recommendation": "OVER 8.5"
         }
       ],
       "sgp": []
@@ -399,11 +287,11 @@
         },
         {
           "type": "TOTAL",
-          "model_total": 7.33,
+          "model_total": 7.25,
           "market_line": 7.5,
-          "p_over": 0.4502,
-          "p_under": 0.5498,
-          "recommendation": "PASS"
+          "p_over": 0.4382,
+          "p_under": 0.5618,
+          "recommendation": "UNDER 7.5"
         }
       ],
       "sgp": []
@@ -446,90 +334,6 @@
           "p_over": 0.5694,
           "p_under": 0.4306,
           "recommendation": "OVER 7.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "KC",
-      "home": "LAA",
-      "away_name": "Kansas City Royals",
-      "home_name": "Los Angeles Angels",
-      "time": "9:38 PM ET",
-      "asp": "Randy Dobnak",
-      "hsp": "Reid Detmers",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Randy Dobnak",
-          "sp_side": "away",
-          "model_line": 2.6,
-          "p_over": 0.7136,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Reid Detmers",
-          "sp_side": "home",
-          "model_line": 5.8,
-          "p_over": 0.631,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4126,
-          "p_yrfi": 0.5874,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.4,
-          "market_line": 8.0,
-          "p_over": 0.3243,
-          "p_under": 0.6757,
-          "recommendation": "UNDER 8.0"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "TEX",
-      "home": "ATH",
-      "away_name": "Texas Rangers",
-      "home_name": "Athletics",
-      "time": "9:40 PM ET",
-      "asp": "MacKenzie Gore",
-      "hsp": "J.T. Ginn",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "MacKenzie Gore",
-          "sp_side": "away",
-          "model_line": 5.6,
-          "p_over": 0.5482,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "J.T. Ginn",
-          "sp_side": "home",
-          "model_line": 4.4,
-          "p_over": 0.5762,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4257,
-          "p_yrfi": 0.5743,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.78,
-          "market_line": 9.5,
-          "p_over": 0.256,
-          "p_under": 0.744,
-          "recommendation": "UNDER 9.5"
         }
       ],
       "sgp": []
