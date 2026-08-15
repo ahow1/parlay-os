@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-15T19:15:57.496251-04:00",
+  "last_updated": "2026-08-15T19:37:36.073733-04:00",
   "in_progress": [
     {
       "game_pk": 824239,
@@ -43,6 +43,24 @@
       "score": "4-5",
       "inning": "B9",
       "pitcher": "Yovanny Cruz",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 822941,
+      "label": "Baltimore Orioles @ Tampa Bay Rays",
+      "score": "2-1",
+      "inning": "T5",
+      "pitcher": "Kyle Bradish",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824884,
+      "label": "Arizona Diamondbacks @ Atlanta Braves",
+      "score": "0-1",
+      "inning": "B1",
+      "pitcher": "Eduardo Rodriguez",
       "quality_score": 4.5,
       "trailing": "AWAY"
     }
