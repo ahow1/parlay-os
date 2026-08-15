@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-14T19:57:06.710686-04:00",
+  "last_updated": "2026-08-14T20:31:07.173106-04:00",
   "in_progress": [
     {
       "game_pk": 824643,
@@ -14,26 +14,26 @@
       "game_pk": 824479,
       "label": "Miami Marlins @ Cincinnati Reds",
       "score": "0-1",
-      "inning": "T7",
-      "pitcher": "Sandy Alcantara",
+      "inning": "T9",
+      "pitcher": "Emilio Pag\u00e1n",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 823346,
       "label": "Boston Red Sox @ Pittsburgh Pirates",
-      "score": "0-4",
-      "inning": "T5",
-      "pitcher": "Bubba Chandler",
+      "score": "2-7",
+      "inning": "T6",
+      "pitcher": "Gregory Soto",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 824237,
       "label": "Chicago White Sox @ Detroit Tigers",
-      "score": "6-3",
-      "inning": "T4",
-      "pitcher": "Jos\u00e9 Urquidy",
+      "score": "8-3",
+      "inning": "B6",
+      "pitcher": "Huascar Brazob\u00e1n",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
@@ -41,26 +41,26 @@
       "game_pk": 823591,
       "label": "Washington Nationals @ New York Mets",
       "score": "1-0",
-      "inning": "B3",
-      "pitcher": "Robert Stock",
+      "inning": "B5",
+      "pitcher": "Andrew Alvarez",
       "quality_score": 4.5,
       "trailing": "HOME"
-    },
-    {
-      "game_pk": 824399,
-      "label": "San Diego Padres @ Cleveland Guardians",
-      "score": "0-2",
-      "inning": "B3",
-      "pitcher": "Michael King",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
     },
     {
       "game_pk": 824882,
       "label": "Arizona Diamondbacks @ Atlanta Braves",
       "score": "1-0",
-      "inning": "T3",
-      "pitcher": "Chris Sale",
+      "inning": "T5",
+      "pitcher": "Brandon Pfaadt",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824159,
+      "label": "Seattle Mariners @ Houston Astros",
+      "score": "2-1",
+      "inning": "B1",
+      "pitcher": "George Kirby",
       "quality_score": 4.5,
       "trailing": "HOME"
     }
