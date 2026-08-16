@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-15T19:37:36.073733-04:00",
+  "last_updated": "2026-08-15T20:04:21.906883-04:00",
   "in_progress": [
     {
       "game_pk": 824239,
@@ -49,20 +49,74 @@
     {
       "game_pk": 822941,
       "label": "Baltimore Orioles @ Tampa Bay Rays",
-      "score": "2-1",
-      "inning": "T5",
+      "score": "3-2",
+      "inning": "B6",
       "pitcher": "Kyle Bradish",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824480,
+      "label": "Miami Marlins @ Cincinnati Reds",
+      "score": "3-4",
+      "inning": "B5",
+      "pitcher": "Ryan Gusto",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824400,
+      "label": "San Diego Padres @ Cleveland Guardians",
+      "score": "1-2",
+      "inning": "B3",
+      "pitcher": "Randy V\u00e1squez",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824157,
+      "label": "Seattle Mariners @ Houston Astros",
+      "score": "4-2",
+      "inning": "B3",
+      "pitcher": "Emerson Hancock",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823671,
+      "label": "Philadelphia Phillies @ Minnesota Twins",
+      "score": "1-0",
+      "inning": "T4",
+      "pitcher": "Connor Prielipp",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823347,
+      "label": "Boston Red Sox @ Pittsburgh Pirates",
+      "score": "1-0",
+      "inning": "T3",
+      "pitcher": "Sonny Gray",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
       "game_pk": 824884,
       "label": "Arizona Diamondbacks @ Atlanta Braves",
-      "score": "0-1",
-      "inning": "B1",
-      "pitcher": "Eduardo Rodriguez",
+      "score": "3-2",
+      "inning": "T3",
+      "pitcher": "Grant Holmes",
       "quality_score": 4.5,
-      "trailing": "AWAY"
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823914,
+      "label": "Milwaukee Brewers @ Los Angeles Dodgers",
+      "score": "2-0",
+      "inning": "B3",
+      "pitcher": "Jacob Misiorowski",
+      "quality_score": 4.5,
+      "trailing": "HOME"
     }
   ],
   "active_alerts": [],
