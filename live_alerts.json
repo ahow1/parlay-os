@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-17T19:15:50.459795-04:00",
+  "last_updated": "2026-08-17T19:39:15.149253-04:00",
   "in_progress": [
     {
       "game_pk": 824514,
@@ -13,20 +13,38 @@
     {
       "game_pk": 824478,
       "label": "St. Louis Cardinals @ Cincinnati Reds",
-      "score": "0-1",
-      "inning": "T3",
-      "pitcher": "Rhett Lowder",
+      "score": "2-1",
+      "inning": "B4",
+      "pitcher": "Andre Pallante",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823427,
+      "label": "Miami Marlins @ Philadelphia Phillies",
+      "score": "0-2",
+      "inning": "B3",
+      "pitcher": "Janson Junk",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
-      "game_pk": 822939,
-      "label": "Baltimore Orioles @ Tampa Bay Rays",
-      "score": "3-1",
-      "inning": "B4",
-      "pitcher": "Brandon Young",
+      "game_pk": 823343,
+      "label": "Detroit Tigers @ Pittsburgh Pirates",
+      "score": "2-0",
+      "inning": "T2",
+      "pitcher": "Carmen Mlodzinski",
       "quality_score": 4.5,
       "trailing": "HOME"
+    },
+    {
+      "game_pk": 823589,
+      "label": "San Diego Padres @ New York Mets",
+      "score": "0-2",
+      "inning": "B1",
+      "pitcher": "Nolan McLean",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
     }
   ],
   "active_alerts": [],
