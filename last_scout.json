@@ -1,16 +1,64 @@
 {
-  "timestamp": "2026-08-16T23:46:18Z",
-  "date": "2026-08-16",
-  "window": "west",
+  "timestamp": "2026-08-17T15:17:18Z",
+  "date": "2026-08-17",
+  "window": "day",
   "bankroll": 300.0,
-  "games": [],
+  "games": [
+    {
+      "away": "STL",
+      "home": "CIN",
+      "away_model": 0.5399,
+      "home_model": 0.4751,
+      "away_edge": 3.06,
+      "home_edge": -1.56,
+      "away_xr": 4.743,
+      "home_xr": 4.606
+    }
+  ],
   "bets": [],
-  "passes": [],
-  "slip_sent": false,
-  "sent_pick_ids": [],
+  "passes": [
+    {
+      "game": "St. Louis Cardinals @ Cincinnati Reds",
+      "edges": {
+        "away": 3.06,
+        "home": -1.56
+      }
+    }
+  ],
+  "slip_sent": true,
+  "sent_pick_ids": [
+    "HITTER:Alec Burleson:STL:HR O0.5",
+    "HITTER:Alec Burleson:STL:RBI O0.5",
+    "HITTER:Alec Burleson:STL:TB O1.5",
+    "HITTER:Elly De La Cruz:CIN:RBI O0.5",
+    "HITTER:Eugenio Su\u00e1rez:CIN:HR O0.5",
+    "HITTER:Eugenio Su\u00e1rez:CIN:RBI O0.5",
+    "HITTER:Eugenio Su\u00e1rez:CIN:TB O1.5",
+    "HITTER:Iv\u00e1n Herrera:STL:RBI O0.5",
+    "HITTER:Iv\u00e1n Herrera:STL:TB O1.5",
+    "HITTER:Jordan Walker:STL:RBI O0.5",
+    "HITTER:Jordan Walker:STL:TB O1.5",
+    "HITTER:Masyn Winn:STL:SO O0.5",
+    "HITTER:Sal Stewart:CIN:RBI O0.5",
+    "HITTER:Sal Stewart:CIN:TB O1.5",
+    "HITTER:Tyler Stephenson:CIN:HR O0.5",
+    "HITTER:Tyler Stephenson:CIN:RBI O0.5",
+    "HITTER:Tyler Stephenson:CIN:TB O1.5",
+    "KPROP:Brycen Mautz:3.3",
+    "NRFI:St. Louis Cardinals @ Cincinnati Reds:YRFI"
+  ],
   "slip_quality": "bad",
   "data_health": {
-    "odds": "live"
+    "odds": "live",
+    "fangraphs_sp": "live",
+    "savant": "degraded",
+    "lineups": "live",
+    "savant_bullpen_stuff": "live",
+    "savant_bat_tracking": "live",
+    "savant_park_of_defense": "live",
+    "savant_sprint_baserunning": "live",
+    "savant_arm_angle": "live",
+    "h2h": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],

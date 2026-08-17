@@ -1,5 +1,48 @@
 {
-  "date": "2026-08-16",
-  "timestamp": "2026-08-16T19:46:19.211433-04:00",
-  "games": []
+  "date": "2026-08-17",
+  "timestamp": "2026-08-17T11:20:15.513920-04:00",
+  "games": [
+    {
+      "away": "STL",
+      "home": "CIN",
+      "away_name": "St. Louis Cardinals",
+      "home_name": "Cincinnati Reds",
+      "time": "1:41 PM ET",
+      "asp": "Brycen Mautz",
+      "hsp": "Brady Singer",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Brycen Mautz",
+          "sp_side": "away",
+          "model_line": 3.3,
+          "p_over": 0.1429,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Brady Singer",
+          "sp_side": "home",
+          "model_line": 4.1,
+          "p_over": 0.4363,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.2986,
+          "p_yrfi": 0.7014,
+          "recommendation": "YRFI"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.35,
+          "market_line": 9.5,
+          "p_over": 0.4585,
+          "p_under": 0.5415,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": []
+    }
+  ]
 }
