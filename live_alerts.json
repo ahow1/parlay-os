@@ -1,120 +1,30 @@
 {
-  "last_updated": "2026-08-15T20:04:21.906883-04:00",
+  "last_updated": "2026-08-17T19:15:50.459795-04:00",
   "in_progress": [
     {
-      "game_pk": 824239,
-      "label": "Chicago White Sox @ Detroit Tigers",
-      "score": "4-3",
-      "inning": "B9",
-      "pitcher": "Bryan Hudson",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824644,
-      "label": "St. Louis Cardinals @ Chicago Cubs",
-      "score": "8-4",
+      "game_pk": 824514,
+      "label": "St. Louis Cardinals @ Cincinnati Reds",
+      "score": "2-1",
       "inning": "B9",
       "pitcher": "Riley O'Brien",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
-      "game_pk": 822775,
-      "label": "New York Yankees @ Toronto Blue Jays",
-      "score": "1-4",
-      "inning": "T9",
-      "pitcher": "Louis Varland",
+      "game_pk": 824478,
+      "label": "St. Louis Cardinals @ Cincinnati Reds",
+      "score": "0-1",
+      "inning": "T3",
+      "pitcher": "Rhett Lowder",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
-      "game_pk": 823184,
-      "label": "Colorado Rockies @ San Francisco Giants",
-      "score": "1-7",
-      "inning": "T9",
-      "pitcher": "Dylan Smith",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823588,
-      "label": "Washington Nationals @ New York Mets",
-      "score": "4-5",
-      "inning": "B9",
-      "pitcher": "Yovanny Cruz",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 822941,
+      "game_pk": 822939,
       "label": "Baltimore Orioles @ Tampa Bay Rays",
-      "score": "3-2",
-      "inning": "B6",
-      "pitcher": "Kyle Bradish",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824480,
-      "label": "Miami Marlins @ Cincinnati Reds",
-      "score": "3-4",
-      "inning": "B5",
-      "pitcher": "Ryan Gusto",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824400,
-      "label": "San Diego Padres @ Cleveland Guardians",
-      "score": "1-2",
-      "inning": "B3",
-      "pitcher": "Randy V\u00e1squez",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824157,
-      "label": "Seattle Mariners @ Houston Astros",
-      "score": "4-2",
-      "inning": "B3",
-      "pitcher": "Emerson Hancock",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 823671,
-      "label": "Philadelphia Phillies @ Minnesota Twins",
-      "score": "1-0",
-      "inning": "T4",
-      "pitcher": "Connor Prielipp",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 823347,
-      "label": "Boston Red Sox @ Pittsburgh Pirates",
-      "score": "1-0",
-      "inning": "T3",
-      "pitcher": "Sonny Gray",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824884,
-      "label": "Arizona Diamondbacks @ Atlanta Braves",
-      "score": "3-2",
-      "inning": "T3",
-      "pitcher": "Grant Holmes",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 823914,
-      "label": "Milwaukee Brewers @ Los Angeles Dodgers",
-      "score": "2-0",
-      "inning": "B3",
-      "pitcher": "Jacob Misiorowski",
+      "score": "3-1",
+      "inning": "B4",
+      "pitcher": "Brandon Young",
       "quality_score": 4.5,
       "trailing": "HOME"
     }
