@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-17T21:23:35.260047-04:00",
+  "last_updated": "2026-08-17T22:35:12.175190-04:00",
   "in_progress": [
     {
       "game_pk": 824514,
@@ -9,6 +9,15 @@
       "pitcher": "Riley O'Brien",
       "quality_score": 4.5,
       "trailing": "HOME"
+    },
+    {
+      "game_pk": 824478,
+      "label": "St. Louis Cardinals @ Cincinnati Reds",
+      "score": "5-6",
+      "inning": "B10",
+      "pitcher": "Justin Bruihl",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
     },
     {
       "game_pk": 822939,
@@ -22,27 +31,27 @@
     {
       "game_pk": 823427,
       "label": "Miami Marlins @ Philadelphia Phillies",
-      "score": "3-5",
-      "inning": "B7",
-      "pitcher": "Victor Vodnik",
+      "score": "5-6",
+      "inning": "T9",
+      "pitcher": "Jhoan Duran",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 823343,
       "label": "Detroit Tigers @ Pittsburgh Pirates",
-      "score": "8-1",
-      "inning": "B6",
-      "pitcher": "Framber Valdez",
-      "quality_score": 4.5,
+      "score": "8-5",
+      "inning": "B9",
+      "pitcher": "Kenley Jansen",
+      "quality_score": 4.1,
       "trailing": "HOME"
     },
     {
       "game_pk": 824725,
       "label": "Arizona Diamondbacks @ Boston Red Sox",
-      "score": "1-9",
-      "inning": "B6",
-      "pitcher": "Brayan Bello",
+      "score": "1-11",
+      "inning": "T9",
+      "pitcher": "Wyatt Olds",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
@@ -50,44 +59,44 @@
       "game_pk": 823589,
       "label": "San Diego Padres @ New York Mets",
       "score": "1-2",
-      "inning": "B8",
-      "pitcher": "Kyle Hart",
+      "inning": "T9",
+      "pitcher": "Daniel Duarte",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 824077,
       "label": "Athletics @ Kansas City Royals",
-      "score": "4-6",
-      "inning": "B5",
-      "pitcher": "Hayden Juenger",
+      "score": "5-9",
+      "inning": "T9",
+      "pitcher": "Steven Cruz",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 823668,
       "label": "Atlanta Braves @ Minnesota Twins",
-      "score": "0-4",
-      "inning": "T3",
-      "pitcher": "Bailey Ober",
+      "score": "2-4",
+      "inning": "B7",
+      "pitcher": "Tyler Kinley",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 824641,
       "label": "Chicago White Sox @ Chicago Cubs",
-      "score": "3-2",
-      "inning": "T5",
-      "pitcher": "Shota Imanaga",
+      "score": "5-4",
+      "inning": "T8",
+      "pitcher": "Ryan Zeferjahn",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
       "game_pk": 824320,
       "label": "Los Angeles Dodgers @ Colorado Rockies",
-      "score": "2-0",
-      "inning": "T3",
-      "pitcher": "Tomoyuki Sugano",
+      "score": "10-1",
+      "inning": "T6",
+      "pitcher": "Juan Mejia",
       "quality_score": 4.5,
       "trailing": "HOME"
     }
