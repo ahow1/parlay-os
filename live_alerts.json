@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-17T19:39:15.149253-04:00",
+  "last_updated": "2026-08-17T20:28:05.833132-04:00",
   "in_progress": [
     {
       "game_pk": 824514,
@@ -11,11 +11,11 @@
       "trailing": "HOME"
     },
     {
-      "game_pk": 824478,
-      "label": "St. Louis Cardinals @ Cincinnati Reds",
-      "score": "2-1",
-      "inning": "B4",
-      "pitcher": "Andre Pallante",
+      "game_pk": 822939,
+      "label": "Baltimore Orioles @ Tampa Bay Rays",
+      "score": "6-5",
+      "inning": "B7",
+      "pitcher": "Josh Walker",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
@@ -23,26 +23,53 @@
       "game_pk": 823427,
       "label": "Miami Marlins @ Philadelphia Phillies",
       "score": "0-2",
-      "inning": "B3",
-      "pitcher": "Janson Junk",
+      "inning": "T6",
+      "pitcher": "Cristopher S\u00e1nchez",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 823343,
       "label": "Detroit Tigers @ Pittsburgh Pirates",
-      "score": "2-0",
-      "inning": "T2",
-      "pitcher": "Carmen Mlodzinski",
+      "score": "4-0",
+      "inning": "B4",
+      "pitcher": "Isaac Mattson",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
+      "game_pk": 824725,
+      "label": "Arizona Diamondbacks @ Boston Red Sox",
+      "score": "0-3",
+      "inning": "B4",
+      "pitcher": "Zack Littell",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
       "game_pk": 823589,
       "label": "San Diego Padres @ New York Mets",
-      "score": "0-2",
-      "inning": "B1",
+      "score": "1-2",
+      "inning": "T5",
       "pitcher": "Nolan McLean",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824077,
+      "label": "Athletics @ Kansas City Royals",
+      "score": "1-5",
+      "inning": "B2",
+      "pitcher": "Mason Barnett",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824641,
+      "label": "Chicago White Sox @ Chicago Cubs",
+      "score": "0-2",
+      "inning": "T2",
+      "pitcher": "Shota Imanaga",
       "quality_score": 4.5,
       "trailing": "AWAY"
     }
