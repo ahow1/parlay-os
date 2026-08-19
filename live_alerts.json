@@ -1,50 +1,68 @@
 {
-  "last_updated": "2026-08-18T19:38:56.837798-04:00",
+  "last_updated": "2026-08-19T19:17:18.211302-04:00",
   "in_progress": [
     {
-      "game_pk": 823341,
+      "game_pk": 823342,
       "label": "Detroit Tigers @ Pittsburgh Pirates",
-      "score": "1-0",
-      "inning": "B5",
-      "pitcher": "Keider Montero",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824398,
-      "label": "San Francisco Giants @ Cleveland Guardians",
-      "score": "1-5",
-      "inning": "T4",
-      "pitcher": "Foster Griffin",
+      "score": "3-4",
+      "inning": "B9",
+      "pitcher": "Kenley Jansen",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
-      "game_pk": 822938,
-      "label": "Toronto Blue Jays @ Tampa Bay Rays",
-      "score": "4-0",
-      "inning": "B3",
-      "pitcher": "Nick Martinez",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824723,
-      "label": "Arizona Diamondbacks @ Boston Red Sox",
-      "score": "0-3",
-      "inning": "B1",
-      "pitcher": "Ranger Suarez",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823586,
+      "game_pk": 823587,
       "label": "San Diego Padres @ New York Mets",
-      "score": "1-0",
-      "inning": "B2",
-      "pitcher": "Robbie Ray",
+      "score": "2-4",
+      "inning": "T9",
+      "pitcher": "Kodai Senga",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823664,
+      "label": "Atlanta Braves @ Minnesota Twins",
+      "score": "4-6",
+      "inning": "T9",
+      "pitcher": "Yoendrys G\u00f3mez",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824640,
+      "label": "Chicago White Sox @ Chicago Cubs",
+      "score": "3-0",
+      "inning": "B9",
+      "pitcher": "Grant Taylor",
       "quality_score": 4.5,
       "trailing": "HOME"
+    },
+    {
+      "game_pk": 823424,
+      "label": "Miami Marlins @ Philadelphia Phillies",
+      "score": "0-3",
+      "inning": "B4",
+      "pitcher": "Aaron Nola",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824801,
+      "label": "New York Yankees @ Baltimore Orioles",
+      "score": "2-1",
+      "inning": "B2",
+      "pitcher": "Will Warren",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 822937,
+      "label": "Toronto Blue Jays @ Tampa Bay Rays",
+      "score": "0-2",
+      "inning": "T3",
+      "pitcher": "Drew Rasmussen",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
     }
   ],
   "active_alerts": [],
