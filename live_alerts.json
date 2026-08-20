@@ -1,84 +1,57 @@
 {
-  "last_updated": "2026-08-19T19:40:10.067802-04:00",
+  "last_updated": "2026-08-20T19:19:11.203261-04:00",
   "in_progress": [
     {
-      "game_pk": 823342,
-      "label": "Detroit Tigers @ Pittsburgh Pirates",
-      "score": "3-4",
+      "game_pk": 824474,
+      "label": "St. Louis Cardinals @ Cincinnati Reds",
+      "score": "10-9",
       "inning": "B9",
-      "pitcher": "Kenley Jansen",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823587,
-      "label": "San Diego Padres @ New York Mets",
-      "score": "2-4",
-      "inning": "T9",
-      "pitcher": "Kodai Senga",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823664,
-      "label": "Atlanta Braves @ Minnesota Twins",
-      "score": "4-6",
-      "inning": "T9",
-      "pitcher": "Yoendrys G\u00f3mez",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824640,
-      "label": "Chicago White Sox @ Chicago Cubs",
-      "score": "3-0",
-      "inning": "B9",
-      "pitcher": "Grant Taylor",
+      "pitcher": "Riley O'Brien",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
-      "game_pk": 824722,
-      "label": "Arizona Diamondbacks @ Boston Red Sox",
-      "score": "7-6",
-      "inning": "B10",
-      "pitcher": "Jonathan Lo\u00e1isiga",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 823424,
-      "label": "Miami Marlins @ Philadelphia Phillies",
-      "score": "1-3",
-      "inning": "T6",
-      "pitcher": "Aaron Nola",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824801,
-      "label": "New York Yankees @ Baltimore Orioles",
-      "score": "3-1",
-      "inning": "B3",
-      "pitcher": "Will Warren",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824394,
+      "game_pk": 824395,
       "label": "San Francisco Giants @ Cleveland Guardians",
-      "score": "1-0",
-      "inning": "B4",
-      "pitcher": "Adrian Houser",
+      "score": "2-5",
+      "inning": "T9",
+      "pitcher": "Cade Smith",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 822934,
+      "label": "Toronto Blue Jays @ Tampa Bay Rays",
+      "score": "5-1",
+      "inning": "B9",
+      "pitcher": "Louis Varland",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
-      "game_pk": 822937,
-      "label": "Toronto Blue Jays @ Tampa Bay Rays",
-      "score": "1-2",
-      "inning": "B4",
-      "pitcher": "Max Scherzer",
+      "game_pk": 824074,
+      "label": "Athletics @ Kansas City Royals",
+      "score": "2-6",
+      "inning": "T9",
+      "pitcher": "Nate Pearson",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824589,
+      "label": "Atlanta Braves @ Chicago White Sox",
+      "score": "2-0",
+      "inning": "B9",
+      "pitcher": "Raisel Iglesias",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823747,
+      "label": "Seattle Mariners @ Milwaukee Brewers",
+      "score": "4-7",
+      "inning": "T9",
+      "pitcher": "Trevor Megill",
       "quality_score": 4.5,
       "trailing": "AWAY"
     }
