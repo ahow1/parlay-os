@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-20T19:19:11.203261-04:00",
+  "last_updated": "2026-08-20T19:45:33.948340-04:00",
   "in_progress": [
     {
       "game_pk": 824474,
@@ -54,6 +54,15 @@
       "pitcher": "Trevor Megill",
       "quality_score": 4.5,
       "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824802,
+      "label": "New York Yankees @ Baltimore Orioles",
+      "score": "1-0",
+      "inning": "T3",
+      "pitcher": "Kyle Bradish",
+      "quality_score": 4.5,
+      "trailing": "HOME"
     }
   ],
   "active_alerts": [],
