@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-20T20:02:38.141516-04:00",
+  "last_updated": "2026-08-20T21:27:19.525052-04:00",
   "in_progress": [
     {
       "game_pk": 824474,
@@ -58,9 +58,27 @@
     {
       "game_pk": 824802,
       "label": "New York Yankees @ Baltimore Orioles",
-      "score": "3-0",
-      "inning": "B3",
-      "pitcher": "Gerrit Cole",
+      "score": "6-1",
+      "inning": "B8",
+      "pitcher": "Ryan Yarbrough",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 822861,
+      "label": "Washington Nationals @ Texas Rangers",
+      "score": "0-1",
+      "inning": "T5",
+      "pitcher": "Jacob deGrom",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824153,
+      "label": "Los Angeles Angels @ Houston Astros",
+      "score": "6-2",
+      "inning": "T4",
+      "pitcher": "Bryan King",
       "quality_score": 4.5,
       "trailing": "HOME"
     }
