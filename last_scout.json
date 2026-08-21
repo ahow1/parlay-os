@@ -1,117 +1,16 @@
 {
-  "timestamp": "2026-08-20T23:51:20Z",
-  "date": "2026-08-20",
-  "window": "west",
+  "timestamp": "2026-08-21T15:24:07Z",
+  "date": "2026-08-21",
+  "window": "day",
   "bankroll": 300.0,
-  "games": [
-    {
-      "away": "WAS",
-      "home": "TEX",
-      "away_model": 0.5248,
-      "home_model": 0.4902,
-      "away_edge": 14.91,
-      "home_edge": -13.41,
-      "away_xr": 3.697,
-      "home_xr": 3.5
-    },
-    {
-      "away": "LAA",
-      "home": "HOU",
-      "away_model": 0.4353,
-      "home_model": 0.5497,
-      "away_edge": 6.81,
-      "home_edge": -8.31,
-      "away_xr": 3.5,
-      "home_xr": 4.766
-    }
-  ],
-  "bets": [
-    {
-      "team": "Washington Nationals",
-      "side": "away",
-      "game": "Washington Nationals @ Texas Rangers",
-      "odds": 168,
-      "book": "draftkings",
-      "model_prob": 0.5248,
-      "market_prob": 0.3757,
-      "edge_pct": 14.91,
-      "stake": 40.0,
-      "conviction": "HIGH",
-      "confidence_score": 100,
-      "sp": "Andrew Alvarez",
-      "sp_era": 3.72,
-      "sp_xfip": 3.09,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": -4.2,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 8,
-        "away_win_rate": 0.375,
-        "home_win_rate": 0.625,
-        "avg_total": 4.88,
-        "over_rate": 0.0
-      }
-    }
-  ],
-  "passes": [
-    {
-      "game": "Los Angeles Angels @ Houston Astros",
-      "edges": {
-        "away": 6.81,
-        "home": -8.31
-      }
-    }
-  ],
-  "slip_sent": true,
-  "sent_pick_ids": [
-    "ER:Grayson Rodriguez:3.5:UNDER",
-    "ER:Jacob deGrom:2.5:UNDER",
-    "HITTER:Abimelec Ortiz:WAS:HR O0.5",
-    "HITTER:Abimelec Ortiz:WAS:RBI O0.5",
-    "HITTER:Abimelec Ortiz:WAS:SO O0.5",
-    "HITTER:Abimelec Ortiz:WAS:TB O1.5",
-    "HITTER:Andr\u00e9s Chaparro:WAS:RBI O0.5",
-    "HITTER:Andr\u00e9s Chaparro:WAS:TB O1.5",
-    "HITTER:Brady House:WAS:SO O0.5",
-    "HITTER:Daylen Lile:WAS:RBI O0.5",
-    "HITTER:Daylen Lile:WAS:SO O0.5",
-    "HITTER:Ezequiel Duran:TEX:SO O0.5",
-    "HITTER:Isaac Paredes:HOU:Hits O1.5",
-    "HITTER:Isaac Paredes:HOU:RBI O0.5",
-    "HITTER:Isaac Paredes:HOU:TB O1.5",
-    "HITTER:Jake Burger:TEX:RBI O0.5",
-    "HITTER:Jose Altuve:HOU:TB O1.5",
-    "HITTER:Jos\u00e9 Tena:WAS:SO O0.5",
-    "HITTER:Keibert Ruiz:WAS:Hits O1.5",
-    "HITTER:Keibert Ruiz:WAS:RBI O0.5",
-    "HITTER:Keibert Ruiz:WAS:TB O1.5",
-    "HITTER:Mike Trout:LAA:SO O0.5",
-    "HITTER:Nolan Schanuel:LAA:RBI O0.5",
-    "HITTER:Taylor Trammell:HOU:SO O0.5",
-    "HITTER:Vaughn Grissom:LAA:SO O0.5",
-    "HITTER:Zach Neto:LAA:RBI O0.5",
-    "HITTER:Zach Neto:LAA:SO O0.5",
-    "KPROP:Andrew Alvarez:4.6",
-    "KPROP:Peter Lambert:4.9",
-    "ML:Washington Nationals:168",
-    "TOT:Los Angeles Angels @ Houston Astros:UNDER:8.0",
-    "TOT:Washington Nationals @ Texas Rangers:UNDER:7.5"
-  ],
-  "slip_quality": "good",
+  "games": [],
+  "bets": [],
+  "passes": [],
+  "slip_sent": false,
+  "sent_pick_ids": [],
+  "slip_quality": "bad",
   "data_health": {
-    "odds": "live",
-    "fangraphs_sp": "failed",
-    "pybaseball_sp": "failed",
-    "savant": "degraded",
-    "lineups": "live",
-    "savant_bullpen_stuff": "live",
-    "savant_bat_tracking": "live",
-    "savant_park_of_defense": "live",
-    "savant_sprint_baserunning": "live",
-    "savant_arm_angle": "live",
-    "h2h": "live"
+    "odds": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],
