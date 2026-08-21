@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-21T19:16:11.485511-04:00",
+  "last_updated": "2026-08-21T19:40:46.818577-04:00",
   "in_progress": [
     {
       "game_pk": 823746,
@@ -13,9 +13,18 @@
     {
       "game_pk": 823420,
       "label": "St. Louis Cardinals @ Philadelphia Phillies",
-      "score": "2-1",
-      "inning": "B2",
-      "pitcher": "Hunter Dobbins",
+      "score": "2-3",
+      "inning": "T4",
+      "pitcher": "Jes\u00fas Luzardo",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824800,
+      "label": "Tampa Bay Rays @ Baltimore Orioles",
+      "score": "3-1",
+      "inning": "T2",
+      "pitcher": "Trevor Rogers",
       "quality_score": 4.5,
       "trailing": "HOME"
     }
