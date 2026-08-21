@@ -1,84 +1,21 @@
 {
-  "last_updated": "2026-08-20T22:47:08.062744-04:00",
+  "last_updated": "2026-08-21T19:16:11.485511-04:00",
   "in_progress": [
     {
-      "game_pk": 824474,
-      "label": "St. Louis Cardinals @ Cincinnati Reds",
-      "score": "10-9",
-      "inning": "B9",
-      "pitcher": "Riley O'Brien",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824395,
-      "label": "San Francisco Giants @ Cleveland Guardians",
-      "score": "2-5",
-      "inning": "T9",
-      "pitcher": "Cade Smith",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 822934,
-      "label": "Toronto Blue Jays @ Tampa Bay Rays",
-      "score": "5-1",
-      "inning": "B9",
-      "pitcher": "Louis Varland",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824074,
-      "label": "Athletics @ Kansas City Royals",
-      "score": "2-6",
-      "inning": "T9",
-      "pitcher": "Nate Pearson",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824589,
-      "label": "Atlanta Braves @ Chicago White Sox",
-      "score": "2-0",
-      "inning": "B9",
-      "pitcher": "Raisel Iglesias",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 823747,
-      "label": "Seattle Mariners @ Milwaukee Brewers",
-      "score": "4-7",
+      "game_pk": 823746,
+      "label": "Atlanta Braves @ Milwaukee Brewers",
+      "score": "1-2",
       "inning": "T9",
       "pitcher": "Trevor Megill",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
-      "game_pk": 824802,
-      "label": "New York Yankees @ Baltimore Orioles",
-      "score": "6-1",
-      "inning": "B9",
-      "pitcher": "Ryan Yarbrough",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 822861,
-      "label": "Washington Nationals @ Texas Rangers",
-      "score": "0-2",
-      "inning": "T9",
-      "pitcher": "Jacob Latz",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824153,
-      "label": "Los Angeles Angels @ Houston Astros",
-      "score": "16-2",
-      "inning": "B8",
-      "pitcher": "Blake Weiman",
+      "game_pk": 823420,
+      "label": "St. Louis Cardinals @ Philadelphia Phillies",
+      "score": "2-1",
+      "inning": "B2",
+      "pitcher": "Hunter Dobbins",
       "quality_score": 4.5,
       "trailing": "HOME"
     }
