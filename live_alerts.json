@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-22T19:15:23.098049-04:00",
+  "last_updated": "2026-08-22T19:37:26.321060-04:00",
   "in_progress": [
     {
       "game_pk": 823509,
@@ -32,10 +32,64 @@
       "game_pk": 823422,
       "label": "St. Louis Cardinals @ Philadelphia Phillies",
       "score": "0-7",
-      "inning": "T4",
-      "pitcher": "Quinn Mathews",
+      "inning": "B5",
+      "pitcher": "Andrew Painter",
       "quality_score": 4.5,
       "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824798,
+      "label": "Tampa Bay Rays @ Baltimore Orioles",
+      "score": "1-0",
+      "inning": "B2",
+      "pitcher": "Brandon Young",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 822858,
+      "label": "Los Angeles Angels @ Texas Rangers",
+      "score": "1-0",
+      "inning": "B2",
+      "pitcher": "Cody Bradford",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824560,
+      "label": "New York Mets @ Chicago White Sox",
+      "score": "1-0",
+      "inning": "T2",
+      "pitcher": "Luis Castillo",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823910,
+      "label": "Pittsburgh Pirates @ Los Angeles Dodgers",
+      "score": "3-0",
+      "inning": "T2",
+      "pitcher": "Tarik Skubal",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823100,
+      "label": "Chicago Cubs @ Seattle Mariners",
+      "score": "0-1",
+      "inning": "T2",
+      "pitcher": "Kade Anderson",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824718,
+      "label": "San Francisco Giants @ Boston Red Sox",
+      "score": "1-0",
+      "inning": "T2",
+      "pitcher": "Patrick Sandoval",
+      "quality_score": 4.5,
+      "trailing": "HOME"
     }
   ],
   "active_alerts": [],
