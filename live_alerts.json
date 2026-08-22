@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-21T19:40:46.818577-04:00",
+  "last_updated": "2026-08-21T19:59:23.044710-04:00",
   "in_progress": [
     {
       "game_pk": 823746,
@@ -14,16 +14,34 @@
       "game_pk": 823420,
       "label": "St. Louis Cardinals @ Philadelphia Phillies",
       "score": "2-3",
-      "inning": "T4",
-      "pitcher": "Jes\u00fas Luzardo",
+      "inning": "T5",
+      "pitcher": "Hunter Dobbins",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
+      "game_pk": 823510,
+      "label": "Toronto Blue Jays @ New York Yankees",
+      "score": "0-2",
+      "inning": "T3",
+      "pitcher": "Cam Schlittler",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824721,
+      "label": "San Francisco Giants @ Boston Red Sox",
+      "score": "1-0",
+      "inning": "T3",
+      "pitcher": "Sonny Gray",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
       "game_pk": 824800,
       "label": "Tampa Bay Rays @ Baltimore Orioles",
-      "score": "3-1",
-      "inning": "T2",
+      "score": "3-2",
+      "inning": "T3",
       "pitcher": "Trevor Rogers",
       "quality_score": 4.5,
       "trailing": "HOME"
