@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-21T19:59:23.044710-04:00",
+  "last_updated": "2026-08-21T21:24:14.849944-04:00",
   "in_progress": [
     {
       "game_pk": 823746,
@@ -11,40 +11,58 @@
       "trailing": "AWAY"
     },
     {
-      "game_pk": 823420,
-      "label": "St. Louis Cardinals @ Philadelphia Phillies",
-      "score": "2-3",
-      "inning": "T5",
-      "pitcher": "Hunter Dobbins",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
       "game_pk": 823510,
       "label": "Toronto Blue Jays @ New York Yankees",
-      "score": "0-2",
-      "inning": "T3",
-      "pitcher": "Cam Schlittler",
+      "score": "1-3",
+      "inning": "T7",
+      "pitcher": "Brent Headrick",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 824721,
       "label": "San Francisco Giants @ Boston Red Sox",
-      "score": "1-0",
-      "inning": "T3",
+      "score": "4-6",
+      "inning": "B6",
       "pitcher": "Sonny Gray",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823830,
+      "label": "Washington Nationals @ Miami Marlins",
+      "score": "1-0",
+      "inning": "T8",
+      "pitcher": "Cade Gibson",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
       "game_pk": 824800,
       "label": "Tampa Bay Rays @ Baltimore Orioles",
-      "score": "3-2",
-      "inning": "T3",
-      "pitcher": "Trevor Rogers",
+      "score": "3-5",
+      "inning": "B8",
+      "pitcher": "Garrett Cleavinger",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824559,
+      "label": "New York Mets @ Chicago White Sox",
+      "score": "4-0",
+      "inning": "B5",
+      "pitcher": "Sean Manaea",
       "quality_score": 4.5,
       "trailing": "HOME"
+    },
+    {
+      "game_pk": 824072,
+      "label": "Detroit Tigers @ Kansas City Royals",
+      "score": "0-1",
+      "inning": "T5",
+      "pitcher": "Noah Cameron",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
     }
   ],
   "active_alerts": [],
