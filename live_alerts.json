@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-22T19:37:26.321060-04:00",
+  "last_updated": "2026-08-22T20:04:58.350754-04:00",
   "in_progress": [
     {
       "game_pk": 823509,
@@ -31,8 +31,8 @@
     {
       "game_pk": 823422,
       "label": "St. Louis Cardinals @ Philadelphia Phillies",
-      "score": "0-7",
-      "inning": "B5",
+      "score": "1-11",
+      "inning": "T7",
       "pitcher": "Andrew Painter",
       "quality_score": 4.5,
       "trailing": "AWAY"
@@ -41,8 +41,8 @@
       "game_pk": 824798,
       "label": "Tampa Bay Rays @ Baltimore Orioles",
       "score": "1-0",
-      "inning": "B2",
-      "pitcher": "Brandon Young",
+      "inning": "B4",
+      "pitcher": "Shane McClanahan",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
@@ -50,26 +50,44 @@
       "game_pk": 822858,
       "label": "Los Angeles Angels @ Texas Rangers",
       "score": "1-0",
-      "inning": "B2",
-      "pitcher": "Cody Bradford",
+      "inning": "T4",
+      "pitcher": "Ryan Johnson",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824151,
+      "label": "Athletics @ Houston Astros",
+      "score": "1-0",
+      "inning": "B3",
+      "pitcher": "Jacob Lopez",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
       "game_pk": 824560,
       "label": "New York Mets @ Chicago White Sox",
-      "score": "1-0",
-      "inning": "T2",
+      "score": "2-1",
+      "inning": "T3",
       "pitcher": "Luis Castillo",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
+      "game_pk": 824073,
+      "label": "Detroit Tigers @ Kansas City Royals",
+      "score": "0-1",
+      "inning": "T4",
+      "pitcher": "Michael Wacha",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
       "game_pk": 823910,
       "label": "Pittsburgh Pirates @ Los Angeles Dodgers",
       "score": "3-0",
-      "inning": "T2",
-      "pitcher": "Tarik Skubal",
+      "inning": "B3",
+      "pitcher": "Jared Jones",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
@@ -77,16 +95,16 @@
       "game_pk": 823100,
       "label": "Chicago Cubs @ Seattle Mariners",
       "score": "0-1",
-      "inning": "T2",
-      "pitcher": "Kade Anderson",
+      "inning": "B3",
+      "pitcher": "David Peterson",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 824718,
       "label": "San Francisco Giants @ Boston Red Sox",
-      "score": "1-0",
-      "inning": "T2",
+      "score": "2-0",
+      "inning": "T3",
       "pitcher": "Patrick Sandoval",
       "quality_score": 4.5,
       "trailing": "HOME"
