@@ -1,48 +1,5 @@
 {
   "date": "2026-08-23",
-  "timestamp": "2026-08-23T16:19:07.373706-04:00",
-  "games": [
-    {
-      "away": "ATL",
-      "home": "MIL",
-      "away_name": "Atlanta Braves",
-      "home_name": "Milwaukee Brewers",
-      "time": "7:11 PM ET",
-      "asp": "Tyler Mahle",
-      "hsp": "Shane Drohan",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Tyler Mahle",
-          "sp_side": "away",
-          "model_line": 4.8,
-          "p_over": 0.5842,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Shane Drohan",
-          "sp_side": "home",
-          "model_line": 4.9,
-          "p_over": 0.8184,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4182,
-          "p_yrfi": 0.5818,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.6,
-          "market_line": 7.5,
-          "p_over": 0.6267,
-          "p_under": 0.3733,
-          "recommendation": "OVER 7.5"
-        }
-      ],
-      "sgp": []
-    }
-  ]
+  "timestamp": "2026-08-23T19:47:23.874158-04:00",
+  "games": []
 }
