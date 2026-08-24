@@ -1,12 +1,12 @@
 {
-  "last_updated": "2026-08-24T19:17:44.536402-04:00",
+  "last_updated": "2026-08-24T19:38:55.522563-04:00",
   "in_progress": [
     {
       "game_pk": 824235,
       "label": "Tampa Bay Rays @ Detroit Tigers",
-      "score": "2-0",
-      "inning": "T3",
-      "pitcher": "Framber Valdez",
+      "score": "3-0",
+      "inning": "T4",
+      "pitcher": "Drew Rasmussen",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
@@ -14,7 +14,7 @@
       "game_pk": 823828,
       "label": "Boston Red Sox @ Miami Marlins",
       "score": "0-1",
-      "inning": "T3",
+      "inning": "T4",
       "pitcher": "Sandy Alcantara",
       "quality_score": 4.5,
       "trailing": "AWAY"
