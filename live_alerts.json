@@ -1,23 +1,32 @@
 {
-  "last_updated": "2026-08-24T19:38:55.522563-04:00",
+  "last_updated": "2026-08-24T19:56:22.854844-04:00",
   "in_progress": [
     {
       "game_pk": 824235,
       "label": "Tampa Bay Rays @ Detroit Tigers",
-      "score": "3-0",
-      "inning": "T4",
-      "pitcher": "Drew Rasmussen",
+      "score": "3-1",
+      "inning": "T5",
+      "pitcher": "Framber Valdez",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
-      "game_pk": 823828,
-      "label": "Boston Red Sox @ Miami Marlins",
-      "score": "0-1",
+      "game_pk": 822695,
+      "label": "Colorado Rockies @ Washington Nationals",
+      "score": "1-0",
       "inning": "T4",
-      "pitcher": "Sandy Alcantara",
+      "pitcher": "Ryan Feltner",
       "quality_score": 4.5,
-      "trailing": "AWAY"
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824557,
+      "label": "Texas Rangers @ Chicago White Sox",
+      "score": "2-0",
+      "inning": "T1",
+      "pitcher": "Jos\u00e9 Urquidy",
+      "quality_score": 4.5,
+      "trailing": "HOME"
     }
   ],
   "active_alerts": [],
