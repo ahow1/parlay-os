@@ -1,113 +1,23 @@
 {
-  "last_updated": "2026-08-22T20:04:58.350754-04:00",
+  "last_updated": "2026-08-24T19:17:44.536402-04:00",
   "in_progress": [
     {
-      "game_pk": 823509,
-      "label": "Toronto Blue Jays @ New York Yankees",
-      "score": "4-3",
-      "inning": "B9",
-      "pitcher": "Louis Varland",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 823743,
-      "label": "Atlanta Braves @ Milwaukee Brewers",
-      "score": "1-4",
-      "inning": "T9",
-      "pitcher": "Aaron Ashby",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823831,
-      "label": "Washington Nationals @ Miami Marlins",
-      "score": "2-4",
-      "inning": "T9",
-      "pitcher": "Calvin Faucher",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823422,
-      "label": "St. Louis Cardinals @ Philadelphia Phillies",
-      "score": "1-11",
-      "inning": "T7",
-      "pitcher": "Andrew Painter",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824798,
-      "label": "Tampa Bay Rays @ Baltimore Orioles",
-      "score": "1-0",
-      "inning": "B4",
-      "pitcher": "Shane McClanahan",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 822858,
-      "label": "Los Angeles Angels @ Texas Rangers",
-      "score": "1-0",
-      "inning": "T4",
-      "pitcher": "Ryan Johnson",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824151,
-      "label": "Athletics @ Houston Astros",
-      "score": "1-0",
-      "inning": "B3",
-      "pitcher": "Jacob Lopez",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824560,
-      "label": "New York Mets @ Chicago White Sox",
-      "score": "2-1",
-      "inning": "T3",
-      "pitcher": "Luis Castillo",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824073,
-      "label": "Detroit Tigers @ Kansas City Royals",
-      "score": "0-1",
-      "inning": "T4",
-      "pitcher": "Michael Wacha",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823910,
-      "label": "Pittsburgh Pirates @ Los Angeles Dodgers",
-      "score": "3-0",
-      "inning": "B3",
-      "pitcher": "Jared Jones",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 823100,
-      "label": "Chicago Cubs @ Seattle Mariners",
-      "score": "0-1",
-      "inning": "B3",
-      "pitcher": "David Peterson",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824718,
-      "label": "San Francisco Giants @ Boston Red Sox",
+      "game_pk": 824235,
+      "label": "Tampa Bay Rays @ Detroit Tigers",
       "score": "2-0",
       "inning": "T3",
-      "pitcher": "Patrick Sandoval",
+      "pitcher": "Framber Valdez",
       "quality_score": 4.5,
       "trailing": "HOME"
+    },
+    {
+      "game_pk": 823828,
+      "label": "Boston Red Sox @ Miami Marlins",
+      "score": "0-1",
+      "inning": "T3",
+      "pitcher": "Sandy Alcantara",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
     }
   ],
   "active_alerts": [],
