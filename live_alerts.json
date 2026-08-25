@@ -1,23 +1,50 @@
 {
-  "last_updated": "2026-08-25T19:19:31.922772-04:00",
+  "last_updated": "2026-08-25T19:43:51.209406-04:00",
   "in_progress": [
     {
-      "game_pk": 823826,
-      "label": "Boston Red Sox @ Miami Marlins",
+      "game_pk": 824233,
+      "label": "Tampa Bay Rays @ Detroit Tigers",
       "score": "1-0",
-      "inning": "B3",
-      "pitcher": "Payton Tolle",
+      "inning": "T4",
+      "pitcher": "Jackson Jobe",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
-      "game_pk": 822773,
-      "label": "Kansas City Royals @ Toronto Blue Jays",
+      "game_pk": 823826,
+      "label": "Boston Red Sox @ Miami Marlins",
       "score": "1-0",
-      "inning": "T1",
-      "pitcher": "Max Scherzer",
+      "inning": "T5",
+      "pitcher": "Tyler Phillips",
       "quality_score": 4.5,
       "trailing": "HOME"
+    },
+    {
+      "game_pk": 822693,
+      "label": "Colorado Rockies @ Washington Nationals",
+      "score": "1-0",
+      "inning": "T4",
+      "pitcher": "Andrew Alvarez",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823505,
+      "label": "Houston Astros @ New York Yankees",
+      "score": "1-0",
+      "inning": "B2",
+      "pitcher": "Ethan Pecko",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824881,
+      "label": "Los Angeles Dodgers @ Atlanta Braves",
+      "score": "0-3",
+      "inning": "T2",
+      "pitcher": "Bryce Elder",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
     }
   ],
   "active_alerts": [],
