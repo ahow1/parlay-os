@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-24T21:24:45.205964-04:00",
+  "last_updated": "2026-08-24T22:38:51.732450-04:00",
   "in_progress": [
     {
       "game_pk": 824235,
@@ -11,22 +11,76 @@
       "trailing": "HOME"
     },
     {
+      "game_pk": 823828,
+      "label": "Boston Red Sox @ Miami Marlins",
+      "score": "4-2",
+      "inning": "B9",
+      "pitcher": "Aroldis Chapman",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
       "game_pk": 822695,
       "label": "Colorado Rockies @ Washington Nationals",
-      "score": "2-10",
-      "inning": "T8",
-      "pitcher": "Clayton Beeter",
+      "score": "3-13",
+      "inning": "T9",
+      "pitcher": "Jake Bird",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 824557,
       "label": "Texas Rangers @ Chicago White Sox",
-      "score": "5-2",
-      "inning": "T5",
-      "pitcher": "Tyler Schweitzer",
+      "score": "9-2",
+      "inning": "T9",
+      "pitcher": "Trevor Richards",
+      "quality_score": 4.1,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823992,
+      "label": "Cleveland Guardians @ Los Angeles Angels",
+      "score": "1-0",
+      "inning": "B4",
+      "pitcher": "Parker Messick",
       "quality_score": 4.5,
       "trailing": "HOME"
+    },
+    {
+      "game_pk": 825041,
+      "label": "Chicago Cubs @ Arizona Diamondbacks",
+      "score": "1-0",
+      "inning": "T4",
+      "pitcher": "Merrill Kelly",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824964,
+      "label": "Minnesota Twins @ Athletics",
+      "score": "2-0",
+      "inning": "B3",
+      "pitcher": "Zebby Matthews",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823097,
+      "label": "Philadelphia Phillies @ Seattle Mariners",
+      "score": "2-5",
+      "inning": "T3",
+      "pitcher": "Logan Gilbert",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823183,
+      "label": "Cincinnati Reds @ San Francisco Giants",
+      "score": "0-5",
+      "inning": "T3",
+      "pitcher": "Jason Foley",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
     }
   ],
   "active_alerts": [],
