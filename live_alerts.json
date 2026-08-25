@@ -1,30 +1,30 @@
 {
-  "last_updated": "2026-08-24T19:56:22.854844-04:00",
+  "last_updated": "2026-08-24T20:28:44.257827-04:00",
   "in_progress": [
     {
       "game_pk": 824235,
       "label": "Tampa Bay Rays @ Detroit Tigers",
-      "score": "3-1",
-      "inning": "T5",
-      "pitcher": "Framber Valdez",
+      "score": "4-1",
+      "inning": "T7",
+      "pitcher": "Tanner Rainey",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
       "game_pk": 822695,
       "label": "Colorado Rockies @ Washington Nationals",
-      "score": "1-0",
-      "inning": "T4",
+      "score": "2-5",
+      "inning": "B5",
       "pitcher": "Ryan Feltner",
       "quality_score": 4.5,
-      "trailing": "HOME"
+      "trailing": "AWAY"
     },
     {
       "game_pk": 824557,
       "label": "Texas Rangers @ Chicago White Sox",
-      "score": "2-0",
-      "inning": "T1",
-      "pitcher": "Jos\u00e9 Urquidy",
+      "score": "3-0",
+      "inning": "B2",
+      "pitcher": "Kumar Rocker",
       "quality_score": 4.5,
       "trailing": "HOME"
     }
