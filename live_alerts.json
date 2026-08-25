@@ -1,30 +1,30 @@
 {
-  "last_updated": "2026-08-24T20:28:44.257827-04:00",
+  "last_updated": "2026-08-24T21:24:45.205964-04:00",
   "in_progress": [
     {
       "game_pk": 824235,
       "label": "Tampa Bay Rays @ Detroit Tigers",
       "score": "4-1",
-      "inning": "T7",
-      "pitcher": "Tanner Rainey",
+      "inning": "B9",
+      "pitcher": "Bryan Baker",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
       "game_pk": 822695,
       "label": "Colorado Rockies @ Washington Nationals",
-      "score": "2-5",
-      "inning": "B5",
-      "pitcher": "Ryan Feltner",
+      "score": "2-10",
+      "inning": "T8",
+      "pitcher": "Clayton Beeter",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
       "game_pk": 824557,
       "label": "Texas Rangers @ Chicago White Sox",
-      "score": "3-0",
-      "inning": "B2",
-      "pitcher": "Kumar Rocker",
+      "score": "5-2",
+      "inning": "T5",
+      "pitcher": "Tyler Schweitzer",
       "quality_score": 4.5,
       "trailing": "HOME"
     }
