@@ -1,50 +1,68 @@
 {
-  "last_updated": "2026-08-25T19:43:51.209406-04:00",
+  "last_updated": "2026-08-25T21:29:22.304163-04:00",
   "in_progress": [
     {
       "game_pk": 824233,
       "label": "Tampa Bay Rays @ Detroit Tigers",
-      "score": "1-0",
-      "inning": "T4",
-      "pitcher": "Jackson Jobe",
+      "score": "1-4",
+      "inning": "T9",
+      "pitcher": "Kenley Jansen",
       "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 823826,
-      "label": "Boston Red Sox @ Miami Marlins",
-      "score": "1-0",
-      "inning": "T5",
-      "pitcher": "Tyler Phillips",
-      "quality_score": 4.5,
-      "trailing": "HOME"
+      "trailing": "AWAY"
     },
     {
       "game_pk": 822693,
       "label": "Colorado Rockies @ Washington Nationals",
-      "score": "1-0",
-      "inning": "T4",
-      "pitcher": "Andrew Alvarez",
+      "score": "3-1",
+      "inning": "T9",
+      "pitcher": "Jake Bird",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
       "game_pk": 823505,
       "label": "Houston Astros @ New York Yankees",
-      "score": "1-0",
-      "inning": "B2",
-      "pitcher": "Ethan Pecko",
+      "score": "5-6",
+      "inning": "B7",
+      "pitcher": "Steven Okert",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 822773,
+      "label": "Kansas City Royals @ Toronto Blue Jays",
+      "score": "4-1",
+      "inning": "T8",
+      "pitcher": "Brendon Little",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
-      "game_pk": 824881,
-      "label": "Los Angeles Dodgers @ Atlanta Braves",
-      "score": "0-3",
-      "inning": "T2",
-      "pitcher": "Bryce Elder",
+      "game_pk": 823585,
+      "label": "Milwaukee Brewers @ New York Mets",
+      "score": "1-2",
+      "inning": "B8",
+      "pitcher": "Aaron Ashby",
       "quality_score": 4.5,
       "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824556,
+      "label": "Texas Rangers @ Chicago White Sox",
+      "score": "3-8",
+      "inning": "T5",
+      "pitcher": "Anthony Kay",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823016,
+      "label": "Baltimore Orioles @ St. Louis Cardinals",
+      "score": "10-1",
+      "inning": "T5",
+      "pitcher": "Peter Strzelecki",
+      "quality_score": 4.5,
+      "trailing": "HOME"
     }
   ],
   "active_alerts": [],
