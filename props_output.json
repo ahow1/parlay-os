@@ -1,48 +1,5 @@
 {
   "date": "2026-08-27",
-  "timestamp": "2026-08-27T00:41:30.972959-04:00",
-  "games": [
-    {
-      "away": "AZ",
-      "home": "SF",
-      "away_name": "Arizona Diamondbacks",
-      "home_name": "San Francisco Giants",
-      "time": "9:46 PM ET",
-      "asp": "Jose Cabrera",
-      "hsp": "Landen Roupp",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Jose Cabrera",
-          "sp_side": "away",
-          "model_line": 3.4,
-          "p_over": 0.3537,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Landen Roupp",
-          "sp_side": "home",
-          "model_line": 4.8,
-          "p_over": 0.5942,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3762,
-          "p_yrfi": 0.6238,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.82,
-          "market_line": 8.0,
-          "p_over": 0.52,
-          "p_under": 0.48,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    }
-  ]
+  "timestamp": "2026-08-27T20:10:14.883861-04:00",
+  "games": []
 }

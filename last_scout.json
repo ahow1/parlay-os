@@ -1,69 +1,20 @@
 {
-  "timestamp": "2026-08-27T04:39:09Z",
+  "timestamp": "2026-08-28T00:10:14Z",
   "date": "2026-08-27",
-  "window": "west",
+  "window": "day",
   "bankroll": 300.0,
-  "games": [
-    {
-      "away": "AZ",
-      "home": "SF",
-      "away_model": 0.5473,
-      "home_model": 0.4708,
-      "away_edge": 4.04,
-      "home_edge": -2.23,
-      "away_xr": 3.763,
-      "home_xr": 5.054
-    }
-  ],
-  "bets": [
-    {
-      "team": "Arizona Diamondbacks",
-      "side": "away",
-      "game": "Arizona Diamondbacks @ San Francisco Giants",
-      "odds": -108,
-      "book": "betonlineag",
-      "model_prob": 0.5473,
-      "market_prob": 0.5069,
-      "edge_pct": 4.04,
-      "stake": 20.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 66,
-      "sp": "Jose Cabrera",
-      "sp_era": 5.6,
-      "sp_xfip": 5.39,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": -15.0,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.8,
-        "home_win_rate": 0.2,
-        "avg_total": 9.1,
-        "over_rate": 0.6
-      }
-    }
-  ],
+  "games": [],
+  "bets": [],
   "passes": [],
-  "slip_sent": true,
+  "slip_sent": false,
   "sent_pick_ids": [
     "KPROP:Landen Roupp:4.8",
     "ML:Arizona Diamondbacks:-108",
     "NRFI:Arizona Diamondbacks @ San Francisco Giants:YRFI"
   ],
-  "slip_quality": "good",
+  "slip_quality": "bad",
   "data_health": {
-    "odds": "live",
-    "fangraphs_sp": "live",
-    "savant": "degraded",
-    "lineups": "failed",
-    "savant_bullpen_stuff": "live",
-    "savant_bat_tracking": "live",
-    "savant_park_of_defense": "live",
-    "savant_sprint_baserunning": "live",
-    "savant_arm_angle": "live",
-    "h2h": "live"
+    "odds": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],
