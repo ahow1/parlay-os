@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-08-28T23:46:55Z",
+  "timestamp": "2026-08-29T02:39:38Z",
   "date": "2026-08-28",
-  "window": "day",
+  "window": "evening",
   "bankroll": 300.0,
   "games": [],
   "bets": [],
@@ -10,7 +10,7 @@
   "sent_pick_ids": [],
   "slip_quality": "bad",
   "data_health": {
-    "odds": "degraded"
+    "odds": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],
