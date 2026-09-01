@@ -1,68 +1,77 @@
 {
-  "last_updated": "2026-08-25T21:29:22.304163-04:00",
+  "last_updated": "2026-08-31T21:35:02.290960-04:00",
   "in_progress": [
     {
-      "game_pk": 824233,
-      "label": "Tampa Bay Rays @ Detroit Tigers",
-      "score": "1-4",
-      "inning": "T9",
-      "pitcher": "Kenley Jansen",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 822693,
-      "label": "Colorado Rockies @ Washington Nationals",
-      "score": "3-1",
-      "inning": "T9",
-      "pitcher": "Jake Bird",
+      "game_pk": 824911,
+      "label": "San Francisco Giants @ Atlanta Braves",
+      "score": "7-3",
+      "inning": "B9",
+      "pitcher": "Dylan Smith",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
-      "game_pk": 823505,
-      "label": "Houston Astros @ New York Yankees",
-      "score": "5-6",
-      "inning": "B7",
-      "pitcher": "Steven Okert",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 822773,
-      "label": "Kansas City Royals @ Toronto Blue Jays",
-      "score": "4-1",
-      "inning": "T8",
-      "pitcher": "Brendon Little",
+      "game_pk": 824473,
+      "label": "San Diego Padres @ Cincinnati Reds",
+      "score": "5-0",
+      "inning": "B9",
+      "pitcher": "Wandy Peralta",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
-      "game_pk": 823585,
-      "label": "Milwaukee Brewers @ New York Mets",
-      "score": "1-2",
+      "game_pk": 822932,
+      "label": "New York Mets @ Tampa Bay Rays",
+      "score": "3-2",
+      "inning": "B9",
+      "pitcher": "Kodai Senga",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 822689,
+      "label": "Miami Marlins @ Washington Nationals",
+      "score": "3-6",
       "inning": "B8",
-      "pitcher": "Aaron Ashby",
+      "pitcher": "Erik Tolman",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
-      "game_pk": 824556,
-      "label": "Texas Rangers @ Chicago White Sox",
-      "score": "3-8",
-      "inning": "T5",
+      "game_pk": 823663,
+      "label": "Detroit Tigers @ Minnesota Twins",
+      "score": "1-8",
+      "inning": "T7",
+      "pitcher": "Taj Bradley",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824635,
+      "label": "Milwaukee Brewers @ Chicago Cubs",
+      "score": "0-9",
+      "inning": "T6",
+      "pitcher": "Clay Holmes",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 822855,
+      "label": "Athletics @ Texas Rangers",
+      "score": "0-5",
+      "inning": "B5",
+      "pitcher": "Chris Roycroft",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824149,
+      "label": "Chicago White Sox @ Houston Astros",
+      "score": "2-3",
+      "inning": "B4",
       "pitcher": "Anthony Kay",
       "quality_score": 4.5,
       "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823016,
-      "label": "Baltimore Orioles @ St. Louis Cardinals",
-      "score": "10-1",
-      "inning": "T5",
-      "pitcher": "Peter Strzelecki",
-      "quality_score": 4.5,
-      "trailing": "HOME"
     }
   ],
   "active_alerts": [],
