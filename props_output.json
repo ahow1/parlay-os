@@ -1,129 +1,45 @@
 {
-  "date": "2026-09-01",
-  "timestamp": "2026-09-01T21:22:14.906895-04:00",
+  "date": "2026-09-02",
+  "timestamp": "2026-09-02T14:17:28.094920-04:00",
   "games": [
     {
-      "away": "NYY",
-      "home": "LAA",
-      "away_name": "New York Yankees",
-      "home_name": "Los Angeles Angels",
-      "time": "9:39 PM ET",
-      "asp": "Gerrit Cole",
-      "hsp": "Grayson Rodriguez",
+      "away": "ATH",
+      "home": "TEX",
+      "away_name": "Athletics",
+      "home_name": "Texas Rangers",
+      "time": "2:36 PM ET",
+      "asp": "Jacob Lopez",
+      "hsp": "Cody Bradford",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Gerrit Cole",
+          "sp": "Jacob Lopez",
           "sp_side": "away",
-          "model_line": 5.3,
-          "p_over": 0.5828,
+          "model_line": 4.9,
+          "p_over": 0.5689,
           "recommendation": "BET"
         },
         {
           "type": "K_PROP",
-          "sp": "Grayson Rodriguez",
+          "sp": "Cody Bradford",
           "sp_side": "home",
-          "model_line": 4.5,
-          "p_over": 0.4361,
+          "model_line": 2.5,
+          "p_over": 0.4803,
           "recommendation": "PASS"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.41,
-          "p_yrfi": 0.59,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.96,
-          "market_line": 7.5,
-          "p_over": 0.5419,
-          "p_under": 0.4581,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "PHI",
-      "home": "AZ",
-      "away_name": "Philadelphia Phillies",
-      "home_name": "Arizona Diamondbacks",
-      "time": "9:41 PM ET",
-      "asp": "Jes\u00fas Luzardo",
-      "hsp": "Eduardo Rodriguez",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Jes\u00fas Luzardo",
-          "sp_side": "away",
-          "model_line": 6.2,
-          "p_over": 0.6244,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Eduardo Rodriguez",
-          "sp_side": "home",
-          "model_line": 3.7,
-          "p_over": 0.6418,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4392,
-          "p_yrfi": 0.5608,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.1,
-          "market_line": 7.5,
-          "p_over": 0.5605,
-          "p_under": 0.4395,
-          "recommendation": "OVER 7.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "STL",
-      "home": "LAD",
-      "away_name": "St. Louis Cardinals",
-      "home_name": "Los Angeles Dodgers",
-      "time": "10:11 PM ET",
-      "asp": "Michael McGreevy",
-      "hsp": "Eric Lauer",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Michael McGreevy",
-          "sp_side": "away",
-          "model_line": 3.4,
-          "p_over": 0.5204,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Eric Lauer",
-          "sp_side": "home",
-          "model_line": 3.3,
-          "p_over": 0.5889,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3466,
-          "p_yrfi": 0.6534,
+          "p_nrfi": 0.323,
+          "p_yrfi": 0.677,
           "recommendation": "YRFI"
         },
         {
           "type": "TOTAL",
-          "model_total": 9.3,
-          "market_line": 9.0,
-          "p_over": 0.4519,
-          "p_under": 0.5481,
-          "recommendation": "PASS"
+          "model_total": 10.46,
+          "market_line": 8.0,
+          "p_over": 0.717,
+          "p_under": 0.283,
+          "recommendation": "OVER 8.0"
         }
       ],
       "sgp": []
