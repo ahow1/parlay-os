@@ -1,45 +1,253 @@
 {
   "date": "2026-09-02",
-  "timestamp": "2026-09-02T14:17:28.094920-04:00",
+  "timestamp": "2026-09-02T18:28:35.131868-04:00",
   "games": [
     {
-      "away": "ATH",
-      "home": "TEX",
-      "away_name": "Athletics",
-      "home_name": "Texas Rangers",
-      "time": "2:36 PM ET",
-      "asp": "Jacob Lopez",
-      "hsp": "Cody Bradford",
+      "away": "TOR",
+      "home": "CLE",
+      "away_name": "Toronto Blue Jays",
+      "home_name": "Cleveland Guardians",
+      "time": "6:41 PM ET",
+      "asp": "Dylan Cease",
+      "hsp": "Joey Cantillo",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Jacob Lopez",
+          "sp": "Dylan Cease",
           "sp_side": "away",
-          "model_line": 4.9,
-          "p_over": 0.5689,
+          "model_line": 7.2,
+          "p_over": 0.6369,
           "recommendation": "BET"
         },
         {
           "type": "K_PROP",
-          "sp": "Cody Bradford",
+          "sp": "Joey Cantillo",
           "sp_side": "home",
-          "model_line": 2.5,
-          "p_over": 0.4803,
+          "model_line": 5.3,
+          "p_over": 0.4149,
           "recommendation": "PASS"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.323,
-          "p_yrfi": 0.677,
-          "recommendation": "YRFI"
+          "p_nrfi": 0.4608,
+          "p_yrfi": 0.5392,
+          "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 10.46,
-          "market_line": 8.0,
-          "p_over": 0.717,
-          "p_under": 0.283,
-          "recommendation": "OVER 8.0"
+          "model_total": 7.25,
+          "market_line": 7.0,
+          "p_over": 0.4388,
+          "p_under": 0.5612,
+          "recommendation": "UNDER 7.0"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "NYM",
+      "home": "TB",
+      "away_name": "New York Mets",
+      "home_name": "Tampa Bay Rays",
+      "time": "6:41 PM ET",
+      "asp": "Justin Hagenman",
+      "hsp": "Griffin Jax",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Griffin Jax",
+          "sp_side": "home",
+          "model_line": 5.5,
+          "p_over": 0.4812,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "recommendation": "SP_MISSING"
+        },
+        {
+          "type": "TOTAL",
+          "recommendation": "SP_MISSING"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "SF",
+      "home": "PIT",
+      "away_name": "San Francisco Giants",
+      "home_name": "Pittsburgh Pirates",
+      "time": "6:41 PM ET",
+      "asp": "Landen Roupp",
+      "hsp": "Bubba Chandler",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Landen Roupp",
+          "sp_side": "away",
+          "model_line": 4.8,
+          "p_over": 0.5796,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Bubba Chandler",
+          "sp_side": "home",
+          "model_line": 4.5,
+          "p_over": 0.5019,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3802,
+          "p_yrfi": 0.6198,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.92,
+          "market_line": 9.0,
+          "p_over": 0.5318,
+          "p_under": 0.4682,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "MIL",
+      "home": "CHC",
+      "away_name": "Milwaukee Brewers",
+      "home_name": "Chicago Cubs",
+      "time": "7:41 PM ET",
+      "asp": "Jacob Misiorowski",
+      "hsp": "David Peterson",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Jacob Misiorowski",
+          "sp_side": "away",
+          "model_line": 7.4,
+          "p_over": 0.6617,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "David Peterson",
+          "sp_side": "home",
+          "model_line": 4.4,
+          "p_over": 0.7217,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4887,
+          "p_yrfi": 0.5113,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.07,
+          "market_line": 8.5,
+          "p_over": 0.5542,
+          "p_under": 0.4458,
+          "recommendation": "OVER 8.5"
+        }
+      ],
+      "sgp": [
+        {
+          "type": "OFFENSE_EXPLOSION",
+          "legs": [
+            "AWAY ML (56.1%)",
+            "Game OVER 8.5 (55.4%)",
+            "AWAY first to score (53.9%)"
+          ],
+          "joint_prob": 0.2564,
+          "kelly_stake": 0.0,
+          "ev": -0.15
+        }
+      ]
+    },
+    {
+      "away": "DET",
+      "home": "MIN",
+      "away_name": "Detroit Tigers",
+      "home_name": "Minnesota Twins",
+      "time": "7:41 PM ET",
+      "asp": "Drew Anderson",
+      "hsp": "Dean Kremer",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Drew Anderson",
+          "sp_side": "away",
+          "model_line": 5.6,
+          "p_over": 0.7914,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Dean Kremer",
+          "sp_side": "home",
+          "model_line": 4.9,
+          "p_over": 0.5745,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4219,
+          "p_yrfi": 0.5781,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.22,
+          "market_line": 8.5,
+          "p_over": 0.4387,
+          "p_under": 0.5613,
+          "recommendation": "UNDER 8.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "MIA",
+      "home": "KC",
+      "away_name": "Miami Marlins",
+      "home_name": "Kansas City Royals",
+      "time": "7:41 PM ET",
+      "asp": "Eury P\u00e9rez",
+      "hsp": "Noah Cameron",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Eury P\u00e9rez",
+          "sp_side": "away",
+          "model_line": 5.4,
+          "p_over": 0.5411,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Noah Cameron",
+          "sp_side": "home",
+          "model_line": 4.4,
+          "p_over": 0.6009,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.391,
+          "p_yrfi": 0.609,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.75,
+          "market_line": 9.0,
+          "p_over": 0.3793,
+          "p_under": 0.6207,
+          "recommendation": "UNDER 9.0"
         }
       ],
       "sgp": []
