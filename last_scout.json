@@ -1,16 +1,136 @@
 {
-  "timestamp": "2026-09-03T18:15:29Z",
+  "timestamp": "2026-09-03T22:12:11Z",
   "date": "2026-09-03",
-  "window": "day",
+  "window": "evening",
   "bankroll": 300.0,
-  "games": [],
+  "games": [
+    {
+      "away": "BOS",
+      "home": "BAL",
+      "away_model": 0.5378,
+      "home_model": 0.4822,
+      "away_edge": 1.38,
+      "home_edge": 0.62,
+      "away_xr": 4.565,
+      "home_xr": 3.948
+    },
+    {
+      "away": "MIL",
+      "home": "CHC",
+      "away_model": 0.5523,
+      "home_model": 0.4627,
+      "away_edge": 1.96,
+      "home_edge": -0.46,
+      "away_xr": 5.152,
+      "home_xr": 5.555
+    },
+    {
+      "away": "MIA",
+      "home": "KC",
+      "away_model": 0.4846,
+      "home_model": 0.5104,
+      "away_edge": 0.86,
+      "home_edge": -1.36,
+      "away_xr": 4.838,
+      "home_xr": 5.142
+    }
+  ],
   "bets": [],
-  "passes": [],
-  "slip_sent": false,
-  "sent_pick_ids": [],
+  "passes": [
+    {
+      "game": "Boston Red Sox @ Baltimore Orioles",
+      "edges": {
+        "away": 1.38,
+        "home": 0.62
+      }
+    },
+    {
+      "game": "Milwaukee Brewers @ Chicago Cubs",
+      "edges": {
+        "away": 1.96,
+        "home": -0.46
+      }
+    },
+    {
+      "game": "Miami Marlins @ Kansas City Royals",
+      "edges": {
+        "away": 0.86,
+        "home": -1.36
+      }
+    }
+  ],
+  "slip_sent": true,
+  "sent_pick_ids": [
+    "ER:Brandon Young:2.0:OVER",
+    "ER:Jake Bennett:2.0:OVER",
+    "ER:Logan Henderson:1.5:OVER",
+    "ER:Michael Wacha:2.0:OVER",
+    "ER:Sandy Alcantara:2.5:OVER",
+    "HITTER:Alex Bregman:CHC:HR O0.5",
+    "HITTER:Alex Bregman:CHC:RBI O0.5",
+    "HITTER:Brice Turang:MIL:SO O0.5",
+    "HITTER:Carter Jensen:KC:HR O0.5",
+    "HITTER:Carter Jensen:KC:RBI O0.5",
+    "HITTER:Carter Jensen:KC:TB O1.5",
+    "HITTER:Christian Encarnacion-Strand:BAL:RBI O0.5",
+    "HITTER:Christian Yelich:MIL:TB O1.5",
+    "HITTER:Coby Mayo:BAL:RBI O0.5",
+    "HITTER:Griffin Conine:MIA:SO O0.5",
+    "HITTER:Gunnar Henderson:BAL:RBI O0.5",
+    "HITTER:Heriberto Hern\u00e1ndez:MIA:HR O0.5",
+    "HITTER:Heriberto Hern\u00e1ndez:MIA:RBI O0.5",
+    "HITTER:Ian Happ:CHC:HR O0.5",
+    "HITTER:Ian Happ:CHC:RBI O0.5",
+    "HITTER:Ian Happ:CHC:SO O0.5",
+    "HITTER:Jac Caglianone:KC:RBI O0.5",
+    "HITTER:Jac Caglianone:KC:SO O0.5",
+    "HITTER:Jackson Chourio:MIL:HR O0.5",
+    "HITTER:Jackson Chourio:MIL:RBI O0.5",
+    "HITTER:Jackson Chourio:MIL:TB O1.5",
+    "HITTER:Jake Bauers:MIL:SO O0.5",
+    "HITTER:Kyle Stowers:MIA:RBI O0.5",
+    "HITTER:Kyle Stowers:MIA:SO O0.5",
+    "HITTER:Luis Robert Jr.:BAL:HR O0.5",
+    "HITTER:Luis Robert Jr.:BAL:RBI O0.5",
+    "HITTER:Michael Busch:CHC:SO O0.5",
+    "HITTER:Michael Massey:KC:RBI O0.5",
+    "HITTER:Mickey Gasper:BOS:HR O0.5",
+    "HITTER:Mickey Gasper:BOS:RBI O0.5",
+    "HITTER:Mickey Gasper:BOS:TB O1.5",
+    "HITTER:Otto Lopez:MIA:RBI O0.5",
+    "HITTER:Pete Alonso:BAL:RBI O0.5",
+    "HITTER:Pete Crow-Armstrong:CHC:HR O0.5",
+    "HITTER:Pete Crow-Armstrong:CHC:RBI O0.5",
+    "HITTER:Pete Crow-Armstrong:CHC:SO O0.5",
+    "HITTER:Roman Anthony:BOS:HR O0.5",
+    "HITTER:Roman Anthony:BOS:Hits O1.5",
+    "HITTER:Roman Anthony:BOS:TB O1.5",
+    "HITTER:Salvador Perez:KC:RBI O0.5",
+    "HITTER:Seiya Suzuki:CHC:RBI O0.5",
+    "HITTER:William Contreras:MIL:Hits O1.5",
+    "HITTER:William Contreras:MIL:RBI O0.5",
+    "HITTER:William Contreras:MIL:TB O1.5",
+    "HITTER:Wilyer Abreu:BOS:SO O0.5",
+    "HITTER:Wilyer Abreu:BOS:TB O1.5",
+    "KPROP:Jake Bennett:4.0",
+    "KPROP:Logan Henderson:5.6",
+    "KPROP:Michael Wacha:4.0",
+    "KPROP:Sandy Alcantara:3.7",
+    "NRFI:Miami Marlins @ Kansas City Royals:YRFI",
+    "TOT:Milwaukee Brewers @ Chicago Cubs:OVER:8.5"
+  ],
   "slip_quality": "bad",
   "data_health": {
-    "odds": "live"
+    "odds": "live",
+    "fangraphs_sp": "live",
+    "savant": "degraded",
+    "lineups": "live",
+    "savant_bullpen_stuff": "live",
+    "savant_bat_tracking": "live",
+    "savant_park_of_defense": "live",
+    "savant_sprint_baserunning": "live",
+    "savant_arm_angle": "live",
+    "h2h": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],
