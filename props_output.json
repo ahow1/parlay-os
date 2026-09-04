@@ -1,87 +1,45 @@
 {
-  "date": "2026-09-03",
-  "timestamp": "2026-09-03T21:16:33.766781-04:00",
+  "date": "2026-09-04",
+  "timestamp": "2026-09-04T13:57:52.190657-04:00",
   "games": [
     {
-      "away": "ATH",
-      "home": "SEA",
-      "away_name": "Athletics",
-      "home_name": "Seattle Mariners",
-      "time": "9:40 PM ET",
-      "asp": "Jack Perkins",
-      "hsp": "Kade Anderson",
+      "away": "DET",
+      "home": "CLE",
+      "away_name": "Detroit Tigers",
+      "home_name": "Cleveland Guardians",
+      "time": "2:41 PM ET",
+      "asp": "Casey Mize",
+      "hsp": "Gavin Williams",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Jack Perkins",
+          "sp": "Casey Mize",
           "sp_side": "away",
-          "model_line": 5.7,
-          "p_over": 0.809,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Kade Anderson",
-          "sp_side": "home",
-          "model_line": 4.0,
-          "p_over": 0.3712,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3527,
-          "p_yrfi": 0.6473,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 9.56,
-          "market_line": 7.5,
-          "p_over": 0.7378,
-          "p_under": 0.2622,
-          "recommendation": "OVER 7.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "STL",
-      "home": "LAD",
-      "away_name": "St. Louis Cardinals",
-      "home_name": "Los Angeles Dodgers",
-      "time": "10:10 PM ET",
-      "asp": "Quinn Mathews",
-      "hsp": "Tarik Skubal",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Quinn Mathews",
-          "sp_side": "away",
-          "model_line": 5.1,
-          "p_over": 0.3853,
+          "model_line": 4.4,
+          "p_over": 0.477,
           "recommendation": "PASS"
         },
         {
           "type": "K_PROP",
-          "sp": "Tarik Skubal",
+          "sp": "Gavin Williams",
           "sp_side": "home",
-          "model_line": 6.0,
-          "p_over": 0.5921,
+          "model_line": 6.7,
+          "p_over": 0.655,
           "recommendation": "BET"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4726,
-          "p_yrfi": 0.5274,
+          "p_nrfi": 0.4582,
+          "p_yrfi": 0.5418,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.04,
-          "market_line": 7.5,
-          "p_over": 0.5532,
-          "p_under": 0.4468,
-          "recommendation": "OVER 7.5"
+          "model_total": 7.71,
+          "market_line": 8.0,
+          "p_over": 0.3666,
+          "p_under": 0.6334,
+          "recommendation": "UNDER 8.0"
         }
       ],
       "sgp": []
