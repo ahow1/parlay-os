@@ -1,66 +1,48 @@
 {
-  "last_updated": "2026-09-01T20:45:04.277581-04:00",
+  "last_updated": "2026-09-03T20:34:34.266873-04:00",
   "in_progress": [
     {
-      "game_pk": 823340,
+      "game_pk": 823337,
       "label": "San Francisco Giants @ Pittsburgh Pirates",
-      "score": "5-11",
-      "inning": "B5",
-      "pitcher": "Cesar Perdomo",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 822929,
-      "label": "New York Mets @ Tampa Bay Rays",
       "score": "2-5",
-      "inning": "T8",
-      "pitcher": "Tyler Wells",
+      "inning": "T9",
+      "pitcher": "Mason Montgomery",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
-      "game_pk": 824391,
+      "game_pk": 824388,
       "label": "Toronto Blue Jays @ Cleveland Guardians",
-      "score": "1-4",
-      "inning": "B7",
-      "pitcher": "Joe Mantiply",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824716,
-      "label": "Seattle Mariners @ Boston Red Sox",
-      "score": "9-1",
-      "inning": "T6",
-      "pitcher": "Wyatt Olds",
+      "score": "6-3",
+      "inning": "B9",
+      "pitcher": "Louis Varland",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
-      "game_pk": 822687,
-      "label": "Atlanta Braves @ Washington Nationals",
+      "game_pk": 824144,
+      "label": "Chicago White Sox @ Houston Astros",
       "score": "2-6",
-      "inning": "B6",
-      "pitcher": "Blake Burkhalter",
+      "inning": "T9",
+      "pitcher": "AJ Blubaugh",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
-      "game_pk": 824070,
-      "label": "Miami Marlins @ Kansas City Royals",
-      "score": "2-0",
-      "inning": "T5",
-      "pitcher": "Randy Dobnak",
+      "game_pk": 824796,
+      "label": "Boston Red Sox @ Baltimore Orioles",
+      "score": "1-3",
+      "inning": "T6",
+      "pitcher": "Brandon Young",
       "quality_score": 4.5,
-      "trailing": "HOME"
+      "trailing": "AWAY"
     },
     {
-      "game_pk": 822854,
-      "label": "Athletics @ Texas Rangers",
-      "score": "0-1",
-      "inning": "B2",
-      "pitcher": "Brady Basso",
+      "game_pk": 824632,
+      "label": "Milwaukee Brewers @ Chicago Cubs",
+      "score": "1-2",
+      "inning": "B5",
+      "pitcher": "Logan Henderson",
       "quality_score": 4.5,
       "trailing": "AWAY"
     }
