@@ -1,129 +1,87 @@
 {
   "date": "2026-09-03",
-  "timestamp": "2026-09-03T18:18:51.725099-04:00",
+  "timestamp": "2026-09-03T21:16:33.766781-04:00",
   "games": [
     {
-      "away": "BOS",
-      "home": "BAL",
-      "away_name": "Boston Red Sox",
-      "home_name": "Baltimore Orioles",
-      "time": "7:15 PM ET",
-      "asp": "Jake Bennett",
-      "hsp": "Brandon Young",
+      "away": "ATH",
+      "home": "SEA",
+      "away_name": "Athletics",
+      "home_name": "Seattle Mariners",
+      "time": "9:40 PM ET",
+      "asp": "Jack Perkins",
+      "hsp": "Kade Anderson",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Jake Bennett",
+          "sp": "Jack Perkins",
           "sp_side": "away",
-          "model_line": 4.0,
-          "p_over": 0.4916,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Brandon Young",
-          "sp_side": "home",
-          "model_line": 4.0,
-          "p_over": 0.4633,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3953,
-          "p_yrfi": 0.6047,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.51,
-          "market_line": 8.5,
-          "p_over": 0.4787,
-          "p_under": 0.5213,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "MIL",
-      "home": "CHC",
-      "away_name": "Milwaukee Brewers",
-      "home_name": "Chicago Cubs",
-      "time": "7:15 PM ET",
-      "asp": "Logan Henderson",
-      "hsp": "Kevin Gausman",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Logan Henderson",
-          "sp_side": "away",
-          "model_line": 5.6,
-          "p_over": 0.5765,
+          "model_line": 5.7,
+          "p_over": 0.809,
           "recommendation": "BET"
         },
         {
           "type": "K_PROP",
-          "sp": "Kevin Gausman",
-          "sp_side": "home",
-          "model_line": 5.0,
-          "p_over": 0.4832,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4434,
-          "p_yrfi": 0.5566,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 10.71,
-          "market_line": 8.5,
-          "p_over": 0.741,
-          "p_under": 0.259,
-          "recommendation": "OVER 8.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "MIA",
-      "home": "KC",
-      "away_name": "Miami Marlins",
-      "home_name": "Kansas City Royals",
-      "time": "7:40 PM ET",
-      "asp": "Sandy Alcantara",
-      "hsp": "Michael Wacha",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Sandy Alcantara",
-          "sp_side": "away",
-          "model_line": 3.7,
-          "p_over": 0.7097,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Michael Wacha",
+          "sp": "Kade Anderson",
           "sp_side": "home",
           "model_line": 4.0,
-          "p_over": 0.566,
-          "recommendation": "BET"
+          "p_over": 0.3712,
+          "recommendation": "PASS"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.3764,
-          "p_yrfi": 0.6236,
+          "p_nrfi": 0.3527,
+          "p_yrfi": 0.6473,
           "recommendation": "YRFI"
         },
         {
           "type": "TOTAL",
-          "model_total": 9.98,
-          "market_line": 9.0,
-          "p_over": 0.5396,
-          "p_under": 0.4604,
+          "model_total": 9.56,
+          "market_line": 7.5,
+          "p_over": 0.7378,
+          "p_under": 0.2622,
+          "recommendation": "OVER 7.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "STL",
+      "home": "LAD",
+      "away_name": "St. Louis Cardinals",
+      "home_name": "Los Angeles Dodgers",
+      "time": "10:10 PM ET",
+      "asp": "Quinn Mathews",
+      "hsp": "Tarik Skubal",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Quinn Mathews",
+          "sp_side": "away",
+          "model_line": 5.1,
+          "p_over": 0.3853,
           "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Tarik Skubal",
+          "sp_side": "home",
+          "model_line": 6.0,
+          "p_over": 0.5921,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4726,
+          "p_yrfi": 0.5274,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.04,
+          "market_line": 7.5,
+          "p_over": 0.5532,
+          "p_under": 0.4468,
+          "recommendation": "OVER 7.5"
         }
       ],
       "sgp": []
