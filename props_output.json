@@ -1,44 +1,44 @@
 {
   "date": "2026-09-06",
-  "timestamp": "2026-09-06T17:57:26.924360-04:00",
+  "timestamp": "2026-09-06T21:15:23.204252-04:00",
   "games": [
     {
-      "away": "MIN",
-      "home": "CWS",
-      "away_name": "Minnesota Twins",
-      "home_name": "Chicago White Sox",
-      "time": "6:20 PM ET",
-      "asp": "Bailey Ober",
-      "hsp": "Bryan Hudson",
+      "away": "WAS",
+      "home": "LAD",
+      "away_name": "Washington Nationals",
+      "home_name": "Los Angeles Dodgers",
+      "time": "10:11 PM ET",
+      "asp": "Andrew Alvarez",
+      "hsp": "Justin Wrobleski",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Bailey Ober",
+          "sp": "Andrew Alvarez",
           "sp_side": "away",
-          "model_line": 3.5,
-          "p_over": 0.5181,
-          "recommendation": "PASS"
+          "model_line": 4.7,
+          "p_over": 0.7894,
+          "recommendation": "BET"
         },
         {
           "type": "K_PROP",
-          "sp": "Bryan Hudson",
+          "sp": "Justin Wrobleski",
           "sp_side": "home",
-          "model_line": 4.6,
-          "p_over": 0.7749,
+          "model_line": 4.1,
+          "p_over": 0.5932,
           "recommendation": "BET"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.399,
-          "p_yrfi": 0.601,
+          "p_nrfi": 0.4166,
+          "p_yrfi": 0.5834,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.32,
+          "model_total": 8.73,
           "market_line": 8.5,
-          "p_over": 0.4515,
-          "p_under": 0.5485,
+          "p_over": 0.5081,
+          "p_under": 0.4919,
           "recommendation": "PASS"
         }
       ],
