@@ -1,48 +1,84 @@
 {
-  "last_updated": "2026-09-03T20:34:34.266873-04:00",
+  "last_updated": "2026-09-07T20:52:16.413957-04:00",
   "in_progress": [
     {
-      "game_pk": 823337,
-      "label": "San Francisco Giants @ Pittsburgh Pirates",
-      "score": "2-5",
+      "game_pk": 823415,
+      "label": "Atlanta Braves @ Philadelphia Phillies",
+      "score": "0-1",
       "inning": "T9",
-      "pitcher": "Mason Montgomery",
+      "pitcher": "Jes\u00fas Luzardo",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
-      "game_pk": 824388,
-      "label": "Toronto Blue Jays @ Cleveland Guardians",
-      "score": "6-3",
+      "game_pk": 823820,
+      "label": "New York Mets @ Miami Marlins",
+      "score": "9-4",
       "inning": "B9",
-      "pitcher": "Louis Varland",
+      "pitcher": "Austin Warren",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
-      "game_pk": 824144,
-      "label": "Chicago White Sox @ Houston Astros",
-      "score": "2-6",
+      "game_pk": 824715,
+      "label": "Los Angeles Angels @ Boston Red Sox",
+      "score": "2-5",
       "inning": "T9",
-      "pitcher": "AJ Blubaugh",
+      "pitcher": "Garrett Whitlock",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
-      "game_pk": 824796,
-      "label": "Boston Red Sox @ Baltimore Orioles",
-      "score": "1-3",
-      "inning": "T6",
-      "pitcher": "Brandon Young",
+      "game_pk": 824793,
+      "label": "Cleveland Guardians @ Baltimore Orioles",
+      "score": "4-6",
+      "inning": "T9",
+      "pitcher": "Josh Walker",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
-      "game_pk": 824632,
-      "label": "Milwaukee Brewers @ Chicago Cubs",
-      "score": "1-2",
-      "inning": "B5",
-      "pitcher": "Logan Henderson",
+      "game_pk": 824062,
+      "label": "Arizona Diamondbacks @ Kansas City Royals",
+      "score": "5-4",
+      "inning": "B10",
+      "pitcher": "Dennis Santana",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823742,
+      "label": "Chicago Cubs @ Milwaukee Brewers",
+      "score": "3-4",
+      "inning": "T9",
+      "pitcher": "Trevor Megill",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 824229,
+      "label": "Minnesota Twins @ Detroit Tigers",
+      "score": "4-5",
+      "inning": "T9",
+      "pitcher": "Kenley Jansen",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823254,
+      "label": "Washington Nationals @ San Diego Padres",
+      "score": "2-3",
+      "inning": "T9",
+      "pitcher": "Mason Miller",
+      "quality_score": 4.5,
+      "trailing": "AWAY"
+    },
+    {
+      "game_pk": 823175,
+      "label": "St. Louis Cardinals @ San Francisco Giants",
+      "score": "0-1",
+      "inning": "T3",
+      "pitcher": "Logan Webb",
       "quality_score": 4.5,
       "trailing": "AWAY"
     }
