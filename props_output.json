@@ -1,5 +1,48 @@
 {
   "date": "2026-09-07",
-  "timestamp": "2026-09-07T18:28:21.203092-04:00",
-  "games": []
+  "timestamp": "2026-09-07T21:22:47.068823-04:00",
+  "games": [
+    {
+      "away": "TOR",
+      "home": "ATH",
+      "away_name": "Toronto Blue Jays",
+      "home_name": "Athletics",
+      "time": "10:06 PM ET",
+      "asp": "Dylan Cease",
+      "hsp": "Jacob Lopez",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Dylan Cease",
+          "sp_side": "away",
+          "model_line": 7.1,
+          "p_over": 0.6139,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Jacob Lopez",
+          "sp_side": "home",
+          "model_line": 4.9,
+          "p_over": 0.5856,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4408,
+          "p_yrfi": 0.5592,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.15,
+          "market_line": 8.0,
+          "p_over": 0.4282,
+          "p_under": 0.5718,
+          "recommendation": "UNDER 8.0"
+        }
+      ],
+      "sgp": []
+    }
+  ]
 }

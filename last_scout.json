@@ -1,16 +1,66 @@
 {
-  "timestamp": "2026-09-07T22:28:20Z",
+  "timestamp": "2026-09-08T01:20:14Z",
   "date": "2026-09-07",
-  "window": "evening",
+  "window": "west",
   "bankroll": 300.0,
-  "games": [],
+  "games": [
+    {
+      "away": "TOR",
+      "home": "ATH",
+      "away_model": 0.5524,
+      "home_model": 0.4676,
+      "away_edge": -10.61,
+      "home_edge": 12.61,
+      "away_xr": 4.297,
+      "home_xr": 3.852
+    }
+  ],
   "bets": [],
-  "passes": [],
-  "slip_sent": false,
-  "sent_pick_ids": [],
+  "passes": [
+    {
+      "game": "Toronto Blue Jays @ Athletics",
+      "edges": {
+        "away": -10.61,
+        "home": 12.61
+      }
+    }
+  ],
+  "slip_sent": true,
+  "sent_pick_ids": [
+    "ER:Dylan Cease:1.5:OVER",
+    "HITTER:Alejandro Kirk:TOR:RBI O0.5",
+    "HITTER:Brett Bateman:TOR:SO O0.5",
+    "HITTER:Carlos Cortes:ATH:SO O0.5",
+    "HITTER:George Springer:TOR:RBI O0.5",
+    "HITTER:George Springer:TOR:TB O1.5",
+    "HITTER:Henry Bolte:ATH:SO O0.5",
+    "HITTER:Jeff McNeil:ATH:RBI O0.5",
+    "HITTER:Jeff McNeil:ATH:SO O0.5",
+    "HITTER:Kazuma Okamoto:TOR:RBI O0.5",
+    "HITTER:Kazuma Okamoto:TOR:SO O0.5",
+    "HITTER:Lawrence Butler:ATH:RBI O0.5",
+    "HITTER:Lawrence Butler:ATH:SO O0.5",
+    "HITTER:Max Muncy:ATH:SO O0.5",
+    "HITTER:Nathan Lukes:TOR:RBI O0.5",
+    "HITTER:Vladimir Guerrero Jr.:TOR:RBI O0.5",
+    "HITTER:Zack Gelof:ATH:HR O0.5",
+    "HITTER:Zack Gelof:ATH:SO O0.5",
+    "KPROP:Dylan Cease:7.1",
+    "KPROP:Jacob Lopez:4.9",
+    "TOT:Toronto Blue Jays @ Athletics:UNDER:8.0"
+  ],
   "slip_quality": "bad",
   "data_health": {
-    "odds": "live"
+    "odds": "live",
+    "fangraphs_sp": "live",
+    "savant": "degraded",
+    "lineups": "live",
+    "savant_bullpen_stuff": "live",
+    "savant_bat_tracking": "live",
+    "savant_park_of_defense": "live",
+    "savant_sprint_baserunning": "live",
+    "savant_arm_angle": "live",
+    "h2h": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],
