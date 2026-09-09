@@ -1,86 +1,77 @@
 {
-  "last_updated": "2026-09-07T20:52:16.413957-04:00",
+  "last_updated": "2026-09-08T20:55:44.229727-04:00",
   "in_progress": [
     {
-      "game_pk": 823415,
-      "label": "Atlanta Braves @ Philadelphia Phillies",
-      "score": "0-1",
-      "inning": "T9",
-      "pitcher": "Jes\u00fas Luzardo",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 823820,
-      "label": "New York Mets @ Miami Marlins",
-      "score": "9-4",
-      "inning": "B9",
-      "pitcher": "Austin Warren",
-      "quality_score": 4.5,
-      "trailing": "HOME"
-    },
-    {
-      "game_pk": 824715,
-      "label": "Los Angeles Angels @ Boston Red Sox",
-      "score": "2-5",
-      "inning": "T9",
-      "pitcher": "Garrett Whitlock",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824793,
+      "game_pk": 824792,
       "label": "Cleveland Guardians @ Baltimore Orioles",
-      "score": "4-6",
-      "inning": "T9",
-      "pitcher": "Josh Walker",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824062,
-      "label": "Arizona Diamondbacks @ Kansas City Royals",
-      "score": "5-4",
-      "inning": "B10",
-      "pitcher": "Dennis Santana",
+      "score": "9-5",
+      "inning": "T7",
+      "pitcher": "Craig Yoho",
       "quality_score": 4.5,
       "trailing": "HOME"
     },
     {
-      "game_pk": 823742,
-      "label": "Chicago Cubs @ Milwaukee Brewers",
-      "score": "3-4",
-      "inning": "T9",
-      "pitcher": "Trevor Megill",
-      "quality_score": 4.5,
-      "trailing": "AWAY"
-    },
-    {
-      "game_pk": 824229,
+      "game_pk": 824228,
       "label": "Minnesota Twins @ Detroit Tigers",
-      "score": "4-5",
-      "inning": "T9",
-      "pitcher": "Kenley Jansen",
+      "score": "3-2",
+      "inning": "B8",
+      "pitcher": "Jeff Hoffman",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823414,
+      "label": "Houston Astros @ Philadelphia Phillies",
+      "score": "6-4",
+      "inning": "B7",
+      "pitcher": "Bennett Sousa",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823821,
+      "label": "New York Mets @ Miami Marlins",
+      "score": "7-4",
+      "inning": "T8",
+      "pitcher": "Nate Lavender",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 824714,
+      "label": "Los Angeles Angels @ Boston Red Sox",
+      "score": "4-0",
+      "inning": "B7",
+      "pitcher": "Jos\u00e9 Fermin",
+      "quality_score": 4.5,
+      "trailing": "HOME"
+    },
+    {
+      "game_pk": 823500,
+      "label": "Colorado Rockies @ New York Yankees",
+      "score": "1-2",
+      "inning": "T7",
+      "pitcher": "Cam Schlittler",
       "quality_score": 4.5,
       "trailing": "AWAY"
     },
     {
-      "game_pk": 823254,
-      "label": "Washington Nationals @ San Diego Padres",
-      "score": "2-3",
-      "inning": "T9",
-      "pitcher": "Mason Miller",
+      "game_pk": 824875,
+      "label": "Tampa Bay Rays @ Atlanta Braves",
+      "score": "4-1",
+      "inning": "T6",
+      "pitcher": "Brent Suter",
       "quality_score": 4.5,
-      "trailing": "AWAY"
+      "trailing": "HOME"
     },
     {
-      "game_pk": 823175,
-      "label": "St. Louis Cardinals @ San Francisco Giants",
-      "score": "0-1",
-      "inning": "T3",
-      "pitcher": "Logan Webb",
+      "game_pk": 824551,
+      "label": "Pittsburgh Pirates @ Chicago White Sox",
+      "score": "7-0",
+      "inning": "T4",
+      "pitcher": "Bubba Chandler",
       "quality_score": 4.5,
-      "trailing": "AWAY"
+      "trailing": "HOME"
     }
   ],
   "active_alerts": [],
