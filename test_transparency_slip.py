@@ -8,6 +8,7 @@ Run: python -m pytest test_transparency_slip.py -v
 from unittest.mock import patch
 
 import brain
+import narrative_engine
 
 
 def _ml_factors(**overrides):
@@ -167,15 +168,14 @@ class TestUnifiedSlipEndToEnd:
     def test_chunking_never_splits_a_play_block(self):
         locks = [(self._mk_ml(i), "away") for i in range(3)]
         flips = [(self._mk_ml(i + 100, edge=5.0), "away") for i in range(2)]
-        all_totals = [{"game": f"T{i} @ T{i}b", "direction": "OVER", "line": 8.5, "prob": 0.6,
-                       "market_p": 0.52, "edge_pct": 6.0 + i, "stake": 10.0, "odds": "-110"} for i in range(5)]
-        all_runline = [{"game": f"R{i} @ R{i}b", "team": f"R{i}", "line": -1.5, "prob": 0.6,
-                        "market_p": 0.52, "edge_pct": 6.0 + i, "stake": 10.0, "odds": "+140",
-                        "bet_type": "RUNLINE-1.5", "conviction": "HIGH"} for i in range(5)]
+        # SECTION 1 (ML/F5) has no display cap (2026-09-09 redesign) -- force
+        # multiple Telegram chunks via many over-cap ML picks, since
+        # all_ml_over_cap isn't truncated upstream the way all_locks/
+        # all_flips are (MAX_LOCKS_PER_DAY/MAX_FLIPS_PER_DAY).
+        ml_over_cap = [(self._mk_ml(i + 200, edge=4.0), "away", "MEDIUM") for i in range(15)]
         sent = []
         with patch.object(brain, "_send_telegram", side_effect=lambda m: (sent.append(m), True)[1]):
-            brain._daily_bet_slip(locks, flips, [], [], 1000.0,
-                                   all_totals=all_totals, all_runline=all_runline)
+            brain._daily_bet_slip(locks, flips, [], [], 1000.0, all_ml_over_cap=ml_over_cap)
         assert len(sent) > 1, "expected this slate to need more than one Telegram message"
         for chunk in sent:
             assert chunk.count("🧠 Why") == chunk.count("⚙️  Key drivers") == chunk.count("🎯 PLAY #")
@@ -199,3 +199,341 @@ class TestUnifiedSlipEndToEnd:
         full = "\n".join(sent)
         assert "Test Hitter" in full
         assert "No diagnostic data captured" in full
+
+    def test_prop_shows_full_matchup_not_bare_team_code(self):
+        """2026-09-09: standalone prop plays used to fall back to a bare
+        team code (e.g. "⚾ TOR") when rendered, unlike ML/TOTAL plays which
+        always show the full matchup. A prop carrying a real "game" field
+        (as the real hitter/K/ER-prop pipelines always populate) must show
+        that full matchup, not just the team code."""
+        locks = [(self._mk_ml(1), "away")]
+        all_hitter_props = [{"player": "Test Hitter", "team": "TOR", "prop": "Hits O1.5",
+                              "game": "Toronto Blue Jays @ Boston Red Sox",
+                              "model_prob": 0.6, "market_p": 0.5, "edge_pct": 12.0, "stake": 10.0}]
+        sent = []
+        with patch.object(brain, "_send_telegram", side_effect=lambda m: (sent.append(m), True)[1]):
+            brain._daily_bet_slip(locks, [], [], [], 1000.0, all_hitter_props=all_hitter_props)
+        full = "\n".join(sent)
+        assert "⚾ Toronto Blue Jays @ Boston Red Sox" in full
+        assert "⚾ TOR\n" not in full and not any(
+            line.strip() == "⚾ TOR" for line in full.split("\n")
+        )
+
+    def test_prop_with_no_game_field_shows_labeled_fallback_not_bare_code(self):
+        """When a prop genuinely has no game field (legacy/edge-case data),
+        the fallback must still be distinguishable from a real matchup --
+        not a bare team code that looks like a truncated/broken matchup."""
+        locks = [(self._mk_ml(1), "away")]
+        all_hitter_props = [{"player": "Test Hitter", "team": "SF", "prop": "Hits O1.5",
+                              "model_prob": 0.6, "market_p": 0.5, "edge_pct": 12.0, "stake": 10.0}]
+        sent = []
+        with patch.object(brain, "_send_telegram", side_effect=lambda m: (sent.append(m), True)[1]):
+            brain._daily_bet_slip(locks, [], [], [], 1000.0, all_hitter_props=all_hitter_props)
+        full = "\n".join(sent)
+        assert not any(line.strip() == "⚾ SF" for line in full.split("\n"))
+        assert "matchup unavailable" in full
+
+
+def _pick(bet_type, edge_pct, over_cap=False, event=None, selection=None, stake=10.0):
+    """Minimal slip_pick dict -- the exact shape _render_slip_picks expects,
+    bypassing _daily_bet_slip's pool-budget machinery so section/top-N/
+    footer behavior can be tested directly and precisely."""
+    return {
+        "bet_type": bet_type, "conviction": "HIGH",
+        "event": event or f"{bet_type} event", "selection": selection or f"{bet_type} pick",
+        "odds_str": "-110", "model_p": 0.55, "market_p": 0.5,
+        "edge_pct": edge_pct, "stake": 0.0 if over_cap else stake,
+        "over_cap": over_cap, "game_time_et": "", "diagnostics": None,
+    }
+
+
+class TestSlipSectionRedesign:
+    """2026-09-09/2026-09-10 redesign: 5 labeled sections (ML/F5 unlimited,
+    top-5 TOTALS, NRFI/YRFI top-5, top-3 RUNLINE, top-5 PROP, all ranked by
+    edge%) instead of one flat list of every qualifying pick -- exercises
+    _render_slip_picks() directly so section membership, top-N selection,
+    and the suppressed-count footer can be verified without fighting
+    _daily_bet_slip's pool-budget internals."""
+
+    def _render(self, slip_picks):
+        return brain._render_slip_picks(slip_picks, "2026-09-10", {}, ["HEADER"], ["SUMMARY LINE"])
+
+    def test_ml_and_f5_have_no_display_cap(self):
+        picks = [_pick("ML", 5.0 + i) for i in range(9)] + [_pick("F5", 6.0)]
+        chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert full.count("🎯 PLAY #") == 10
+        assert "SECTION 1 — ML / F5 (10)" in full
+
+    def test_totals_capped_to_top_5_by_edge(self):
+        picks = [_pick("TOTAL", edge, event=f"game{edge}") for edge in (4.0, 9.0, 5.0, 8.0, 6.0, 12.0, 7.0)]
+        chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert "SECTION 2 — TOP 5 TOTALS (5)" in full
+        # top 5 by edge: 12.0, 9.0, 8.0, 7.0, 6.0
+        for edge in (12.0, 9.0, 8.0, 7.0, 6.0):
+            assert f"game{edge}" in full
+        for edge in (4.0, 5.0):
+            assert f"game{edge}" not in full
+
+    def test_nrfi_capped_to_top_5_by_edge(self):
+        picks = [_pick("NRFI", edge, event=f"game{edge}") for edge in (4.0, 9.0, 5.0, 8.0, 6.0, 12.0, 7.0)]
+        chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert "SECTION 3 — NRFI / YRFI (5)" in full
+        for edge in (12.0, 9.0, 8.0, 7.0, 6.0):
+            assert f"game{edge}" in full
+        for edge in (4.0, 5.0):
+            assert f"game{edge}" not in full
+
+    def test_nrfi_shows_fewer_than_5_when_fewer_qualify(self):
+        picks = [_pick("NRFI", 6.0), _pick("NRFI", 7.0)]
+        chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert "SECTION 3 — NRFI / YRFI (2)" in full
+
+    def test_nrfi_shows_at_least_3_when_at_least_3_exist(self):
+        picks = [_pick("NRFI", 6.0), _pick("NRFI", 7.0), _pick("NRFI", 8.0)]
+        chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert "SECTION 3 — NRFI / YRFI (3)" in full
+        assert full.count("🎯 PLAY #") == 3
+
+    def test_runlines_capped_to_top_3_by_edge(self):
+        picks = [_pick("RUNLINE-1.5", edge, event=f"game{edge}") for edge in (4.0, 9.0, 5.0, 8.0, 6.0)]
+        chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert "SECTION 4 — TOP 3 RUNLINES (3)" in full
+        # top 3 by edge: 9.0, 8.0, 6.0
+        assert "game9.0" in full and "game8.0" in full and "game6.0" in full
+        assert "game4.0" not in full and "game5.0" not in full
+
+    def test_props_capped_to_top_5_from_combined_pool(self):
+        picks = [_pick("PROP", edge, selection=f"prop{edge}") for edge in
+                 (5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0)]
+        chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert "SECTION 5 — TOP 5 PLAYER PROPS (5)" in full
+        for edge in (7.0, 8.0, 9.0, 10.0, 11.0):
+            assert f"prop{edge}" in full
+        for edge in (5.0, 6.0):
+            assert f"prop{edge}" not in full
+
+    def test_top_n_selection_combines_staked_and_over_cap(self):
+        """An over-cap prop with a higher edge than a staked one must still
+        outrank it for the top-5 slots -- "top N by edge%" means best
+        overall, not staked-first-then-fill."""
+        picks = [
+            _pick("PROP", 6.0, over_cap=False, selection="staked-low"),
+            _pick("PROP", 20.0, over_cap=True, selection="overcap-high"),
+        ]
+        chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert "overcap-high" in full
+        assert "staked-low" in full  # both fit within top 5; just check ranking below
+        overcap_idx = full.index("overcap-high")
+        staked_idx = full.index("staked-low")
+        assert overcap_idx < staked_idx, "higher-edge over-cap pick must render before lower-edge staked pick"
+
+    def test_totals_top_n_selection_combines_staked_and_over_cap(self):
+        picks = [
+            _pick("TOTAL", 6.0, over_cap=False, selection="staked-low"),
+            _pick("TOTAL", 20.0, over_cap=True, selection="overcap-high"),
+        ]
+        chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert full.index("overcap-high") < full.index("staked-low")
+
+    def test_nrfi_top_n_selection_combines_staked_and_over_cap(self):
+        picks = [
+            _pick("NRFI", 6.0, over_cap=False, selection="staked-low"),
+            _pick("NRFI", 20.0, over_cap=True, selection="overcap-high"),
+        ]
+        chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert full.index("overcap-high") < full.index("staked-low")
+
+    def test_runline_top_n_selection_combines_staked_and_over_cap(self):
+        picks = [
+            _pick("RUNLINE-1.5", 6.0, over_cap=False, selection="staked-low"),
+            _pick("RUNLINE-1.5", 20.0, over_cap=True, selection="overcap-high"),
+        ]
+        chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert full.index("overcap-high") < full.index("staked-low")
+
+    def test_ml_section_orders_staked_before_over_cap_regardless_of_edge(self):
+        picks = [
+            _pick("ML", 4.0, over_cap=False, selection="staked"),
+            _pick("ML", 20.0, over_cap=True, selection="overcap"),
+        ]
+        chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert full.index("staked") < full.index("overcap")
+
+    def test_only_parlay_sgp_is_fully_suppressed_from_display(self):
+        """TOTAL and NRFI now have their own sections -- only PARLAY/SGP
+        has no section at all and is always fully suppressed."""
+        picks = [_pick("TOTAL", 6.0, selection="a total"), _pick("NRFI", 6.0, selection="an nrfi"),
+                 _pick("PARLAY", 6.0, selection="a parlay")]
+        chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert "a total" in full
+        assert "an nrfi" in full
+        assert "a parlay" not in full
+        assert full.count("🎯 PLAY #") == 2
+
+    def test_footer_reports_suppressed_counts_for_all_capped_sections(self):
+        picks = (
+            [_pick("PROP", 5.0 + i) for i in range(7)] +        # 7 props -> top 5 shown, 2 suppressed
+            [_pick("RUNLINE-1.5", 5.0 + i) for i in range(4)] +  # 4 runlines -> top 3 shown, 1 suppressed
+            [_pick("TOTAL", 5.0 + i) for i in range(6)] +        # 6 totals -> top 5 shown, 1 suppressed
+            [_pick("NRFI", 5.0 + i) for i in range(8)]           # 8 NRFI -> top 5 shown, 3 suppressed
+        )
+        chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert "+2 props" in full
+        assert "+1 runlines" in full
+        assert "+1 totals" in full
+        assert "+3 NRFI" in full
+        assert "logged for CLV tracking (not shown)" in full
+
+    def test_footer_reports_suppressed_count_for_parlays(self):
+        picks = [_pick("PARLAY", 6.0), _pick("PARLAY", 7.0)]
+        chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert "+2 parlays" in full
+
+    def test_no_footer_suppressed_line_when_nothing_is_cut(self):
+        picks = [_pick("ML", 6.0), _pick("TOTAL", 6.0), _pick("NRFI", 6.0),
+                 _pick("RUNLINE-1.5", 6.0), _pick("PROP", 6.0)]
+        chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert "logged for CLV tracking" not in full
+
+    def test_empty_slip_shows_no_sections_or_suppressed_footer(self):
+        chunks = self._render([])
+        full = "\n".join(chunks)
+        assert "SECTION" not in full
+        assert "logged for CLV tracking" not in full
+        assert "🎯 PLAY #" not in full
+        assert "SUMMARY LINE" in full  # header/footer scaffolding still present
+
+    def test_play_numbering_is_sequential_across_all_sections(self):
+        picks = (
+            [_pick("ML", 9.0)] +
+            [_pick("TOTAL", 8.5)] +
+            [_pick("NRFI", 8.2)] +
+            [_pick("RUNLINE-1.5", 8.0)] +
+            [_pick("PROP", 7.0)]
+        )
+        chunks = self._render(picks)
+        full = "\n".join(chunks)
+        nums = [int(l.split("#")[1].split()[0].split("—")[0].strip())
+                for l in full.split("\n") if l.startswith("🎯 PLAY #")]
+        assert nums == [1, 2, 3, 4, 5]
+
+    def test_section_header_never_separated_from_its_first_play_across_chunks(self):
+        """The header-glued-to-first-block trick must survive real chunking
+        -- force a split with many ML picks, then add a runline so its
+        section header lands wherever the split falls, and confirm the
+        header is never the very last line of a chunk without its play."""
+        picks = [_pick("ML", 5.0 + i) for i in range(40)] + [_pick("RUNLINE-1.5", 9.0, event="RL game")]
+        chunks = self._render(picks)
+        assert len(chunks) > 1
+        for chunk in chunks:
+            lines = chunk.split("\n")
+            for i, line in enumerate(lines):
+                if line.startswith("🏆"):
+                    # A play block ("🎯 PLAY #") must appear later in the SAME chunk.
+                    assert any(l.startswith("🎯 PLAY #") for l in lines[i:]), \
+                        "section header appeared without its first play block in the same chunk"
+
+
+class TestNarrativeEngineMerge:
+    """2026-09-10: real LLM narratives (narrative_engine.generate_slip_
+    narratives) override the deterministic template's "Why" text and
+    driver lines when available, falling back to the template per-pick
+    when the LLM call fails, is skipped, or omits a given index. Mocks
+    narrative_engine.generate_slip_narratives directly rather than the
+    Anthropic client -- that boundary is narrative_engine's own contract,
+    covered by test_narrative_engine.py."""
+
+    def _render(self, slip_picks):
+        return brain._render_slip_picks(slip_picks, "2026-09-10", {}, ["HEADER"], ["SUMMARY LINE"])
+
+    def test_llm_narrative_replaces_template_why_text(self):
+        picks = [_pick("ML", 9.0, selection="Kansas City Royals ML")]
+        with patch.object(
+            narrative_engine, "generate_slip_narratives",
+            return_value={0: {"narrative": "A real, specific sentence about this exact game.", "drivers": ["Bullpen: MIN gassed"]}},
+        ):
+            chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert "A real, specific sentence about this exact game." in full
+        assert "- Bullpen: MIN gassed" in full
+        assert "No diagnostic data captured" not in full
+
+    def test_missing_index_falls_back_to_template_for_that_pick_only(self):
+        picks = [
+            _pick("ML", 9.0, selection="pick-with-llm"),
+            _pick("ML", 8.0, selection="pick-without-llm"),
+        ]
+        with patch.object(
+            narrative_engine, "generate_slip_narratives",
+            return_value={0: {"narrative": "LLM wrote this one.", "drivers": ["driver line"]}},
+        ):
+            chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert "LLM wrote this one." in full
+        assert "No diagnostic data captured for this pick." in full  # pick-without-llm's template fallback
+
+    def test_engine_exception_falls_back_to_template_for_every_pick(self):
+        picks = [_pick("ML", 9.0), _pick("PROP", 8.0)]
+        with patch.object(narrative_engine, "generate_slip_narratives", side_effect=RuntimeError("boom")):
+            chunks = self._render(picks)  # must not raise
+        full = "\n".join(chunks)
+        assert full.count("No diagnostic data captured for this pick.") == 2
+
+    def test_narrative_engine_import_failure_falls_back_gracefully(self):
+        """If narrative_engine can't even be imported (e.g. a broken
+        install), the slip must still render with template narratives --
+        this is the outermost safety net in _render_slip_picks()."""
+        import sys
+        picks = [_pick("ML", 9.0)]
+        with patch.dict(sys.modules, {"narrative_engine": None}):
+            chunks = self._render(picks)  # must not raise
+        full = "\n".join(chunks)
+        assert "🎯 PLAY #1" in full
+
+    def test_empty_slip_never_calls_the_narrative_engine(self):
+        with patch.object(narrative_engine, "generate_slip_narratives") as mock_gen:
+            self._render([])
+        mock_gen.assert_not_called()
+
+    def test_flat_index_is_consistent_across_multiple_sections(self):
+        """The index passed to generate_slip_narratives (and read back for
+        the merge) must match each pick's position in the FLATTENED
+        display order across all 5 sections, not reset per section."""
+        picks = [
+            _pick("ML", 9.0, selection="ml-pick"),          # flat index 0
+            _pick("TOTAL", 9.0, selection="total-pick"),    # flat index 1
+            _pick("NRFI", 9.0, selection="nrfi-pick"),       # flat index 2
+        ]
+        captured = {}
+
+        def _fake_generate(narrative_inputs):
+            captured["inputs"] = narrative_inputs
+            return {1: {"narrative": "TOTAL-SPECIFIC NARRATIVE", "drivers": []}}
+
+        with patch.object(narrative_engine, "generate_slip_narratives", side_effect=_fake_generate):
+            chunks = self._render(picks)
+        full = "\n".join(chunks)
+        assert captured["inputs"][1]["selection"] == "total-pick"
+        assert "TOTAL-SPECIFIC NARRATIVE" in full
+        # Verify it landed on the TOTAL pick's block, not the ML pick's.
+        total_block_start = full.index("total-pick")
+        ml_block_start = full.index("ml-pick")
+        narrative_pos = full.index("TOTAL-SPECIFIC NARRATIVE")
+        assert total_block_start < narrative_pos
+        assert not (ml_block_start < narrative_pos < full.index("Model", ml_block_start))

@@ -217,7 +217,12 @@ class TestExistingBetTypesUnaffected:
             )
         assert ok is True
         out = capsys.readouterr().out
+        # 2026-09-10 slip redesign: TOTAL gets its own section (SECTION 2 —
+        # TOP 5 TOTALS) and is shown; RUNLINE still gets no section/mention
+        # at all when there are no runline picks.
         assert "✅ TOTAL:" in out
+        assert "🎯 PLAY #" in out
+        assert "SECTION 2 — TOP 5 TOTALS" in out
         assert "RUNLINE" not in out
 
 

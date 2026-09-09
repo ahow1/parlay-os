@@ -361,14 +361,18 @@ class TestWireIn3AllBetTypesLogged:
         assert len(rows) == 1
 
     def test_telegram_message_text_unchanged_by_logging(self, _isolated_db, capsys):
-        """DB writes must be a side effect only — the printed (DRY_RUN)
-        Telegram message text must show every pick type (transparency slip,
-        parlay-os Step 4) regardless of the logging side effect underneath."""
+        """DB writes must be a side effect only. 2026-09-10 slip redesign:
+        ML/F5, TOTAL, NRFI/YRFI, RUNLINE, and PROP each get their own
+        section and are shown (only PARLAY/SGP has no section) -- they're
+        still logged to the DB (verified by the other tests in this
+        class) regardless of what's displayed."""
         self._call_slip()
         out = capsys.readouterr().out
-        assert out.count("🎯 PLAY #") >= 2  # at least the 2 ML locks
+        assert out.count("🎯 PLAY #") >= 4  # 2 ML locks + NRFI + TOTAL
         assert "✅ NRFI:" in out
         assert "✅ TOTAL:" in out
+        assert "SECTION 2 — TOP 5 TOTALS" in out
+        assert "SECTION 3 — NRFI / YRFI" in out
 
 
 # ── TIER 3 WIRE-IN 4: pre-game CLV capture ───────────────────────────────────

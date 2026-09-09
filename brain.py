@@ -2162,9 +2162,16 @@ def _daily_bet_slip(
     all_player_props = all_player_props[:MAX_PROPS_PER_DAY]
 
     def _prop_slip_pick(_p: dict, over_cap: bool) -> dict:
+        # Full matchup like ML/TOTAL get ("Away @ Home"), not a bare team
+        # code -- _norm_k/_norm_h/_norm_er always populate "game" from the
+        # same f"{away_name} @ {home_name}" label the rest of the slip uses,
+        # so this should never actually need the team-only fallback; kept
+        # only as a last-resort label (with the team code identifiable
+        # inside it) rather than silently degrading to just "TOR".
+        event = _p.get("game") or f"{_p.get('team','')} (matchup unavailable)"
         return {
             "bet_type": "PROP", "conviction": ("LOCK" if _p["edge_pct"] >= 10.0 else "FLIP"),
-            "event": _p.get("game", "") or _p.get("team", ""),
+            "event": event,
             "selection": f"{_p['player']} ({_p.get('team','')}) — {_p['stat']}",
             "odds_str": _fmt_odds(_p["odds_str"]),
             "model_p": _p["model_p"], "market_p": _p.get("market_p", 0.5),
@@ -3553,18 +3560,48 @@ _TG_MSG_SOFT_LIMIT = 3500  # Telegram hard cap is 4096 -- leave headroom for HTM
 
 def _render_slip_picks(slip_picks: list, today: str, day_cls: dict, header_lines: list[str],
                         summary_extra_lines: list[str]) -> list[str]:
-    """Build the unified transparency slip as a list of Telegram message
-    chunks (each under _TG_MSG_SOFT_LIMIT chars). Never raises -- a
-    malformed pick degrades to a minimal block rather than dropping the
-    whole slip (4e: no crashes on missing factors)."""
-    staked   = sorted([p for p in slip_picks if not p["over_cap"]], key=lambda p: p.get("edge_pct", 0) or 0, reverse=True)
-    over_cap = sorted([p for p in slip_picks if p["over_cap"]], key=lambda p: p.get("edge_pct", 0) or 0, reverse=True)
-    ordered  = staked + over_cap
+    """Build the redesigned 5-section Telegram slip (2026-09-09) as a list
+    of message chunks (each under _TG_MSG_SOFT_LIMIT chars):
+      SECTION 1 — ML / F5: every qualifying pick, full detail, no limit
+      SECTION 2 — top 5 TOTAL (over/under) picks by edge%, full detail
+      SECTION 3 — NRFI/YRFI: top 5 by edge% (fewer if fewer qualify),
+                  full detail
+      SECTION 4 — top 3 RUNLINE picks by edge%, full detail
+      SECTION 5 — top 5 player props (hitter + pitcher combined) by edge%,
+                  full detail
+    Every capped section ranks staked + over-cap combined by edge% --
+    "best picks it saw," not "first picks it found" -- so a high-edge
+    over-cap pick outranks a lower-edge staked one for a display slot.
+    Replaces the old flat "every qualifying pick gets a block" layout,
+    which put 100+ player-prop blocks in one slip on busy days and made it
+    unreadable on a phone.
+
+    Everything else that qualified -- PARLAY/SGP, and any TOTAL/NRFI/
+    RUNLINE/PROP beyond the top-N above -- is NOT dropped: it was already
+    logged to the DB for CLV tracking by the (untouched) _log_pick_with_retry
+    calls upstream in _daily_bet_slip before slip_picks ever reaches this
+    function. This function only decides what's DISPLAYED; the suppressed
+    count is surfaced in one footer line instead of a full block each.
+
+    Never raises -- a malformed pick degrades to a minimal block rather
+    than dropping the whole slip (4e: no crashes on missing factors)."""
 
     def _pct(v) -> str:
         return f"{v * 100:.1f}" if isinstance(v, (int, float)) else "?"
 
-    def _play_block(n: int, p: dict) -> list[str]:
+    def _format_driver_line(d: dict) -> str:
+        """Template-narrative driver dict -> the same one-line string shape
+        an LLM-authored driver line uses, so _play_block can render either
+        source identically."""
+        edge_s = f"  ({d['edge_pct']:+.1f}%)" if d.get("edge_pct") is not None else ""
+        return f"{d['label']}: {d['value']}{edge_s}"
+
+    def _play_block(n: int, p: dict, narrative: dict) -> list[str]:
+        """narrative: {"why": str, "driver_lines": list[str],
+        "neutral_fallbacks": list[str]} -- precomputed by the caller (real
+        LLM narrative when available, else the deterministic template),
+        never recomputed here so the one-call-per-slip LLM narrative pass
+        (see narrative_engine.py) only ever needs to run once."""
         lines = []
         tag = "  ⚠ OVER CAP" if p["over_cap"] else ""
         lines.append(f"🎯 PLAY #{n} — {p.get('conviction','')}{tag}")
@@ -3580,21 +3617,13 @@ def _render_slip_picks(slip_picks: list, today: str, day_cls: dict, header_lines
         lines.append(f"📊 Model {_pct(p.get('model_p'))}%  |  Market {_pct(p.get('market_p'))}%  |  Edge +{p.get('edge_pct', 0):.1f}%")
         lines.append("")
 
-        try:
-            selection = p.get("selection", "this pick")
-            opp_label = p.get("opp_label", "the opponent")
-            narrative = _pick_narrative(p.get("bet_type", ""), p.get("diagnostics"), selection, opp_label)
-        except Exception as e:
-            narrative = {"why": f"Reasoning unavailable ({e}).", "drivers": [], "neutral_fallbacks": []}
-
         lines.append("🧠 Why")
         lines.append(narrative["why"])
         lines.append("")
         lines.append("⚙️  Key drivers")
-        if narrative["drivers"]:
-            for d in narrative["drivers"]:
-                edge_s = f"  ({d['edge_pct']:+.1f}%)" if d.get("edge_pct") is not None else ""
-                lines.append(f"- {d['label']}: {d['value']}{edge_s}")
+        if narrative["driver_lines"]:
+            for line in narrative["driver_lines"]:
+                lines.append(f"- {line}")
         else:
             lines.append("- (no factor breakdown available)")
         fb = narrative.get("neutral_fallbacks") or []
@@ -3604,24 +3633,155 @@ def _render_slip_picks(slip_picks: list, today: str, day_cls: dict, header_lines
         lines.append("")
         return lines
 
-    play_blocks: list[list[str]] = []
-    for i, p in enumerate(ordered, start=1):
-        try:
-            play_blocks.append(_play_block(i, p))
-        except Exception as e:
-            play_blocks.append([f"🎯 PLAY #{i} — (error rendering this pick: {e})", "━━━━━━━━━━━━━━━━━━", ""])
+    def _ordered_staked_first(items: list) -> list:
+        """Staked picks first (sorted by edge% desc), then over-cap (sorted
+        by edge% desc) -- the slip's original staked-before-over-cap
+        convention, applied within a section instead of globally now."""
+        staked   = sorted([p for p in items if not p["over_cap"]], key=lambda p: p.get("edge_pct", 0) or 0, reverse=True)
+        over_cap = sorted([p for p in items if p["over_cap"]], key=lambda p: p.get("edge_pct", 0) or 0, reverse=True)
+        return staked + over_cap
 
-    footer_lines = ["📋 SLATE SUMMARY"] + summary_extra_lines + [
+    def _top_by_edge(items: list, n: int) -> list:
+        """Top n by edge% across staked AND over-cap combined -- "top N by
+        edge%" means the best picks overall, regardless of whether the
+        pool budget happened to cut one of them to over-cap."""
+        return sorted(items, key=lambda p: p.get("edge_pct", 0) or 0, reverse=True)[:n]
+
+    # ── Categorize into the 5 display sections + "everything else" ───────────
+    ml_f5    = [p for p in slip_picks if p.get("bet_type") in ("ML", "F5")]
+    totals   = [p for p in slip_picks if p.get("bet_type") == "TOTAL"]
+    nrfi     = [p for p in slip_picks if p.get("bet_type") == "NRFI"]
+    runlines = [p for p in slip_picks if str(p.get("bet_type", "")).startswith("RUNLINE")]
+    props    = [p for p in slip_picks if p.get("bet_type") == "PROP"]
+    _shown_ids = {id(p) for p in ml_f5 + totals + nrfi + runlines + props}
+    other    = [p for p in slip_picks if id(p) not in _shown_ids]   # PARLAY/SGP only
+
+    shown_totals   = _top_by_edge(totals, 5)
+    shown_nrfi     = _top_by_edge(nrfi, 5)
+    shown_runlines = _top_by_edge(runlines, 3)
+    shown_props    = _top_by_edge(props, 5)
+
+    sections = [
+        ("SECTION 1 — ML / F5",            _ordered_staked_first(ml_f5)),
+        ("SECTION 2 — TOP 5 TOTALS",       shown_totals),
+        ("SECTION 3 — NRFI / YRFI",        shown_nrfi),
+        ("SECTION 4 — TOP 3 RUNLINES",     shown_runlines),
+        ("SECTION 5 — TOP 5 PLAYER PROPS", shown_props),
+    ]
+
+    def _section_header(title: str, n: int) -> list[str]:
+        return [f"🏆 {title} ({n})", ""]
+
+    # ── Narratives (2026-09-10): a real, plain-English "Why" per pick,
+    # written by Claude from the same structured factor data the template
+    # narrative below already computes -- never raw diagnostics, so the
+    # LLM is grounded to exactly what the model itself found. Exactly ONE
+    # API call for the WHOLE slip (see narrative_engine.py), not per pick.
+    # The deterministic template (_pick_narrative) is computed for every
+    # displayed pick regardless -- it's the grounding data source AND the
+    # fallback for any pick the LLM call doesn't cover (call failed,
+    # timed out, or its response was missing/malformed for that index).
+    # A narrative failure must never delay or block the slip send.
+    display_order = [p for _, items in sections for p in items]
+
+    templates: list[dict] = []
+    for p in display_order:
+        try:
+            t = _pick_narrative(
+                p.get("bet_type", ""), p.get("diagnostics"),
+                p.get("selection", "this pick"), p.get("opp_label", "the opponent"),
+            )
+        except Exception as e:
+            t = {"why": f"Reasoning unavailable ({e}).", "drivers": [], "neutral_fallbacks": []}
+        templates.append(t)
+
+    llm_narratives: dict = {}
+    if display_order:
+        try:
+            import narrative_engine
+            narrative_inputs = [
+                {
+                    "index": i, "bet_type": p.get("bet_type", ""), "selection": p.get("selection", ""),
+                    "event": p.get("event", ""), "odds_str": p.get("odds_str", ""),
+                    "model_p": p.get("model_p"), "market_p": p.get("market_p"), "edge_pct": p.get("edge_pct"),
+                    "drivers": t["drivers"], "neutral_fallbacks": t["neutral_fallbacks"],
+                }
+                for i, (p, t) in enumerate(zip(display_order, templates))
+            ]
+            llm_narratives = narrative_engine.generate_slip_narratives(narrative_inputs)
+        except Exception as e:
+            print(f"[NARRATIVE] slip-level LLM call failed, using template narratives for all picks: {e}")
+            llm_narratives = {}
+
+    def _merged_narrative(flat_idx: int, t: dict) -> dict:
+        llm = llm_narratives.get(flat_idx)
+        if llm and llm.get("narrative"):
+            return {
+                "why": llm["narrative"],
+                "driver_lines": llm.get("drivers") or [_format_driver_line(d) for d in t["drivers"]],
+                "neutral_fallbacks": t["neutral_fallbacks"],
+            }
+        return {
+            "why": t["why"],
+            "driver_lines": [_format_driver_line(d) for d in t["drivers"]],
+            "neutral_fallbacks": t["neutral_fallbacks"],
+        }
+
+    render_blocks: list[list[str]] = []
+    play_n = 0
+    flat_idx = 0
+    for title, items in sections:
+        if not items:
+            continue
+        header = _section_header(title, len(items))
+        for idx, p in enumerate(items):
+            play_n += 1
+            narrative = _merged_narrative(flat_idx, templates[flat_idx])
+            flat_idx += 1
+            try:
+                block = _play_block(play_n, p, narrative)
+            except Exception as e:
+                block = [f"🎯 PLAY #{play_n} — (error rendering this pick: {e})", "━━━━━━━━━━━━━━━━━━", ""]
+            if idx == 0:
+                block = header + block   # glue header to its section's first block so the chunker below can't split them apart
+            render_blocks.append(block)
+
+    # ── Suppressed-count footer — everything logged to the DB (already done
+    # upstream in _daily_bet_slip, untouched by this function) but not shown
+    # here: totals/NRFI/runlines/props beyond their section's top-N, plus
+    # PARLAY/SGP (no section at all) ──────────────────────────────────────────
+    _OTHER_TYPE_LABELS = {"PARLAY": "parlays"}
+    suppressed_parts: list[str] = []
+    if len(totals) > len(shown_totals):
+        suppressed_parts.append(f"+{len(totals) - len(shown_totals)} totals")
+    if len(nrfi) > len(shown_nrfi):
+        suppressed_parts.append(f"+{len(nrfi) - len(shown_nrfi)} NRFI")
+    if len(runlines) > len(shown_runlines):
+        suppressed_parts.append(f"+{len(runlines) - len(shown_runlines)} runlines")
+    if len(props) > len(shown_props):
+        suppressed_parts.append(f"+{len(props) - len(shown_props)} props")
+    _other_counts: dict[str, int] = {}
+    for p in other:
+        label = _OTHER_TYPE_LABELS.get(p.get("bet_type", ""), f"{str(p.get('bet_type','')).lower()}s")
+        _other_counts[label] = _other_counts.get(label, 0) + 1
+    for label, n in _other_counts.items():
+        suppressed_parts.append(f"+{n} {label}")
+
+    footer_lines = ["📋 SLATE SUMMARY"] + summary_extra_lines
+    if suppressed_parts:
+        footer_lines += ["", "📊 " + ", ".join(suppressed_parts) + " logged for CLV tracking (not shown)"]
+    footer_lines += [
         "━━━━━━━━━━━━━━━━━━",
         f"🤖 Parlay-OS  |  Model {_MODEL_VERSION}",
     ]
 
     # ── Chunk into Telegram-safe messages, splitting only between whole
-    # PLAY blocks (never mid-block) ──────────────────────────────────────────
+    # blocks (never mid-block; a section header stays glued to its first
+    # play, see above) ────────────────────────────────────────────────────────
     chunks: list[str] = []
     current: list[str] = list(header_lines)
     current_has_block = False
-    for block in play_blocks:
+    for block in render_blocks:
         prospective_len = sum(len(l) + 1 for l in current) + sum(len(l) + 1 for l in block)
         if current_has_block and prospective_len > _TG_MSG_SOFT_LIMIT:
             chunks.append("\n".join(current))

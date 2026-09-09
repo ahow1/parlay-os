@@ -64,7 +64,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
 
-      - run: pip install -q requests pytz flask flask-cors
+      - run: pip install -q requests pytz flask flask-cors anthropic
 
       - name: Run day scout (games before 3pm ET)
         env:
@@ -74,6 +74,7 @@ jobs:
           BANKROLL_OVERRIDE:    ${{ secrets.BANKROLL_OVERRIDE }}
           RAILWAY_SYNC_URL:     ${{ secrets.RAILWAY_SYNC_URL }}
           SYNC_SECRET:          ${{ secrets.SYNC_SECRET }}
+          ANTHROPIC_API_KEY:    ${{ secrets.ANTHROPIC_API_KEY }}
         run: python brain.py --window day
 
       - name: Commit scout outputs
@@ -99,7 +100,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
 
-      - run: pip install -q requests pytz flask flask-cors
+      - run: pip install -q requests pytz flask flask-cors anthropic
 
       - name: Run evening scout (games 3–8pm ET)
         env:
@@ -109,6 +110,7 @@ jobs:
           BANKROLL_OVERRIDE:    ${{ secrets.BANKROLL_OVERRIDE }}
           RAILWAY_SYNC_URL:     ${{ secrets.RAILWAY_SYNC_URL }}
           SYNC_SECRET:          ${{ secrets.SYNC_SECRET }}
+          ANTHROPIC_API_KEY:    ${{ secrets.ANTHROPIC_API_KEY }}
         run: python brain.py --window evening
 
       - name: Commit scout outputs
@@ -134,7 +136,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
 
-      - run: pip install -q requests pytz flask flask-cors
+      - run: pip install -q requests pytz flask flask-cors anthropic
 
       - name: Run west coast scout (games after 8pm ET)
         env:
@@ -144,6 +146,7 @@ jobs:
           BANKROLL_OVERRIDE:    ${{ secrets.BANKROLL_OVERRIDE }}
           RAILWAY_SYNC_URL:     ${{ secrets.RAILWAY_SYNC_URL }}
           SYNC_SECRET:          ${{ secrets.SYNC_SECRET }}
+          ANTHROPIC_API_KEY:    ${{ secrets.ANTHROPIC_API_KEY }}
         run: python brain.py --window west
 
       - name: Commit scout outputs
