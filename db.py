@@ -511,6 +511,20 @@ def get_pick_by_hash(verify_hash: str) -> dict | None:
     return dict(row) if row else None
 
 
+def _running_on_railway() -> bool:
+    """True when this process is itself the Railway worker. Railway injects
+    several RAILWAY_* env vars into every deploy (RAILWAY_ENVIRONMENT,
+    RAILWAY_PROJECT_ID, RAILWAY_SERVICE_ID, ...) -- checking for any of them
+    (other than RAILWAY_SYNC_URL, which is GitHub Actions' own secret naming
+    the *target* to push to, not something Railway itself sets) distinguishes
+    "I am Railway, I never need to push to myself" from "I am a GitHub
+    Actions scout run and should be pushing but can't."""
+    return any(k.startswith("RAILWAY_") and k != "RAILWAY_SYNC_URL" for k in os.environ)
+
+
+_sync_misconfig_warned = False  # print/log the missing-var warning once per process, not once per pick
+
+
 def push_bet_to_railway(bet_row: dict, timeout: int = 8) -> bool:
     """One-way push: called right after a bet is logged locally during a
     GitHub Actions scout run (see brain.py's _log_bet_with_retry /
@@ -536,6 +550,21 @@ def push_bet_to_railway(bet_row: dict, timeout: int = 8) -> bool:
     base_url = os.environ.get("RAILWAY_SYNC_URL", "").rstrip("/")
     secret   = os.environ.get("SYNC_SECRET", "")
     if not base_url or not secret:
+        global _sync_misconfig_warned
+        if not _running_on_railway() and not _sync_misconfig_warned:
+            _sync_misconfig_warned = True
+            missing = [n for n, v in (("RAILWAY_SYNC_URL", base_url), ("SYNC_SECRET", secret)) if not v]
+            warn = (
+                f"[SYNC] {' and '.join(missing)} not set -- this scout run is pushing ZERO "
+                f"picks to Railway; the worker's settlement/CLV/Monitor/Analyst loops will "
+                f"run on an empty database until this is fixed"
+            )
+            print(f"\n{'!' * 70}\n{warn}\n{'!' * 70}\n")
+            try:
+                import error_logger
+                error_logger.log_error("db.push_bet_to_railway", RuntimeError(warn))
+            except Exception:
+                pass
         return False
     try:
         resp = requests.post(

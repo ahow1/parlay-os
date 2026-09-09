@@ -22,8 +22,12 @@ import threading
 from datetime import datetime, timedelta, timezone
 
 import requests
+import pytz
 
 import db as _db
+
+STATSAPI = "https://statsapi.mlb.com/api/v1"
+_ET      = pytz.timezone("America/New_York")
 
 CHECK_INTERVAL_SEC  = 900   # 15 minutes
 ALERT_COOLDOWN_SEC  = 7200  # 2 hours — don't re-alert the same check more often than this
@@ -234,6 +238,42 @@ def check_error_spike() -> dict:
     return {"ok": ok, "detail": f"{count} error(s) in the last hour", "count": count}
 
 
+def check_no_bets_on_game_day() -> dict:
+    """Catches sync death from the receiving end (A6): if GitHub Actions'
+    scout runs silently pushed zero picks to Railway (RAILWAY_SYNC_URL/
+    SYNC_SECRET missing or the sync route down), worker's own DB -- the only
+    one its settlement/CLV/Analyst loops ever read -- will show zero bets
+    for today even on a day MLB actually played games. Only fires after 4pm
+    ET, once the day/evening scout windows should already have produced
+    picks on a normal slate; fails open (ok=True) on its own connectivity
+    trouble rather than crying wolf about a problem it couldn't verify."""
+    et_now = _utc_now().astimezone(_ET)
+    if et_now.hour < 16:
+        return {"ok": True, "detail": "before 4pm ET — too early to expect picks yet"}
+
+    today = et_now.date().isoformat()
+    try:
+        r = requests.get(f"{STATSAPI}/schedule", params={"sportId": 1, "date": today}, timeout=10)
+        r.raise_for_status()
+        total_games = r.json().get("totalGames", 0)
+    except Exception as e:
+        return {"ok": True, "detail": f"couldn't check MLB schedule: {e}"}
+
+    if total_games == 0:
+        return {"ok": True, "detail": "no MLB games scheduled today"}
+
+    bets_today = _db.get_bets(date=today)
+    ok = len(bets_today) > 0
+    return {
+        "ok": ok,
+        "detail": (
+            f"0 bets in DB today with {total_games} MLB game(s) scheduled — "
+            f"possible sync failure from GitHub Actions" if not ok
+            else f"{len(bets_today)} bet(s) logged today ({total_games} MLB games scheduled)"
+        ),
+    }
+
+
 _CHECKS = {
     "scout_freshness":       check_scout_freshness,
     "odds_feeds":             check_odds_feeds,
@@ -241,6 +281,7 @@ _CHECKS = {
     "stuck_pending_bets":     check_stuck_pending_bets,
     "clv_loop_activity":      check_clv_loop_activity,
     "error_spike":            check_error_spike,
+    "no_bets_on_game_day":    check_no_bets_on_game_day,
 }
 
 

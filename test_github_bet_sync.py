@@ -15,6 +15,7 @@ and brain.py's _push_synced_pick() integration point.
 Run: python -m pytest test_github_bet_sync.py -v
 """
 
+import os
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -126,6 +127,79 @@ class TestInsertSyncedBet:
         pre_existing_row_after = dict(local_db.get_pick_by_hash(pre_existing_vh))
         assert pre_existing_row_after == pre_existing_row_before
         assert len(local_db.get_bets()) == 2
+
+
+class TestRunningOnRailway:
+    """db._running_on_railway() -- distinguishes 'I am the Railway worker,
+    I never push to myself' from 'I am a GH Actions scout run and should be
+    pushing but can't' (A6)."""
+
+    def test_false_with_no_railway_env_vars(self, monkeypatch):
+        for k in list(os.environ):
+            if k.startswith("RAILWAY_"):
+                monkeypatch.delenv(k, raising=False)
+        assert db._running_on_railway() is False
+
+    def test_true_when_a_railway_injected_var_is_present(self, monkeypatch):
+        monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
+        assert db._running_on_railway() is True
+
+    def test_railway_sync_url_alone_does_not_count(self, monkeypatch):
+        """RAILWAY_SYNC_URL is GitHub Actions' own secret naming the *target*
+        to push to -- Railway itself never sets it, so it must not be
+        mistaken for a Railway-injected env var."""
+        for k in list(os.environ):
+            if k.startswith("RAILWAY_") and k != "RAILWAY_SYNC_URL":
+                monkeypatch.delenv(k, raising=False)
+        monkeypatch.setenv("RAILWAY_SYNC_URL", "https://example.railway.app")
+        assert db._running_on_railway() is False
+
+
+class TestSyncMisconfigWarning:
+    """A6: a missing RAILWAY_SYNC_URL/SYNC_SECRET on a non-Railway process
+    (a GitHub Actions scout run) must print a loud warning and log it via
+    error_logger -- previously this failed completely silently."""
+
+    @pytest.fixture(autouse=True)
+    def _reset_warned_flag(self):
+        db._sync_misconfig_warned = False
+        yield
+        db._sync_misconfig_warned = False
+
+    def _clear_railway_env(self, monkeypatch):
+        for k in list(os.environ):
+            if k.startswith("RAILWAY_") and k != "RAILWAY_SYNC_URL":
+                monkeypatch.delenv(k, raising=False)
+
+    def test_warns_and_logs_when_vars_missing_off_railway(self, monkeypatch, capsys):
+        self._clear_railway_env(monkeypatch)
+        monkeypatch.delenv("RAILWAY_SYNC_URL", raising=False)
+        monkeypatch.delenv("SYNC_SECRET", raising=False)
+        with patch("error_logger.log_error") as mock_log:
+            result = db.push_bet_to_railway({"verify_hash": "x"})
+        assert result is False
+        mock_log.assert_called_once()
+        assert mock_log.call_args[0][0] == "db.push_bet_to_railway"
+        out = capsys.readouterr().out
+        assert "RAILWAY_SYNC_URL and SYNC_SECRET not set" in out or "RAILWAY_SYNC_URL" in out
+
+    def test_warns_only_once_per_process(self, monkeypatch, capsys):
+        self._clear_railway_env(monkeypatch)
+        monkeypatch.delenv("RAILWAY_SYNC_URL", raising=False)
+        monkeypatch.setenv("SYNC_SECRET", "whatever")
+        with patch("error_logger.log_error") as mock_log:
+            db.push_bet_to_railway({"verify_hash": "x"})
+            db.push_bet_to_railway({"verify_hash": "y"})
+        assert mock_log.call_count == 1
+
+    def test_no_warning_when_running_on_railway(self, monkeypatch, capsys):
+        monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
+        monkeypatch.delenv("RAILWAY_SYNC_URL", raising=False)
+        monkeypatch.delenv("SYNC_SECRET", raising=False)
+        with patch("error_logger.log_error") as mock_log:
+            result = db.push_bet_to_railway({"verify_hash": "x"})
+        assert result is False
+        mock_log.assert_not_called()
 
 
 class TestPushBetToRailway:
@@ -279,6 +353,49 @@ class TestPushSyncedPickIntegration:
         with patch.object(brain, "_db", local_db), \
              patch.object(local_db, "push_bet_to_railway", side_effect=RuntimeError("boom")):
             brain._push_synced_pick(vh)  # must not raise
+
+
+class TestSyncStatsTracking:
+    """brain._sync_stats / _reset_sync_stats() -- per-scout-run push tallies
+    used to print '[SYNC] pushed N/M picks to Railway' and alert if every
+    single push failed (A6)."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_stats(self):
+        import brain
+        brain._reset_sync_stats()
+        yield
+        brain._reset_sync_stats()
+
+    def test_attempted_increments_even_on_failed_push(self, local_db):
+        import brain
+        vh = _log(local_db)
+        with patch.object(brain, "_db", local_db), \
+             patch.object(local_db, "push_bet_to_railway", return_value=False):
+            brain._push_synced_pick(vh)
+        assert brain._sync_stats == {"attempted": 1, "succeeded": 0}
+
+    def test_succeeded_increments_only_on_true(self, local_db):
+        import brain
+        vh1 = _log(local_db, bet="Boston Red Sox")
+        vh2 = _log(local_db, bet="New York Yankees")
+        with patch.object(brain, "_db", local_db), \
+             patch.object(local_db, "push_bet_to_railway", side_effect=[True, False]):
+            brain._push_synced_pick(vh1)
+            brain._push_synced_pick(vh2)
+        assert brain._sync_stats == {"attempted": 2, "succeeded": 1}
+
+    def test_missing_hash_does_not_count_as_an_attempt(self):
+        import brain
+        brain._push_synced_pick(None)
+        assert brain._sync_stats == {"attempted": 0, "succeeded": 0}
+
+    def test_reset_clears_prior_run_tallies(self):
+        import brain
+        brain._sync_stats["attempted"] = 5
+        brain._sync_stats["succeeded"] = 2
+        brain._reset_sync_stats()
+        assert brain._sync_stats == {"attempted": 0, "succeeded": 0}
 
 
 class TestEndToEndGhActionsToRailway:

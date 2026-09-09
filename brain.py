@@ -262,6 +262,7 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
     if not nv:
         books = list(market.get("ml_books", {}).keys())
         print(f"  SKIP [{away_name} @ {home_name}]: no market data — books matched: {books or 'none'}")
+        data_health.mark_skip_no_odds()
         return None
 
     away_nv = nv.get("away", 0.5)
@@ -3633,6 +3634,20 @@ def _render_slip_picks(slip_picks: list, today: str, day_cls: dict, header_lines
     return chunks
 
 
+# Per-scout-run push tallies (A6) -- reset at the top of every run_daily_scout()
+# call, read back at the end to print "[SYNC] pushed N/M picks to Railway" and
+# alert if every single push failed (M > 0, N == 0): the loud per-call warning
+# in db.push_bet_to_railway() only fires when RAILWAY_SYNC_URL/SYNC_SECRET are
+# outright unset, but this also catches every push failing for some other
+# reason (network error, wrong secret, worker's sync route down, ...).
+_sync_stats = {"attempted": 0, "succeeded": 0}
+
+
+def _reset_sync_stats() -> None:
+    _sync_stats["attempted"] = 0
+    _sync_stats["succeeded"] = 0
+
+
 def _push_synced_pick(verify_hash: str | None) -> None:
     """After a successful local log_bet(), push the just-inserted row to
     Railway over HTTP (db.push_bet_to_railway) -- a no-op unless
@@ -3642,10 +3657,11 @@ def _push_synced_pick(verify_hash: str | None) -> None:
     (and will still reach Telegram) regardless of whether this succeeds."""
     if not verify_hash:
         return
+    _sync_stats["attempted"] += 1
     try:
         row = _db.get_pick_by_hash(verify_hash)
-        if row:
-            _db.push_bet_to_railway(row)
+        if row and _db.push_bet_to_railway(row):
+            _sync_stats["succeeded"] += 1
     except Exception as e:
         error_logger.log_error("brain._push_synced_pick", e)
 
@@ -4210,6 +4226,7 @@ def run_daily_scout(window: str = "all"):
         return _elapsed_min() > SCOUT_OPTIONAL_CUTOFF_MIN or _remaining_min() < SCOUT_MIN_BUFFER_MIN
 
     data_health.reset()
+    _reset_sync_stats()
     init_memory_tables()
     init_brain_tables()
 
@@ -4284,6 +4301,7 @@ def run_daily_scout(window: str = "all"):
     _cap_blocked_teams: list = []   # teams with edge that were blocked by daily cap
     _game_analysis_failures: list = []   # {game, error} — analyze_game() crashed outright, not a routine skip
     _persist_failures: list = []   # teams whose pick was withheld — log_bet() failed twice
+    _slate_attempted = 0   # games actually handed to analyze_game() this window (post window/time filters)
     _ml_candidates: list = []   # {analysis, side, stake, edge, conv} — qualifying ML sides,
                                  # admitted in a post-loop edge-sorted pass against the real
                                  # ML pool cap (mirrors the RUNLINE admission pattern) instead
@@ -4375,6 +4393,7 @@ def run_daily_scout(window: str = "all"):
                     continue
             except Exception:
                 pass
+        _slate_attempted += 1
         try:
             analysis = analyze_game(event, today)
         except Exception as e:
@@ -4813,6 +4832,24 @@ def run_daily_scout(window: str = "all"):
                     if _rl_best:
                         all_runline.append(_rl_best)
 
+    # ── Sanity check: dead/quota-exhausted odds feed looks like an empty
+    # slate otherwise — 2026-08-31, every game logged "[MKT] odds request
+    # failed", the scout finished in 39s, GH Actions went green, Telegram
+    # was silent. Nothing distinguished "no games today" from "feed is
+    # dead." Wired off data_health's existing "odds" record_ok() signal
+    # (mark_skip_no_odds() is only called from the exact no-market-data
+    # skip path in analyze_game()) rather than a parallel detection path.
+    _no_odds_skips = data_health.skip_no_odds_count()
+    if _slate_attempted > 0 and _no_odds_skips / _slate_attempted > 0.5:
+        _odds_detail = data_health.last_fail_detail("odds") or "no detail captured"
+        _odds_fail_msg = (
+            f"🚨 ODDS FEED FAILURE — {_no_odds_skips}/{_slate_attempted} games skipped for no odds. "
+            f"Check API quota. ({_odds_detail})"
+        )
+        print(_odds_fail_msg)
+        if not DRY_RUN:
+            _send_telegram(_odds_fail_msg)
+
     # ── ML admission: edge-sorted pass against BOTH the flat daily cap AND
     # the real ML pool cap (mirrors the RUNLINE admission pattern — highest-
     # edge picks across the whole slate get first claim on the budget, not
@@ -5103,6 +5140,27 @@ def run_daily_scout(window: str = "all"):
         print(_persist_msg)
         if not DRY_RUN:
             _send_telegram(_persist_msg)
+
+    # ── Sanity check: every push to Railway failed (A6) ───────────────────────
+    # A silent RAILWAY_SYNC_URL/SYNC_SECRET misconfiguration (or a dead sync
+    # route on the receiving end) used to mean every scout "succeeded" while
+    # actually syncing zero picks -- Railway's settlement/CLV/Monitor/Analyst
+    # loops would then run against an empty database with nothing surfacing
+    # the gap. Print the tally unconditionally; alert only when picks were
+    # actually logged this run (M > 0) and not one push landed (N == 0) --
+    # and only when this run should have been pushing at all (not Railway
+    # itself, which intentionally never pushes to itself).
+    _sync_m, _sync_n = _sync_stats["attempted"], _sync_stats["succeeded"]
+    print(f"[SYNC] pushed {_sync_n}/{_sync_m} picks to Railway")
+    if _sync_m > 0 and _sync_n == 0 and not _db._running_on_railway():
+        _sync_fail_msg = (
+            f"⚠️ [SYNC FAILURE] 0/{_sync_m} picks reached Railway this run — "
+            f"worker's settlement/CLV/Monitor/Analyst loops will not see them. "
+            f"Check RAILWAY_SYNC_URL / SYNC_SECRET."
+        )
+        print(_sync_fail_msg)
+        if not DRY_RUN:
+            _send_telegram(_sync_fail_msg)
 
     # ── Public channel post ───────────────────────────────────────────────────
     if PUBLIC_CHANNEL_ID:

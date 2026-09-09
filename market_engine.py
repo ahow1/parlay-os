@@ -87,7 +87,7 @@ def _odds_request(endpoint: str, params: dict) -> dict | list | None:
     key = _active_key[0] or ODDS_API_KEY
     if not key:
         print("[MKT] ODDS_API_KEY not set — no market data")
-        data_health.record_ok("odds", False)
+        data_health.record_ok("odds", False, detail="no API key configured")
         return None
     try:
         params["apiKey"] = key
@@ -107,15 +107,16 @@ def _odds_request(endpoint: str, params: dict) -> dict | list | None:
                 data_health.record_ok("odds", True)
                 return r.json()
             except Exception as e2:
+                status2 = getattr(getattr(e2, "response", None), "status_code", None)
                 print(f"[MKT] backup key also failed: {e2}")
-                data_health.record_ok("odds", False)
+                data_health.record_ok("odds", False, detail=f"HTTP {status2}" if status2 else f"backup key: {e2}")
                 return None
         print(f"[MKT] odds request failed ({endpoint}): {e}")
-        data_health.record_ok("odds", False)
+        data_health.record_ok("odds", False, detail=f"HTTP {status}" if status else str(e))
         return None
     except Exception as e:
         print(f"[MKT] odds request failed ({endpoint}): {e}")
-        data_health.record_ok("odds", False)
+        data_health.record_ok("odds", False, detail=str(e)[:120])
         return None
 
 

@@ -211,6 +211,65 @@ class TestErrorSpike:
         assert result["ok"] is True
 
 
+class TestNoBetsOnGameDay:
+    """check_no_bets_on_game_day() -- catches sync death from the receiving
+    end (A6): worker's own DB shows zero bets for today even though MLB
+    played games, which is exactly what happens if GH Actions silently
+    pushed zero picks to Railway."""
+
+    def _et(self, hour, minute=0):
+        import pytz
+        # 2026-07-28 is EDT (UTC-4) -- pick a UTC instant that lands at the
+        # given ET hour so the 4pm-ET gate is exercised precisely.
+        utc_hour = (hour + 4) % 24
+        return datetime(2026, 7, 28, utc_hour, minute, tzinfo=timezone.utc)
+
+    def _schedule_resp(self, total_games):
+        resp = MagicMock(status_code=200)
+        resp.json.return_value = {"totalGames": total_games}
+        resp.raise_for_status = lambda: None
+        return resp
+
+    def test_before_4pm_et_is_ok_regardless(self, monkeypatch):
+        with patch.object(mon, "_utc_now", return_value=self._et(14)), \
+             patch("requests.get") as mock_get:
+            result = mon.check_no_bets_on_game_day()
+        assert result["ok"] is True
+        mock_get.assert_not_called()
+
+    def test_no_games_scheduled_is_ok(self, _isolated_db):
+        with patch.object(mon, "_utc_now", return_value=self._et(17)), \
+             patch("requests.get", return_value=self._schedule_resp(0)):
+            result = mon.check_no_bets_on_game_day()
+        assert result["ok"] is True
+        assert "no MLB games scheduled" in result["detail"]
+
+    def test_games_scheduled_but_zero_bets_is_a_failure(self, _isolated_db):
+        with patch.object(mon, "_utc_now", return_value=self._et(17)), \
+             patch("requests.get", return_value=self._schedule_resp(12)):
+            result = mon.check_no_bets_on_game_day()
+        assert result["ok"] is False
+        assert "possible sync failure" in result["detail"]
+
+    def test_games_scheduled_with_bets_logged_is_ok(self, _isolated_db):
+        _log(_isolated_db, date="2026-07-28")
+        with patch.object(mon, "_utc_now", return_value=self._et(17)), \
+             patch("requests.get", return_value=self._schedule_resp(12)):
+            result = mon.check_no_bets_on_game_day()
+        assert result["ok"] is True
+        assert "1 bet(s) logged today" in result["detail"]
+
+    def test_schedule_check_failure_fails_open(self, _isolated_db):
+        with patch.object(mon, "_utc_now", return_value=self._et(17)), \
+             patch("requests.get", side_effect=ConnectionError("boom")):
+            result = mon.check_no_bets_on_game_day()
+        assert result["ok"] is True
+        assert "couldn't check MLB schedule" in result["detail"]
+
+    def test_is_registered_in_checks_dict(self):
+        assert "no_bets_on_game_day" in mon._CHECKS
+
+
 class TestAlertDedupCooldown:
     def test_first_alert_ever_fires_even_when_monotonic_clock_is_near_zero(self):
         """Regression: time.monotonic() is not epoch time -- it commonly
