@@ -44,7 +44,7 @@ python-dateutil==2.9.0.post0
 tzdata==2025.3
 six==1.17.0
 
-# ── Anthropic SDK (used by clv_tracker.py) ────────────────────────────────────
+# ── Anthropic SDK (used by narrative_engine.py and analyst_agent.py) ─────────
 anthropic==0.52.0
 httpx==0.28.1
 httpcore==1.0.9

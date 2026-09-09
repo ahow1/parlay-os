@@ -201,12 +201,14 @@ def clv_stats_summary(log: list, include_unreliable: bool = False,
     record. Pass True only for an explicit audit/debug view of the raw
     historical data.
 
-    source_methodology: some callers feed a list whose entries don't carry
-    a per-row "methodology" key at all (e.g. clv_log.json, the separate
-    post-game auto-settler pipeline, which predates this and was never
-    updated to capture near game time either) -- pass e.g. 'v1-unreliable'
-    to treat every row in `log` as tagged with that value, instead of
-    reading (and finding absent) a per-row field.
+    source_methodology: for a caller whose entries don't carry a per-row
+    "methodology" key at all -- every current caller reads SQL clv_log
+    rows, which always have one; this exists for anything that might feed
+    in an external/legacy list instead (e.g. telegram_handler.py's
+    settlement-time bets.clv_pct field, or its still-live clv_log.json
+    write path, neither of which was ever made game-time aware) -- pass
+    e.g. 'v1-unreliable' to treat every row in `log` as tagged with that
+    value, instead of reading (and finding absent) a per-row field.
     """
     def _methodology(b: dict):
         return source_methodology if source_methodology is not None else b.get("methodology")

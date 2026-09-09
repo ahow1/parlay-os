@@ -106,7 +106,6 @@ python health_check.py
 | `ml_model.py` | XGBoost + LightGBM + LogReg ensemble |
 | `math_engine.py` | Kelly criterion, CLV, Pythagorean, implied probability |
 | `db.py` | SQLite layer with WAL mode, retry-on-lock, daily backup |
-| `clv_tracker.py` | Post-game closing-line value tracker |
 
 ---
 

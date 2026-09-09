@@ -275,13 +275,28 @@ def api_edges():
     return jsonify(data)
 
 
+def _clv_stats_rows(days=90):
+    """Every clv_log row, full trajectory, methodology included -- feed
+    straight to clv_stats_summary() and let its own default exclusion do
+    the v1-unreliable filtering + count the historical-rows-excluded note.
+    include_unreliable=True here (at the DB read) is deliberate: it's
+    clv_stats_summary(), not this query, that should be the single place
+    deciding what counts, exactly like every other consumer since B2."""
+    return _db.get_clv_log(days=days, closing_only=True, include_unreliable=True)
+
+
 @app.route("/api/clv")
 def api_clv():
-    # Raw history, unfiltered -- kept for reference/audit (never deleted).
-    # Every entry here predates the game-time-aware capture pipeline (see
-    # bankroll_engine.capture_pre_game_clv) and must not be treated as a
-    # performance stat -- see api_summary/api_record, which exclude it.
-    return jsonify(_load_json("clv_log.json") or [])
+    # Full raw trajectory (every capture checkpoint, not just each bet's
+    # closing row) straight from the SQL clv_log table -- clv_tracker.py's
+    # clv_log.json pipeline has zero callers writing it anymore (dead code,
+    # removed) and nothing in this app reads that file now. methodology-
+    # filtered by default (v1-unreliable rows are pre-rewrite and don't
+    # measure real closing-line value); pass ?include_unreliable=1 for the
+    # full audit view -- B2 kept those rows for reference, never deleted.
+    days = int(request.args.get("days", 90))
+    include_unreliable = request.args.get("include_unreliable") in ("1", "true")
+    return jsonify(_db.get_clv_log(days=days, include_unreliable=include_unreliable))
 
 
 @app.route("/api/summary")
@@ -298,14 +313,12 @@ def api_summary():
     roi           = total_pnl / STARTING_BANKROLL * 100
     total_wagered = sum(float(b.get("stake") or 0) for b in resolved if b["result"] != "P")
 
-    # clv_log.json predates (and is untouched by) the game-time-aware
-    # capture rewrite -- every entry in it was captured post-game at
-    # settlement time, not near first pitch, so none of it measures real
-    # closing-line value. source_methodology forces clv_stats_summary to
-    # treat the whole file as unreliable and exclude it, same as a real
-    # per-row methodology='v1-unreliable' tag would.
-    clv_log   = _load_json("clv_log.json") or []
-    clv_stats = clv_stats_summary(clv_log, source_methodology="v1-unreliable")
+    # SQL clv_log, not clv_log.json (that pipeline is dead -- see api_clv).
+    # closing_only=True: a bet can have many trajectory rows (one per
+    # pre-game checkpoint) -- stats must see exactly one (the true closing
+    # line) per bet, never the whole trajectory, or every figure below
+    # would double/triple-count each bet.
+    clv_stats = clv_stats_summary(_clv_stats_rows())
 
     return jsonify({
         "date":             today,
@@ -342,10 +355,8 @@ def api_record():
     total_pnl = bankroll - starting
     roi       = total_pnl / starting * 100
 
-    # See api_summary -- clv_log.json is entirely pre-rewrite, post-game-fetch
-    # data and must be excluded from every aggregate figure below.
-    clv_log   = _load_json("clv_log.json") or []
-    clv_stats = clv_stats_summary(clv_log, source_methodology="v1-unreliable")
+    # See api_summary -- SQL clv_log via _clv_stats_rows(), not clv_log.json.
+    clv_stats = clv_stats_summary(_clv_stats_rows())
 
     by_conviction: dict = {}
     for b in resolved:
@@ -456,11 +467,11 @@ def api_record():
     best_bet  = dict(_best)  if _best  else None
     worst_bet = dict(_worst) if _worst else None
 
-    # bets.clv_pct is set at settlement time by the same untouched, pre-
-    # rewrite post-game odds fetch as clv_log.json -- not a closing line
-    # either, so it must never feed this stat. clv_stats (already computed
-    # as fully excluded above) is the only source for the positive-rate
-    # figure now.
+    # bets.clv_pct is set at settlement time by the same untouched,
+    # pre-rewrite post-game odds fetch clv_log.json used to get -- not a
+    # real closing line either, so it must never feed this stat. clv_stats
+    # (SQL-backed, v1-unreliable already excluded above) is the only
+    # source for the positive-rate figure now.
     clv_positive_rate = clv_stats.get("pos_clv_pct")
 
     return jsonify({

@@ -70,7 +70,7 @@ grep -E 'BET |SLIP|day=|locks=|flips=|has_bets|Scout done|POOL|ERROR|BLOCK' runl
 | `TELEGRAM_CHAT_ID` | `7852968108` | Aidan's chat |
 | `ODDS_API_KEY` | secret | The Odds API |
 | `ODDS_MONTHLY_ALLOWANCE` | `500` (default) | The Odds API monthly credit allowance used by `odds_quota.py`'s 80% hard guard — raise this if the account is ever upgraded off the free tier; no code change needed |
-| `ANTHROPIC_API_KEY` | secret | Used by clv_tracker.py's Claude pick reviewer AND Agent 2 (THE ANALYST)'s daily debrief call |
+| `ANTHROPIC_API_KEY` | secret | Used by Agent 2 (THE ANALYST)'s daily debrief call |
 
 **Critical**: `BANKROLL_OVERRIDE` must be set in GitHub Actions secrets AND Railway environment vars.
 Without it, `current_bankroll()` computes from the DB (deducting pending bets) and can collapse to
@@ -278,7 +278,7 @@ GitHub Actions and Railway.
 - `BANKROLL_OVERRIDE` ← critical, without this stakes collapse
 - `RAILWAY_SYNC_URL` ← **`worker`'s** Railway domain (not `web`'s — the sync route moved 2026-07-29, see Deployment), used by the 3 scout jobs (day/evening/west) to push newly-logged picks. `worker` needs a Railway-generated public domain first (it had none before this change) — update this secret to that domain once generated.
 - `SYNC_SECRET` ← shared bearer-token secret for `POST /api/sync_bet`; must match `worker`'s `SYNC_SECRET` exactly
-- `ANTHROPIC_API_KEY` ← **new as of 2026-09-10** for the 3 scout jobs (day/evening/west) — powers `narrative_engine.py`'s one-call-per-slip Claude Haiku "Why" narrative. Previously this secret only needed to exist on Railway (Agent 2/clv_tracker.py); if it wasn't already added as a **GitHub Actions** repo secret, the scout jobs will silently fall back to the deterministic template narrative (safe, but the real narrative feature won't fire) — add it before expecting real narratives in the slip.
+- `ANTHROPIC_API_KEY` ← **new as of 2026-09-10** for the 3 scout jobs (day/evening/west) — powers `narrative_engine.py`'s one-call-per-slip Claude Haiku "Why" narrative. Previously this secret only needed to exist on Railway (Agent 2); if it wasn't already added as a **GitHub Actions** repo secret, the scout jobs will silently fall back to the deterministic template narrative (safe, but the real narrative feature won't fire) — add it before expecting real narratives in the slip.
 
 ### Railway Required Env Vars
 These apply to the `worker` service — it's the one running `brain.py --bot`,
@@ -290,7 +290,7 @@ the continuous loops, and (as of 2026-07-29) the `POST /api/sync_bet` listener.
 - `BANKROLL_OVERRIDE`
 - `SYNC_SECRET` ← must match the GitHub secret exactly; auths incoming `POST /api/sync_bet` requests. Do NOT also set `RAILWAY_SYNC_URL` on `worker` — that would make it try to push picks to itself.
 - `ODDS_SOURCE=sgo`
-- `ANTHROPIC_API_KEY` ← used by clv_tracker.py's Claude pick reviewer AND Agent 2 (THE ANALYST)
+- `ANTHROPIC_API_KEY` ← used by Agent 2 (THE ANALYST)
 - `MONITOR_ENABLED` ← Agent 1 (THE MONITOR), default `true`. Set `false` to disable without a code change.
 - `TELEGRAM_ALERT_CHAT_ID` ← optional, defaults to `TELEGRAM_CHAT_ID`. Where Monitor alerts go.
 - `ANALYST_ENABLED` ← Agent 2 (THE ANALYST), default `true`. Set `false` to disable without a code change.

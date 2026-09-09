@@ -6176,18 +6176,17 @@ def _run_weekly_roi():
     peak    = _peak_br()
     sign    = "+" if pnl >= 0 else ""
 
-    # clv_log.json predates (and is untouched by) the game-time-aware CLV
-    # capture rewrite -- every entry was fetched post-game at settlement
-    # time, not near first pitch, so none of it is real closing-line value.
-    # source_methodology forces it fully excluded, same as a real
-    # methodology='v1-unreliable' tag would.
-    clv_data = []
-    try:
-        with open("clv_log.json") as f:
-            clv_data = json.load(f)
-    except Exception:
-        pass
-    clv_stats = clv_stats_summary(clv_data, source_methodology="v1-unreliable") if clv_data else {}
+    # SQL clv_log (see bankroll_engine.capture_pre_game_clv), not
+    # clv_log.json -- clv_tracker.py, the only thing that ever wrote that
+    # file, was dead code (zero callers) and has been removed; nothing
+    # writes clv_log.json anymore. closing_only=True: a bet can have many
+    # trajectory rows (one per pre-game checkpoint) -- this report needs
+    # exactly one (the true closing line) per bet, or every figure below
+    # would double/triple-count each bet. clv_stats_summary applies its
+    # own default v1-unreliable exclusion (real per-row methodology, no
+    # override needed here).
+    clv_data  = _db.get_clv_log(days=365, closing_only=True, include_unreliable=True)
+    clv_stats = clv_stats_summary(clv_data) if clv_data else {}
 
     lines = [
         f"📊 WEEKLY ROI REPORT — {date.today().strftime('%b %d, %Y')}",

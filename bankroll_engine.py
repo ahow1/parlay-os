@@ -757,11 +757,15 @@ def run_pre_game_clv_loop(stop_event=None) -> None:
     timer is safe and won't spam clv_log with duplicate rows for a
     checkpoint already captured.
 
-    Deliberately NOT done here (AUDIT.md M17, flagged as a follow-up): this
-    still writes only to the clv_log SQL table, a separate pipeline from
-    the live post-game clv_log.json path used by telegram_handler.py's
-    auto-settler and read by api.py's /api/clv endpoints. Unifying the two
-    pipelines is out of scope for tonight.
+    This SQL clv_log table is now the only CLV pipeline api.py's /api/clv
+    endpoints read from (consolidated -- clv_tracker.py, the only thing
+    that ever wrote clv_log.json, was dead code with zero callers and has
+    been deleted; nothing reads that file anymore either). Still separate
+    and untouched: telegram_handler.py's auto-settler also independently
+    sets bets.closing_odds/clv_pct at settlement time via its own
+    post-game odds fetch -- a different, still-live pipeline, tagged
+    'v1-unreliable' everywhere it's read (see math_engine.clv_stats_summary)
+    since it was never made game-time aware either.
     """
     import threading
     _stop = stop_event or threading.Event()
