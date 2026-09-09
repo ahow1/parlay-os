@@ -695,7 +695,10 @@ def update_bet_stake(bet_id: int, new_stake: float):
 
 
 def _calc_profit(result: str, stake: float, bet_odds: str) -> float:
-    """Compute settled profit: (dec-1)*stake for W, -stake for L, 0 for P."""
+    """Compute settled profit: (dec-1)*stake for W, -stake for L, 0 for
+    anything else (P or VOID -- a voided bet's stake was never actually
+    lost, so 0 profit is correct; the stake simply isn't "at risk"
+    anymore once result is non-null, same mechanism a real W/L/P uses)."""
     from math_engine import american_to_decimal
     s = float(stake or 0)
     if result == "W":

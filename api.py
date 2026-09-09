@@ -623,8 +623,8 @@ def api_settle():
     result = data.get("result", "")
     if not bet_id:
         return jsonify({"error": "bet_id required"}), 400
-    if result not in ("W", "L", "P"):
-        return jsonify({"error": "result must be W, L, or P"}), 400
+    if result not in ("W", "L", "P", "VOID"):
+        return jsonify({"error": "result must be W, L, P, or VOID"}), 400
     try:
         _db.resolve_bet_by_id(
             bet_id=int(bet_id),
@@ -660,7 +660,9 @@ def api_resolve():
     # Normalize loose result strings to canonical W/L/P
     _result_map = {"win": "W", "won": "W", "w": "W",
                    "loss": "L", "lost": "L", "lose": "L", "l": "L",
-                   "push": "P", "tie": "P", "p": "P"}
+                   "push": "P", "tie": "P", "p": "P",
+                   "void": "VOID", "refund": "VOID", "postponed": "VOID",
+                   "cancelled": "VOID", "canceled": "VOID"}
     raw_result = data.get("result", "")
     result = _result_map.get(str(raw_result).lower(), str(raw_result).upper())
     try:

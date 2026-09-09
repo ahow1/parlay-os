@@ -37,6 +37,7 @@ ERROR_SPIKE_THRESHOLD = 10   # ERROR-level lines in the trailing hour
 NEUTRAL_FALLBACK_RATE_THRESHOLD = 0.40  # fraction of today's picks with >=1 fallback flag
 CLV_COVERAGE_MISSING_THRESHOLD = 0.10   # fraction of past-commence bets missing a closing CLV capture
 CLV_COVERAGE_GRACE_MIN = 10             # minutes past commence before a missing capture counts as a failure
+STALE_SETTLEMENT_HOURS = 6              # hours past commence with no result before flagging a settlement gap
 
 BOT_TOKEN     = os.getenv("TELEGRAM_BOT_TOKEN", "")
 ALERT_CHAT_ID = os.getenv("TELEGRAM_ALERT_CHAT_ID", os.getenv("TELEGRAM_CHAT_ID", ""))
@@ -284,6 +285,90 @@ def check_clv_capture_coverage() -> dict:
     }
 
 
+def check_stale_settlement() -> dict:
+    """Catches settlement gaps from the receiving end: a bet whose game
+    started well over STALE_SETTLEMENT_HOURS ago (MLB games run ~3h; this
+    threshold clears essentially every normal game) should have a result
+    by now. A bet still pending past that point means run_settlement_check()
+    isn't reaching it -- a team/game-name matching miss, an MLB Stats API
+    outage, or a game status this pipeline still doesn't recognize (the
+    exact class of bug that motivated the postponed/suspended/cancelled
+    handling in the first place: before that fix, a postponed game's bet
+    just sat pending forever with nothing to catch it).
+
+    Deliberately excludes bets whose game is *currently* suspended --
+    those are supposed to stay pending indefinitely until the game
+    resumes (see run_settlement_check's void-vs-hold split); alerting on
+    them would be exactly the false-alarm failure mode this whole ticket
+    was about. Checking requires one live schedule fetch per distinct
+    date among the stale candidates (usually 0 or 1 calls -- this only
+    ever runs real work when there's already something to investigate)."""
+    now_utc = _utc_now()
+    try:
+        pending = [b for b in _db.get_bets() if not b.get("result")]
+    except Exception as e:
+        return {"ok": False, "detail": f"check failed: {e}"}
+
+    candidates = []
+    for b in pending:
+        commence_utc = b.get("commence_utc") or ""
+        if not commence_utc:
+            continue
+        try:
+            commence_dt = datetime.fromisoformat(commence_utc.replace("Z", "+00:00"))
+            if commence_dt.tzinfo is None:
+                commence_dt = commence_dt.replace(tzinfo=timezone.utc)
+        except Exception:
+            continue
+        hours_since_commence = (now_utc - commence_dt).total_seconds() / 3600.0
+        if hours_since_commence >= STALE_SETTLEMENT_HOURS:
+            candidates.append(b)
+
+    if not candidates:
+        return {"ok": True, "detail": f"no bets stale {STALE_SETTLEMENT_HOURS}h+ past commence"}
+
+    dates = {b.get("date") for b in candidates if b.get("date")}
+    suspended_games: set[tuple] = set()
+    for d in dates:
+        try:
+            r = requests.get(f"{STATSAPI}/schedule", params={"sportId": 1, "date": d}, timeout=10)
+            r.raise_for_status()
+            for gd in r.json().get("dates", []):
+                for g in gd.get("games", []):
+                    state = (g.get("status", {}).get("detailedState", "") or "").lower()
+                    if "suspended" not in state:
+                        continue
+                    away = (g.get("teams", {}).get("away", {}).get("team", {}).get("name", "") or "").lower()
+                    home = (g.get("teams", {}).get("home", {}).get("team", {}).get("name", "") or "").lower()
+                    suspended_games.add((d, away, home))
+        except Exception as e:
+            print(f"[MONITOR] stale_settlement schedule check failed for {d}: {e}")
+
+    def _game_is_suspended(b: dict) -> bool:
+        game = (b.get("game") or "").lower()
+        if " @ " not in game:
+            return False
+        away, home = (s.strip() for s in game.split(" @ ", 1))
+        return (b.get("date"), away, home) in suspended_games
+
+    stale = [b for b in candidates if not _game_is_suspended(b)]
+    held  = len(candidates) - len(stale)
+    ok = len(stale) == 0
+    sample = [f"{b.get('bet')} {b.get('type', 'ML')} (#{b.get('id')})" for b in stale[:5]]
+    return {
+        "ok": ok,
+        "detail": (
+            f"{len(stale)} bet(s) still pending {STALE_SETTLEMENT_HOURS}h+ past commence "
+            f"with no final game state" + (f" — e.g. {', '.join(sample)}" if sample else "")
+            if not ok else
+            f"no bets stale past commence (threshold {STALE_SETTLEMENT_HOURS}h)"
+            + (f"; {held} legitimately suspended game(s) excluded" if held else "")
+        ),
+        "count":  len(stale),
+        "sample": sample,
+    }
+
+
 def check_error_spike() -> dict:
     """Any error spikes in the last hour? Coarser than error_logger.py's
     per-error-type recurring alert (3x/hour for the SAME error) -- this
@@ -358,6 +443,7 @@ _CHECKS = {
     "stuck_pending_bets":     check_stuck_pending_bets,
     "clv_loop_activity":      check_clv_loop_activity,
     "clv_capture_coverage":   check_clv_capture_coverage,
+    "stale_settlement":       check_stale_settlement,
     "error_spike":            check_error_spike,
     "no_bets_on_game_day":    check_no_bets_on_game_day,
 }

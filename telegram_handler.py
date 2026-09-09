@@ -356,8 +356,9 @@ def parse_bet(text: str) -> dict | None:
 
 def parse_settle(text: str) -> tuple[str, str] | None:
     """
-    Return (result_code, identifier) where result_code in W/L/P.
-    Handles: win SF, won SF, SF won, loss 3, lost BAL, push TEX, etc.
+    Return (result_code, identifier) where result_code in W/L/P/VOID.
+    Handles: win SF, won SF, SF won, loss 3, lost BAL, push TEX, void TEX
+    (game postponed/cancelled -- stake returned, not a push), etc.
     """
     lower = text.lower().strip()
 
@@ -366,7 +367,13 @@ def parse_settle(text: str) -> tuple[str, str] | None:
         result = "W"
     elif re.search(r'\b(loss|lose|lost)\b', lower):
         result = "L"
-    elif re.search(r'\b(push|tie|void|refund)\b', lower):
+    # void/refund is a distinct outcome from push/tie -- a push is a real
+    # graded result (bet happened, tied), a void means the game never
+    # happened at all (postponed/cancelled), stake returned either way but
+    # only VOID is excluded from win-rate/CLV reporting (see _void_bet).
+    elif re.search(r'\b(void|refund|cancelled|canceled|postponed)\b', lower):
+        result = "VOID"
+    elif re.search(r'\b(push|tie)\b', lower):
         result = "P"
 
     if not result:
@@ -443,10 +450,15 @@ def handle_settle(result: str, identifier: str) -> str:
     # Snapshot P&L before resolving
     stake   = float(bet.get("stake") or 0)
     to_win  = _to_win(stake, str(bet.get("bet_odds", "")))
-    pnl_str = f"+${to_win:.2f}" if result == "W" else (f"-${stake:.2f}" if result == "L" else "$0.00")
+    pnl_str = (f"+${to_win:.2f}" if result == "W"
+               else f"-${stake:.2f}" if result == "L"
+               else "$0.00 (stake returned)" if result == "VOID"
+               else "$0.00")
 
-    # Fetch closing odds for CLV
-    closing = _fetch_closing_odds(bet["bet"], bet.get("type", "ML"))
+    # No real closing line exists for a voided (postponed/cancelled) game
+    # that was never played -- skip the fetch, same as the automated
+    # settlement path's _void_bet().
+    closing = None if result == "VOID" else _fetch_closing_odds(bet["bet"], bet.get("type", "ML"))
 
     _db.resolve_bet(
         bet=bet["bet"],
@@ -460,9 +472,9 @@ def handle_settle(result: str, identifier: str) -> str:
 
     bd = _bankroll_display()
     label   = f"{bet['bet']} {bet.get('type','ML')}"
-    emoji   = {"W": "✅", "L": "❌", "P": "\U0001f504"}
-    em      = "✅" if result == "W" else ("❌" if result == "L" else "\U0001f504")
-    r_label = {"W": "WIN", "L": "LOSS", "P": "PUSH"}[result]
+    em      = ("✅" if result == "W" else "❌" if result == "L"
+               else "🚫" if result == "VOID" else "\U0001f504")
+    r_label = {"W": "WIN", "L": "LOSS", "P": "PUSH", "VOID": "VOID"}[result]
 
     clv_str = ""
     if closing:
@@ -584,6 +596,7 @@ HELP_TEXT = (
     "/win [id or team]     — settle as win  (e.g. /win SF or /win 3)\n"
     "/loss [id or team]    — settle as loss (e.g. /loss 3)\n"
     "/push [id or team]    — settle as push (e.g. /push TEX)\n"
+    "/void [id or team]    — void a postponed/cancelled game (stake returned)\n"
     "/bets                 — list all pending bets with IDs\n"
     "/bankroll             — current balance + today P&L\n"
     "/results              — today's settled bets\n"
@@ -947,10 +960,14 @@ def dispatch(text: str) -> None:
             _send("❓ Try: /update [id] [stake] — e.g. /update 3 6.50")
         return
 
-    # /win, /loss, /push — explicit slash settle commands
+    # /win, /loss, /push, /void — explicit slash settle commands
     # Accept: /win PIT, /win 3, /win PIT $6.30, /loss PHI $5.40
+    # /void [id or team] -- manually void a bet whose game was postponed
+    # or cancelled (stake returned, excluded from win-rate/CLV). The
+    # automated settlement pass already does this on its own via
+    # _fetch_void_games/_void_bet; this is the manual fallback.
     # Dollar amount after identifier is optional confirmation info — strip it.
-    for cmd, result_code in (("win ", "W"), ("loss ", "L"), ("push ", "P")):
+    for cmd, result_code in (("win ", "W"), ("loss ", "L"), ("push ", "P"), ("void ", "VOID")):
         if lower.startswith(cmd):
             rest = t[len(cmd):].strip()
             if rest:
@@ -1236,6 +1253,22 @@ STATSAPI = "https://statsapi.mlb.com/api/v1"
 # Games are considered final when status is one of these
 _FINAL_STATES = {"Final", "Game Over", "Completed Early", "Completed"}
 
+# Non-final states that mean "this game is not being played as scheduled
+# today," matched by keyword rather than an exact set like _FINAL_STATES
+# because MLB's detailedState carries a variable reason suffix (e.g.
+# "Postponed: Snow", "Suspended: Rain"). Postponed/cancelled -> void the
+# bet outright (see _void_bet): whether or not MLB later reschedules the
+# game to a different date, the line on that new date would differ anyway,
+# so there's no "carry the bet forward" option -- void is the only honest
+# choice, and it's the same choice either way (rescheduled or not).
+# Suspended is deliberately its own set and NEVER voided: the game is
+# still being played, just on hold -- the bet must stay pending until it
+# resumes and finalizes on its own, exactly like any other not-yet-final
+# game (no special code needed for that -- it just never matches either
+# set below and falls through to "stays pending," same as "In Progress").
+_VOID_STATE_KEYWORDS = ("postponed", "cancelled", "canceled")
+_SUSPENDED_STATE_KEYWORDS = ("suspended",)
+
 
 def _fetch_final_games(game_date: str) -> list[dict]:
     """Return all completed MLB games for game_date with linescore data."""
@@ -1254,6 +1287,33 @@ def _fetch_final_games(game_date: str) -> list[dict]:
         return out
     except Exception as e:
         print(f"[AUTO] schedule fetch error: {e}")
+        return []
+
+
+def _fetch_void_games(game_date: str) -> list[dict]:
+    """Games from game_date that were postponed or cancelled outright --
+    never played (or rescheduled elsewhere; from the original date's own
+    schedule a rescheduled game still reports the same Postponed status,
+    so this needs no separate reschedule-detection logic). Same request
+    shape as _fetch_final_games (identical URL/params) -- api_client's
+    5-minute response cache means calling both from the same settlement
+    pass costs one real HTTP request, not two."""
+    try:
+        r = _http_get(
+            f"{STATSAPI}/schedule",
+            params={"sportId": 1, "date": game_date, "hydrate": "linescore,team"},
+            timeout=12,
+        )
+        r.raise_for_status()
+        out = []
+        for gd in r.json().get("dates", []):
+            for g in gd.get("games", []):
+                state = (g.get("status", {}).get("detailedState", "") or "").lower()
+                if any(kw in state for kw in _VOID_STATE_KEYWORDS):
+                    out.append(g)
+        return out
+    except Exception as e:
+        print(f"[AUTO] void-schedule fetch error: {e}")
         return []
 
 
@@ -1557,12 +1617,58 @@ def _update_clv_log(settled: list[dict]) -> None:
 
 def _grading_message(label: str, bet_type: str, r_lab: str, score: str,
                       pnl_str: str, clv_txt: str, bankroll: float) -> str:
-    em = "✅" if r_lab == "WIN" else "❌" if r_lab == "LOSS" else "🔄"
+    em = ("✅" if r_lab == "WIN" else "❌" if r_lab == "LOSS"
+          else "🚫" if r_lab == "VOID" else "🔄")
     return (
         f"{em} AUTO-SETTLE: {label} {bet_type} {r_lab}\n"
         f"{score} | {pnl_str}{clv_txt}\n"
         f"Bankroll: ${bankroll:.2f}"
     )
+
+
+def _void_bet(bet: dict, void_game: dict, settled_log: list) -> None:
+    """VOID a bet whose game was postponed or cancelled. Stake is
+    returned (never counted as a loss), and the bet is excluded from
+    every win-rate/ROI/CLV consumer in the app simply by never adding
+    "VOID" to any of their existing `result in ("W","L","P")` allowlists
+    -- those already treat anything outside that set as "not resolved
+    yet," which becomes "resolved, but doesn't count" the moment result
+    is a non-null value they don't recognize. closing_odds is left empty
+    on purpose: no real closing line exists for a game that was never
+    played, so bets.clv_pct stays NULL (resolve_bet_by_id only computes
+    it when closing_odds is truthy) -- CLV.
+
+    The bet also drops out of both capture_pre_game_clv()'s and
+    get_stuck_pending_bets()'/monitor_agent's pending-bet queries the
+    instant result is non-null -- the same mechanism that already retires
+    a normal W/L/P bet, so CLV capture and stuck-pending alerts stop for
+    it automatically, no extra code needed."""
+    status_label = (void_game.get("status", {}) or {}).get("detailedState", "Postponed")
+    team_code = bet["bet"]
+    _db.resolve_bet_by_id(
+        bet_id=bet["id"],
+        closing_odds="",
+        result="VOID",
+        game_score=status_label,
+        notes=f"Game {status_label.lower()} — bet voided, stake returned",
+        mark_notified=True,
+    )
+    if bet.get("over_cap"):
+        print(f"[AUTO] voided over_cap bet #{bet['id']}: {team_code} ({status_label}, not sent -- stake=0)")
+    else:
+        bd  = _bankroll_display()
+        msg = _grading_message(team_code, bet.get("type", "ML"), "VOID",
+                                status_label, "$0.00 (stake returned)", "", bd["bankroll"])
+        _send(msg)
+        print(f"[AUTO] voided bet #{bet['id']}: {team_code} ({status_label})")
+
+    settled_log.append({
+        **bet,
+        "outcome": "VOID",
+        "score":   status_label,
+        "closing": None,
+        "clv_pct": None,
+    })
 
 
 def run_settlement_check(days_back: int | None = None) -> list[dict]:
@@ -1605,13 +1711,29 @@ def run_settlement_check(days_back: int | None = None) -> list[dict]:
         by_date.setdefault(d, []).append(b)
 
     for game_date, bets in by_date.items():
-        games = _fetch_final_games(game_date)
-        if not games:
-            continue
+        games      = _fetch_final_games(game_date)
+        void_games = _fetch_void_games(game_date)
 
         for bet in bets:
             bet_type = (bet.get("type") or "ML").strip().upper()
             team_code = bet["bet"]  # for PROP bets this is the full "player + stat" string
+
+            # Postponed/cancelled -> void immediately. Checked before (and
+            # independent of) the final-games match/skip below, so a
+            # slate that's ENTIRELY postponed (games=[] for the day)
+            # still gets its bets voided instead of silently skipped
+            # forever by the `if not games: continue` a few lines down.
+            if void_games:
+                if bet_type == "PROP":
+                    void_match = _match_prop_game(bet.get("game", ""), void_games)
+                else:
+                    void_match = next((g for g in void_games if _game_side(g, team_code)), None)
+                if void_match is not None:
+                    _void_bet(bet, void_match, settled_log)
+                    continue
+
+            if not games:
+                continue  # nothing final today (yet) for this bet's game
 
             if bet_type == "PROP":
                 matched_game = _match_prop_game(bet.get("game", ""), games)
@@ -1695,7 +1817,7 @@ def run_settlement_check(days_back: int | None = None) -> list[dict]:
     for bet in backlog:
         bet_id  = bet["id"]
         result  = bet.get("result")
-        r_lab   = {"W": "WIN", "L": "LOSS", "P": "PUSH"}.get(result)
+        r_lab   = {"W": "WIN", "L": "LOSS", "P": "PUSH", "VOID": "VOID"}.get(result)
 
         # These bets got a result through some other path (manual /settle,
         # api_settle/api_resolve) that never fed calibration either -- do it
