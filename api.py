@@ -276,13 +276,23 @@ def api_edges():
 
 
 def _clv_stats_rows(days=90):
-    """Every clv_log row, full trajectory, methodology included -- feed
+    """Every clv_log row's is_closing row, methodology included -- feed
     straight to clv_stats_summary() and let its own default exclusion do
     the v1-unreliable filtering + count the historical-rows-excluded note.
     include_unreliable=True here (at the DB read) is deliberate: it's
     clv_stats_summary(), not this query, that should be the single place
-    deciding what counts, exactly like every other consumer since B2."""
-    return _db.get_clv_log(days=days, closing_only=True, include_unreliable=True)
+    deciding what counts, exactly like every other consumer since B2.
+
+    attach_bet_results() is required, not optional: clv_log.result is
+    always NULL as written (capture fires pre-game, before any outcome
+    exists) -- without this, clv_stats_summary()'s own
+    `result in ("W","L","P")` filter would silently drop every row and
+    every figure below would always read "no data," not because there's
+    nothing to report but because the rows never carried their bet's
+    actual outcome."""
+    return _db.attach_bet_results(
+        _db.get_clv_log(days=days, closing_only=True, include_unreliable=True)
+    )
 
 
 @app.route("/api/clv")

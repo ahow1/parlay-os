@@ -5921,17 +5921,43 @@ def _send_daily_summary(send_fn=None):
 
 
 def _run_debrief(send_fn=None):
-    """Pull today's settled bets, compute day results, send formatted Telegram."""
+    """Pull today's settled bets, compute day results, send formatted Telegram.
+
+    Runs on Railway's worker now (run_daily_debrief_loop, wired into --bot
+    mode), not GitHub Actions -- the old daily_debrief cron job read GH
+    Actions' own scratch database, which never sees Railway's settlement
+    results (same root cause as the calibration_buckets bug fixed
+    2026-07-29; see CLAUDE.md's Known Bugs). Settlement, CLV, and results
+    all live on the worker, so this has to as well."""
     import pytz as _pytz
     today  = datetime.now(_pytz.timezone("America/New_York")).strftime("%Y-%m-%d")
     bets   = _db.get_bets(date=today)
     all_bets = _db.get_bets()
+    _tg = send_fn or _send_telegram
 
     resolved = [b for b in bets if b.get("result") in ("W", "L", "P")]
     pending  = [b for b in bets if not b.get("result")]
+    # VOID bets (postponed/cancelled games, see B4 -- run_settlement_check's
+    # _void_bet) are deliberately never added to the "W","L","P" tuple
+    # above, so they're already excluded from every stat below by
+    # construction; shown here only as an explicit, separate count so a
+    # voided bet doesn't just silently vanish from the report.
+    voided   = [b for b in bets if b.get("result") == "VOID"]
 
-    if not resolved and not pending:
-        print(f"Debrief: no bets found for {today} — skipping Telegram")
+    # Handle the empty day explicitly -- no bets logged for today at all
+    # (off-season, a slate that never got picks, a sync failure) -- send a
+    # real message saying so instead of sending nothing. A silent skip is
+    # indistinguishable from "this job didn't run," which is exactly the
+    # kind of quiet failure this whole rewrite exists to stop being blind to.
+    if not resolved and not pending and not voided:
+        br  = current_bankroll()
+        msg = (
+            f"📊 DAILY DEBRIEF — {date.today().strftime('%b %d, %Y')}\n"
+            f"No bets settled today — nothing logged for {today}.\n"
+            f"Bankroll: ${br:.2f}"
+        )
+        print(msg)
+        _tg(msg)
         _run_db_backup()
         return
 
@@ -5952,15 +5978,23 @@ def _run_debrief(send_fn=None):
     total_staked = sum(float(b.get("stake") or 0) for b in resolved if b["result"] != "P")
     roi          = round(day_pnl / total_staked * 100, 1) if total_staked > 0 else 0.0
 
-    # CLV
-    from math_engine import calc_clv as _calc_clv
-    clv_vals = []
-    for b in resolved:
-        if b.get("closing_odds") and b.get("bet_odds"):
-            c = _calc_clv(str(b["bet_odds"]), str(b["closing_odds"]))
-            if c.get("clv_pct") is not None:
-                clv_vals.append(c["clv_pct"])
-    avg_clv = round(sum(clv_vals) / len(clv_vals), 2) if clv_vals else None
+    # CLV -- from the SQL clv_log table (B1's game-time-aware pipeline),
+    # not bets.closing_odds/clv_pct (the older settlement-time fetch,
+    # which was never made game-time aware -- see B2). closing_only=True
+    # takes each bet's single is_closing=1 row, not its whole trajectory;
+    # include_unreliable=True here because clv_stats_summary() itself
+    # applies the real per-row methodology filter (defaults to excluding
+    # 'v1-unreliable', matching B2's rule) and reports how many rows it
+    # excluded, rather than this call site silently pre-filtering and
+    # losing that count.
+    from math_engine import clv_stats_summary as _clv_stats_summary
+    _clv_rows_today = _db.attach_bet_results(
+        _db.get_clv_log_for_date(today, closing_only=True, include_unreliable=True)
+    )
+    _clv_stats  = _clv_stats_summary(_clv_rows_today)
+    avg_clv     = _clv_stats.get("avg_clv")
+    clv_count   = _clv_stats.get("total", 0)
+    clv_note    = _clv_stats.get("methodology_note")
 
     # Best call (biggest win P&L), worst call (biggest loss stake)
     best_call = worst_call = None
@@ -5996,7 +6030,9 @@ def _run_debrief(send_fn=None):
         f"Record: {wins}W-{losses}L | P&L: {sign}${day_pnl:.2f} | ROI: {sign}{roi:.1f}%",
     ]
     if avg_clv is not None:
-        lines.append(f"Avg CLV: {avg_clv:+.2f}% ({len(clv_vals)} bets with CLV data)")
+        lines.append(f"Avg CLV: {avg_clv:+.2f}% ({clv_count} bet(s) with v2-gametime CLV data)")
+    if clv_note:
+        lines.append(clv_note)
     if best_call:
         conv   = best_call.get("conviction", "") or ""
         edge   = best_call.get("edge_pct")
@@ -6039,10 +6075,11 @@ def _run_debrief(send_fn=None):
     lines.append(f"Bankroll: ${br:.2f} (all-time peak: ${peak:.2f})")
     if pending:
         lines.append(f"⏳ {len(pending)} bet(s) still pending settlement")
+    if voided:
+        lines.append(f"🚫 {len(voided)} bet(s) voided (postponed/cancelled) — excluded above")
 
     msg = "\n".join(lines)
     print(msg)
-    _tg = send_fn or _send_telegram
     _tg(msg)
 
     # ── Feed today's settled bets into the brain learning system ─────────────
@@ -6052,6 +6089,48 @@ def _run_debrief(send_fn=None):
         print(f"[BRAIN] debrief feed failed: {_brain_e}")
 
     _run_db_backup()
+
+
+DEBRIEF_DAILY_RUN_HOUR_ET   = 1    # 1:30am ET -- same timing as Agent 2 (THE
+DEBRIEF_DAILY_RUN_MINUTE_ET = 30   # ANALYST)'s daily loop, after Railway's
+                                    # last settle pass so results/CLV are final
+DEBRIEF_LOOP_POLL_SEC = 900        # 15 min -- matches the Monitor/Analyst cadence
+
+
+def _debrief_enabled() -> bool:
+    return os.getenv("DEBRIEF_ENABLED", "true").strip().lower() not in ("false", "0", "no")
+
+
+def run_daily_debrief_loop(stop_event=None) -> None:
+    """Background loop: fires _run_debrief() once per ET calendar day at
+    DEBRIEF_DAILY_RUN_HOUR_ET:DEBRIEF_DAILY_RUN_MINUTE_ET (1:30am ET --
+    after Railway's last settle pass, same timing Agent 2 uses). Meant to
+    run as a daemon thread started by brain.py in --bot mode.
+
+    Moved here from the GitHub Actions daily_debrief cron job (removed
+    from mega_scout.yml), which read GH Actions' own scratch database and
+    never saw Railway's settlement results -- the exact same root cause
+    as the calibration_buckets bug fixed 2026-07-29 (see CLAUDE.md's
+    Known Bugs / Learning loop entries). Settlement, CLV, and results all
+    live on the worker now, so the debrief has to as well: there's no
+    other place left where "today's bets actually got graded" is true."""
+    import threading
+    import pytz as _pytz
+    _ET_tz = _pytz.timezone("America/New_York")
+    _stop = stop_event or threading.Event()
+    print("[DEBRIEF] loop started")
+    last_run_date = None
+    while not _stop.is_set():
+        try:
+            now = datetime.now(_ET_tz)
+            due = (now.hour, now.minute) >= (DEBRIEF_DAILY_RUN_HOUR_ET, DEBRIEF_DAILY_RUN_MINUTE_ET)
+            today_str = now.strftime("%Y-%m-%d")
+            if due and last_run_date != today_str:
+                _run_debrief()
+                last_run_date = today_str
+        except Exception as e:
+            print(f"[DEBRIEF] loop error: {e}")
+        _stop.wait(DEBRIEF_LOOP_POLL_SEC)
 
 
 def _feed_brain_from_settled(resolved: list):
@@ -6182,10 +6261,18 @@ def _run_weekly_roi():
     # writes clv_log.json anymore. closing_only=True: a bet can have many
     # trajectory rows (one per pre-game checkpoint) -- this report needs
     # exactly one (the true closing line) per bet, or every figure below
-    # would double/triple-count each bet. clv_stats_summary applies its
-    # own default v1-unreliable exclusion (real per-row methodology, no
-    # override needed here).
-    clv_data  = _db.get_clv_log(days=365, closing_only=True, include_unreliable=True)
+    # would double/triple-count each bet. attach_bet_results() is required
+    # here, not optional -- clv_log.result is always NULL as written
+    # (capture fires pre-game, before any outcome exists), so without it
+    # clv_stats_summary()'s own `result in ("W","L","P")` filter would
+    # silently exclude every single row and this would always report "no
+    # data," not because there's nothing to report but because the rows
+    # never carried their bet's actual outcome. clv_stats_summary then
+    # applies its own default v1-unreliable exclusion on top (real
+    # per-row methodology, no override needed here).
+    clv_data  = _db.attach_bet_results(
+        _db.get_clv_log(days=365, closing_only=True, include_unreliable=True)
+    )
     clv_stats = clv_stats_summary(clv_data) if clv_data else {}
 
     lines = [
@@ -6691,6 +6778,17 @@ if __name__ == "__main__":
                     print("[ANALYST] disabled via ANALYST_ENABLED")
             except Exception as e:
                 error_logger.log_error("brain.__bot_analyst_init", e)
+            # Daily debrief -- moved here from GitHub Actions (see
+            # run_daily_debrief_loop's docstring). Fires once/day at
+            # 1:30am ET, same timing as Agent 2 above. Toggle with
+            # DEBRIEF_ENABLED=false.
+            try:
+                if _debrief_enabled():
+                    _threading.Thread(target=run_daily_debrief_loop, name="daily-debrief", daemon=True).start()
+                else:
+                    print("[DEBRIEF] disabled via DEBRIEF_ENABLED")
+            except Exception as e:
+                error_logger.log_error("brain.__bot_debrief_init", e)
             print("Parlay OS bot running (Ctrl-C to stop)...")
             try:
                 _poll_loop()

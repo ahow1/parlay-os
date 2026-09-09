@@ -88,7 +88,7 @@ $27 while Kelly stakes stay at $9 — the daily cap ($3.32) blocks every bet on 
 - xwOBA: working — uses `est_woba` column from Savant leaderboard
 - Rolling form: fixed — uses `rolling_xwoba_tier` key
 - Auto-settlement: working for ML/TOTAL/RUNLINE **and PROP** bets (hitter/K/ER props settle via MLB Stats API box scores as of 2026-07-28) — runs on Railway's `_settler_loop` (see Deployment). 1,136 PROP bets were stranded pending as of 2026-07-28 before this shipped; a single manual pass cleared 84 (52 W / 31 L / 1 P), with the remainder mostly blocked by a separate pre-existing data gap — ~1,035 older PROP rows have an empty `game` column and can't be matched to a game at all (not a settlement-logic bug; there's no reliable way to reconstruct which game those historical rows belonged to). New PROP picks logged going forward always populate `game`, so this shouldn't recur.
-- Learning loop: working as of 2026-07-28 — `calibration_buckets` is fed directly by `telegram_handler.run_settlement_check()` (`db.feed_calibration_from_bet()`) at the moment each bet settles, in both passes. It used to be fed once/day by `brain._run_debrief()` on GitHub Actions, but that job never sees Railway's settlement results (Railway never touches git — see Deployment), so it had been silently dead since settlement moved to Railway-only. `calibration_buckets` was completely empty (0 rows) until a one-time backfill over the 123 already-resolved bets sitting in the DB; it now reflects real historical accuracy (55.3% overall win rate across 11 probability buckets). `_run_debrief()`'s daily Telegram win/loss/P&L summary is a separate, still-open gap (same root cause) — not fixed by this change.
+- Learning loop: working as of 2026-07-28 — `calibration_buckets` is fed directly by `telegram_handler.run_settlement_check()` (`db.feed_calibration_from_bet()`) at the moment each bet settles, in both passes. It used to be fed once/day by `brain._run_debrief()` on GitHub Actions, but that job never sees Railway's settlement results (Railway never touches git — see Deployment), so it had been silently dead since settlement moved to Railway-only. `calibration_buckets` was completely empty (0 rows) until a one-time backfill over the 123 already-resolved bets sitting in the DB; it now reflects real historical accuracy (55.3% overall win rate across 11 probability buckets). `_run_debrief()`'s daily Telegram win/loss/P&L summary was a separate, same-root-cause gap — fixed in the B4c rewrite: the debrief now runs on Railway's worker instead of GitHub Actions (`run_daily_debrief_loop()`, wired into `--bot` mode, fires once/day at 1:30am ET — same timing as Agent 2 — after the last settle pass), and its CLV figure now reads the SQL `clv_log` table (methodology='v2-gametime' only, per B2) via `db.attach_bet_results()` rather than `bets.closing_odds` (the older, never-game-time-aware settlement-time fetch). The `daily_debrief` GitHub Actions job was removed entirely, not just taken off cron — unlike `capture_clv`/`settle_bets`, a manual dispatch run of it would always report "no bets settled" regardless of what happened on Railway, since it never saw Railway's data; keeping it as a fallback option would just be a fallback that lies.
 - CLV capture: working — runs on Railway's `run_pre_game_clv_loop` (see Deployment)
 - Live engine: cut down 2026-09-09 to a single pass per cron tick (every 15 min, was 5), polling
   only games with an open position, with a hard 80%-of-`ODDS_MONTHLY_ALLOWANCE` quota guard that
@@ -186,7 +186,10 @@ GitHub Actions and Railway.
 - **GitHub Actions** (`mega_scout.yml`): **pick generation only** —
   `daily_brain_day` (11am ET), `daily_brain_evening` (4pm ET),
   `daily_brain_west` (6:30pm ET), plus `line_movement`, `live_engine`,
-  `daily_debrief`, `weekly_roi`, `morning_planner`. One-shot, scheduled,
+  `weekly_roi`, `morning_planner`. (`daily_debrief` used to run here too —
+  moved to Railway's worker as of the B4c rewrite, see Current State's
+  Learning loop entry; the job was removed from this workflow entirely.)
+  One-shot, scheduled,
   proven. Each job checks out fresh from git, runs, and commits its
   non-database outputs (`last_scout.json` / `props_output.json` /
   `clv_log.json` / `live_alerts.json`) back.
@@ -245,9 +248,12 @@ GitHub Actions and Railway.
     database the continuous loops actually read.
 - **Railway** (`brain.py --bot`, persistent worker): **all continuous loops**
   — CLV capture (`run_pre_game_clv_loop`, every 15 min), settlement
-  (`_settler_loop`, every 30 min 4pm–1am ET, no `days_back` bound), SP
-  monitor, hedge monitor, and the Telegram command handler (`/win` `/loss`
-  `/push` `/bet` `/scout` etc). Railway's worker never touches git — its
+  (`_settler_loop`, every 30 min 4pm–1am ET, no `days_back` bound), the
+  daily debrief (`run_daily_debrief_loop`, once/day at 1:30am ET — same
+  timing as Agent 2, moved here from GitHub Actions as of the B4c
+  rewrite), SP monitor, hedge monitor, and the Telegram command handler
+  (`/win` `/loss` `/push` `/void` `/bet` `/scout` etc). Railway's worker
+  never touches git — its
   local `parlay_os.db` lives on Railway's persistent filesystem
   (unaffected by the git change above) and remains **the only durable
   record of settlement results and CLV grading** (whether a pick actually
@@ -294,6 +300,7 @@ the continuous loops, and (as of 2026-07-29) the `POST /api/sync_bet` listener.
 - `MONITOR_ENABLED` ← Agent 1 (THE MONITOR), default `true`. Set `false` to disable without a code change.
 - `TELEGRAM_ALERT_CHAT_ID` ← optional, defaults to `TELEGRAM_CHAT_ID`. Where Monitor alerts go.
 - `ANALYST_ENABLED` ← Agent 2 (THE ANALYST), default `true`. Set `false` to disable without a code change.
+- `DEBRIEF_ENABLED` ← the daily debrief (`run_daily_debrief_loop`), default `true`. Set `false` to disable without a code change.
 
 ### Agent 1 (THE MONITOR) — rule-based, zero LLM cost
 24/7 daemon thread in `--bot` mode, checks every 15 min: scout freshness, odds

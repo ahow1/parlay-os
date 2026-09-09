@@ -10,7 +10,6 @@ on:
                               #                  reduced 2026-09-09 to cut odds-quota burn — see
                               #                  live_engine.run_live_pass() for the trade-off)
     - cron: '*/15 0-3 * * *' # live_engine    — 7pm–11pm ET (00:00–03:45 UTC), every 15 min (same)
-    - cron: '30 4 * * *'     # daily_debrief  — 11:30pm ET (04:30 UTC)
     - cron: '0 14 * * 1'     # weekly_roi     — Mon 9am ET (14:00 UTC)
     - cron: '0 14 * * 0,2,3,4,5,6'  # morning_planner — 9am ET, every day except Monday
     # capture_clv and settle_bets no longer run on a schedule here — moved to
@@ -23,6 +22,17 @@ on:
     # duplicate work. The two brain.py CLI modes (--capture-clv, --settle)
     # are kept below as workflow_dispatch-only manual fallbacks in case
     # Railway ever goes down -- just no longer on autopilot via cron.
+    #
+    # daily_debrief removed entirely (not just off cron) as of the B4c
+    # rewrite: it read GH Actions' own scratch parlay_os.db, which never
+    # saw Railway's settlement results (same root cause as the
+    # calibration_buckets bug fixed 2026-07-29) -- unlike capture_clv/
+    # settle_bets above, a manual fallback run here would always report
+    # "no bets settled" regardless of what actually happened on Railway,
+    # so keeping it as a dispatch-only option would just be a fallback
+    # that lies. The debrief now runs on Railway's worker instead
+    # (brain.py's run_daily_debrief_loop, wired into --bot mode, fires
+    # daily at 1:30am ET -- see brain.py and CLAUDE.md).
   workflow_dispatch:
     inputs:
       job:
@@ -37,7 +47,6 @@ on:
           - daily_brain_west
           - line_movement
           - live_engine
-          - daily_debrief
           - weekly_roi
           - morning_planner
           - capture_clv
@@ -264,36 +273,8 @@ jobs:
           git diff --staged --quiet || git commit -m "Live: $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push || true
 
-  # ─── 4. DAILY DEBRIEF — 11:30pm ET ───────────────────────────────────────
-  daily_debrief:
-    if: >
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'daily_debrief') ||
-      (github.event_name == 'schedule' && github.event.schedule == '30 4 * * *')
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
-
-      - run: pip install -q requests pytz flask flask-cors
-
-      - name: Run daily debrief
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python brain.py --debrief
-
-      - name: Commit debrief outputs
-        run: |
-          git config user.name "Parlay OS Bot"
-          git config user.email "bot@parlay-os.com"
-          git add parlay_os.db clv_log.json || true
-          git diff --staged --quiet || git commit -m "Debrief: $(date -u '+%Y-%m-%d')"
-          git push || true
+  # daily_debrief job removed -- runs on Railway's worker now (see the "on:"
+  # block above for why the GitHub Actions version is gone, not just off cron).
 
   # ─── 5. WEEKLY ROI REPORT — Monday 9am ET ────────────────────────────────
   weekly_roi:

@@ -984,6 +984,34 @@ def get_clv_log_for_date(date: str, closing_only=False, include_unreliable=False
         return [dict(r) for r in rows]
 
 
+def attach_bet_results(clv_rows: list[dict]) -> list[dict]:
+    """Enrich clv_log rows (in place, also returned) with each row's
+    matching bet's real result ("W"/"L"/"P"/"VOID"/None). clv_log.result
+    is always NULL as written -- capture_pre_game_clv() fires pre-game,
+    before any outcome exists, and nothing ever backfills it afterward.
+    Anything that runs clv_stats_summary() against SQL clv_log rows (its
+    `result in ("W","L","P")` filter needs a real value on the row
+    itself) MUST go through this first, or every row will look
+    permanently unresolved and get silently excluded from every stat --
+    not "no data yet," just quietly wrong. Matches on (date, bet, type),
+    the same identity the rest of the pipeline uses (idx_clv_log_dedup)."""
+    dates = {r.get("date") for r in clv_rows if r.get("date")}
+    if not dates:
+        return clv_rows
+    with _conn() as conn:
+        placeholders = ",".join("?" for _ in dates)
+        bet_results = {
+            (r["date"], r["bet"], r["type"]): r["result"]
+            for r in conn.execute(
+                f"SELECT date, bet, type, result FROM bets WHERE date IN ({placeholders})",
+                list(dates),
+            )
+        }
+    for row in clv_rows:
+        row["result"] = bet_results.get((row.get("date"), row.get("bet"), row.get("type")))
+    return clv_rows
+
+
 # ─── ANALYST FINDINGS (Agent 2) ────────────────────────────────────────────────
 # Mirrors agent_memory/knowledge_base.json (the append-only source of truth the
 # agent itself reads/writes) so a future Validation agent can query findings via
