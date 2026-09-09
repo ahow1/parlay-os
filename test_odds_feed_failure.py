@@ -14,6 +14,7 @@ import pytest
 import requests
 
 import data_health
+import odds_quota
 
 
 @pytest.fixture(autouse=True)
@@ -21,6 +22,14 @@ def _reset_data_health():
     data_health.reset()
     yield
     data_health.reset()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_quota_state(tmp_path, monkeypatch):
+    """odds_quota.record_usage() persists to a git-committed state file so
+    it survives across separate GH Actions job invocations -- redirect it
+    to a scratch path so these tests never write into the real repo."""
+    monkeypatch.setattr(odds_quota, "STATE_FILE", str(tmp_path / "odds_quota_state.json"))
 
 
 class TestDataHealthFailureDetail:

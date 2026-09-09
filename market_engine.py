@@ -84,6 +84,7 @@ def _names_match(outcome_name: str, team_name: str) -> bool:
 
 def _odds_request(endpoint: str, params: dict) -> dict | list | None:
     import data_health
+    import odds_quota
     key = _active_key[0] or ODDS_API_KEY
     if not key:
         print("[MKT] ODDS_API_KEY not set — no market data")
@@ -94,9 +95,12 @@ def _odds_request(endpoint: str, params: dict) -> dict | list | None:
         r = _http_get(f"{ODDS_BASE}/{endpoint}", params=params, timeout=10)
         r.raise_for_status()
         data_health.record_ok("odds", True)
+        odds_quota.record_usage(r.headers)
         return r.json()
     except requests.exceptions.HTTPError as e:
         status = e.response.status_code if e.response is not None else 0
+        if e.response is not None:
+            odds_quota.record_usage(e.response.headers)
         if status in (401, 429) and ODDS_API_KEY_BACKUP and key != ODDS_API_KEY_BACKUP:
             _log.warning(f"[MKT] Primary key {status} — switching to backup key")
             _active_key[0] = ODDS_API_KEY_BACKUP
@@ -105,6 +109,7 @@ def _odds_request(endpoint: str, params: dict) -> dict | list | None:
                 r = _http_get(f"{ODDS_BASE}/{endpoint}", params=params, timeout=10, skip_cache=True)
                 r.raise_for_status()
                 data_health.record_ok("odds", True)
+                odds_quota.record_usage(r.headers)
                 return r.json()
             except Exception as e2:
                 status2 = getattr(getattr(e2, "response", None), "status_code", None)

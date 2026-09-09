@@ -1,5 +1,10 @@
 """PARLAY OS — live_engine.py
-Conviction-based live betting brain. 60-second cycle 6pm-11pm ET.
+Conviction-based live betting brain, 6pm-11pm ET. One poll per GitHub
+Actions cron tick (every 15 min as of 2026-09-09, see run_live_pass()) —
+only for games where an open position already exists (a pending scout bet
+on that game); skips entirely, spending zero odds quota, on nights with no
+open live positions. See run_live_pass()'s docstring for the quota-guard
+design and the 2026-09-09 fix history.
 Six-component quality score (run_quality 25 / sp_status 20 / bullpen_avail 20 /
 lineup_due 15 / poly_misprice 10 / sharp_money 10).
 Fires alerts only when ALL gate conditions pass. Learns from outcomes.
@@ -888,204 +893,321 @@ def _mark_alerted(game_pk: int, bet_side: str):
     _alerted_recently[(game_pk, bet_side)] = datetime.now(ET)
 
 
+# ── OPEN LIVE POSITIONS ────────────────────────────────────────────────────────
+# Quota-conservation gate (2026-09-09): live_engine used to scan every live
+# game leaguewide looking for brand-new comeback opportunities. That's the
+# single largest consumer of odds quota (markets x regions credits per call,
+# on every poll) and is what exhausts the free 500-credit/month tier mid-
+# month, causing silent multi-day outages of the odds feed for the daily
+# scouts -- the actual product. Scouts must always take priority over live
+# polling, so live_engine's scope is cut down to: only spend quota watching
+# games we already have a real staked position in (a pending ML/RUNLINE/
+# TOTAL/PROP bet from today's scout, still unresolved) -- not fishing for
+# brand-new live-only entries across the whole slate. If there's no open
+# position anywhere tonight, there's nothing worth spending quota to watch.
+
+def _open_live_positions(today: str) -> list:
+    """Today's pending (unresolved) bets -- the 'skin in the game' that
+    justifies spending odds quota to keep watching a game live. Reads the
+    same `bets` table the daily scout writes to, not live_engine's own
+    alert log (live_alert_log / live_bet_memory) -- using the latter would
+    be circular, since live_engine could never surface a first opportunity
+    if it only ever looked at games it had already alerted on."""
+    import db as _db
+    try:
+        return _db.get_bets(date=today, unresolved_only=True)
+    except Exception as e:
+        print(f"[LIVE] Could not read open positions: {e}")
+        return []
+
+
+def _game_has_open_position(state: dict, positions: list) -> bool:
+    away, home = state.get("away_team", ""), state.get("home_team", "")
+    if not away or not home:
+        return False
+    for bet in positions:
+        game_label = bet.get("game") or ""
+        if away in game_label and home in game_label:
+            return True
+    return False
+
+
 # ── MAIN LOOP ─────────────────────────────────────────────────────────────────
 
-def run_live_monitor():
-    """Continuous 60-second live monitoring loop, 6pm-11pm ET."""
+def run_live_pass() -> dict:
+    """One polling pass: fetch live games, narrow to only those with an
+    open position, evaluate them, alert, and return. No internal loop or
+    sleep -- GitHub Actions' cron cadence (every 15 min as of 2026-09-09,
+    was every 5 min) IS the polling interval now. The old run_live_monitor()
+    ran a 60-second internal loop that GH Actions' `timeout 5m` step killed
+    after ~5 cycles -- since none of the CI jobs installs requests_cache
+    (see requirements.txt vs. the workflow's `pip install` line), every one
+    of those internal cycles was a real, quota-consuming Odds API call, not
+    a cache hit. A single pass per cron tick is what the workflow's own
+    "single pass" comment always assumed.
+
+    Trade-off (15 min vs. 5 min cadence): roughly 3x less odds-quota burn
+    from cadence alone, at the cost of alert latency -- a comeback window
+    that fully opens and closes within a 15-minute gap between polls can be
+    missed entirely. Combined with the open-position filter above, this is
+    judged an acceptable trade against the alternative (the free tier
+    exhausting mid-month and silently blacking out the daily scouts, which
+    is what protecting quota is actually for).
+
+    Returns a summary dict for callers/tests: {"skipped": bool, "reason":
+    str|None, "games_polled": int, "alerts_sent": int}."""
+    print(
+        "[LIVE] Cadence: polling every 15 min (was every 5 min) — trades slower "
+        "in-game alert latency for ~3x less odds-quota burn; a comeback window "
+        "that opens and fully closes within 15 min may be missed."
+    )
+
+    import odds_quota
+
+    disabled, reason = odds_quota.is_live_engine_disabled()
+    if disabled:
+        print(f"[LIVE] Quota guard active — skipping run entirely: {reason}")
+        return {"skipped": True, "reason": f"quota guard: {reason}", "games_polled": 0, "alerts_sent": 0}
+
+    if not _in_live_window():
+        print("[LIVE] Outside live window — skipping run entirely")
+        return {"skipped": True, "reason": "outside live window", "games_polled": 0, "alerts_sent": 0}
+
+    if is_drawdown_pause():
+        _send_telegram("⚠️ DRAWDOWN PAUSE — live betting suspended")
+        return {"skipped": True, "reason": "drawdown pause", "games_polled": 0, "alerts_sent": 0}
+
     init_memory_tables()
     _init_live_tables()
     weights = _load_weights()
-    print("[LIVE] Monitor started — weights:", weights)
-    _send_telegram("🟢 Live monitor online — conviction model active")
 
-    cycle_count = 0
+    today = datetime.now(ET).strftime("%Y-%m-%d")
 
-    while True:
-        if not _in_live_window():
-            time.sleep(CYCLE_SECS)
+    positions = _open_live_positions(today)
+    if not positions:
+        print("[LIVE] no live positions, skipping")
+        return {"skipped": True, "reason": "no live positions, skipping", "games_polled": 0, "alerts_sent": 0}
+
+    try:
+        live_games = _fetch_live_games(today)
+    except Exception as e:
+        print(f"[LIVE] Schedule fetch error: {e}")
+        return {"skipped": True, "reason": f"schedule fetch error: {e}", "games_polled": 0, "alerts_sent": 0}
+
+    parsed = [(g, _parse_game_state(g)) for g in live_games]
+    relevant = [(g, state) for g, state in parsed if _game_has_open_position(state, positions)]
+
+    if not relevant:
+        print(
+            f"[LIVE] no live positions, skipping — {len(positions)} open position(s) "
+            f"but none of their games are currently in progress"
+        )
+        return {"skipped": True, "reason": "no live positions, skipping", "games_polled": 0, "alerts_sent": 0}
+
+    print(f"[LIVE] {len(relevant)}/{len(live_games)} live game(s) have an open position — polling those only")
+
+    dashboard_in_progress = []
+    dashboard_alerts      = []
+    alerts_sent           = 0
+    quota_tripped         = False
+
+    for g, state in relevant:
+        if quota_tripped:
+            break
+
+        game_pk   = state.get("game_pk")
+        away_code = state.get("away_code") or MLB_TEAM_MAP.get(state.get("away_team", ""), "")
+        home_code = state.get("home_code") or MLB_TEAM_MAP.get(state.get("home_team", ""), "")
+
+        if not game_pk:
             continue
 
-        if is_drawdown_pause():
-            _send_telegram("⚠️ DRAWDOWN PAUSE — live betting suspended")
-            time.sleep(300)
-            continue
+        away_tid = MLB_TEAM_IDS.get(away_code)
+        home_tid = MLB_TEAM_IDS.get(home_code)
 
-        today = datetime.now(ET).strftime("%Y-%m-%d")
-
-        # Reload weights every 10 cycles in case they were auto-updated
-        if cycle_count % 10 == 0:
-            weights = _load_weights()
-
-        cycle_count += 1
-
+        # Bullpen state
         try:
-            live_games = _fetch_live_games(today)
-        except Exception as e:
-            print(f"[LIVE] Schedule fetch error: {e}")
-            time.sleep(CYCLE_SECS)
+            bp_away = analyze_bullpen(away_tid, today, label=away_code) if away_tid else {}
+            bp_home = analyze_bullpen(home_tid, today, label=home_code) if home_tid else {}
+        except Exception:
+            bp_away = bp_home = {}
+
+        # Market snapshot (Polymarket + sportsbook lines + line movement) --
+        # the only step in this loop that spends odds quota.
+        try:
+            events = get_mlb_events()
+            event_id = next(
+                (e["id"] for e in events
+                 if state["away_team"] in e.get("away", "") or
+                    state["home_team"] in e.get("home", "")),
+                str(game_pk),
+            )
+            market = full_market_snapshot(
+                event_id, state["away_team"], state["home_team"],
+                away_code, home_code, today,
+            )
+        except Exception:
+            market = {}
+
+        # Hard quota guard: check the usage this call just observed (recorded
+        # by market_engine._odds_request() into odds_quota's shared state) and
+        # stop spending further quota THIS pass, not just on the next one, if
+        # it just crossed 80% of the monthly allowance.
+        snapshot = odds_quota.get_last_snapshot()
+        if odds_quota.maybe_trip_guard(snapshot.get("pct_used")):
+            quota_tripped = True
+
+        # Scoring plays for run quality analysis
+        try:
+            scoring_plays = _fetch_scoring_plays(game_pk)
+        except Exception:
+            scoring_plays = []
+
+        # Dashboard: in-progress entry for every live game
+        inn  = state["inning"]
+        top  = state["top_inning"]
+        ar   = state["away_runs"]
+        hr   = state["home_runs"]
+        cp_name = state["cur_pitcher_name"]
+
+        # Quick quality score for dashboard (no alert logic)
+        nv     = (market.get("no_vig") or {})
+        for side in ("away", "home"):
+            opp   = "home" if side == "away" else "away"
+            our_r = ar if side == "away" else hr
+            opp_r = hr if side == "away" else ar
+            if opp_r <= our_r:
+                continue
+            bp = bp_away if side == "away" else bp_home
+            rq, _  = _score_run_quality(scoring_plays, opp)
+            sp, _  = _score_sp_status(state, side)
+            bpa, _ = _score_bullpen_avail(state, bp, side)
+            lu, _  = _score_lineup_due(state, side)
+            poly_p = (market.get("polymarket") or {}).get(side)
+            mp     = recalibrate_model_prob(nv.get(side, 0.5))
+            pm, _  = _score_poly_misprice(poly_p, mp, side, {})
+            sm, _  = _score_sharp_money(market.get("line_movement"), side)
+            qs     = compute_quality_score(
+                {"run_quality": rq, "sp_status": sp, "bullpen_avail": bpa,
+                 "lineup_due": lu, "poly_misprice": pm, "sharp_money": sm},
+                weights,
+            )
+            dashboard_in_progress.append({
+                "game_pk":       game_pk,
+                "label":         f"{state['away_team']} @ {state['home_team']}",
+                "score":         f"{ar}-{hr}",
+                "inning":        f"{'T' if top else 'B'}{inn}",
+                "pitcher":       cp_name,
+                "quality_score": qs,
+                "trailing":      side.upper(),
+            })
+
+        if state.get("abstract_state") == "Final":
             continue
 
-        dashboard_in_progress = []
-        dashboard_alerts      = []
+        # Run full conviction analysis
+        cycle_alerts = run_live_cycle(
+            state, bp_away, bp_home, market, scoring_plays, weights
+        )
 
-        for g in live_games:
-            state = _parse_game_state(g)
-            game_pk   = state.get("game_pk")
-            away_code = state.get("away_code") or MLB_TEAM_MAP.get(state.get("away_team", ""), "")
-            home_code = state.get("home_code") or MLB_TEAM_MAP.get(state.get("home_team", ""), "")
-
-            if not game_pk:
+        for alert in cycle_alerts:
+            gp  = alert["game_pk"]
+            bs  = alert["bet_side"]
+            if _already_alerted(gp, bs):
                 continue
+            _mark_alerted(gp, bs)
 
-            away_tid = MLB_TEAM_IDS.get(away_code)
-            home_tid = MLB_TEAM_IDS.get(home_code)
-
-            # Bullpen state
-            try:
-                bp_away = analyze_bullpen(away_tid, today, label=away_code) if away_tid else {}
-                bp_home = analyze_bullpen(home_tid, today, label=home_code) if home_tid else {}
-            except Exception:
-                bp_away = bp_home = {}
-
-            # Market snapshot (Polymarket + sportsbook lines + line movement)
-            try:
-                events = get_mlb_events()
-                event_id = next(
-                    (e["id"] for e in events
-                     if state["away_team"] in e.get("away", "") or
-                        state["home_team"] in e.get("home", "")),
-                    str(game_pk),
-                )
-                market = full_market_snapshot(
-                    event_id, state["away_team"], state["home_team"],
-                    away_code, home_code, today,
-                )
-            except Exception:
-                market = {}
-
-            # Scoring plays for run quality analysis
-            try:
-                scoring_plays = _fetch_scoring_plays(game_pk)
-            except Exception:
-                scoring_plays = []
-
-            # Dashboard: in-progress entry for every live game
-            inn  = state["inning"]
-            top  = state["top_inning"]
-            ar   = state["away_runs"]
-            hr   = state["home_runs"]
-            cp_name = state["cur_pitcher_name"]
-            np_label = ""
-
-            # Quick quality score for dashboard (no alert logic)
-            nv     = (market.get("no_vig") or {})
-            for side in ("away", "home"):
-                opp   = "home" if side == "away" else "away"
-                our_r = ar if side == "away" else hr
-                opp_r = hr if side == "away" else ar
-                if opp_r <= our_r:
-                    continue
-                bp = bp_away if side == "away" else bp_home
-                _, rq_note = _score_run_quality(scoring_plays, opp)
-                rq, _  = _score_run_quality(scoring_plays, opp)
-                sp, _  = _score_sp_status(state, side)
-                bpa, _ = _score_bullpen_avail(state, bp, side)
-                lu, _  = _score_lineup_due(state, side)
-                poly_p = (market.get("polymarket") or {}).get(side)
-                mp     = recalibrate_model_prob(nv.get(side, 0.5))
-                pm, _  = _score_poly_misprice(poly_p, mp, side, {})
-                sm, _  = _score_sharp_money(market.get("line_movement"), side)
-                qs     = compute_quality_score(
-                    {"run_quality": rq, "sp_status": sp, "bullpen_avail": bpa,
-                     "lineup_due": lu, "poly_misprice": pm, "sharp_money": sm},
-                    weights,
-                )
-                dashboard_in_progress.append({
-                    "game_pk":       game_pk,
-                    "label":         f"{state['away_team']} @ {state['home_team']}",
-                    "score":         f"{ar}-{hr}",
-                    "inning":        f"{'T' if top else 'B'}{inn}",
-                    "pitcher":       cp_name,
-                    "quality_score": qs,
-                    "trailing":      side.upper(),
-                })
-
-            if state.get("abstract_state") == "Final":
-                continue
-
-            # Run full conviction analysis
-            cycle_alerts = run_live_cycle(
-                state, bp_away, bp_home, market, scoring_plays, weights
+            # Format and send
+            msg = _format_live_alert(
+                state         = alert["state"],
+                scores        = alert["scores"],
+                narratives    = alert["narratives"],
+                quality_score = alert["quality_score"],
+                conviction    = alert["conviction"],
+                poly_price    = alert["poly_price"],
+                model_prob    = alert["model_prob"],
+                best_odds     = alert["best_odds"],
+                best_book     = alert["best_book"],
+                bet_side      = bs,
+                stake         = alert["stake"],
+                bp            = alert["bp"],
+                how_runs_scored = alert["how_runs_scored"],
             )
+            _send_telegram(msg)
+            print(msg)
 
-            for alert in cycle_alerts:
-                gp  = alert["game_pk"]
-                bs  = alert["bet_side"]
-                if _already_alerted(gp, bs):
-                    continue
-                _mark_alerted(gp, bs)
-
-                # Format and send
-                msg = _format_live_alert(
-                    state         = alert["state"],
-                    scores        = alert["scores"],
-                    narratives    = alert["narratives"],
-                    quality_score = alert["quality_score"],
-                    conviction    = alert["conviction"],
-                    poly_price    = alert["poly_price"],
-                    model_prob    = alert["model_prob"],
-                    best_odds     = alert["best_odds"],
-                    best_book     = alert["best_book"],
-                    bet_side      = bs,
-                    stake         = alert["stake"],
-                    bp            = alert["bp"],
-                    how_runs_scored = alert["how_runs_scored"],
+            # Log to DB
+            alert_id = _log_alert(
+                game_pk         = gp,
+                game_label      = alert["game_label"],
+                bet_side        = bs,
+                inning          = alert["inning"],
+                deficit         = alert["deficit"],
+                quality_score   = alert["quality_score"],
+                scores          = alert["scores"],
+                poly_price      = alert["poly_price"],
+                model_prob      = alert["model_prob"],
+                entry_odds      = str(alert["best_odds"]),
+                stake           = alert["stake"],
+                conviction      = alert["conviction"],
+                how_runs_scored = alert["how_runs_scored"],
+            )
+            # Also keep compat with memory_engine live_bet_memory
+            try:
+                record_live_bet(
+                    str(gp), alert["team"],
+                    datetime.now(ET).isoformat(),
+                    str(alert["best_odds"]),
+                    int(alert["quality_score"]),
                 )
-                _send_telegram(msg)
-                print(msg)
+            except Exception:
+                pass
 
-                # Log to DB
-                alert_id = _log_alert(
-                    game_pk         = gp,
-                    game_label      = alert["game_label"],
-                    bet_side        = bs,
-                    inning          = alert["inning"],
-                    deficit         = alert["deficit"],
-                    quality_score   = alert["quality_score"],
-                    scores          = alert["scores"],
-                    poly_price      = alert["poly_price"],
-                    model_prob      = alert["model_prob"],
-                    entry_odds      = str(alert["best_odds"]),
-                    stake           = alert["stake"],
-                    conviction      = alert["conviction"],
-                    how_runs_scored = alert["how_runs_scored"],
-                )
-                # Also keep compat with memory_engine live_bet_memory
-                try:
-                    record_live_bet(
-                        str(gp), alert["team"],
-                        datetime.now(ET).isoformat(),
-                        str(alert["best_odds"]),
-                        int(alert["quality_score"]),
-                    )
-                except Exception:
-                    pass
+            dashboard_alerts.append({
+                "game_pk":       gp,
+                "game":          alert["game_label"],
+                "side":          bs,
+                "inning":        alert["inning"],
+                "quality_score": alert["quality_score"],
+                "conviction":    alert["conviction"],
+                "odds":          alert["best_odds"],
+                "stake":         alert["stake"],
+            })
+            alerts_sent += 1
 
-                dashboard_alerts.append({
-                    "game_pk":       gp,
-                    "game":          alert["game_label"],
-                    "side":          bs,
-                    "inning":        alert["inning"],
-                    "quality_score": alert["quality_score"],
-                    "conviction":    alert["conviction"],
-                    "odds":          alert["best_odds"],
-                    "stake":         alert["stake"],
-                })
+            # Auto-learn check after logging
+            _maybe_learn_weights()
 
-                # Auto-learn check after logging
-                _maybe_learn_weights()
+    _update_dashboard(dashboard_in_progress, dashboard_alerts)
 
-        _update_dashboard(dashboard_in_progress, dashboard_alerts)
+    final_snapshot = odds_quota.get_last_snapshot()
+    pct = final_snapshot.get("pct_used")
+    print(
+        f"[QUOTA] end of pass — remaining={final_snapshot.get('remaining')} "
+        f"used={final_snapshot.get('used')} "
+        + (f"({pct * 100:.1f}% of {odds_quota.MONTHLY_ALLOWANCE}/mo)" if pct is not None else "(no allowance data)")
+    )
+
+    return {
+        "skipped":      False,
+        "reason":       "quota guard tripped mid-pass" if quota_tripped else None,
+        "games_polled": len(relevant),
+        "alerts_sent":  alerts_sent,
+    }
+
+
+def run_live_monitor():
+    """Continuous local/manual loop: calls run_live_pass() every CYCLE_SECS.
+    GitHub Actions no longer uses this -- brain.py's --live now calls
+    run_live_pass() once per cron invocation instead. Kept for local/manual
+    continuous testing only."""
+    print("[LIVE] Continuous monitor started (local/manual use only) — weights:", _load_weights())
+    _send_telegram("🟢 Live monitor online — conviction model active")
+    while True:
+        try:
+            run_live_pass()
+        except Exception as e:
+            print(f"[LIVE] cycle error: {e}")
         time.sleep(CYCLE_SECS)
 
 

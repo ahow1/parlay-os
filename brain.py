@@ -6512,8 +6512,13 @@ if __name__ == "__main__":
         start_listener()
         start_auto_settler()
         start_hedge_monitor()
-        from live_engine import run_live_monitor
-        run_live_monitor()
+        # Single pass, not the old continuous run_live_monitor() loop -- GH
+        # Actions' cron cadence (every 15 min as of 2026-09-09) IS the
+        # polling interval now (see live_engine.run_live_pass()'s docstring
+        # for why the old internal 60-second loop burned far more odds
+        # quota than the cron schedule alone implied).
+        from live_engine import run_live_pass
+        run_live_pass()
 
     elif "--debrief" in args:
         _run_debrief()
