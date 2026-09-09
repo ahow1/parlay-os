@@ -277,6 +277,10 @@ def api_edges():
 
 @app.route("/api/clv")
 def api_clv():
+    # Raw history, unfiltered -- kept for reference/audit (never deleted).
+    # Every entry here predates the game-time-aware capture pipeline (see
+    # bankroll_engine.capture_pre_game_clv) and must not be treated as a
+    # performance stat -- see api_summary/api_record, which exclude it.
     return jsonify(_load_json("clv_log.json") or [])
 
 
@@ -294,8 +298,14 @@ def api_summary():
     roi           = total_pnl / STARTING_BANKROLL * 100
     total_wagered = sum(float(b.get("stake") or 0) for b in resolved if b["result"] != "P")
 
+    # clv_log.json predates (and is untouched by) the game-time-aware
+    # capture rewrite -- every entry in it was captured post-game at
+    # settlement time, not near first pitch, so none of it measures real
+    # closing-line value. source_methodology forces clv_stats_summary to
+    # treat the whole file as unreliable and exclude it, same as a real
+    # per-row methodology='v1-unreliable' tag would.
     clv_log   = _load_json("clv_log.json") or []
-    clv_stats = clv_stats_summary(clv_log)
+    clv_stats = clv_stats_summary(clv_log, source_methodology="v1-unreliable")
 
     return jsonify({
         "date":             today,
@@ -304,6 +314,7 @@ def api_summary():
         "wins":             wins,
         "losses":           losses,
         "avg_clv":          clv_stats.get("avg_clv"),
+        "clv_note":         clv_stats.get("methodology_note"),
         "roi":              round(roi, 2),
         "current_bankroll": bankroll,
         "total_bets":       len(resolved),
@@ -331,8 +342,10 @@ def api_record():
     total_pnl = bankroll - starting
     roi       = total_pnl / starting * 100
 
+    # See api_summary -- clv_log.json is entirely pre-rewrite, post-game-fetch
+    # data and must be excluded from every aggregate figure below.
     clv_log   = _load_json("clv_log.json") or []
-    clv_stats = clv_stats_summary(clv_log)
+    clv_stats = clv_stats_summary(clv_log, source_methodology="v1-unreliable")
 
     by_conviction: dict = {}
     for b in resolved:
@@ -443,11 +456,12 @@ def api_record():
     best_bet  = dict(_best)  if _best  else None
     worst_bet = dict(_worst) if _worst else None
 
-    clv_vals = [b.get("clv_pct") for b in resolved if b.get("clv_pct") is not None]
-    clv_positive_rate = (
-        round(sum(1 for v in clv_vals if v > 0) / len(clv_vals) * 100, 1)
-        if clv_vals else clv_stats.get("positive_rate")
-    )
+    # bets.clv_pct is set at settlement time by the same untouched, pre-
+    # rewrite post-game odds fetch as clv_log.json -- not a closing line
+    # either, so it must never feed this stat. clv_stats (already computed
+    # as fully excluded above) is the only source for the positive-rate
+    # figure now.
+    clv_positive_rate = clv_stats.get("pos_clv_pct")
 
     return jsonify({
         "wins":              wins,
@@ -458,6 +472,7 @@ def api_record():
         "roi":               round(roi, 2),
         "avg_clv":           clv_stats.get("avg_clv"),
         "clv_positive_rate": clv_positive_rate,
+        "clv_note":          clv_stats.get("methodology_note"),
         "by_conviction":     by_conviction,
         "by_type":           by_type,
         "by_month":          by_month,

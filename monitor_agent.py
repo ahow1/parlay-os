@@ -192,14 +192,17 @@ def check_clv_loop_activity() -> dict:
     """Is CLV capture actually writing rows? clv_log now carries a real
     capture_offset_min per row, but the simplest activity signal is still:
     if there are pending bets logged today, has anything been captured for
-    today at all (regardless of which checkpoint)."""
+    today at all (regardless of which checkpoint). include_unreliable=True
+    because this is purely an operational "is the loop alive" check, not a
+    performance stat -- it should fire on any captured row, methodology
+    aside (methodology only matters for track-record/aggregate figures)."""
     today = _utc_now().date().isoformat()
     pending_today = [b for b in _db.get_bets(date=today)
                      if not b.get("result") and (b.get("stake") or 0) > 0]
     if not pending_today:
         return {"ok": True, "detail": "no staked pending bets today to capture CLV for"}
 
-    todays_clv = [c for c in _db.get_clv_log(days=1) if c.get("date") == today]
+    todays_clv = [c for c in _db.get_clv_log(days=1, include_unreliable=True) if c.get("date") == today]
     ok = len(todays_clv) > 0
     return {
         "ok": ok,

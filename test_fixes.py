@@ -414,12 +414,16 @@ class TestCLVCapture:
         tmp_db = str(tmp_path / "test_fixes_clv.db")
         with patch.object(db, "DB_PATH", tmp_db):
             db.init_db()
-            # Simulate writing a CLV log entry directly
+            # Simulate writing a CLV log entry directly, as the real
+            # game-time-aware pipeline does (a real capture_offset_bucket
+            # is what makes a row methodology='v2-gametime' and therefore
+            # countable -- see db.log_clv / the historical-data quarantine).
             db.log_clv(
                 date="2026-05-27", bet="SF", bet_type="ML",
                 game="SF @ LAD", sp="Logan Webb", park="LAD", umpire="",
                 bet_odds="+145", closing_odds="+130",
                 clv_pct=3.5, result=None, model="12-factor", edge_pct=16.0,
+                capture_offset_min=90, capture_offset_bucket="LOG",
             )
             rows = db.get_clv_log(days=1)
         assert len(rows) >= 1, "clv_log must record closing odds"

@@ -185,15 +185,62 @@ def kelly_criterion(ml: str, true_prob_pct: float, bankroll: float = 100, fracti
     }
 
 
-def clv_stats_summary(log: list) -> dict:
-    """Full CLV performance stats. The only honest measure of long-term edge."""
+_CLV_UNRELIABLE_METHODOLOGY = "v1-unreliable"
+
+
+def clv_stats_summary(log: list, include_unreliable: bool = False,
+                       source_methodology: str | None = None) -> dict:
+    """Full CLV performance stats. The only honest measure of long-term edge.
+
+    include_unreliable: when False (default), rows whose methodology is
+    'v1-unreliable' are dropped from every figure below. Those rows were
+    captured before the pre-game capture pipeline became game-time aware
+    (see bankroll_engine.capture_pre_game_clv) -- often ~15 minutes after
+    the bet was logged rather than near first pitch -- so they don't
+    measure real closing-line value and must never count toward a track
+    record. Pass True only for an explicit audit/debug view of the raw
+    historical data.
+
+    source_methodology: some callers feed a list whose entries don't carry
+    a per-row "methodology" key at all (e.g. clv_log.json, the separate
+    post-game auto-settler pipeline, which predates this and was never
+    updated to capture near game time either) -- pass e.g. 'v1-unreliable'
+    to treat every row in `log` as tagged with that value, instead of
+    reading (and finding absent) a per-row field.
+    """
+    def _methodology(b: dict):
+        return source_methodology if source_methodology is not None else b.get("methodology")
+
+    eligible = log if include_unreliable else [
+        b for b in log if _methodology(b) != _CLV_UNRELIABLE_METHODOLOGY
+    ]
+
     resolved = [
-        b for b in log
+        b for b in eligible
         if b.get("closing_odds") and b.get("bet_odds")
         and b.get("result") in ["W", "L", "P"]
     ]
+
+    excluded_unreliable = 0
+    if not include_unreliable:
+        excluded_unreliable = sum(
+            1 for b in log
+            if _methodology(b) == _CLV_UNRELIABLE_METHODOLOGY
+            and b.get("closing_odds") and b.get("bet_odds")
+            and b.get("result") in ["W", "L", "P"]
+        )
+    methodology_note = (
+        f"{excluded_unreliable} historical row{'s' if excluded_unreliable != 1 else ''} "
+        "excluded (pre-2026-09 capture methodology)"
+        if excluded_unreliable else None
+    )
+
     if not resolved:
-        return {"total": 0, "verdict": "No data yet — need 100+ bets"}
+        out = {"total": 0, "verdict": "No data yet — need 100+ bets"}
+        if excluded_unreliable:
+            out["excluded_unreliable"] = excluded_unreliable
+            out["methodology_note"] = methodology_note
+        return out
 
     clv_vals, wins, losses, pushes, units = [], 0, 0, 0, 0.0
     by_type = {}
@@ -241,7 +288,7 @@ def clv_stats_summary(log: list) -> dict:
             "count":    tot,
         }
 
-    return {
+    out = {
         "total":       len(resolved),
         "wins":        wins,
         "losses":      losses,
@@ -263,6 +310,10 @@ def clv_stats_summary(log: list) -> dict:
             if len(resolved) < 100 else "Sufficient sample size"
         )
     }
+    if excluded_unreliable:
+        out["excluded_unreliable"] = excluded_unreliable
+        out["methodology_note"] = methodology_note
+    return out
 
 
 class BankrollManager:

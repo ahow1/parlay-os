@@ -483,17 +483,19 @@ def handle_bankroll() -> str:
 
     bets     = _db.get_bets()
     resolved = [b for b in bets if b.get("result") in ("W", "L", "P")]
-    clv_vals = [b["clv_pct"] for b in resolved if b.get("clv_pct") is not None]
-    clv_line = ""
-    if clv_vals:
-        avg_clv   = round(sum(clv_vals) / len(clv_vals), 2)
-        pos_pct   = round(sum(1 for v in clv_vals if v > 0) / len(clv_vals) * 100, 0)
-        clv_sign  = "+" if avg_clv >= 0 else ""
-        verdict   = "SHARP" if avg_clv > 4 else "+EV" if avg_clv > 1 else "NEUTRAL" if avg_clv > -1 else "-EV"
-        clv_line  = (
-            f"\nCLV: {clv_sign}{avg_clv:.2f}% avg | {pos_pct:.0f}% positive | {verdict}"
-            f" ({len(clv_vals)} of {len(resolved)} settled)"
-        )
+    # bets.clv_pct is set at settlement time by the pre-rewrite post-game
+    # odds fetch (see CLAUDE.md's CLV capture rewrite) -- it was never
+    # updated to measure a real closing line, so it can never feed this
+    # figure. Every historical resolved bet with a clv_pct is exactly the
+    # "v1-unreliable" data the rewrite quarantines elsewhere (clv_log);
+    # show the exclusion note instead of a number that looks precise but
+    # isn't measuring what it claims to.
+    excluded = sum(1 for b in resolved if b.get("clv_pct") is not None)
+    clv_line = (
+        f"\nCLV: no data yet ({excluded} historical row"
+        f"{'s' if excluded != 1 else ''} excluded — pre-2026-09 capture methodology)"
+        if excluded else ""
+    )
 
     return (
         f"\U0001f4b0 Bankroll: ${bd['bankroll']:.2f}\n"

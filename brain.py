@@ -6176,13 +6176,18 @@ def _run_weekly_roi():
     peak    = _peak_br()
     sign    = "+" if pnl >= 0 else ""
 
+    # clv_log.json predates (and is untouched by) the game-time-aware CLV
+    # capture rewrite -- every entry was fetched post-game at settlement
+    # time, not near first pitch, so none of it is real closing-line value.
+    # source_methodology forces it fully excluded, same as a real
+    # methodology='v1-unreliable' tag would.
     clv_data = []
     try:
         with open("clv_log.json") as f:
             clv_data = json.load(f)
     except Exception:
         pass
-    clv_stats = clv_stats_summary(clv_data) if clv_data else {}
+    clv_stats = clv_stats_summary(clv_data, source_methodology="v1-unreliable") if clv_data else {}
 
     lines = [
         f"📊 WEEKLY ROI REPORT — {date.today().strftime('%b %d, %Y')}",
@@ -6212,6 +6217,9 @@ def _run_weekly_roi():
     sample  = clv_stats.get("sample_size", "")
     if sample:
         lines.append(sample)
+    note = clv_stats.get("methodology_note")
+    if note:
+        lines.append(note)
 
     msg = "\n".join(lines)
     print(msg)

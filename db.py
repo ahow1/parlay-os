@@ -253,7 +253,8 @@ def init_db():
             edge_pct               REAL,
             capture_offset_min     INTEGER,
             capture_offset_bucket  TEXT,
-            is_closing             INTEGER DEFAULT 0
+            is_closing             INTEGER DEFAULT 0,
+            methodology            TEXT DEFAULT 'v2-gametime'
         );
 
         CREATE TABLE IF NOT EXISTS scout_output (
@@ -468,11 +469,31 @@ def init_db():
             "ALTER TABLE clv_log ADD COLUMN capture_offset_min INTEGER",
             "ALTER TABLE clv_log ADD COLUMN capture_offset_bucket TEXT",
             "ALTER TABLE clv_log ADD COLUMN is_closing INTEGER DEFAULT 0",
+            # Historical-data quarantine: every row written before the
+            # capture_offset_bucket rewrite above was captured ~15 min after
+            # the bet was logged (a blind global timer), not near game time
+            # -- it does not measure real closing-line value. New rows
+            # (always carrying a real capture_offset_bucket -- see log_clv)
+            # default to 'v2-gametime'; the backfill just below explicitly
+            # downgrades every row that predates that column to
+            # 'v1-unreliable' so old data can never silently count as good.
+            "ALTER TABLE clv_log ADD COLUMN methodology TEXT DEFAULT 'v2-gametime'",
         ]:
             try:
                 conn.execute(ddl)
             except sqlite3.OperationalError:
                 pass  # column already exists
+        # Quarantine backfill (idempotent -- see log_clv, which always sets
+        # methodology='v1-unreliable' itself for any bucket-less row too, so
+        # this UPDATE only ever matters for rows that existed before this
+        # migration ever ran): a NULL capture_offset_bucket is structurally
+        # impossible for any row the new pipeline ever writes (log_clv always
+        # passes a real bucket), so it uniquely identifies pre-rewrite rows
+        # regardless of what the methodology column's own DEFAULT says.
+        conn.execute("""
+            UPDATE clv_log SET methodology = 'v1-unreliable'
+            WHERE capture_offset_bucket IS NULL
+        """)
         # Zero out pending bets' profit placeholder only — wins are repaired below
         conn.execute("""
             UPDATE bets SET profit = 0
@@ -855,17 +876,25 @@ def log_clv(date, bet, bet_type, game, sp, park, umpire,
     """Insert one capture row. Returns True if a new row was written, False
     if (date, bet, bet_type, capture_offset_bucket) was already captured --
     the DB-level dedup guarantee backing capture_pre_game_clv()'s own
-    app-level checkpoint bookkeeping (idx_clv_log_dedup)."""
+    app-level checkpoint bookkeeping (idx_clv_log_dedup).
+
+    methodology is derived here, not left to the column's own DEFAULT:
+    a real capture_offset_bucket only ever exists on rows the game-time-
+    aware pipeline wrote ('v2-gametime'); a caller that omits it (as every
+    pre-rewrite writer did) gets 'v1-unreliable' explicitly, so a row's
+    trustworthiness never depends on migration timing or the schema
+    default alone."""
+    methodology = "v2-gametime" if capture_offset_bucket else "v1-unreliable"
     with _conn() as conn:
         cur = conn.execute("""
             INSERT OR IGNORE INTO clv_log
               (date, bet, type, game, sp, park, umpire, bet_odds,
                closing_odds, clv_pct, result, model, edge_pct,
-               capture_offset_min, capture_offset_bucket)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               capture_offset_min, capture_offset_bucket, methodology)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (date, bet, bet_type, game, sp, park, umpire, bet_odds,
               closing_odds, clv_pct, result, model, edge_pct,
-              capture_offset_min, capture_offset_bucket))
+              capture_offset_min, capture_offset_bucket, methodology))
         return cur.rowcount > 0
 
 
@@ -909,14 +938,25 @@ def recompute_is_closing(date: str, bet: str, bet_type: str) -> None:
             conn.execute("UPDATE clv_log SET is_closing=1 WHERE id=?", (row["id"],))
 
 
-def get_clv_log(days=30, closing_only=False):
+def get_clv_log(days=30, closing_only=False, include_unreliable=False):
     """closing_only=True returns just each bet's is_closing=1 row -- the
     right filter for anything reading "the" CLV number for a bet (grading,
-    dashboards, the Analyst) now that a bet can have many trajectory rows."""
+    dashboards, the Analyst) now that a bet can have many trajectory rows.
+
+    include_unreliable=False (default) excludes methodology='v1-unreliable'
+    rows -- pre-rewrite captures that were never actually taken near game
+    time and must never count in a track record or stat. Pass True only
+    for an explicit audit/debug view of the full raw history (rows are
+    never deleted -- see the clv_log migration backfill in init_db)."""
     with _conn() as conn:
         q = "SELECT * FROM clv_log"
+        where = []
         if closing_only:
-            q += " WHERE is_closing=1"
+            where.append("is_closing=1")
+        if not include_unreliable:
+            where.append("methodology != 'v1-unreliable'")
+        if where:
+            q += " WHERE " + " AND ".join(where)
         q += " ORDER BY date DESC, id DESC LIMIT ?"
         rows = conn.execute(q, (days * 10,))
         return [dict(r) for r in rows]
