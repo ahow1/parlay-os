@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-09-09T14:00:48Z",
+  "timestamp": "2026-09-09T18:12:10Z",
   "date": "2026-09-09",
-  "window": "all",
+  "window": "day",
   "bankroll": 300.0,
   "games": [
     {
@@ -9,335 +9,46 @@
       "home": "DET",
       "away_model": 0.5463,
       "home_model": 0.4687,
-      "away_edge": 9.83,
-      "home_edge": -8.33,
-      "away_xr": 4.534,
-      "home_xr": 4.103
-    },
-    {
-      "away": "TOR",
-      "home": "ATH",
-      "away_model": 0.5399,
-      "home_model": 0.4736,
-      "away_edge": -7.54,
-      "home_edge": 8.89,
-      "away_xr": 4.124,
-      "home_xr": 4.757
-    },
-    {
-      "away": "STL",
-      "home": "SF",
-      "away_model": 0.522,
-      "home_model": 0.4914,
-      "away_edge": -2.41,
-      "home_edge": 3.75,
-      "away_xr": 4.476,
-      "home_xr": 4.322
-    },
-    {
-      "away": "WAS",
-      "home": "SD",
-      "away_model": 0.4775,
-      "home_model": 0.536,
-      "away_edge": 10.63,
-      "home_edge": -9.28,
-      "away_xr": 3.763,
-      "home_xr": 4.188
-    },
-    {
-      "away": "TEX",
-      "home": "SEA",
-      "away_model": 0.5215,
-      "home_model": 0.474,
-      "away_edge": 9.31,
-      "home_edge": -9.76,
-      "away_xr": 5.586,
-      "home_xr": 4.374
-    },
-    {
-      "away": "CLE",
-      "home": "BAL",
-      "away_model": 0.5261,
-      "home_model": 0.4874,
-      "away_edge": 0.43,
-      "home_edge": 0.92,
-      "away_xr": 4.143,
-      "home_xr": 3.75
-    },
-    {
-      "away": "HOU",
-      "home": "PHI",
-      "away_model": 0.5046,
-      "home_model": 0.4909,
-      "away_edge": 8.21,
-      "home_edge": -8.66,
-      "away_xr": 3.5,
-      "home_xr": 3.784
-    },
-    {
-      "away": "NYM",
-      "home": "MIA",
-      "away_model": 0.5154,
-      "home_model": 0.48,
-      "away_edge": 4.81,
-      "home_edge": -5.27,
-      "away_xr": 5.26,
-      "home_xr": 5.1
-    },
-    {
-      "away": "LAA",
-      "home": "BOS",
-      "away_model": 0.4663,
-      "home_model": 0.5202,
-      "away_edge": 12.25,
-      "home_edge": -13.6,
-      "away_xr": 3.686,
-      "home_xr": 4.786
-    },
-    {
-      "away": "COL",
-      "home": "NYY",
-      "away_model": 0.4429,
-      "home_model": 0.5436,
-      "away_edge": 13.08,
-      "home_edge": -14.43,
-      "away_xr": 4.212,
-      "home_xr": 4.554
-    },
-    {
-      "away": "TB",
-      "home": "ATL",
-      "away_model": 0.5709,
-      "home_model": 0.4253,
-      "away_edge": 9.72,
-      "home_edge": -10.1,
-      "away_xr": 5.053,
-      "home_xr": 3.5
-    },
-    {
-      "away": "AZ",
-      "home": "KC",
-      "away_model": 0.495,
-      "home_model": 0.5004,
-      "away_edge": -2.68,
-      "home_edge": 2.22,
-      "away_xr": 4.5,
-      "home_xr": 5.011
-    },
-    {
-      "away": "CHC",
-      "home": "MIL",
-      "away_model": 0.5012,
-      "home_model": 0.5123,
-      "away_edge": 4.02,
-      "home_edge": -2.67,
-      "away_xr": 4.147,
-      "home_xr": 4.562
-    },
-    {
-      "away": "PIT",
-      "home": "CWS",
-      "away_model": 0.5227,
-      "home_model": 0.4728,
-      "away_edge": 10.37,
-      "home_edge": -10.82,
-      "away_xr": 4.326,
-      "home_xr": 4.354
-    },
-    {
-      "away": "CIN",
-      "home": "LAD",
-      "away_model": 0.48,
-      "home_model": 0.5335,
-      "away_edge": 19.35,
-      "home_edge": -18.0,
-      "away_xr": 3.739,
-      "home_xr": 5.044
+      "away_edge": 7.9,
+      "home_edge": -6.4,
+      "away_xr": 4.438,
+      "home_xr": 4.016
     }
   ],
   "bets": [
     {
-      "team": "Cincinnati Reds",
+      "team": "Minnesota Twins",
       "side": "away",
-      "game": "Cincinnati Reds @ Los Angeles Dodgers",
-      "odds": 241,
+      "game": "Minnesota Twins @ Detroit Tigers",
+      "odds": 109,
       "book": "betonlineag",
-      "model_prob": 0.48,
-      "market_prob": 0.2865,
-      "edge_pct": 19.35,
-      "stake": 40.0,
+      "model_prob": 0.5463,
+      "market_prob": 0.4673,
+      "edge_pct": 7.9,
+      "stake": 30.0,
       "conviction": "HIGH",
-      "confidence_score": 89,
-      "sp": "Rhett Lowder",
-      "sp_era": 5.43,
-      "sp_xfip": 4.81,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": -7.7,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.3,
-        "home_win_rate": 0.7,
-        "avg_total": 6.8,
-        "over_rate": 0.3
-      }
-    },
-    {
-      "team": "Colorado Rockies",
-      "side": "away",
-      "game": "Colorado Rockies @ New York Yankees",
-      "odds": 220,
-      "book": "betrivers",
-      "model_prob": 0.4429,
-      "market_prob": 0.3121,
-      "edge_pct": 13.08,
-      "stake": 25.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 90,
-      "sp": "Tomoyuki Sugano",
-      "sp_era": 5.19,
-      "sp_xfip": 4.75,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 7.6,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 7,
-        "away_win_rate": 0.286,
-        "home_win_rate": 0.714,
-        "avg_total": 9.0,
-        "over_rate": 0.571
-      }
-    },
-    {
-      "team": "Pittsburgh Pirates",
-      "side": "away",
-      "game": "Pittsburgh Pirates @ Chicago White Sox",
-      "odds": 133,
-      "book": "lowvig",
-      "model_prob": 0.5227,
-      "market_prob": 0.419,
-      "edge_pct": 10.37,
-      "stake": 25.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 77,
-      "sp": "Lake Bachar",
-      "sp_era": 3.59,
-      "sp_xfip": 4.31,
+      "confidence_score": 88,
+      "sp": "Zebby Matthews",
+      "sp_era": 4.69,
+      "sp_xfip": 4.11,
       "sp_yrfi_lean": true,
       "bullpen_tier": null,
       "weather_adj": null,
-      "platoon_edge": 10.1,
+      "platoon_edge": 7.4,
       "h2h": {
         "h2h_available": true,
-        "n_games": 7,
-        "away_win_rate": 0.571,
-        "home_win_rate": 0.429,
-        "avg_total": 10.29,
-        "over_rate": 0.714
+        "n_games": 10,
+        "away_win_rate": 0.6,
+        "home_win_rate": 0.4,
+        "avg_total": 11.3,
+        "over_rate": 0.8
       }
     }
   ],
-  "passes": [
-    {
-      "game": "Minnesota Twins @ Detroit Tigers",
-      "edges": {
-        "away": 9.83,
-        "home": -8.33
-      }
-    },
-    {
-      "game": "Toronto Blue Jays @ Athletics",
-      "edges": {
-        "away": -7.54,
-        "home": 8.89
-      }
-    },
-    {
-      "game": "St. Louis Cardinals @ San Francisco Giants",
-      "edges": {
-        "away": -2.41,
-        "home": 3.75
-      }
-    },
-    {
-      "game": "Washington Nationals @ San Diego Padres",
-      "edges": {
-        "away": 10.63,
-        "home": -9.28
-      }
-    },
-    {
-      "game": "Texas Rangers @ Seattle Mariners",
-      "edges": {
-        "away": 9.31,
-        "home": -9.76
-      }
-    },
-    {
-      "game": "Cleveland Guardians @ Baltimore Orioles",
-      "edges": {
-        "away": 0.43,
-        "home": 0.92
-      }
-    },
-    {
-      "game": "Houston Astros @ Philadelphia Phillies",
-      "edges": {
-        "away": 8.21,
-        "home": -8.66
-      }
-    },
-    {
-      "game": "New York Mets @ Miami Marlins",
-      "edges": {
-        "away": 4.81,
-        "home": -5.27
-      }
-    },
-    {
-      "game": "Los Angeles Angels @ Boston Red Sox",
-      "edges": {
-        "away": 12.25,
-        "home": -13.6
-      }
-    },
-    {
-      "game": "Tampa Bay Rays @ Atlanta Braves",
-      "edges": {
-        "away": 9.72,
-        "home": -10.1
-      }
-    },
-    {
-      "game": "Arizona Diamondbacks @ Kansas City Royals",
-      "edges": {
-        "away": -2.68,
-        "home": 2.22
-      }
-    },
-    {
-      "game": "Chicago Cubs @ Milwaukee Brewers",
-      "edges": {
-        "away": 4.02,
-        "home": -2.67
-      }
-    }
-  ],
+  "passes": [],
   "slip_sent": true,
   "sent_pick_ids": [
-    "ER:Andre Pallante:2.0:OVER",
-    "ER:Blade Tidwell:3.0:OVER",
-    "ER:Braydon Fisher:2.0:OVER",
-    "ER:Daniel Lynch IV:2.5:OVER",
-    "ER:Foster Griffin:2.0:OVER",
     "ER:Keider Montero:2.5:OVER",
-    "ER:Lake Bachar:2.5:OVER",
-    "ER:Logan Henderson:1.5:OVER",
-    "ER:Zac Gallen:3.5:UNDER",
     "HITTER:Brett Callahan:DET:SO O0.5",
     "HITTER:Brooks Lee:MIN:HR O0.5",
     "HITTER:Brooks Lee:MIN:RBI O0.5",
@@ -353,46 +64,15 @@
     "HITTER:Riley Greene:DET:RBI O0.5",
     "HITTER:Riley Greene:DET:SO O0.5",
     "HITTER:Riley Greene:DET:TB O1.5",
-    "KPROP:Andre Pallante:3.5",
-    "KPROP:Blade Tidwell:4.2",
-    "KPROP:Brady Basso:3.6",
-    "KPROP:Braydon Fisher:4.8",
-    "KPROP:Cristopher S\u00e1nchez:5.7",
-    "KPROP:Daniel Lynch IV:3.5",
-    "KPROP:Foster Griffin:4.4",
-    "KPROP:Jake Bennett:4.1",
     "KPROP:Keider Montero:3.4",
-    "KPROP:Lake Bachar:5.1",
-    "KPROP:Logan Henderson:5.6",
-    "KPROP:Rhett Lowder:3.9",
-    "KPROP:Shane Baz:4.4",
-    "KPROP:Will Warren:4.9",
-    "KPROP:Yoshinobu Yamamoto:4.9",
-    "ML:Cincinnati Reds:241",
-    "ML:Colorado Rockies:220",
-    "ML:Pittsburgh Pirates:133",
-    "NRFI:Arizona Diamondbacks @ Kansas City Royals:YRFI",
-    "NRFI:Colorado Rockies @ New York Yankees:YRFI",
-    "NRFI:Los Angeles Angels @ Boston Red Sox:YRFI",
-    "NRFI:New York Mets @ Miami Marlins:YRFI",
-    "NRFI:Texas Rangers @ Seattle Mariners:YRFI",
-    "NRFI:Washington Nationals @ San Diego Padres:YRFI",
-    "TOT:Arizona Diamondbacks @ Kansas City Royals:OVER:8.5",
-    "TOT:Chicago Cubs @ Milwaukee Brewers:OVER:7.5",
-    "TOT:Cleveland Guardians @ Baltimore Orioles:UNDER:8.5",
-    "TOT:Colorado Rockies @ New York Yankees:UNDER:9.0",
-    "TOT:Houston Astros @ Philadelphia Phillies:UNDER:8.0",
-    "TOT:Los Angeles Angels @ Boston Red Sox:UNDER:9.0",
-    "TOT:New York Mets @ Miami Marlins:OVER:8.5",
-    "TOT:Toronto Blue Jays @ Athletics:UNDER:9.5",
-    "TOT:Washington Nationals @ San Diego Padres:UNDER:8.0"
+    "ML:Minnesota Twins:109"
   ],
   "slip_quality": "good",
   "data_health": {
     "odds": "live",
     "fangraphs_sp": "live",
     "savant": "degraded",
-    "lineups": "degraded",
+    "lineups": "live",
     "savant_bullpen_stuff": "live",
     "savant_bat_tracking": "live",
     "savant_park_of_defense": "live",
@@ -400,9 +80,7 @@
     "savant_arm_angle": "live",
     "h2h": "live"
   },
-  "sp_missing_suppressed": [
-    "Tampa Bay Rays"
-  ],
+  "sp_missing_suppressed": [],
   "analysis_failures": [],
   "persist_failures": []
 }
