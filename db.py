@@ -962,6 +962,25 @@ def get_clv_log(days=30, closing_only=False, include_unreliable=False):
         return [dict(r) for r in rows]
 
 
+def get_clv_log_for_date(date: str, closing_only=False, include_unreliable=False) -> list[dict]:
+    """Every clv_log row for one exact date, no row cap -- get_clv_log()'s
+    `days * 10` LIMIT is sized for "recent history" browsing across
+    possibly many dates, not "give me everything from a single busy
+    slate" (B1's trajectory rewrite alone can put a dozen+ rows on one
+    bet; a slate can have dozens of bets), so it silently undercounts if
+    used for that. Used by monitor_agent's CLV-capture-coverage check,
+    which needs an exact count."""
+    with _conn() as conn:
+        q = "SELECT * FROM clv_log WHERE date=?"
+        params: list = [date]
+        if closing_only:
+            q += " AND is_closing=1"
+        if not include_unreliable:
+            q += " AND methodology != 'v1-unreliable'"
+        rows = conn.execute(q, params)
+        return [dict(r) for r in rows]
+
+
 # ─── ANALYST FINDINGS (Agent 2) ────────────────────────────────────────────────
 # Mirrors agent_memory/knowledge_base.json (the append-only source of truth the
 # agent itself reads/writes) so a future Validation agent can query findings via

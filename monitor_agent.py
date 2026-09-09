@@ -35,6 +35,8 @@ LAST_SCOUT_FILE     = "last_scout.json"
 ERRORS_LOG_FILE     = "errors.log"
 ERROR_SPIKE_THRESHOLD = 10   # ERROR-level lines in the trailing hour
 NEUTRAL_FALLBACK_RATE_THRESHOLD = 0.40  # fraction of today's picks with >=1 fallback flag
+CLV_COVERAGE_MISSING_THRESHOLD = 0.10   # fraction of past-commence bets missing a closing CLV capture
+CLV_COVERAGE_GRACE_MIN = 10             # minutes past commence before a missing capture counts as a failure
 
 BOT_TOKEN     = os.getenv("TELEGRAM_BOT_TOKEN", "")
 ALERT_CHAT_ID = os.getenv("TELEGRAM_ALERT_CHAT_ID", os.getenv("TELEGRAM_CHAT_ID", ""))
@@ -210,6 +212,78 @@ def check_clv_loop_activity() -> dict:
     }
 
 
+def check_clv_capture_coverage() -> dict:
+    """Catches CLV-capture failures from the receiving end (complements
+    check_clv_loop_activity, which only asks "has anything been captured
+    today at all" -- a loop that's alive but silently failing every T-5m
+    checkpoint for every game would still look fine to that check).
+
+    For every bet logged today whose game has already started, a clv_log
+    row with is_closing=1 (B1's schema) should already exist -- the T-5m
+    checkpoint fires comfortably before commence in the normal case (see
+    bankroll_engine._seconds_until_next_clv_checkpoint), and capture stops
+    entirely once commence passes (grading CLV against an in-game price
+    would defeat the point), so a bet that reaches commence with no
+    closing row will never get one. A bet exists to have its CLV graded;
+    a silent gap here is exactly as bad as a picks-not-reaching-Telegram
+    failure, just quieter.
+
+    CLV_COVERAGE_GRACE_MIN gives ordinary tick timing a small buffer
+    right at kickoff rather than flagging a bet the instant its commence
+    time ticks over. Bets with no parseable commence_utc (PARLAY/SGP,
+    which span multiple games, or any row predating B1) can't be
+    evaluated -- excluded from both the denominator and the failure
+    count, never silently counted as either covered or missing.
+
+    Identity match is (bet, type) only -- the same (date, bet, type) key
+    idx_clv_log_dedup and the rest of the clv_log pipeline use, not
+    `game` -- so a real doubleheader with the same favorite/bet_type in
+    both games could in theory collide here exactly like it would in
+    capture_pre_game_clv() itself; a pre-existing pipeline-wide
+    limitation, not something new to this check."""
+    now_utc = _utc_now()
+    today = now_utc.astimezone(_ET).date().isoformat()
+
+    todays_bets = _db.get_bets(date=today)
+    eligible = []
+    for b in todays_bets:
+        commence_utc = b.get("commence_utc") or ""
+        if not commence_utc:
+            continue
+        try:
+            commence_dt = datetime.fromisoformat(commence_utc.replace("Z", "+00:00"))
+            if commence_dt.tzinfo is None:
+                commence_dt = commence_dt.replace(tzinfo=timezone.utc)
+        except Exception:
+            continue
+        minutes_since_commence = (now_utc - commence_dt).total_seconds() / 60.0
+        if minutes_since_commence < CLV_COVERAGE_GRACE_MIN:
+            continue
+        eligible.append(b)
+
+    if not eligible:
+        return {"ok": True, "detail": "no bets past commence (with a known game time) today yet"}
+
+    closing_rows = _db.get_clv_log_for_date(today, closing_only=True, include_unreliable=True)
+    covered = {(c.get("bet"), c.get("type")) for c in closing_rows}
+
+    missing = [b for b in eligible if (b.get("bet"), b.get("type")) not in covered]
+    rate = len(missing) / len(eligible)
+    ok = rate <= CLV_COVERAGE_MISSING_THRESHOLD
+
+    sample = [f"{b.get('bet')} {b.get('type', 'ML')}" for b in missing[:5]]
+    return {
+        "ok": ok,
+        "detail": (
+            f"{len(missing)}/{len(eligible)} bets past commence ({rate:.0%}) "
+            f"missing a closing CLV capture" + (f" — e.g. {', '.join(sample)}" if sample else "")
+        ),
+        "missing_count":  len(missing),
+        "eligible_count": len(eligible),
+        "sample": sample,
+    }
+
+
 def check_error_spike() -> dict:
     """Any error spikes in the last hour? Coarser than error_logger.py's
     per-error-type recurring alert (3x/hour for the SAME error) -- this
@@ -283,6 +357,7 @@ _CHECKS = {
     "neutral_fallback_rate":  check_neutral_fallback_rate,
     "stuck_pending_bets":     check_stuck_pending_bets,
     "clv_loop_activity":      check_clv_loop_activity,
+    "clv_capture_coverage":   check_clv_capture_coverage,
     "error_spike":            check_error_spike,
     "no_bets_on_game_day":    check_no_bets_on_game_day,
 }
