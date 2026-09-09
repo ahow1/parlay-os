@@ -192,6 +192,16 @@ PUBLIC_CHANNEL_ID = os.getenv("TELEGRAM_PUBLIC_CHANNEL_ID", "")
 
 DRY_RUN   = "--test" in sys.argv
 
+# ── Wall-clock budget for run_daily_scout() ──────────────────────────────────
+# mega_scout.yml caps the scout jobs at 25 min (timeout-minutes: 25). Delivery
+# (the Telegram slip) now happens before series analysis / profile updates, so
+# a timeout can no longer kill the job before the slip sends — but these guards
+# stay as defense-in-depth so a slow run skips enrichment instead of eating the
+# whole budget. See CLAUDE.md "Known Bugs" (2026-09-01 dropped slip).
+GH_ACTIONS_TIMEOUT_MIN   = 25
+SCOUT_OPTIONAL_CUTOFF_MIN = 18   # skip remaining optional work past this elapsed time
+SCOUT_MIN_BUFFER_MIN      = 5    # ...or if less than this much time would remain
+
 # Minimum edge to recommend
 MIN_EDGE_PCT = 3.0
 # Minimum Pythagorean probability to include in output
@@ -4187,6 +4197,18 @@ def run_daily_scout(window: str = "all"):
     _window_label = _WINDOW_LABELS.get(window, "ALL GAMES")
     print("=" * 60)
     print(f"Brain starting — daily scout [{_window_label}]")
+    import time as _time
+    _scout_start_ts = _time.monotonic()   # wall-clock guard vs. GH Actions' 25-min timeout
+
+    def _elapsed_min() -> float:
+        return (_time.monotonic() - _scout_start_ts) / 60.0
+
+    def _remaining_min() -> float:
+        return GH_ACTIONS_TIMEOUT_MIN - _elapsed_min()
+
+    def _time_budget_exhausted() -> bool:
+        return _elapsed_min() > SCOUT_OPTIONAL_CUTOFF_MIN or _remaining_min() < SCOUT_MIN_BUFFER_MIN
+
     data_health.reset()
     init_memory_tables()
     init_brain_tables()
@@ -4892,186 +4914,15 @@ def run_daily_scout(window: str = "all"):
         a.get(f"{s}_stake", 0) for a, s in all_locks + all_flips
     )
     print(f"\nScout done [{_window_label}] — {len(events)} total | {n_bets} ML bets | ${ml_risk_scout:.2f} ML at risk")
+    print(f"[TIMING] {_elapsed_min():.1f} min elapsed — picks finalized, proceeding straight to delivery")
 
-    # ── Near-miss Telegram: if no bets qualified, show top 3 closest games ────
-    if n_bets == 0 and not _dd_status["pause"]:
-        _nm_candidates = []
-        for _nm_a in all_pass:
-            for _nm_side in ("away", "home"):
-                _nm_edge  = _nm_a.get(f"{_nm_side}_edge", 0)
-                _nm_model = _nm_a.get(f"{_nm_side}_model_p", 0)
-                _nm_conf  = _nm_a.get(f"{_nm_side}_confidence_score", 0)
-                _nm_team  = _nm_a.get(f"{_nm_side}_name", _nm_side)
-                _nm_conv  = _nm_a.get(f"{_nm_side}_conv", "PASS")
-                if _nm_edge <= 0:
-                    continue
-                _reasons = []
-                if _nm_edge < 4.0:
-                    _reasons.append(f"edge {_nm_edge:+.1f}% < 4%")
-                if _nm_model < 0.48:
-                    _reasons.append(f"model {_nm_model:.3f} < 0.48")
-                _mc = 60 if _nm_conv == "HIGH" else 55
-                if _nm_conf < _mc:
-                    _reasons.append(f"conf {_nm_conf}/100 < {_mc}")
-                if not _reasons:
-                    continue
-                _nm_candidates.append({
-                    "team": _nm_team, "edge": _nm_edge,
-                    "model": _nm_model, "conf": _nm_conf,
-                    "reasons": _reasons,
-                    "game": f"{_nm_a.get('away_name','')} @ {_nm_a.get('home_name','')}",
-                    "odds": _nm_a.get(f"best_{_nm_side}_odds"),
-                })
-        _nm_candidates.sort(key=lambda x: x["edge"], reverse=True)
-        _top3 = _nm_candidates[:3]
-        if _top3:
-            _nm_lines = ["⚠️ No qualifying bets today — top near-misses:"]
-            for _i, _nm in enumerate(_top3, 1):
-                _why = " | ".join(_nm["reasons"])
-                _odds_s = ""
-                if _nm.get("odds") is not None:
-                    _o = _nm["odds"]
-                    _odds_s = f" ({'+' if isinstance(_o, int) and _o > 0 else ''}{_o})"
-                _nm_lines.append(
-                    f"{_i}. {_nm['team']}{_odds_s} [{_nm['game']}]"
-                    f" — edge {_nm['edge']:+.1f}% | {_why}"
-                )
-            _nm_msg = "\n".join(_nm_lines)
-            # Strip HTML tags for the runlog (kept for debugging only).
-            import re as _re
-            _nm_msg_clean = _re.sub(r"<[^>]+>", "", _nm_msg)
-            print(_nm_msg_clean)
-            # Near-misses are not qualified picks — log only, never send to Telegram.
-            # (Sending this every run when no bets qualify was the "no edges found" spam.)
-
-    # ── Top 3 props — always send, regardless of ML pick count ───────────────
-    # Collect best props (K + hitter) by edge, lowered threshold to 3% for this section
-    _top_props_all = []
-    for _kb in all_k_props:
-        if _kb.get("edge_pct", 0) >= 3.0:
-            _top_props_all.append({
-                "label": f"{_kb['sp']} O{_kb['line']}K",
-                "edge": _kb.get("edge_pct", 0),
-                "p": _kb.get("p_over", 0),
-                "game": _kb.get("game", ""),
-            })
-    for _hb in all_hitter_props:
-        if _hb.get("edge_pct", 0) >= 3.0:
-            _top_props_all.append({
-                "label": f"{_hb['player']} {_hb.get('prop','')}",
-                "edge": _hb.get("edge_pct", 0),
-                "p": _hb.get("model_prob", 0),
-                "game": _hb.get("game", ""),
-            })
-    for _eb in all_er_props:
-        if _eb.get("edge_pct", 0) >= 3.0:
-            _dir_abbr = "O" if _eb.get("direction") == "OVER" else "U"
-            _top_props_all.append({
-                "label": f"{_eb['sp']} {_dir_abbr}{_eb['line']} ER",
-                "edge": _eb.get("edge_pct", 0),
-                "p": _eb.get("model_p", 0),
-                "game": _eb.get("game", ""),
-            })
-    _top_props_all.sort(key=lambda x: x["edge"], reverse=True)
-    _top_props_3 = _top_props_all[:3]
-    if _top_props_3:
-        _tp_lines = [f"📊 TOP PROPS TODAY ({today}):"]
-        for _i, _tp in enumerate(_top_props_3, 1):
-            _tp_lines.append(
-                f"  {_i}. {_tp['label']} — model {_tp['p']:.1%} | edge +{_tp['edge']:.1f}% | {_tp['game']}"
-            )
-        _tp_msg = "\n".join(_tp_lines)
-        print(_tp_msg)
-        # Only send standalone props message when there are no ML picks (otherwise props appear in slip)
-        if n_bets == 0:
-            _send_telegram(_tp_msg)
-
-    # ── Series analysis (game 1 of series today) ──────────────────────────────
-    print("Running series analysis...")
-    try:
-        _series_analysis(events, today, game_key_map)
-    except Exception as series_err:
-        print(f"Series analysis error: {series_err}")
-
-    # ── Player profile updates — run in background after picks are sent ──────
-    # Collect the data the thread needs before it starts (snapshots of local vars).
-    _profile_analyses   = list(game_key_map.values())
-    _profile_hitter_top = _HITTER_PROP_TOP_N
-
-    def _run_profile_updates():
-        import threading
-        _tname = threading.current_thread().name
-        print(f"[PROFILE] background thread {_tname} starting...")
-        _profiled_sps: set = set()
-        _profiled_bps: set = set()
-        _sp_count = _bp_count = _h_count = _skip_count = 0
-
-        for _analysis in _profile_analyses:
-            _away_code = _analysis.get("away", "")
-            _home_code = _analysis.get("home", "")
-            _away_tid  = MLB_TEAM_IDS.get(_away_code)
-            _home_tid  = MLB_TEAM_IDS.get(_home_code)
-
-            # ── SP profiles ───────────────────────────────────────────────────
-            for _sp in (_analysis.get("away_sp") or {}, _analysis.get("home_sp") or {}):
-                _sp_id   = _sp.get("pitcher_id")
-                _sp_name = _sp.get("name", "")
-                if not _sp_id or not _sp_name or _sp_name == "TBD":
-                    continue
-                if _sp.get("sp_missing") or _sp_id in _profiled_sps:
-                    continue
-                if pitcher_profile_updated_today(_sp_name):
-                    _skip_count += 1
-                    _profiled_sps.add(_sp_id)
-                    continue
-                try:
-                    update_sp_profile(_sp_name, _sp_id)
-                    _profiled_sps.add(_sp_id)
-                    _sp_count += 1
-                except Exception as _e:
-                    print(f"  [PROFILE] SP error ({_sp_name}): {_e}")
-
-            # ── Bullpen profiles ──────────────────────────────────────────────
-            for _tc, _tid in ((_away_code, _away_tid), (_home_code, _home_tid)):
-                if not _tid or _tc in _profiled_bps:
-                    continue
-                try:
-                    update_bullpen_profile(_tid, _tc)
-                    _profiled_bps.add(_tc)
-                    _bp_count += 1
-                except Exception as _e:
-                    print(f"  [PROFILE] Bullpen error ({_tc}): {_e}")
-
-        # ── Hitter profiles ───────────────────────────────────────────────────
-        _seen_hitter_ids: set = set()
-        for _analysis in _profile_analyses:
-            for _side in ("away", "home"):
-                _tc  = _analysis.get(_side, "")
-                _off = _analysis.get(f"{_side}_off") or {}
-                for _player in (_off.get("lineup") or [])[:_profile_hitter_top]:
-                    _hid   = _player.get("id")
-                    _hname = _player.get("name") or _player.get("fullName", "")
-                    if not _hid or not _hname or _hid in _seen_hitter_ids:
-                        continue
-                    if hitter_profile_updated_today(_hname):
-                        _skip_count += 1
-                        _seen_hitter_ids.add(_hid)
-                        continue
-                    try:
-                        update_hitter_profile(_hname, _hid, _tc)
-                        _seen_hitter_ids.add(_hid)
-                        _h_count += 1
-                    except Exception as _e:
-                        print(f"  [PROFILE] Hitter error ({_hname}): {_e}")
-
-        print(f"[PROFILE] Done — {_sp_count} SPs, {_bp_count} bullpens, "
-              f"{_h_count} hitters updated, {_skip_count} skipped (already done today)")
-
-    import threading as _threading
-    _profile_thread = _threading.Thread(target=_run_profile_updates,
-                                        name="profile-updater", daemon=True)
-    # Thread starts after the Telegram slip is sent (below). Stored here so the
-    # slip section can call _profile_thread.start() at the right moment.
+    # ══════════════════════════════════════════════════════════════════════════
+    # DELIVERY — everything from here through "Persist scout output" below must
+    # run before any optional enrichment (series analysis, profile updates).
+    # Delivery is the product; analysis is enrichment. (2026-09-01: GH Actions'
+    # 25-min timeout killed the job mid-series-analysis, AFTER 2 ML bets were
+    # logged but BEFORE the slip sent. See CLAUDE.md "Known Bugs".)
+    # ══════════════════════════════════════════════════════════════════════════
 
     # ── Build canonical pick IDs for deduplication ────────────────────────────
     def _pick_id_ml(analysis: dict, side: str) -> str:
@@ -5260,11 +5111,40 @@ def run_daily_scout(window: str = "all"):
         except Exception as pub_err:
             print(f"Public channel error: {pub_err}")
 
-    # ── Launch profile updates in the background ──────────────────────────────
-    # Picks are already sent above; profiles run asynchronously so they don't
-    # block the scout return or delay the next scheduled run.
-    _profile_thread.start()
-    print("[PROFILE] Background profile updates started")
+    # ── Persist scout output NOW — before any optional enrichment below ───────
+    # This guarantees slip_sent/sent_pick_ids hit disk+DB even if the job is
+    # killed a moment later (e.g. mid-series-analysis). That gap — slip sent
+    # but last_scout.json never written — is exactly what let the 2026-09-01
+    # bug slip past: this write used to happen at the very end of the function.
+    scout_out["data_health"] = data_health.as_dict()
+    scout_out["sp_missing_suppressed"] = _sp_missing_suppressed
+    scout_out["analysis_failures"] = _game_analysis_failures
+    scout_out["persist_failures"] = _persist_failures
+    print(f"[DATA HEALTH] {data_health.summary()} — {scout_out['data_health']}")
+    if _sp_missing_suppressed:
+        print(f"[SUPPRESSED] {len(_sp_missing_suppressed)} pick(s) dropped — probable pitcher unknown: {_sp_missing_suppressed}")
+    if not DRY_RUN:
+        with open("last_scout.json", "w") as f:
+            json.dump(scout_out, f, indent=2)
+        _db.log_scout_run(today, n_bets, json.dumps(scout_out))
+
+        # Write props_output.json so /props command and API have current data
+        props_out = {
+            "date":      today,
+            "timestamp": datetime.now(ET).isoformat(),
+            "games":     props_games,
+        }
+        try:
+            with open("props_output.json", "w") as f:
+                json.dump(props_out, f, indent=2)
+        except Exception as pe:
+            print(f"props_output.json write error: {pe}")
+
+        # Persist both blobs to DB so Railway dashboard reads fresh data
+        try:
+            _db.save_scout_output(today, json.dumps(scout_out), json.dumps(props_out))
+        except Exception as dbe:
+            print(f"scout_output DB write error: {dbe}")
 
     # Write analyzed SPs and lineups to tracker tables for SP monitor
     if not DRY_RUN:
@@ -5296,37 +5176,213 @@ def run_daily_scout(window: str = "all"):
             except Exception as _te:
                 print(f"[TRACKER] write error for {analysis.get('away_name')} @ {analysis.get('home_name')}: {_te}")
 
-    # Save scout output
-    scout_out["data_health"] = data_health.as_dict()
-    scout_out["sp_missing_suppressed"] = _sp_missing_suppressed
-    scout_out["analysis_failures"] = _game_analysis_failures
-    scout_out["persist_failures"] = _persist_failures
-    print(f"[DATA HEALTH] {data_health.summary()} — {scout_out['data_health']}")
-    if _sp_missing_suppressed:
-        print(f"[SUPPRESSED] {len(_sp_missing_suppressed)} pick(s) dropped — probable pitcher unknown: {_sp_missing_suppressed}")
-    if not DRY_RUN:
-        with open("last_scout.json", "w") as f:
-            json.dump(scout_out, f, indent=2)
-        _db.log_scout_run(today, n_bets, json.dumps(scout_out))
+    print(f"[TIMING] {_elapsed_min():.1f} min elapsed — delivery + persistence done, starting optional enrichment")
 
-        # Write props_output.json so /props command and API have current data
-        props_out = {
-            "date":      today,
-            "timestamp": datetime.now(ET).isoformat(),
-            "games":     props_games,
-        }
+    # ══════════════════════════════════════════════════════════════════════════
+    # ENRICHMENT — best-effort only. Delivery above is already complete and
+    # durable; nothing below can cause a missed or delayed slip. Each slow
+    # piece checks the wall-clock budget and skips cleanly if time is short.
+    # ══════════════════════════════════════════════════════════════════════════
+
+    # ── Near-miss Telegram: if no bets qualified, show top 3 closest games ────
+    if n_bets == 0 and not _dd_status["pause"]:
+        _nm_candidates = []
+        for _nm_a in all_pass:
+            for _nm_side in ("away", "home"):
+                _nm_edge  = _nm_a.get(f"{_nm_side}_edge", 0)
+                _nm_model = _nm_a.get(f"{_nm_side}_model_p", 0)
+                _nm_conf  = _nm_a.get(f"{_nm_side}_confidence_score", 0)
+                _nm_team  = _nm_a.get(f"{_nm_side}_name", _nm_side)
+                _nm_conv  = _nm_a.get(f"{_nm_side}_conv", "PASS")
+                if _nm_edge <= 0:
+                    continue
+                _reasons = []
+                if _nm_edge < 4.0:
+                    _reasons.append(f"edge {_nm_edge:+.1f}% < 4%")
+                if _nm_model < 0.48:
+                    _reasons.append(f"model {_nm_model:.3f} < 0.48")
+                _mc = 60 if _nm_conv == "HIGH" else 55
+                if _nm_conf < _mc:
+                    _reasons.append(f"conf {_nm_conf}/100 < {_mc}")
+                if not _reasons:
+                    continue
+                _nm_candidates.append({
+                    "team": _nm_team, "edge": _nm_edge,
+                    "model": _nm_model, "conf": _nm_conf,
+                    "reasons": _reasons,
+                    "game": f"{_nm_a.get('away_name','')} @ {_nm_a.get('home_name','')}",
+                    "odds": _nm_a.get(f"best_{_nm_side}_odds"),
+                })
+        _nm_candidates.sort(key=lambda x: x["edge"], reverse=True)
+        _top3 = _nm_candidates[:3]
+        if _top3:
+            _nm_lines = ["⚠️ No qualifying bets today — top near-misses:"]
+            for _i, _nm in enumerate(_top3, 1):
+                _why = " | ".join(_nm["reasons"])
+                _odds_s = ""
+                if _nm.get("odds") is not None:
+                    _o = _nm["odds"]
+                    _odds_s = f" ({'+' if isinstance(_o, int) and _o > 0 else ''}{_o})"
+                _nm_lines.append(
+                    f"{_i}. {_nm['team']}{_odds_s} [{_nm['game']}]"
+                    f" — edge {_nm['edge']:+.1f}% | {_why}"
+                )
+            _nm_msg = "\n".join(_nm_lines)
+            # Strip HTML tags for the runlog (kept for debugging only).
+            import re as _re
+            _nm_msg_clean = _re.sub(r"<[^>]+>", "", _nm_msg)
+            print(_nm_msg_clean)
+            # Near-misses are not qualified picks — log only, never send to Telegram.
+            # (Sending this every run when no bets qualify was the "no edges found" spam.)
+
+    # ── Top 3 props — always send, regardless of ML pick count ───────────────
+    # Collect best props (K + hitter) by edge, lowered threshold to 3% for this section
+    _top_props_all = []
+    for _kb in all_k_props:
+        if _kb.get("edge_pct", 0) >= 3.0:
+            _top_props_all.append({
+                "label": f"{_kb['sp']} O{_kb['line']}K",
+                "edge": _kb.get("edge_pct", 0),
+                "p": _kb.get("p_over", 0),
+                "game": _kb.get("game", ""),
+            })
+    for _hb in all_hitter_props:
+        if _hb.get("edge_pct", 0) >= 3.0:
+            _top_props_all.append({
+                "label": f"{_hb['player']} {_hb.get('prop','')}",
+                "edge": _hb.get("edge_pct", 0),
+                "p": _hb.get("model_prob", 0),
+                "game": _hb.get("game", ""),
+            })
+    for _eb in all_er_props:
+        if _eb.get("edge_pct", 0) >= 3.0:
+            _dir_abbr = "O" if _eb.get("direction") == "OVER" else "U"
+            _top_props_all.append({
+                "label": f"{_eb['sp']} {_dir_abbr}{_eb['line']} ER",
+                "edge": _eb.get("edge_pct", 0),
+                "p": _eb.get("model_p", 0),
+                "game": _eb.get("game", ""),
+            })
+    _top_props_all.sort(key=lambda x: x["edge"], reverse=True)
+    _top_props_3 = _top_props_all[:3]
+    if _top_props_3:
+        _tp_lines = [f"📊 TOP PROPS TODAY ({today}):"]
+        for _i, _tp in enumerate(_top_props_3, 1):
+            _tp_lines.append(
+                f"  {_i}. {_tp['label']} — model {_tp['p']:.1%} | edge +{_tp['edge']:.1f}% | {_tp['game']}"
+            )
+        _tp_msg = "\n".join(_tp_lines)
+        print(_tp_msg)
+        # Only send standalone props message when there are no ML picks (otherwise props appear in slip)
+        if n_bets == 0:
+            _send_telegram(_tp_msg)
+
+    # ── Series analysis (game 1 of series today) — time-budgeted ─────────────
+    # Loops one sequential STATCAST PitchMix lookup per future-game pitcher
+    # (get_pitcher_pitch_mix is @lru_cache'd in statcast_engine.py, so repeat
+    # pitchers within this run are free — but a full slate of new starters can
+    # still take minutes). This is what ate the whole 25-min budget on
+    # 2026-09-01. Skip cleanly rather than risk a hard kill.
+    if _time_budget_exhausted():
+        print(
+            f"[TIMING] Skipping series analysis — {_elapsed_min():.1f} min elapsed, "
+            f"~{_remaining_min():.1f} min left before GH Actions' {GH_ACTIONS_TIMEOUT_MIN}-min timeout"
+        )
+    else:
+        print("Running series analysis...")
         try:
-            with open("props_output.json", "w") as f:
-                json.dump(props_out, f, indent=2)
-        except Exception as pe:
-            print(f"props_output.json write error: {pe}")
+            _series_analysis(events, today, game_key_map)
+        except Exception as series_err:
+            print(f"Series analysis error: {series_err}")
 
-        # Persist both blobs to DB so Railway dashboard reads fresh data
-        try:
-            _db.save_scout_output(today, json.dumps(scout_out), json.dumps(props_out))
-        except Exception as dbe:
-            print(f"scout_output DB write error: {dbe}")
+    # ── Player profile updates — background thread, time-budgeted launch ─────
+    # Picks are already sent and persisted above; profiles run asynchronously
+    # so they don't block the scout return or delay the next scheduled run.
+    if _time_budget_exhausted():
+        print(
+            f"[TIMING] Skipping profile updates — {_elapsed_min():.1f} min elapsed, "
+            f"~{_remaining_min():.1f} min left before GH Actions' {GH_ACTIONS_TIMEOUT_MIN}-min timeout"
+        )
+    else:
+        _profile_analyses   = list(game_key_map.values())
+        _profile_hitter_top = _HITTER_PROP_TOP_N
 
+        def _run_profile_updates():
+            import threading
+            _tname = threading.current_thread().name
+            print(f"[PROFILE] background thread {_tname} starting...")
+            _profiled_sps: set = set()
+            _profiled_bps: set = set()
+            _sp_count = _bp_count = _h_count = _skip_count = 0
+
+            for _analysis in _profile_analyses:
+                _away_code = _analysis.get("away", "")
+                _home_code = _analysis.get("home", "")
+                _away_tid  = MLB_TEAM_IDS.get(_away_code)
+                _home_tid  = MLB_TEAM_IDS.get(_home_code)
+
+                # ── SP profiles ───────────────────────────────────────────────
+                for _sp in (_analysis.get("away_sp") or {}, _analysis.get("home_sp") or {}):
+                    _sp_id   = _sp.get("pitcher_id")
+                    _sp_name = _sp.get("name", "")
+                    if not _sp_id or not _sp_name or _sp_name == "TBD":
+                        continue
+                    if _sp.get("sp_missing") or _sp_id in _profiled_sps:
+                        continue
+                    if pitcher_profile_updated_today(_sp_name):
+                        _skip_count += 1
+                        _profiled_sps.add(_sp_id)
+                        continue
+                    try:
+                        update_sp_profile(_sp_name, _sp_id)
+                        _profiled_sps.add(_sp_id)
+                        _sp_count += 1
+                    except Exception as _e:
+                        print(f"  [PROFILE] SP error ({_sp_name}): {_e}")
+
+                # ── Bullpen profiles ────────────────────────────────────────────
+                for _tc, _tid in ((_away_code, _away_tid), (_home_code, _home_tid)):
+                    if not _tid or _tc in _profiled_bps:
+                        continue
+                    try:
+                        update_bullpen_profile(_tid, _tc)
+                        _profiled_bps.add(_tc)
+                        _bp_count += 1
+                    except Exception as _e:
+                        print(f"  [PROFILE] Bullpen error ({_tc}): {_e}")
+
+            # ── Hitter profiles ───────────────────────────────────────────────
+            _seen_hitter_ids: set = set()
+            for _analysis in _profile_analyses:
+                for _side in ("away", "home"):
+                    _tc  = _analysis.get(_side, "")
+                    _off = _analysis.get(f"{_side}_off") or {}
+                    for _player in (_off.get("lineup") or [])[:_profile_hitter_top]:
+                        _hid   = _player.get("id")
+                        _hname = _player.get("name") or _player.get("fullName", "")
+                        if not _hid or not _hname or _hid in _seen_hitter_ids:
+                            continue
+                        if hitter_profile_updated_today(_hname):
+                            _skip_count += 1
+                            _seen_hitter_ids.add(_hid)
+                            continue
+                        try:
+                            update_hitter_profile(_hname, _hid, _tc)
+                            _seen_hitter_ids.add(_hid)
+                            _h_count += 1
+                        except Exception as _e:
+                            print(f"  [PROFILE] Hitter error ({_hname}): {_e}")
+
+            print(f"[PROFILE] Done — {_sp_count} SPs, {_bp_count} bullpens, "
+                  f"{_h_count} hitters updated, {_skip_count} skipped (already done today)")
+
+        import threading as _threading
+        _profile_thread = _threading.Thread(target=_run_profile_updates,
+                                            name="profile-updater", daemon=True)
+        _profile_thread.start()
+        print("[PROFILE] Background profile updates started")
+
+    print(f"[TIMING] {_elapsed_min():.1f} min elapsed — run_daily_scout complete")
     return scout_out
 
 
