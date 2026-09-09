@@ -983,6 +983,10 @@ def analyze_game(event: dict, game_date: str) -> dict | None:
         "home_momentum":  home_momentum,
         # Game time ET (for picks format and primetime detection)
         "game_time_et":   _parse_game_time_et(event.get("commence_utc", "")),
+        # Raw commence_utc (for game-time-aware CLV capture — see
+        # bankroll_engine.capture_pre_game_clv), distinct from the ET
+        # display string above.
+        "commence_utc":   event.get("commence_utc", ""),
         "h2h":          h2h,
         "away_recent_win_pct":  away_off.get("recent_win_pct", 0.5),
         "home_recent_win_pct":  home_off.get("recent_win_pct", 0.5),
@@ -2070,6 +2074,7 @@ def _daily_bet_slip(
             "player":    b["sp"],
             "team":      b.get("team", ""),
             "game":      b.get("game", ""),
+            "commence_utc": b.get("commence_utc", ""),
             "stat":      f"Ks O{b['line']}{sc_flag}",
             "odds_str":  "-110",
             "model_pct": round(b["p_over"] * 100, 1),
@@ -2103,6 +2108,7 @@ def _daily_bet_slip(
             "player":    h["player"],
             "team":      h.get("team", ""),
             "game":      h.get("game", ""),
+            "commence_utc": h.get("commence_utc", ""),
             "stat":      prop,
             "odds_str":  _market_odds_str(mp),
             "model_pct": round(h["model_prob"] * 100, 1),
@@ -2121,6 +2127,7 @@ def _daily_bet_slip(
             "player":    b["sp"],
             "team":      b.get("team", ""),
             "game":      b.get("game", ""),
+            "commence_utc": b.get("commence_utc", ""),
             "stat":      f"ER {dir_abbr}{b['line']}",
             "odds_str":  "-110",
             "model_pct": round(b["model_p"] * 100, 1),
@@ -2189,6 +2196,7 @@ def _daily_bet_slip(
                 conviction=("LOCK" if _p["edge_pct"] >= 10.0 else "FLIP"),
                 stake=_p["stake"],
                 diagnostics=_p.get("diagnostics"),
+                commence_utc=_p.get("commence_utc", ""),
             )
     for _p in all_player_props:
         slip_picks.append(_prop_slip_pick(_p, over_cap=False))
@@ -2222,6 +2230,7 @@ def _daily_bet_slip(
                 conviction=("LOCK" if _p["edge_pct"] >= 10.0 else "FLIP"),
                 stake=_p["stake"], over_cap=True,
                 diagnostics=_p.get("diagnostics"),
+                commence_utc=_p.get("commence_utc", ""),
             )
     for _p in _over_cap_props:
         slip_picks.append(_prop_slip_pick(_p, over_cap=True))
@@ -2256,6 +2265,7 @@ def _daily_bet_slip(
                     edge_pct=round((bet["prob"] - _nrfi_mkt_p) * 100, 1),
                     conviction="PROP", stake=bet["stake"],
                     diagnostics=bet.get("diagnostics"),
+                    commence_utc=bet.get("commence_utc", ""),
                 )
 
     for bet in over_cap_nrfi:
@@ -2276,6 +2286,7 @@ def _daily_bet_slip(
                 edge_pct=round((bet["prob"] - _nrfi_mkt_p) * 100, 1),
                 conviction="PROP", stake=bet["stake"], over_cap=True,
                 diagnostics=bet.get("diagnostics"),
+                commence_utc=bet.get("commence_utc", ""),
             )
 
     # ── Props parlay: top 3 locks only ──────────────────────────────────────
@@ -2359,6 +2370,7 @@ def _daily_bet_slip(
                     model_prob=bet["prob"], market_prob=bet["market_p"],
                     edge_pct=bet["edge_pct"], conviction="PROP", stake=bet["stake"],
                     diagnostics=bet.get("diagnostics"),
+                    commence_utc=bet.get("commence_utc", ""),
                 )
 
     for bet in over_cap_totals:
@@ -2377,6 +2389,7 @@ def _daily_bet_slip(
                 model_prob=bet["prob"], market_prob=bet["market_p"],
                 edge_pct=bet["edge_pct"], conviction="PROP", stake=bet["stake"],
                 over_cap=True, diagnostics=bet.get("diagnostics"),
+                commence_utc=bet.get("commence_utc", ""),
             )
 
     if runline_bets:
@@ -2396,6 +2409,7 @@ def _daily_bet_slip(
                     model_prob=bet["prob"], market_prob=bet["market_p"],
                     edge_pct=bet["edge_pct"], conviction=bet["conviction"], stake=bet["stake"],
                     diagnostics=bet.get("diagnostics"),
+                    commence_utc=bet.get("commence_utc", ""),
                 )
 
     for bet in over_cap_runline:
@@ -2414,6 +2428,7 @@ def _daily_bet_slip(
                 model_prob=bet["prob"], market_prob=bet["market_p"],
                 edge_pct=bet["edge_pct"], conviction=bet["conviction"], stake=bet["stake"], over_cap=True,
                 diagnostics=bet.get("diagnostics"),
+                commence_utc=bet.get("commence_utc", ""),
             )
 
     # ── Gate: never send an empty or status-only slip ─────────────────────────
@@ -3870,6 +3885,7 @@ def _log_bet_with_retry(today: str, analysis: dict, side: str, conv: str, over_c
                 sp_gb_rate=_sp_data_log.get("gb_rate"),
                 over_cap=over_cap,
                 diagnostic_json=_safe_diagnostic_json(_build_ml_diagnostics(analysis, side)),
+                commence_utc=analysis.get("commence_utc") or None,
             )
             _push_synced_pick(_verify_hash)
             return True
@@ -3881,7 +3897,8 @@ def _log_bet_with_retry(today: str, analysis: dict, side: str, conv: str, over_c
 def _log_pick_with_retry(bet_type: str, *, date: str, bet: str, game: str,
                           bet_odds: str, model_prob, market_prob, edge_pct,
                           conviction: str, stake: float, over_cap: bool = False,
-                          diagnostics: dict | None = None) -> bool:
+                          diagnostics: dict | None = None,
+                          commence_utc: str = "") -> bool:
     """Persist a non-ML pick (TOTAL/NRFI/PROP/PARLAY) via the same log_bet()
     path as ML, retrying once on failure. Unlike _log_bet_with_retry, a
     failure here never changes what's shown in Telegram — the message is
@@ -3905,6 +3922,7 @@ def _log_pick_with_retry(bet_type: str, *, date: str, bet: str, game: str,
                 stake=0.0 if over_cap else stake,
                 over_cap=over_cap,
                 diagnostic_json=_safe_diagnostic_json(diagnostics),
+                commence_utc=commence_utc or None,
             )
             _push_synced_pick(_verify_hash)
             return True
@@ -4650,6 +4668,8 @@ def run_daily_scout(window: str = "all"):
                 _sgo_event,
                 game=_game_lbl_hp,
             )
+            for _hp in game_hitter_props:
+                _hp.setdefault("commence_utc", analysis.get("commence_utc", ""))
             all_hitter_props.extend(game_hitter_props)
         except Exception as hp_err:
             print(f"  Hitter props error: {hp_err}")
@@ -4697,6 +4717,7 @@ def run_daily_scout(window: str = "all"):
                     "sp":         _sp.get("name"),
                     "team":       analysis.get(_kside, ""),
                     "game":       _game_lbl_kp,
+                    "commence_utc": analysis.get("commence_utc", ""),
                     "line":       _k_line,
                     "p_over":     _akp.get("model_p", 0.55),
                     "market_p":   _k_market_p,
@@ -4735,6 +4756,7 @@ def run_daily_scout(window: str = "all"):
                         "sp":             _sp.get("name"),
                         "team":           analysis.get(_kside, ""),
                         "game":           _game_lbl_kp,
+                        "commence_utc":   analysis.get("commence_utc", ""),
                         "line":           _k_line,
                         "p_over":         _p_k,
                         "market_p":       _k_market_p,
@@ -4778,6 +4800,7 @@ def run_daily_scout(window: str = "all"):
                             "sp":         _er_res.get("sp_name", _er_sp.get("name")),
                             "team":       analysis.get(_er_side, ""),
                             "game":       _game_lbl_kp,
+                            "commence_utc": analysis.get("commence_utc", ""),
                             "line":       _er_res.get("market_line", _er_market_line),
                             "direction":  _er_res.get("direction", "OVER"),
                             "model_p":    _er_res.get("model_p", 0.55),
@@ -4868,6 +4891,7 @@ def run_daily_scout(window: str = "all"):
                 all_nrfi.append({
                     "game": game_lbl, "direction": direction, "prob": prob, "stake": stake,
                     "game_time_et": analysis.get("game_time_et", ""),
+                    "commence_utc": analysis.get("commence_utc", ""),
                     "diagnostics": _build_game_diagnostics(analysis, "NRFI", {"nrfi": nrfi_r_g}),
                 })
 
@@ -4911,6 +4935,7 @@ def run_daily_scout(window: str = "all"):
                             "stake":     kelly_stake(model_p, str(mkt_odds), "PROP"),
                             "odds":      str(mkt_odds),
                             "game_time_et": analysis.get("game_time_et", ""),
+                            "commence_utc": analysis.get("commence_utc", ""),
                             "diagnostics": _build_game_diagnostics(analysis, "TOTAL", {"total": total_r_g}),
                         }
                 if best_total_bet and best_total_bet["stake"] > 0:
@@ -4974,6 +4999,7 @@ def run_daily_scout(window: str = "all"):
                         _rl_best_edge = _rl_edge
                         _rl_best = {
                             "game":       game_lbl,
+                            "commence_utc": analysis.get("commence_utc", ""),
                             "team":       analysis.get(f"{_rl_side}_name", ""),
                             "line":       _rl_line[_rl_side],
                             "prob":       round(_rl_m, 4),
@@ -6200,8 +6226,9 @@ def _run_capture_clv():
     run_pre_game_clv_loop() makes every 15 min under --bot — then exits.
     Actions jobs are one-shot processes, so this is scheduled at fixed
     times near first pitch instead of running on a persistent timer.
-    Idempotent per bet per day via db.clv_log_exists(), so running this
-    multiple times a day (or re-running a job) never writes duplicate rows."""
+    Dedup is per (bet, checkpoint) via idx_clv_log_dedup, so running this
+    multiple times a day (or re-running a job) never writes duplicate rows
+    -- it just fills in whichever checkpoints are due at call time."""
     print("Running pre-game CLV capture (one-shot)...")
     try:
         n = capture_pre_game_clv()

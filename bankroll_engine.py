@@ -528,10 +528,69 @@ def growth_tracker() -> dict:
     }
 
 
+# Closing Line Value = price you got vs. the price immediately before first
+# pitch. The schedule below is expressed as "minutes before commence_utc"
+# checkpoints: hourly out to 2h, then finer near game time. Descending order
+# matters -- capture_pre_game_clv() walks it to find every checkpoint a bet
+# has crossed since its last capture.
+_CLV_HOURLY_CHECKPOINTS_MIN = list(range(1440, 119, -60))   # 1440,1380,...,180,120
+_CLV_FINE_CHECKPOINTS_MIN   = [60, 30, 15, 5]
+CLV_CHECKPOINTS_MIN = _CLV_HOURLY_CHECKPOINTS_MIN + _CLV_FINE_CHECKPOINTS_MIN
+
+
+def _clv_due_checkpoints(minutes_until: float, captured_buckets: set, ceiling) -> list:
+    """Which ladder checkpoints (as bucket strings) have been crossed since
+    the last capture but don't have a row yet. minutes_until <= 0 (game has
+    started) returns none -- capture stops at first pitch, never grades CLV
+    against an in-game price.
+
+    ceiling caps which rungs are even eligible: a checkpoint further out
+    than the bet's own log-time offset (e.g. the T-3h hourly rung for a
+    bet first logged only 90 minutes before commence) never happened for
+    this bet and must never fire retroactively the moment it's first seen
+    -- without this cap, a bet's very first tick would find every rung
+    from T-24h down to "now" simultaneously due and write dozens of
+    meaningless rows in one shot."""
+    if minutes_until <= 0 or ceiling is None:
+        return []
+    return [str(c) for c in CLV_CHECKPOINTS_MIN
+            if c <= ceiling and minutes_until <= c and str(c) not in captured_buckets]
+
+
+def _clv_initial_offset(existing: list, minutes_until):
+    """The reference offset (minutes-before-commence at first capture) that
+    caps which ladder rungs are eligible for this bet -- see
+    _clv_due_checkpoints. Read back from the stored "LOG" row when one
+    exists; for a bet's very first tick (no rows yet), the LOG row is
+    about to be written this same call, so the current minutes_until IS
+    that reference point."""
+    log_row = next((c for c in existing if c.get("capture_offset_bucket") == "LOG"), None)
+    if log_row is not None and log_row.get("capture_offset_min") is not None:
+        return log_row["capture_offset_min"]
+    if not existing:
+        return minutes_until
+    return None
+
+
 def capture_pre_game_clv() -> int:
     """
-    Fetch closing odds for today's pending bets and write to clv_log.
-    Called ~1 hour before first pitch. Returns number of rows written.
+    Fetch closing-line odds for today's pending bets and append to clv_log,
+    scheduled off each bet's own commence_utc rather than a blind global
+    timer. Meant to be called every ~15 min by run_pre_game_clv_loop().
+
+    Captures the FULL trajectory, never overwriting: one row the first time
+    a bet is seen (bucket "LOG", whatever offset that happens to be), then
+    one row per CLV_CHECKPOINTS_MIN rung the bet crosses while still
+    pending and pre-commence (hourly out to T-2h, then T-60/30/15/5m).
+    Dedup is (date, bet, bet_type, capture_offset_bucket) -- both checked
+    here and enforced at the DB layer (idx_clv_log_dedup) -- so a repeating
+    timer can capture the same bet many times across a slate without ever
+    writing a duplicate checkpoint.
+
+    Returns the number of rows written this call. Bets with no known
+    commence_utc (legacy rows, or bet types that don't map to one game --
+    e.g. PARLAY) fall back to a single "LOG" capture, same behavior as
+    before this rewrite.
     """
     import pytz
     from datetime import datetime
@@ -551,6 +610,7 @@ def capture_pre_game_clv() -> int:
     except Exception:
         _calc_clv = None
 
+    now_utc = datetime.now(pytz.utc)
     written = 0
     for b in bets:
         team     = b.get("bet") or ""
@@ -558,11 +618,30 @@ def capture_pre_game_clv() -> int:
         bet_odds = str(b.get("bet_odds") or "")
         if not team or not bet_odds:
             continue
-        # Idempotent per bet per day — a recurring caller must not spam
-        # clv_log with a fresh "closing" line every tick for a bet that's
-        # still pending (TIER 3 WIRE-IN 4).
-        if _db.clv_log_exists(today, team, bet_type):
+
+        existing = _db.get_clv_captures(today, team, bet_type)
+        captured_buckets = {c.get("capture_offset_bucket") for c in existing
+                             if c.get("capture_offset_bucket")}
+
+        minutes_until = None
+        commence_utc = b.get("commence_utc") or ""
+        if commence_utc:
+            try:
+                game_dt = datetime.fromisoformat(commence_utc.replace("Z", "+00:00"))
+                minutes_until = (game_dt - now_utc).total_seconds() / 60.0
+            except Exception:
+                minutes_until = None
+
+        buckets_due = []
+        if not existing:
+            buckets_due.append("LOG")
+        if minutes_until is not None and minutes_until > 0:
+            ceiling = _clv_initial_offset(existing, minutes_until)
+            buckets_due += _clv_due_checkpoints(minutes_until, captured_buckets, ceiling)
+
+        if not buckets_due:
             continue
+
         closing = _fetch_closing_odds(team, bet_type)
         if not closing:
             continue
@@ -572,40 +651,111 @@ def capture_pre_game_clv() -> int:
                 clv_pct = _calc_clv(bet_odds, closing).get("clv_pct")
             except Exception:
                 pass
+
+        offset_val = round(minutes_until) if minutes_until is not None else None
+        for bucket in buckets_due:
+            try:
+                if _db.log_clv(
+                    date=today,
+                    bet=team,
+                    bet_type=bet_type,
+                    game=b.get("game") or "",
+                    sp=b.get("sp") or "",
+                    park=b.get("park") or "",
+                    umpire=b.get("umpire") or "",
+                    bet_odds=bet_odds,
+                    closing_odds=closing,
+                    clv_pct=clv_pct,
+                    result=None,
+                    model=b.get("model") or "12-factor",
+                    edge_pct=b.get("edge_pct"),
+                    capture_offset_min=offset_val,
+                    capture_offset_bucket=bucket,
+                ):
+                    written += 1
+            except Exception:
+                pass
         try:
-            _db.log_clv(
-                date=today,
-                bet=team,
-                bet_type=bet_type,
-                game=b.get("game") or "",
-                sp=b.get("sp") or "",
-                park=b.get("park") or "",
-                umpire=b.get("umpire") or "",
-                bet_odds=bet_odds,
-                closing_odds=closing,
-                clv_pct=clv_pct,
-                result=None,
-                model=b.get("model") or "12-factor",
-                edge_pct=b.get("edge_pct"),
-            )
-            written += 1
+            _db.recompute_is_closing(today, team, bet_type)
         except Exception:
             pass
     return written
 
 
+def _seconds_until_next_clv_checkpoint(default_sec: int = 900, min_sec: int = 60) -> int:
+    """How long the loop can safely sleep before the next checkpoint on any
+    pending bet becomes due. A blind fixed 15-minute cadence can straddle a
+    fine checkpoint entirely -- e.g. a tick at T-8m then T-23m-after-start
+    would never land in the T-0..5m window and simply never capture "T5".
+    Tightens the wait as any pending bet nears one of its remaining
+    CLV_CHECKPOINTS_MIN rungs (down to min_sec, so T-5m/T-15m/T-30m/T-60m
+    are hit within seconds, not skipped); falls back to default_sec (15
+    min, same as before this rewrite) when nothing is due soon, so a
+    freshly-logged bet still gets its first "LOG" capture promptly."""
+    import pytz
+    from datetime import datetime
+    ET_tz = pytz.timezone("America/New_York")
+    today = datetime.now(ET_tz).strftime("%Y-%m-%d")
+    try:
+        bets = _db.get_bets(date=today, unresolved_only=True)
+    except Exception:
+        return default_sec
+    if not bets:
+        return default_sec
+
+    now_utc = datetime.now(pytz.utc)
+    best_wait_min = None
+    for b in bets:
+        commence_utc = b.get("commence_utc") or ""
+        if not commence_utc:
+            continue
+        try:
+            game_dt = datetime.fromisoformat(commence_utc.replace("Z", "+00:00"))
+        except Exception:
+            continue
+        minutes_until = (game_dt - now_utc).total_seconds() / 60.0
+        if minutes_until <= 0:
+            continue
+        team, bet_type = b.get("bet") or "", b.get("type") or b.get("bet_type") or "ML"
+        try:
+            existing = _db.get_clv_captures(today, team, bet_type)
+        except Exception:
+            existing = []
+        captured = {c.get("capture_offset_bucket") for c in existing if c.get("capture_offset_bucket")}
+        ceiling = _clv_initial_offset(existing, minutes_until)
+        if ceiling is None:
+            continue
+        not_yet_due = [c for c in CLV_CHECKPOINTS_MIN
+                       if c <= ceiling and str(c) not in captured and c < minutes_until]
+        if not not_yet_due:
+            continue
+        wait_min = minutes_until - max(not_yet_due)  # nearest checkpoint still ahead
+        if best_wait_min is None or wait_min < best_wait_min:
+            best_wait_min = wait_min
+
+    if best_wait_min is None:
+        return default_sec
+    return max(min_sec, min(default_sec, int(round(best_wait_min * 60)) + 5))
+
+
 def run_pre_game_clv_loop(stop_event=None) -> None:
     """
-    Background loop: calls capture_pre_game_clv() every 15 minutes so each
-    pending pick gets its pre-game line snapshotted before first pitch
-    (TIER 3 WIRE-IN 4 — AUDIT.md M6: capture_pre_game_clv() was fully built
-    but had zero callers anywhere outside test_fixes.py). Meant to run as a
-    daemon thread started by brain.py in --bot mode, the only actually-
-    deployed persistent process — scheduler.py's schedule_loop() is not
-    part of any deployed process (AUDIT.md M5) and would never fire this.
+    Background loop: calls capture_pre_game_clv() on an adaptive cadence
+    (see _seconds_until_next_clv_checkpoint) so each pending pick gets its
+    full pre-game line trajectory snapshotted, with a real closing line
+    captured within seconds of the T-5m checkpoint rather than whatever a
+    blind 15-minute timer happened to see first (TIER 3 WIRE-IN 4 —
+    AUDIT.md M6: capture_pre_game_clv() was fully built but had zero
+    callers anywhere outside test_fixes.py; later found to be capturing
+    its FIRST tick as a permanent "closing" line, often hours early — see
+    CLV_CHECKPOINTS_MIN rewrite). Meant to run as a daemon thread started
+    by brain.py in --bot mode, the only actually-deployed persistent
+    process — scheduler.py's schedule_loop() is not part of any deployed
+    process (AUDIT.md M5) and would never fire this.
 
-    capture_pre_game_clv() is idempotent per bet per day, so a repeating
-    timer is safe and won't spam clv_log with duplicate rows.
+    capture_pre_game_clv() dedups per (bet, checkpoint), so a repeating
+    timer is safe and won't spam clv_log with duplicate rows for a
+    checkpoint already captured.
 
     Deliberately NOT done here (AUDIT.md M17, flagged as a follow-up): this
     still writes only to the clv_log SQL table, a separate pipeline from
@@ -622,7 +772,11 @@ def run_pre_game_clv_loop(stop_event=None) -> None:
                 print(f"[CLV] Pre-game capture: {n} row(s) written")
         except Exception as e:
             print(f"[CLV] Pre-game capture loop error: {e}")
-        _stop.wait(900)  # 15-minute cadence, matches sp_monitor's SP-check interval
+        try:
+            wait_sec = _seconds_until_next_clv_checkpoint()
+        except Exception:
+            wait_sec = 900
+        _stop.wait(wait_sec)
 
 
 if __name__ == "__main__":

@@ -117,6 +117,24 @@ def _ensure_bets_unique_index():
         """)
 
 
+def _ensure_clv_log_unique_index():
+    """Dedup key for the CLV-trajectory rewrite: at most one row per
+    (date, bet, type, capture_offset_bucket) -- lets capture_pre_game_clv()
+    rely on the DB itself to reject a duplicate write for a checkpoint
+    already captured, on top of its own app-level check. Must run only
+    after the capture_offset_bucket migration ALTER above has landed, since
+    it references that column -- an old DB's clv_log table predates it.
+    Safe to create unconditionally (no cleanup needed first): every
+    pre-existing row has capture_offset_bucket=NULL from the ALTER's
+    column default, and SQLite unique indexes never treat two NULLs as
+    a conflict."""
+    with _conn() as conn:
+        conn.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_clv_log_dedup
+            ON clv_log(date, bet, type, capture_offset_bucket)
+        """)
+
+
 def init_db():
     with _conn() as conn:
         conn.executescript("""
@@ -142,7 +160,8 @@ def init_db():
             game_score   TEXT,
             notes        TEXT,
             verify_hash  TEXT,
-            profit       REAL
+            profit       REAL,
+            commence_utc TEXT
         );
 
         CREATE TABLE IF NOT EXISTS bets_archive (
@@ -218,20 +237,23 @@ def init_db():
         );
 
         CREATE TABLE IF NOT EXISTS clv_log (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            date         TEXT NOT NULL,
-            bet          TEXT NOT NULL,
-            type         TEXT,
-            game         TEXT,
-            sp           TEXT,
-            park         TEXT,
-            umpire       TEXT,
-            bet_odds     TEXT,
-            closing_odds TEXT,
-            clv_pct      REAL,
-            result       TEXT,
-            model        TEXT,
-            edge_pct     REAL
+            id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+            date                   TEXT NOT NULL,
+            bet                    TEXT NOT NULL,
+            type                   TEXT,
+            game                   TEXT,
+            sp                     TEXT,
+            park                   TEXT,
+            umpire                 TEXT,
+            bet_odds               TEXT,
+            closing_odds           TEXT,
+            clv_pct                REAL,
+            result                 TEXT,
+            model                  TEXT,
+            edge_pct               REAL,
+            capture_offset_min     INTEGER,
+            capture_offset_bucket  TEXT,
+            is_closing             INTEGER DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS scout_output (
@@ -434,6 +456,18 @@ def init_db():
             # Existing rows get NULL on migration -- each gets exactly one
             # notification on the next settlement run, then stays quiet.
             "ALTER TABLE bets ADD COLUMN notified_at TIMESTAMP",
+            # Closing-line-value rewrite (see capture_pre_game_clv): each pick's
+            # real game start time, needed to schedule pre-game CLV captures
+            # relative to actual first pitch instead of a blind global timer.
+            "ALTER TABLE bets ADD COLUMN commence_utc TEXT",
+            # clv_log full-trajectory capture: which schedule checkpoint this
+            # row satisfies (dedup key), how many minutes before commence it
+            # was actually captured, and whether it's the last capture before
+            # commence (the true closing line — grade CLV against this one,
+            # never the first row written for a bet).
+            "ALTER TABLE clv_log ADD COLUMN capture_offset_min INTEGER",
+            "ALTER TABLE clv_log ADD COLUMN capture_offset_bucket TEXT",
+            "ALTER TABLE clv_log ADD COLUMN is_closing INTEGER DEFAULT 0",
         ]:
             try:
                 conn.execute(ddl)
@@ -452,6 +486,7 @@ def init_db():
     # W bets require decimal conversion — must be done in Python
     _repair_win_profit()
     _ensure_bets_unique_index()
+    _ensure_clv_log_unique_index()
 
 
 # ─── BETS ─────────────────────────────────────────────────────────────────────
@@ -463,7 +498,7 @@ def log_bet(date, bet, bet_type, game, sp, park, umpire,
             home_dog_angle=None, first_pitch_strike_rate=None, sp_gb_rate=None,
             situations_triggered=None, abs_score=None,
             sharp_checklist_results=None, confidence_engine_score=None,
-            over_cap=0, diagnostic_json=None):
+            over_cap=0, diagnostic_json=None, commence_utc=None):
     now = datetime.now(ET).isoformat()
     verify_hash = hashlib.sha256(
         f"{game}|{bet}|{bet_odds}|{now}".encode()
@@ -489,8 +524,8 @@ def log_bet(date, bet, bet_type, game, sp, park, umpire,
                first_pitch_strike_rate, sp_gb_rate,
                situations_triggered, abs_score,
                sharp_checklist_results, confidence_engine_score, over_cap,
-               diagnostic_json)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               diagnostic_json, commence_utc)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (date, now, bet, bet_type, game, sp, park, umpire,
               bet_odds, model_prob, market_prob, edge_pct, conviction, stake, verify_hash,
               pitch_trap, framing_edge, closer_avail, lineup_slot_score,
@@ -498,7 +533,7 @@ def log_bet(date, bet, bet_type, game, sp, park, umpire,
               first_pitch_strike_rate, sp_gb_rate,
               situations_triggered, abs_score,
               sharp_checklist_results, confidence_engine_score,
-              1 if over_cap else 0, diagnostic_json))
+              1 if over_cap else 0, diagnostic_json, commence_utc or None))
     return verify_hash
 
 
@@ -808,36 +843,83 @@ def get_bankroll_history(days=30):
 
 
 # ─── CLV LOG ──────────────────────────────────────────────────────────────────
+# Rewritten for game-time-aware, full-trajectory capture (see
+# bankroll_engine.capture_pre_game_clv). clv_log is now append-only per bet:
+# one row per schedule checkpoint (capture_offset_bucket), never overwritten.
+# is_closing marks the single row closest to commence for that bet -- the
+# only row that should ever be read as "the" closing line for grading.
 
 def log_clv(date, bet, bet_type, game, sp, park, umpire,
-            bet_odds, closing_odds, clv_pct, result, model, edge_pct):
+            bet_odds, closing_odds, clv_pct, result, model, edge_pct,
+            capture_offset_min=None, capture_offset_bucket=None) -> bool:
+    """Insert one capture row. Returns True if a new row was written, False
+    if (date, bet, bet_type, capture_offset_bucket) was already captured --
+    the DB-level dedup guarantee backing capture_pre_game_clv()'s own
+    app-level checkpoint bookkeeping (idx_clv_log_dedup)."""
     with _conn() as conn:
-        conn.execute("""
-            INSERT INTO clv_log
+        cur = conn.execute("""
+            INSERT OR IGNORE INTO clv_log
               (date, bet, type, game, sp, park, umpire, bet_odds,
-               closing_odds, clv_pct, result, model, edge_pct)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+               closing_odds, clv_pct, result, model, edge_pct,
+               capture_offset_min, capture_offset_bucket)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (date, bet, bet_type, game, sp, park, umpire, bet_odds,
-              closing_odds, clv_pct, result, model, edge_pct))
+              closing_odds, clv_pct, result, model, edge_pct,
+              capture_offset_min, capture_offset_bucket))
+        return cur.rowcount > 0
 
 
-def get_clv_log(days=30):
+def get_clv_captures(date: str, bet: str, bet_type: str) -> list[dict]:
+    """Every capture row written so far for one bet -- the full trajectory,
+    oldest first. Used to figure out which schedule checkpoints are still
+    due on the next tick."""
     with _conn() as conn:
         rows = conn.execute(
-            "SELECT * FROM clv_log ORDER BY date DESC LIMIT ?", (days * 10,))
+            "SELECT * FROM clv_log WHERE date=? AND bet=? AND type=? ORDER BY id ASC",
+            (date, bet, bet_type),
+        )
         return [dict(r) for r in rows]
 
 
-def clv_log_exists(date: str, bet: str, bet_type: str) -> bool:
-    """True if a pre-game line has already been captured for this bet today
-    — lets a recurring capture timer skip bets it's already snapshotted
-    (TIER 3 WIRE-IN 4) instead of writing a duplicate row every tick."""
+def recompute_is_closing(date: str, bet: str, bet_type: str) -> None:
+    """Re-derive which captured row is the closing line for this bet:
+    the one with the smallest non-negative capture_offset_min (closest to,
+    but not after, commence). Self-healing and idempotent -- safe to call
+    after every write regardless of tick timing or capture order, so a
+    late/out-of-order capture can never leave a stale row flagged closing."""
     with _conn() as conn:
-        row = conn.execute(
-            "SELECT 1 FROM clv_log WHERE date=? AND bet=? AND type=? LIMIT 1",
+        conn.execute(
+            "UPDATE clv_log SET is_closing=0 WHERE date=? AND bet=? AND type=?",
             (date, bet, bet_type),
-        ).fetchone()
-    return row is not None
+        )
+        row = conn.execute("""
+            SELECT id FROM clv_log
+            WHERE date=? AND bet=? AND type=? AND capture_offset_min >= 0
+            ORDER BY capture_offset_min ASC, id DESC LIMIT 1
+        """, (date, bet, bet_type)).fetchone()
+        if not row:
+            # No offset-aware row (commence_utc unknown, or captured after
+            # first pitch) -- fall back to the most recent capture so every
+            # bet with at least one row always has exactly one is_closing=1.
+            row = conn.execute("""
+                SELECT id FROM clv_log WHERE date=? AND bet=? AND type=?
+                ORDER BY id DESC LIMIT 1
+            """, (date, bet, bet_type)).fetchone()
+        if row:
+            conn.execute("UPDATE clv_log SET is_closing=1 WHERE id=?", (row["id"],))
+
+
+def get_clv_log(days=30, closing_only=False):
+    """closing_only=True returns just each bet's is_closing=1 row -- the
+    right filter for anything reading "the" CLV number for a bet (grading,
+    dashboards, the Analyst) now that a bet can have many trajectory rows."""
+    with _conn() as conn:
+        q = "SELECT * FROM clv_log"
+        if closing_only:
+            q += " WHERE is_closing=1"
+        q += " ORDER BY date DESC, id DESC LIMIT ?"
+        rows = conn.execute(q, (days * 10,))
+        return [dict(r) for r in rows]
 
 
 # ─── ANALYST FINDINGS (Agent 2) ────────────────────────────────────────────────

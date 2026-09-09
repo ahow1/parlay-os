@@ -189,10 +189,10 @@ def check_stuck_pending_bets() -> dict:
 
 
 def check_clv_loop_activity() -> dict:
-    """Is CLV capture actually writing rows? clv_log has no capture
-    timestamp column (only the bet's game date), so the closest available
-    signal is: if there are pending bets logged today, has anything been
-    captured for today at all."""
+    """Is CLV capture actually writing rows? clv_log now carries a real
+    capture_offset_min per row, but the simplest activity signal is still:
+    if there are pending bets logged today, has anything been captured for
+    today at all (regardless of which checkpoint)."""
     today = _utc_now().date().isoformat()
     pending_today = [b for b in _db.get_bets(date=today)
                      if not b.get("result") and (b.get("stake") or 0) > 0]

@@ -218,7 +218,11 @@ def get_todays_picks(target_date: str) -> list:
     included with result=None; the Analyst evaluates what's known so far."""
     bets = _db.get_bets(date=target_date)
     picks = [b for b in bets if (b.get("stake") or 0) > 0 or b.get("over_cap")]
-    clv_by_bet = {c["bet"]: c for c in _db.get_clv_log(days=2) if c.get("date") == target_date}
+    # closing_only=True: a bet can now have many trajectory rows (one per
+    # pre-game checkpoint) -- only the is_closing=1 row is the real closing
+    # line CLV should be graded against.
+    clv_by_bet = {c["bet"]: c for c in _db.get_clv_log(days=2, closing_only=True)
+                  if c.get("date") == target_date}
 
     out = []
     for b in picks:
