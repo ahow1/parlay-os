@@ -6163,7 +6163,13 @@ def _run_morning_planner():
     today_str   = today.isoformat()
     today_label = today.strftime("%b %d, %Y")
 
-    from memory_engine import team_prior as _team_prior
+    from memory_engine import team_prior as _team_prior, init_memory_tables as _init_mem_tables
+    # This GH Actions job's local db is a fresh scratch file every run (see
+    # CLAUDE.md Deployment) and, unlike run_daily_scout(), never previously
+    # initialized memory_engine's tables -- team_prior() below would throw
+    # "no such table: team_memory" on every single invocation. Same bug
+    # class as the --bot/team_memory crash; fixed the same way.
+    _init_mem_tables()
 
     watch_games: list[str] = []
     edge_found = False
@@ -6197,8 +6203,12 @@ def _run_morning_planner():
             curr_odds_map[home_code] = market["best_home_odds"]
 
         # Use memory prior (7-day) as quick model proxy
-        away_prior = _team_prior(away_code, "away", 7) or 0.5
-        home_prior = _team_prior(home_code, "home", 7) or 0.5
+        try:
+            away_prior = _team_prior(away_code, "away", 7) or 0.5
+            home_prior = _team_prior(home_code, "home", 7) or 0.5
+        except Exception as _tp_e:
+            print(f"[PLANNER] team_prior lookup failed ({away_code}/{home_code}): {_tp_e}")
+            away_prior = home_prior = 0.5
 
         away_edge = round((away_prior - away_nv) * 100, 1)
         home_edge = round((home_prior - home_nv) * 100, 1)
@@ -6375,6 +6385,24 @@ if __name__ == "__main__":
             import threading as _threading
             from telegram_handler import _poll_loop
             from sp_monitor import SPMonitor
+            # db.init_db() already ran at db.py import time (module-level, see
+            # db.py's "Initialize on import" block) so bets/bankroll/etc. exist
+            # on every process regardless of mode. memory_engine's tables
+            # (team_memory, player_memory, bet_memory, situation_memory, ...)
+            # have no such import-time init -- only run_daily_scout() and
+            # live_engine.py call init_memory_tables()/init_brain_tables(),
+            # both scout-only paths. The worker's --bot database never went
+            # through either, so any worker-side read/write into that table
+            # group threw "no such table" (see CLAUDE.md Known Bugs,
+            # 2026-09-01). Run both here, before any thread starts. Wrapped
+            # separately so a table-init failure degrades to a logged
+            # warning instead of blocking the bot from starting at all.
+            try:
+                init_memory_tables()
+                init_brain_tables()
+            except Exception as _init_e:
+                error_logger.log_error("brain.__bot_table_init", _init_e)
+                print(f"[BOT] memory/brain table init failed: {_init_e}")
             start_auto_settler()
             start_hedge_monitor()
             _sp_mon = SPMonitor(send_fn=_send_telegram)
