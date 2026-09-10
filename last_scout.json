@@ -1,78 +1,18 @@
 {
-  "timestamp": "2026-09-09T22:31:39Z",
+  "timestamp": "2026-09-10T01:19:50Z",
   "date": "2026-09-09",
-  "window": "all",
+  "window": "west",
   "bankroll": 300.0,
   "games": [
     {
-      "away": "LAA",
-      "home": "BOS",
-      "away_model": 0.4626,
-      "home_model": 0.5224,
-      "away_edge": 12.45,
-      "home_edge": -13.95,
-      "away_xr": 3.845,
-      "home_xr": 4.993
-    },
-    {
-      "away": "COL",
-      "home": "NYY",
-      "away_model": 0.4368,
-      "home_model": 0.5482,
-      "away_edge": 12.18,
-      "home_edge": -13.68,
-      "away_xr": 4.162,
-      "home_xr": 4.506
-    },
-    {
-      "away": "TB",
-      "home": "ATL",
-      "away_model": 0.5262,
-      "home_model": 0.4688,
-      "away_edge": 6.1,
-      "home_edge": -6.6,
-      "away_xr": 4.955,
-      "home_xr": 3.5
-    },
-    {
-      "away": "AZ",
-      "home": "KC",
-      "away_model": 0.4982,
-      "home_model": 0.4968,
-      "away_edge": -2.58,
-      "home_edge": 2.08,
-      "away_xr": 4.5,
-      "home_xr": 5.005
-    },
-    {
-      "away": "CHC",
-      "home": "MIL",
-      "away_model": 0.501,
-      "home_model": 0.514,
-      "away_edge": 5.88,
-      "home_edge": -4.38,
-      "away_xr": 4.059,
-      "home_xr": 4.465
-    },
-    {
-      "away": "PIT",
-      "home": "CWS",
-      "away_model": 0.5208,
-      "home_model": 0.4742,
-      "away_edge": 6.69,
-      "home_edge": -7.19,
-      "away_xr": 4.269,
-      "home_xr": 4.346
-    },
-    {
       "away": "CIN",
       "home": "LAD",
-      "away_model": 0.4778,
-      "home_model": 0.5372,
-      "away_edge": 19.21,
-      "home_edge": -17.71,
-      "away_xr": 3.739,
-      "home_xr": 5.044
+      "away_model": 0.5035,
+      "home_model": 0.5365,
+      "away_edge": 21.8,
+      "home_edge": -17.8,
+      "away_xr": 3.728,
+      "home_xr": 4.959
     }
   ],
   "bets": [
@@ -82,12 +22,12 @@
       "game": "Cincinnati Reds @ Los Angeles Dodgers",
       "odds": 242,
       "book": "betonlineag",
-      "model_prob": 0.4778,
-      "market_prob": 0.2857,
-      "edge_pct": 19.21,
+      "model_prob": 0.5035,
+      "market_prob": 0.2855,
+      "edge_pct": 21.8,
       "stake": 40.0,
       "conviction": "HIGH",
-      "confidence_score": 97,
+      "confidence_score": 95,
       "sp": "Rhett Lowder",
       "sp_era": 5.43,
       "sp_xfip": 4.81,
@@ -103,95 +43,10 @@
         "avg_total": 6.8,
         "over_rate": 0.3
       }
-    },
-    {
-      "team": "Colorado Rockies",
-      "side": "away",
-      "game": "Colorado Rockies @ New York Yankees",
-      "odds": 210,
-      "book": "lowvig",
-      "model_prob": 0.4368,
-      "market_prob": 0.315,
-      "edge_pct": 12.18,
-      "stake": 25.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 97,
-      "sp": "Tomoyuki Sugano",
-      "sp_era": 5.19,
-      "sp_xfip": 4.75,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 7.6,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 7,
-        "away_win_rate": 0.286,
-        "home_win_rate": 0.714,
-        "avg_total": 9.0,
-        "over_rate": 0.571
-      }
-    },
-    {
-      "team": "Pittsburgh Pirates",
-      "side": "away",
-      "game": "Pittsburgh Pirates @ Chicago White Sox",
-      "odds": 118,
-      "book": "betus",
-      "model_prob": 0.5208,
-      "market_prob": 0.4539,
-      "edge_pct": 6.69,
-      "stake": 20.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 73,
-      "sp": "Lake Bachar",
-      "sp_era": 3.59,
-      "sp_xfip": 4.3,
-      "sp_yrfi_lean": true,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 10.1,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 7,
-        "away_win_rate": 0.571,
-        "home_win_rate": 0.429,
-        "avg_total": 10.29,
-        "over_rate": 0.714
-      }
     }
   ],
-  "passes": [
-    {
-      "game": "Los Angeles Angels @ Boston Red Sox",
-      "edges": {
-        "away": 12.45,
-        "home": -13.95
-      }
-    },
-    {
-      "game": "Tampa Bay Rays @ Atlanta Braves",
-      "edges": {
-        "away": 6.1,
-        "home": -6.6
-      }
-    },
-    {
-      "game": "Arizona Diamondbacks @ Kansas City Royals",
-      "edges": {
-        "away": -2.58,
-        "home": 2.08
-      }
-    },
-    {
-      "game": "Chicago Cubs @ Milwaukee Brewers",
-      "edges": {
-        "away": 5.88,
-        "home": -4.38
-      }
-    }
-  ],
-  "slip_sent": true,
+  "passes": [],
+  "slip_sent": false,
   "sent_pick_ids": [
     "ER:Daniel Lynch IV:2.5:OVER",
     "ER:Lake Bachar:2.5:OVER",
@@ -325,7 +180,7 @@
     "TOT:Colorado Rockies @ New York Yankees:UNDER:9.5",
     "TOT:Los Angeles Angels @ Boston Red Sox:UNDER:9.0"
   ],
-  "slip_quality": "good",
+  "slip_quality": "bad",
   "data_health": {
     "odds": "live",
     "fangraphs_sp": "live",
