@@ -1,142 +1,12 @@
 {
-  "timestamp": "2026-09-10T12:27:45Z",
+  "timestamp": "2026-09-10T17:58:06Z",
   "date": "2026-09-10",
-  "window": "all",
+  "window": "day",
   "bankroll": 300.0,
-  "games": [
-    {
-      "away": "TB",
-      "home": "ATL",
-      "away_model": 0.5346,
-      "home_model": 0.4609,
-      "away_edge": 5.09,
-      "home_edge": -5.54,
-      "away_xr": 4.763,
-      "home_xr": 3.79
-    },
-    {
-      "away": "HOU",
-      "home": "PHI",
-      "away_model": 0.5107,
-      "home_model": 0.5028,
-      "away_edge": 14.21,
-      "home_edge": -12.86,
-      "away_xr": 3.923,
-      "home_xr": 4.744
-    },
-    {
-      "away": "TEX",
-      "home": "SEA",
-      "away_model": 0.5248,
-      "home_model": 0.4887,
-      "away_edge": 5.75,
-      "home_edge": -4.4,
-      "away_xr": 4.171,
-      "home_xr": 3.564
-    },
-    {
-      "away": "COL",
-      "home": "NYY",
-      "away_model": 0.4295,
-      "home_model": 0.557,
-      "away_edge": 17.05,
-      "home_edge": -18.4,
-      "away_xr": 3.547,
-      "home_xr": 4.603
-    },
-    {
-      "away": "PIT",
-      "home": "CWS",
-      "away_model": 0.4911,
-      "home_model": 0.5044,
-      "away_edge": -0.43,
-      "home_edge": -0.02,
-      "away_xr": 3.5,
-      "home_xr": 4.22
-    }
-  ],
-  "bets": [
-    {
-      "team": "Colorado Rockies",
-      "side": "away",
-      "game": "Colorado Rockies @ New York Yankees",
-      "odds": 277,
-      "book": "lowvig",
-      "model_prob": 0.4295,
-      "market_prob": 0.259,
-      "edge_pct": 17.05,
-      "stake": 40.0,
-      "conviction": "HIGH",
-      "confidence_score": 77,
-      "sp": "Ryan Feltner",
-      "sp_era": 5.91,
-      "sp_xfip": 4.92,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": -7.4,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 8,
-        "away_win_rate": 0.25,
-        "home_win_rate": 0.75,
-        "avg_total": 8.75,
-        "over_rate": 0.5
-      }
-    },
-    {
-      "team": "Houston Astros",
-      "side": "away",
-      "game": "Houston Astros @ Philadelphia Phillies",
-      "odds": 165,
-      "book": "betonlineag",
-      "model_prob": 0.5107,
-      "market_prob": 0.3686,
-      "edge_pct": 14.21,
-      "stake": 40.0,
-      "conviction": "HIGH",
-      "confidence_score": 75,
-      "sp": "Cristian Javier",
-      "sp_era": 5.98,
-      "sp_xfip": 4.83,
-      "sp_yrfi_lean": true,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 2.6,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 8,
-        "away_win_rate": 0.625,
-        "home_win_rate": 0.375,
-        "avg_total": 6.88,
-        "over_rate": 0.375
-      }
-    }
-  ],
-  "passes": [
-    {
-      "game": "Tampa Bay Rays @ Atlanta Braves",
-      "edges": {
-        "away": 5.09,
-        "home": -5.54
-      }
-    },
-    {
-      "game": "Texas Rangers @ Seattle Mariners",
-      "edges": {
-        "away": 5.75,
-        "home": -4.4
-      }
-    },
-    {
-      "game": "Pittsburgh Pirates @ Chicago White Sox",
-      "edges": {
-        "away": -0.43,
-        "home": -0.02
-      }
-    }
-  ],
-  "slip_sent": true,
+  "games": [],
+  "bets": [],
+  "passes": [],
+  "slip_sent": false,
   "sent_pick_ids": [
     "ER:Jacob deGrom:2.5:UNDER",
     "ER:Jared Jones:2.5:UNDER",
@@ -157,18 +27,9 @@
     "TOT:Colorado Rockies @ New York Yankees:UNDER:9.0",
     "TOT:Texas Rangers @ Seattle Mariners:OVER:6.5"
   ],
-  "slip_quality": "good",
+  "slip_quality": "bad",
   "data_health": {
-    "odds": "live",
-    "fangraphs_sp": "live",
-    "savant": "degraded",
-    "lineups": "failed",
-    "savant_bullpen_stuff": "live",
-    "savant_bat_tracking": "live",
-    "savant_park_of_defense": "live",
-    "savant_sprint_baserunning": "live",
-    "savant_arm_angle": "live",
-    "h2h": "live"
+    "odds": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],
