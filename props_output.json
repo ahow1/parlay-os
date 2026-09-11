@@ -1,5 +1,48 @@
 {
-  "date": "2026-09-10",
-  "timestamp": "2026-09-10T21:22:38.793323-04:00",
-  "games": []
+  "date": "2026-09-11",
+  "timestamp": "2026-09-11T14:03:41.654575-04:00",
+  "games": [
+    {
+      "away": "PIT",
+      "home": "CHC",
+      "away_name": "Pittsburgh Pirates",
+      "home_name": "Chicago Cubs",
+      "time": "2:21 PM ET",
+      "asp": "Wilber Dotel",
+      "hsp": "Shota Imanaga",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Wilber Dotel",
+          "sp_side": "away",
+          "model_line": 5.2,
+          "p_over": 0.5094,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Shota Imanaga",
+          "sp_side": "home",
+          "model_line": 4.9,
+          "p_over": 0.631,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.42,
+          "p_yrfi": 0.58,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.23,
+          "market_line": 8.5,
+          "p_over": 0.4392,
+          "p_under": 0.5608,
+          "recommendation": "UNDER 8.5"
+        }
+      ],
+      "sgp": []
+    }
+  ]
 }
