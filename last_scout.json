@@ -1,70 +1,12 @@
 {
-  "timestamp": "2026-09-10T22:13:31Z",
+  "timestamp": "2026-09-11T01:22:38Z",
   "date": "2026-09-10",
-  "window": "evening",
+  "window": "west",
   "bankroll": 300.0,
-  "games": [
-    {
-      "away": "COL",
-      "home": "NYY",
-      "away_model": 0.4218,
-      "home_model": 0.5633,
-      "away_edge": 14.12,
-      "home_edge": -15.61,
-      "away_xr": 3.552,
-      "home_xr": 4.603
-    },
-    {
-      "away": "PIT",
-      "home": "CWS",
-      "away_model": 0.4932,
-      "home_model": 0.5018,
-      "away_edge": 1.17,
-      "home_edge": -1.67,
-      "away_xr": 3.5,
-      "home_xr": 4.136
-    }
-  ],
-  "bets": [
-    {
-      "team": "Colorado Rockies",
-      "side": "away",
-      "game": "Colorado Rockies @ New York Yankees",
-      "odds": 248,
-      "book": "lowvig",
-      "model_prob": 0.4218,
-      "market_prob": 0.2806,
-      "edge_pct": 14.12,
-      "stake": 36.8,
-      "conviction": "HIGH",
-      "confidence_score": 86,
-      "sp": "Ryan Feltner",
-      "sp_era": 5.82,
-      "sp_xfip": 4.92,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": -7.4,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 8,
-        "away_win_rate": 0.25,
-        "home_win_rate": 0.75,
-        "avg_total": 8.75,
-        "over_rate": 0.5
-      }
-    }
-  ],
-  "passes": [
-    {
-      "game": "Pittsburgh Pirates @ Chicago White Sox",
-      "edges": {
-        "away": 1.17,
-        "home": -1.67
-      }
-    }
-  ],
-  "slip_sent": true,
+  "games": [],
+  "bets": [],
+  "passes": [],
+  "slip_sent": false,
   "sent_pick_ids": [
     "ER:Jared Jones:2.5:UNDER",
     "ER:Max Fried:1.5:OVER",
@@ -103,18 +45,9 @@
     "NRFI:Colorado Rockies @ New York Yankees:YRFI",
     "TOT:Colorado Rockies @ New York Yankees:UNDER:8.5"
   ],
-  "slip_quality": "good",
+  "slip_quality": "bad",
   "data_health": {
-    "odds": "live",
-    "fangraphs_sp": "live",
-    "savant": "degraded",
-    "lineups": "live",
-    "savant_bullpen_stuff": "live",
-    "savant_bat_tracking": "live",
-    "savant_park_of_defense": "live",
-    "savant_sprint_baserunning": "live",
-    "savant_arm_angle": "live",
-    "h2h": "live"
+    "odds": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],
