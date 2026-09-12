@@ -1,129 +1,45 @@
 {
-  "date": "2026-09-11",
-  "timestamp": "2026-09-11T21:29:07.508952-04:00",
+  "date": "2026-09-12",
+  "timestamp": "2026-09-12T13:35:11.097003-04:00",
   "games": [
     {
-      "away": "SEA",
-      "home": "ATH",
-      "away_name": "Seattle Mariners",
-      "home_name": "Athletics",
-      "time": "9:40 PM ET",
-      "asp": "George Kirby",
-      "hsp": "Jeffrey Springs",
+      "away": "PIT",
+      "home": "CHC",
+      "away_name": "Pittsburgh Pirates",
+      "home_name": "Chicago Cubs",
+      "time": "2:21 PM ET",
+      "asp": "Paul Skenes",
+      "hsp": "Clay Holmes",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "George Kirby",
+          "sp": "Paul Skenes",
           "sp_side": "away",
-          "model_line": 4.2,
-          "p_over": 0.5459,
-          "recommendation": "PASS"
+          "model_line": 5.8,
+          "p_over": 0.5924,
+          "recommendation": "BET"
         },
         {
           "type": "K_PROP",
-          "sp": "Jeffrey Springs",
+          "sp": "Clay Holmes",
           "sp_side": "home",
-          "model_line": 4.0,
-          "p_over": 0.3712,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3794,
-          "p_yrfi": 0.6206,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.49,
-          "market_line": 10.5,
-          "p_over": 0.1366,
-          "p_under": 0.8634,
-          "recommendation": "UNDER 10.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "TEX",
-      "home": "AZ",
-      "away_name": "Texas Rangers",
-      "home_name": "Arizona Diamondbacks",
-      "time": "9:41 PM ET",
-      "asp": "MacKenzie Gore",
-      "hsp": "Merrill Kelly",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "MacKenzie Gore",
-          "sp_side": "away",
-          "model_line": 5.4,
-          "p_over": 0.4993,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Merrill Kelly",
-          "sp_side": "home",
-          "model_line": 3.4,
-          "p_over": 0.5277,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3603,
-          "p_yrfi": 0.6397,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 9.37,
-          "market_line": 8.5,
-          "p_over": 0.5923,
-          "p_under": 0.4077,
-          "recommendation": "OVER 8.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "SD",
-      "home": "SF",
-      "away_name": "San Diego Padres",
-      "home_name": "San Francisco Giants",
-      "time": "10:16 PM ET",
-      "asp": "Robbie Ray",
-      "hsp": "Anthony Molina",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Robbie Ray",
-          "sp_side": "away",
-          "model_line": 4.2,
-          "p_over": 0.5056,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Anthony Molina",
-          "sp_side": "home",
-          "model_line": 3.9,
-          "p_over": 0.7901,
+          "model_line": 3.8,
+          "p_over": 0.6286,
           "recommendation": "BET"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4128,
-          "p_yrfi": 0.5872,
+          "p_nrfi": 0.4452,
+          "p_yrfi": 0.5548,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.59,
-          "market_line": 7.5,
-          "p_over": 0.6253,
-          "p_under": 0.3747,
-          "recommendation": "OVER 7.5"
+          "model_total": 8.85,
+          "market_line": 9.5,
+          "p_over": 0.3932,
+          "p_under": 0.6068,
+          "recommendation": "UNDER 9.5"
         }
       ],
       "sgp": []
