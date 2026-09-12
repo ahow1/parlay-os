@@ -1,45 +1,171 @@
 {
   "date": "2026-09-12",
-  "timestamp": "2026-09-12T13:35:11.097003-04:00",
+  "timestamp": "2026-09-12T18:01:55.221941-04:00",
   "games": [
     {
-      "away": "PIT",
-      "home": "CHC",
-      "away_name": "Pittsburgh Pirates",
-      "home_name": "Chicago Cubs",
-      "time": "2:21 PM ET",
-      "asp": "Paul Skenes",
-      "hsp": "Clay Holmes",
+      "away": "HOU",
+      "home": "TB",
+      "away_name": "Houston Astros",
+      "home_name": "Tampa Bay Rays",
+      "time": "6:11 PM ET",
+      "asp": "Peter Lambert",
+      "hsp": "Ian Seymour",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Paul Skenes",
+          "sp": "Peter Lambert",
           "sp_side": "away",
-          "model_line": 5.8,
-          "p_over": 0.5924,
+          "model_line": 4.9,
+          "p_over": 0.6397,
           "recommendation": "BET"
         },
         {
           "type": "K_PROP",
-          "sp": "Clay Holmes",
+          "sp": "Ian Seymour",
           "sp_side": "home",
-          "model_line": 3.8,
-          "p_over": 0.6286,
+          "model_line": 6.0,
+          "p_over": 0.7355,
           "recommendation": "BET"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4452,
-          "p_yrfi": 0.5548,
+          "p_nrfi": 0.4198,
+          "p_yrfi": 0.5802,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.85,
-          "market_line": 9.5,
-          "p_over": 0.3932,
-          "p_under": 0.6068,
-          "recommendation": "UNDER 9.5"
+          "model_total": 8.74,
+          "market_line": 7.5,
+          "p_over": 0.6449,
+          "p_under": 0.3551,
+          "recommendation": "OVER 7.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "CIN",
+      "home": "MIL",
+      "away_name": "Cincinnati Reds",
+      "home_name": "Milwaukee Brewers",
+      "time": "7:11 PM ET",
+      "asp": "Brady Singer",
+      "hsp": "Shane Drohan",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Brady Singer",
+          "sp_side": "away",
+          "model_line": 4.1,
+          "p_over": 0.4267,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Shane Drohan",
+          "sp_side": "home",
+          "model_line": 5.0,
+          "p_over": 0.6677,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3947,
+          "p_yrfi": 0.6053,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.88,
+          "market_line": 8.5,
+          "p_over": 0.6539,
+          "p_under": 0.3461,
+          "recommendation": "OVER 8.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "PHI",
+      "home": "ATL",
+      "away_name": "Philadelphia Phillies",
+      "home_name": "Atlanta Braves",
+      "time": "7:16 PM ET",
+      "asp": "Tim Mayza",
+      "hsp": "Tyler Mahle",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Tim Mayza",
+          "sp_side": "away",
+          "model_line": 4.8,
+          "p_over": 0.8015,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Tyler Mahle",
+          "sp_side": "home",
+          "model_line": 4.7,
+          "p_over": 0.5883,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4622,
+          "p_yrfi": 0.5378,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.25,
+          "market_line": 8.5,
+          "p_over": 0.3042,
+          "p_under": 0.6958,
+          "recommendation": "UNDER 8.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "CWS",
+      "home": "STL",
+      "away_name": "Chicago White Sox",
+      "home_name": "St. Louis Cardinals",
+      "time": "7:16 PM ET",
+      "asp": "Sean Newcomb",
+      "hsp": "Kyle Leahy",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Sean Newcomb",
+          "sp_side": "away",
+          "model_line": 4.5,
+          "p_over": 0.7455,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Kyle Leahy",
+          "sp_side": "home",
+          "model_line": 4.7,
+          "p_over": 0.4849,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4325,
+          "p_yrfi": 0.5675,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.46,
+          "market_line": 8.5,
+          "p_over": 0.4715,
+          "p_under": 0.5285,
+          "recommendation": "PASS"
         }
       ],
       "sgp": []
