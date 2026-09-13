@@ -1,174 +1,60 @@
 {
   "date": "2026-09-13",
-  "timestamp": "2026-09-13T13:55:15.308240-04:00",
+  "timestamp": "2026-09-13T18:05:04.833905-04:00",
   "games": [
     {
-      "away": "CIN",
-      "home": "MIL",
-      "away_name": "Cincinnati Reds",
-      "home_name": "Milwaukee Brewers",
-      "time": "2:11 PM ET",
-      "asp": "Chase Burns",
-      "hsp": "Robert Gasser",
+      "away": "SD",
+      "home": "SF",
+      "away_name": "San Diego Padres",
+      "home_name": "San Francisco Giants",
+      "time": "7:21 PM ET",
+      "asp": "Nick Pivetta",
+      "hsp": "Logan Webb",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Chase Burns",
+          "sp": "Nick Pivetta",
           "sp_side": "away",
-          "model_line": 5.9,
-          "p_over": 0.6336,
-          "recommendation": "BET"
+          "model_line": 6.2,
+          "p_over": 0.2675,
+          "recommendation": "PASS"
         },
         {
           "type": "K_PROP",
-          "sp": "Robert Gasser",
+          "sp": "Logan Webb",
           "sp_side": "home",
-          "model_line": 4.8,
-          "p_over": 0.5793,
-          "recommendation": "BET"
+          "model_line": 4.1,
+          "p_over": 0.5389,
+          "recommendation": "PASS"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4414,
-          "p_yrfi": 0.5586,
+          "p_nrfi": 0.468,
+          "p_yrfi": 0.532,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 9.26,
-          "market_line": 8.0,
-          "p_over": 0.5781,
-          "p_under": 0.4219,
-          "recommendation": "OVER 8.0"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "CLE",
-      "home": "MIN",
-      "away_name": "Cleveland Guardians",
-      "home_name": "Minnesota Twins",
-      "time": "2:11 PM ET",
-      "asp": "Tanner Bibee",
-      "hsp": "Joe Ryan",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Tanner Bibee",
-          "sp_side": "away",
-          "model_line": 3.9,
-          "p_over": 0.6461,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Joe Ryan",
-          "sp_side": "home",
-          "model_line": 5.6,
-          "p_over": 0.5609,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4029,
-          "p_yrfi": 0.5971,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.26,
+          "model_total": 8.73,
           "market_line": 7.5,
-          "p_over": 0.582,
-          "p_under": 0.418,
+          "p_over": 0.6432,
+          "p_under": 0.3568,
           "recommendation": "OVER 7.5"
         }
       ],
-      "sgp": []
-    },
-    {
-      "away": "CWS",
-      "home": "STL",
-      "away_name": "Chicago White Sox",
-      "home_name": "St. Louis Cardinals",
-      "time": "2:16 PM ET",
-      "asp": "David Sandlin",
-      "hsp": "Michael McGreevy",
-      "props": [
+      "sgp": [
         {
-          "type": "K_PROP",
-          "sp": "David Sandlin",
-          "sp_side": "away",
-          "model_line": 4.9,
-          "p_over": 0.8093,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Michael McGreevy",
-          "sp_side": "home",
-          "model_line": 3.4,
-          "p_over": 0.523,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3935,
-          "p_yrfi": 0.6065,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.8,
-          "market_line": 8.5,
-          "p_over": 0.5179,
-          "p_under": 0.4821,
-          "recommendation": "PASS"
+          "type": "OFFENSE_EXPLOSION",
+          "legs": [
+            "AWAY ML (56.0%)",
+            "Game OVER 7.5 (64.3%)",
+            "AWAY first to score (52.9%)"
+          ],
+          "joint_prob": 0.2776,
+          "kelly_stake": 0.0,
+          "ev": -0.15
         }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "PIT",
-      "home": "CHC",
-      "away_name": "Pittsburgh Pirates",
-      "home_name": "Chicago Cubs",
-      "time": "2:21 PM ET",
-      "asp": "Bubba Chandler",
-      "hsp": "Matthew Boyd",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Bubba Chandler",
-          "sp_side": "away",
-          "model_line": 4.5,
-          "p_over": 0.5201,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Matthew Boyd",
-          "sp_side": "home",
-          "model_line": 3.9,
-          "p_over": 0.6619,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3741,
-          "p_yrfi": 0.6259,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.95,
-          "market_line": 7.0,
-          "p_over": 0.6697,
-          "p_under": 0.3303,
-          "recommendation": "OVER 7.0"
-        }
-      ],
-      "sgp": []
+      ]
     }
   ]
 }

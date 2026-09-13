@@ -1,104 +1,31 @@
 {
-  "timestamp": "2026-09-13T17:48:05Z",
+  "timestamp": "2026-09-13T22:03:13Z",
   "date": "2026-09-13",
-  "window": "day",
+  "window": "evening",
   "bankroll": 300.0,
   "games": [
     {
-      "away": "CIN",
-      "home": "MIL",
-      "away_model": 0.491,
-      "home_model": 0.524,
-      "away_edge": 13.2,
-      "home_edge": -11.7,
-      "away_xr": 4.208,
-      "home_xr": 5.052
-    },
-    {
-      "away": "CLE",
-      "home": "MIN",
-      "away_model": 0.4935,
-      "home_model": 0.5215,
-      "away_edge": 3.04,
-      "home_edge": -1.54,
-      "away_xr": 4.057,
-      "home_xr": 4.198
-    },
-    {
-      "away": "CWS",
-      "home": "STL",
-      "away_model": 0.5051,
-      "home_model": 0.5099,
-      "away_edge": -1.12,
-      "home_edge": 2.62,
-      "away_xr": 4.402,
-      "home_xr": 4.399
-    },
-    {
-      "away": "PIT",
-      "home": "CHC",
-      "away_model": 0.469,
-      "home_model": 0.546,
-      "away_edge": 7.69,
-      "home_edge": -6.19,
-      "away_xr": 3.876,
-      "home_xr": 5.07
+      "away": "SD",
+      "home": "SF",
+      "away_model": 0.5605,
+      "home_model": 0.4345,
+      "away_edge": -0.92,
+      "home_edge": 0.42,
+      "away_xr": 4.616,
+      "home_xr": 4.111
     }
   ],
-  "bets": [
-    {
-      "team": "Cincinnati Reds",
-      "side": "away",
-      "game": "Cincinnati Reds @ Milwaukee Brewers",
-      "odds": 172,
-      "book": "lowvig",
-      "model_prob": 0.491,
-      "market_prob": 0.359,
-      "edge_pct": 13.2,
-      "stake": 25.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 100,
-      "sp": "Chase Burns",
-      "sp_era": 2.73,
-      "sp_xfip": 3.41,
-      "sp_yrfi_lean": true,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 10.3,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.3,
-        "home_win_rate": 0.7,
-        "avg_total": 13.0,
-        "over_rate": 0.7
-      }
-    }
-  ],
+  "bets": [],
   "passes": [
     {
-      "game": "Cleveland Guardians @ Minnesota Twins",
+      "game": "San Diego Padres @ San Francisco Giants",
       "edges": {
-        "away": 3.04,
-        "home": -1.54
-      }
-    },
-    {
-      "game": "Chicago White Sox @ St. Louis Cardinals",
-      "edges": {
-        "away": -1.12,
-        "home": 2.62
-      }
-    },
-    {
-      "game": "Pittsburgh Pirates @ Chicago Cubs",
-      "edges": {
-        "away": 7.69,
-        "home": -6.19
+        "away": -0.92,
+        "home": 0.42
       }
     }
   ],
-  "slip_sent": true,
+  "slip_sent": false,
   "sent_pick_ids": [
     "ER:Chase Burns:1.5:OVER",
     "ER:David Sandlin:4.5:UNDER",
@@ -186,7 +113,7 @@
     "TOT:Cleveland Guardians @ Minnesota Twins:OVER:7.5",
     "TOT:Pittsburgh Pirates @ Chicago Cubs:OVER:7.0"
   ],
-  "slip_quality": "good",
+  "slip_quality": "bad",
   "data_health": {
     "odds": "live",
     "fangraphs_sp": "live",
