@@ -1,49 +1,7 @@
 {
   "date": "2026-09-12",
-  "timestamp": "2026-09-12T19:23:43.945104-04:00",
+  "timestamp": "2026-09-12T21:22:51.826143-04:00",
   "games": [
-    {
-      "away": "TEX",
-      "home": "AZ",
-      "away_name": "Texas Rangers",
-      "home_name": "Arizona Diamondbacks",
-      "time": "8:11 PM ET",
-      "asp": "Kumar Rocker",
-      "hsp": "Brandon Pfaadt",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Kumar Rocker",
-          "sp_side": "away",
-          "model_line": 4.7,
-          "p_over": 0.6095,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Brandon Pfaadt",
-          "sp_side": "home",
-          "model_line": 3.3,
-          "p_over": 0.6738,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3718,
-          "p_yrfi": 0.6282,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.77,
-          "market_line": 8.0,
-          "p_over": 0.5139,
-          "p_under": 0.4861,
-          "recommendation": "PASS"
-        }
-      ],
-      "sgp": []
-    },
     {
       "away": "SEA",
       "home": "ATH",
@@ -77,10 +35,10 @@
         },
         {
           "type": "TOTAL",
-          "model_total": 7.34,
+          "model_total": 7.22,
           "market_line": 9.5,
-          "p_over": 0.206,
-          "p_under": 0.794,
+          "p_over": 0.1923,
+          "p_under": 0.8077,
           "recommendation": "UNDER 9.5"
         }
       ],
