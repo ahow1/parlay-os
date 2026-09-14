@@ -1,5 +1,216 @@
 {
   "date": "2026-09-14",
-  "timestamp": "2026-09-14T15:41:50.344376-04:00",
-  "games": []
+  "timestamp": "2026-09-14T19:05:22.155584-04:00",
+  "games": [
+    {
+      "away": "DET",
+      "home": "TOR",
+      "away_name": "Detroit Tigers",
+      "home_name": "Toronto Blue Jays",
+      "time": "7:08 PM ET",
+      "asp": "Troy Melton",
+      "hsp": "Jos\u00e9 Soriano",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Troy Melton",
+          "sp_side": "away",
+          "model_line": 4.0,
+          "p_over": 0.5297,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Jos\u00e9 Soriano",
+          "sp_side": "home",
+          "model_line": 4.7,
+          "p_over": 0.6118,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4125,
+          "p_yrfi": 0.5875,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.64,
+          "market_line": 7.5,
+          "p_over": 0.746,
+          "p_under": 0.254,
+          "recommendation": "OVER 7.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "BAL",
+      "home": "NYM",
+      "away_name": "Baltimore Orioles",
+      "home_name": "New York Mets",
+      "time": "7:11 PM ET",
+      "asp": "Brandon Young",
+      "hsp": "Jonah Tong",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Brandon Young",
+          "sp_side": "away",
+          "model_line": 4.0,
+          "p_over": 0.4649,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Jonah Tong",
+          "sp_side": "home",
+          "model_line": 4.7,
+          "p_over": 0.78,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3721,
+          "p_yrfi": 0.6279,
+          "recommendation": "YRFI"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.75,
+          "market_line": 8.0,
+          "p_over": 0.638,
+          "p_under": 0.362,
+          "recommendation": "OVER 8.0"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "ATL",
+      "home": "CHC",
+      "away_name": "Atlanta Braves",
+      "home_name": "Chicago Cubs",
+      "time": "7:41 PM ET",
+      "asp": "Reynaldo L\u00f3pez",
+      "hsp": "David Peterson",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Reynaldo L\u00f3pez",
+          "sp_side": "away",
+          "model_line": 4.6,
+          "p_over": 0.7031,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "David Peterson",
+          "sp_side": "home",
+          "model_line": 4.5,
+          "p_over": 0.6944,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.365,
+          "p_yrfi": 0.635,
+          "recommendation": "YRFI"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.36,
+          "market_line": 9.5,
+          "p_over": 0.4603,
+          "p_under": 0.5397,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "NYY",
+      "home": "MIN",
+      "away_name": "New York Yankees",
+      "home_name": "Minnesota Twins",
+      "time": "7:41 PM ET",
+      "asp": "Will Warren",
+      "hsp": "Dean Kremer",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Will Warren",
+          "sp_side": "away",
+          "model_line": 5.0,
+          "p_over": 0.4233,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Dean Kremer",
+          "sp_side": "home",
+          "model_line": 4.8,
+          "p_over": 0.5479,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3761,
+          "p_yrfi": 0.6239,
+          "recommendation": "YRFI"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.35,
+          "market_line": 8.0,
+          "p_over": 0.5896,
+          "p_under": 0.4104,
+          "recommendation": "OVER 8.0"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "SF",
+      "home": "STL",
+      "away_name": "San Francisco Giants",
+      "home_name": "St. Louis Cardinals",
+      "time": "7:46 PM ET",
+      "asp": "Landen Roupp",
+      "hsp": "Quinn Mathews",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Landen Roupp",
+          "sp_side": "away",
+          "model_line": 4.6,
+          "p_over": 0.5532,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Quinn Mathews",
+          "sp_side": "home",
+          "model_line": 4.6,
+          "p_over": 0.5004,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3668,
+          "p_yrfi": 0.6332,
+          "recommendation": "YRFI"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.12,
+          "market_line": 8.0,
+          "p_over": 0.5603,
+          "p_under": 0.4397,
+          "recommendation": "OVER 8.0"
+        }
+      ],
+      "sgp": []
+    }
+  ]
 }
