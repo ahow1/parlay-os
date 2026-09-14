@@ -1,6 +1,6 @@
 {
   "date": "2026-09-14",
-  "timestamp": "2026-09-14T11:36:08.649858-04:00",
+  "timestamp": "2026-09-14T15:06:51.739967-04:00",
   "games": [
     {
       "away": "CWS",
@@ -155,17 +155,17 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.3979,
-          "p_yrfi": 0.6021,
-          "recommendation": "PASS"
+          "p_nrfi": 0.3721,
+          "p_yrfi": 0.6279,
+          "recommendation": "YRFI"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.96,
+          "model_total": 9.61,
           "market_line": 8.0,
-          "p_over": 0.5385,
-          "p_under": 0.4615,
-          "recommendation": "PASS"
+          "p_over": 0.6214,
+          "p_under": 0.3786,
+          "recommendation": "OVER 8.0"
         }
       ],
       "sgp": []
@@ -197,16 +197,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.3806,
-          "p_yrfi": 0.6194,
-          "recommendation": "PASS"
+          "p_nrfi": 0.3767,
+          "p_yrfi": 0.6233,
+          "recommendation": "YRFI"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.97,
+          "model_total": 9.07,
           "market_line": 9.5,
-          "p_over": 0.4093,
-          "p_under": 0.5907,
+          "p_over": 0.4221,
+          "p_under": 0.5779,
           "recommendation": "UNDER 9.5"
         }
       ],
@@ -239,17 +239,17 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.3947,
-          "p_yrfi": 0.6053,
-          "recommendation": "PASS"
+          "p_nrfi": 0.3798,
+          "p_yrfi": 0.6202,
+          "recommendation": "YRFI"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.94,
+          "model_total": 9.31,
           "market_line": 8.0,
-          "p_over": 0.5364,
-          "p_under": 0.4636,
-          "recommendation": "PASS"
+          "p_over": 0.5844,
+          "p_under": 0.4156,
+          "recommendation": "OVER 8.0"
         }
       ],
       "sgp": []
@@ -288,10 +288,10 @@
         {
           "type": "TOTAL",
           "model_total": 8.84,
-          "market_line": 7.5,
-          "p_over": 0.6568,
-          "p_under": 0.3432,
-          "recommendation": "OVER 7.5"
+          "market_line": 8.0,
+          "p_over": 0.5228,
+          "p_under": 0.4772,
+          "recommendation": "PASS"
         }
       ],
       "sgp": []
@@ -407,16 +407,16 @@
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.2655,
-          "p_yrfi": 0.7345,
+          "p_nrfi": 0.2507,
+          "p_yrfi": 0.7493,
           "recommendation": "YRFI"
         },
         {
           "type": "TOTAL",
-          "model_total": 10.8,
+          "model_total": 11.27,
           "market_line": 8.5,
-          "p_over": 0.7498,
-          "p_under": 0.2502,
+          "p_over": 0.7909,
+          "p_under": 0.2091,
           "recommendation": "OVER 8.5"
         }
       ],
