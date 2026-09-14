@@ -1,16 +1,292 @@
 {
-  "timestamp": "2026-09-14T01:26:03Z",
-  "date": "2026-09-13",
-  "window": "west",
+  "timestamp": "2026-09-14T15:20:35Z",
+  "date": "2026-09-14",
+  "window": "all",
   "bankroll": 300.0,
-  "games": [],
-  "bets": [],
-  "passes": [],
-  "slip_sent": false,
-  "sent_pick_ids": [],
-  "slip_quality": "bad",
+  "games": [
+    {
+      "away": "CWS",
+      "home": "CLE",
+      "away_model": 0.4907,
+      "home_model": 0.5048,
+      "away_edge": 7.0,
+      "home_edge": -7.45,
+      "away_xr": 3.5,
+      "home_xr": 3.918
+    },
+    {
+      "away": "LAD",
+      "home": "CIN",
+      "away_model": 0.5212,
+      "home_model": 0.4474,
+      "away_edge": -14.07,
+      "home_edge": 10.93,
+      "away_xr": 5.573,
+      "home_xr": 3.5
+    },
+    {
+      "away": "DET",
+      "home": "TOR",
+      "away_model": 0.5153,
+      "home_model": 0.5027,
+      "away_edge": 7.31,
+      "home_edge": -5.51,
+      "away_xr": 4.722,
+      "home_xr": 4.979
+    },
+    {
+      "away": "BAL",
+      "home": "NYM",
+      "away_model": 0.4541,
+      "home_model": 0.5414,
+      "away_edge": -1.32,
+      "home_edge": 0.87,
+      "away_xr": 4.106,
+      "home_xr": 4.85
+    },
+    {
+      "away": "ATL",
+      "home": "CHC",
+      "away_model": 0.4972,
+      "home_model": 0.5208,
+      "away_edge": 4.52,
+      "home_edge": -2.72,
+      "away_xr": 3.917,
+      "home_xr": 5.058
+    },
+    {
+      "away": "NYY",
+      "home": "MIN",
+      "away_model": 0.5383,
+      "home_model": 0.4797,
+      "away_edge": 0.77,
+      "home_edge": 1.03,
+      "away_xr": 4.858,
+      "home_xr": 4.082
+    },
+    {
+      "away": "SF",
+      "home": "STL",
+      "away_model": 0.5012,
+      "home_model": 0.4898,
+      "away_edge": 6.36,
+      "home_edge": -7.26,
+      "away_xr": 4.74,
+      "home_xr": 4.098
+    },
+    {
+      "away": "SD",
+      "home": "COL",
+      "away_model": 0.5708,
+      "home_model": 0.4248,
+      "away_edge": -7.43,
+      "home_edge": 6.99,
+      "away_xr": 6.341,
+      "home_xr": 4.324
+    },
+    {
+      "away": "SEA",
+      "home": "LAA",
+      "away_model": 0.5305,
+      "home_model": 0.465,
+      "away_edge": 2.59,
+      "home_edge": -3.04,
+      "away_xr": 4.235,
+      "home_xr": 4.315
+    },
+    {
+      "away": "MIA",
+      "home": "AZ",
+      "away_model": 0.5124,
+      "home_model": 0.5281,
+      "away_edge": 6.04,
+      "home_edge": -1.99,
+      "away_xr": 6.342,
+      "home_xr": 4.458
+    }
+  ],
+  "bets": [
+    {
+      "team": "Detroit Tigers",
+      "side": "away",
+      "game": "Detroit Tigers @ Toronto Blue Jays",
+      "odds": 121,
+      "book": "betonlineag",
+      "model_prob": 0.5153,
+      "market_prob": 0.4422,
+      "edge_pct": 7.31,
+      "stake": 20.0,
+      "conviction": "MEDIUM",
+      "confidence_score": 66,
+      "sp": "Troy Melton",
+      "sp_era": 2.42,
+      "sp_xfip": 4.17,
+      "sp_yrfi_lean": true,
+      "bullpen_tier": null,
+      "weather_adj": null,
+      "platoon_edge": 5.1,
+      "h2h": {
+        "h2h_available": true,
+        "n_games": 10,
+        "away_win_rate": 0.4,
+        "home_win_rate": 0.6,
+        "avg_total": 7.4,
+        "over_rate": 0.3
+      }
+    },
+    {
+      "team": "Chicago White Sox",
+      "side": "away",
+      "game": "Chicago White Sox @ Cleveland Guardians",
+      "odds": 137,
+      "book": "bovada",
+      "model_prob": 0.4907,
+      "market_prob": 0.4207,
+      "edge_pct": 7.0,
+      "stake": 20.0,
+      "conviction": "MEDIUM",
+      "confidence_score": 64,
+      "sp": "Sean Newcomb",
+      "sp_era": 2.77,
+      "sp_xfip": 3.9,
+      "sp_yrfi_lean": false,
+      "bullpen_tier": null,
+      "weather_adj": null,
+      "platoon_edge": -3.5,
+      "h2h": {
+        "h2h_available": true,
+        "n_games": 10,
+        "away_win_rate": 0.6,
+        "home_win_rate": 0.4,
+        "avg_total": 8.3,
+        "over_rate": 0.5
+      }
+    },
+    {
+      "team": "Miami Marlins",
+      "side": "away",
+      "game": "Miami Marlins @ Arizona Diamondbacks",
+      "odds": 116,
+      "book": "betonlineag",
+      "model_prob": 0.5124,
+      "market_prob": 0.452,
+      "edge_pct": 6.04,
+      "stake": 20.0,
+      "conviction": "MEDIUM",
+      "confidence_score": 59,
+      "sp": "Sandy Alcantara",
+      "sp_era": 3.78,
+      "sp_xfip": 4.41,
+      "sp_yrfi_lean": false,
+      "bullpen_tier": null,
+      "weather_adj": null,
+      "platoon_edge": 6.9,
+      "h2h": {
+        "h2h_available": true,
+        "n_games": 10,
+        "away_win_rate": 0.6,
+        "home_win_rate": 0.4,
+        "avg_total": 11.8,
+        "over_rate": 0.7
+      }
+    }
+  ],
+  "passes": [
+    {
+      "game": "Los Angeles Dodgers @ Cincinnati Reds",
+      "edges": {
+        "away": -14.07,
+        "home": 10.93
+      }
+    },
+    {
+      "game": "Baltimore Orioles @ New York Mets",
+      "edges": {
+        "away": -1.32,
+        "home": 0.87
+      }
+    },
+    {
+      "game": "Atlanta Braves @ Chicago Cubs",
+      "edges": {
+        "away": 4.52,
+        "home": -2.72
+      }
+    },
+    {
+      "game": "New York Yankees @ Minnesota Twins",
+      "edges": {
+        "away": 0.77,
+        "home": 1.03
+      }
+    },
+    {
+      "game": "San Francisco Giants @ St. Louis Cardinals",
+      "edges": {
+        "away": 6.36,
+        "home": -7.26
+      }
+    },
+    {
+      "game": "San Diego Padres @ Colorado Rockies",
+      "edges": {
+        "away": -7.43,
+        "home": 6.99
+      }
+    },
+    {
+      "game": "Seattle Mariners @ Los Angeles Angels",
+      "edges": {
+        "away": 2.59,
+        "home": -3.04
+      }
+    }
+  ],
+  "slip_sent": true,
+  "sent_pick_ids": [
+    "ER:Dean Kremer:3.0:UNDER",
+    "ER:Jonah Tong:3.0:OVER",
+    "ER:Sandy Alcantara:2.5:OVER",
+    "ER:Sean Newcomb:2.0:OVER",
+    "ER:Troy Melton:1.5:OVER",
+    "KPROP:Corbin Burnes:3.3",
+    "KPROP:David Peterson:4.5",
+    "KPROP:Gavin Williams:6.7",
+    "KPROP:Jonah Tong:4.7",
+    "KPROP:Jos\u00e9 Soriano:4.7",
+    "KPROP:Kade Anderson:3.8",
+    "KPROP:Landen Roupp:4.6",
+    "KPROP:Reid Detmers:5.7",
+    "KPROP:Reynaldo L\u00f3pez:4.6",
+    "KPROP:Sandy Alcantara:3.6",
+    "KPROP:Sean Newcomb:4.6",
+    "KPROP:Tarik Skubal:5.9",
+    "ML:Chicago White Sox:137",
+    "ML:Detroit Tigers:121",
+    "ML:Miami Marlins:116",
+    "NRFI:Miami Marlins @ Arizona Diamondbacks:YRFI",
+    "NRFI:San Diego Padres @ Colorado Rockies:YRFI",
+    "NRFI:San Francisco Giants @ St. Louis Cardinals:YRFI",
+    "TOT:Atlanta Braves @ Chicago Cubs:UNDER:9.5",
+    "TOT:Baltimore Orioles @ New York Mets:OVER:8.0",
+    "TOT:Los Angeles Dodgers @ Cincinnati Reds:OVER:7.5",
+    "TOT:Miami Marlins @ Arizona Diamondbacks:OVER:8.5",
+    "TOT:San Diego Padres @ Colorado Rockies:UNDER:11.0",
+    "TOT:San Francisco Giants @ St. Louis Cardinals:OVER:7.5",
+    "TOT:Seattle Mariners @ Los Angeles Angels:OVER:7.5"
+  ],
+  "slip_quality": "good",
   "data_health": {
-    "odds": "live"
+    "odds": "live",
+    "fangraphs_sp": "live",
+    "savant": "degraded",
+    "lineups": "failed",
+    "savant_bullpen_stuff": "live",
+    "savant_bat_tracking": "live",
+    "savant_park_of_defense": "live",
+    "savant_sprint_baserunning": "live",
+    "savant_arm_angle": "live",
+    "h2h": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],
