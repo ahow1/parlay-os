@@ -1,142 +1,12 @@
 {
-  "timestamp": "2026-09-14T22:55:30Z",
+  "timestamp": "2026-09-15T01:46:15Z",
   "date": "2026-09-14",
-  "window": "evening",
+  "window": "west",
   "bankroll": 300.0,
-  "games": [
-    {
-      "away": "DET",
-      "home": "TOR",
-      "away_model": 0.5151,
-      "home_model": 0.5049,
-      "away_edge": 7.75,
-      "home_edge": -5.75,
-      "away_xr": 4.665,
-      "home_xr": 4.979
-    },
-    {
-      "away": "BAL",
-      "home": "NYM",
-      "away_model": 0.4597,
-      "home_model": 0.5353,
-      "away_edge": 3.13,
-      "home_edge": -3.63,
-      "away_xr": 4.511,
-      "home_xr": 5.236
-    },
-    {
-      "away": "ATL",
-      "home": "CHC",
-      "away_model": 0.4969,
-      "home_model": 0.5231,
-      "away_edge": 4.3,
-      "home_edge": -2.3,
-      "away_xr": 4.086,
-      "home_xr": 5.277
-    },
-    {
-      "away": "NYY",
-      "home": "MIN",
-      "away_model": 0.5435,
-      "home_model": 0.4765,
-      "away_edge": 0.87,
-      "home_edge": 1.13,
-      "away_xr": 5.081,
-      "home_xr": 4.27
-    },
-    {
-      "away": "SF",
-      "home": "STL",
-      "away_model": 0.5016,
-      "home_model": 0.4884,
-      "away_edge": 7.13,
-      "home_edge": -8.13,
-      "away_xr": 4.892,
-      "home_xr": 4.23
-    }
-  ],
-  "bets": [
-    {
-      "team": "Detroit Tigers",
-      "side": "away",
-      "game": "Detroit Tigers @ Toronto Blue Jays",
-      "odds": 124,
-      "book": "betus",
-      "model_prob": 0.5151,
-      "market_prob": 0.4376,
-      "edge_pct": 7.75,
-      "stake": 20.5,
-      "conviction": "MEDIUM",
-      "confidence_score": 76,
-      "sp": "Troy Melton",
-      "sp_era": 2.42,
-      "sp_xfip": 4.17,
-      "sp_yrfi_lean": true,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 5.1,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.4,
-        "home_win_rate": 0.6,
-        "avg_total": 7.4,
-        "over_rate": 0.3
-      }
-    },
-    {
-      "team": "San Francisco Giants",
-      "side": "away",
-      "game": "San Francisco Giants @ St. Louis Cardinals",
-      "odds": 128,
-      "book": "betrivers",
-      "model_prob": 0.5016,
-      "market_prob": 0.4303,
-      "edge_pct": 7.13,
-      "stake": 20.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 64,
-      "sp": "Landen Roupp",
-      "sp_era": 4.0,
-      "sp_xfip": 4.22,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": -8.6,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.5,
-        "home_win_rate": 0.5,
-        "avg_total": 8.9,
-        "over_rate": 0.5
-      }
-    }
-  ],
-  "passes": [
-    {
-      "game": "Baltimore Orioles @ New York Mets",
-      "edges": {
-        "away": 3.13,
-        "home": -3.63
-      }
-    },
-    {
-      "game": "Atlanta Braves @ Chicago Cubs",
-      "edges": {
-        "away": 4.3,
-        "home": -2.3
-      }
-    },
-    {
-      "game": "New York Yankees @ Minnesota Twins",
-      "edges": {
-        "away": 0.87,
-        "home": 1.13
-      }
-    }
-  ],
-  "slip_sent": true,
+  "games": [],
+  "bets": [],
+  "passes": [],
+  "slip_sent": false,
   "sent_pick_ids": [
     "ER:Dean Kremer:3.0:UNDER",
     "ER:Jonah Tong:3.0:OVER",
@@ -244,18 +114,9 @@
     "TOT:New York Yankees @ Minnesota Twins:OVER:8.0",
     "TOT:San Francisco Giants @ St. Louis Cardinals:OVER:8.0"
   ],
-  "slip_quality": "good",
+  "slip_quality": "bad",
   "data_health": {
-    "odds": "live",
-    "fangraphs_sp": "live",
-    "savant": "degraded",
-    "lineups": "live",
-    "savant_bullpen_stuff": "live",
-    "savant_bat_tracking": "live",
-    "savant_park_of_defense": "live",
-    "savant_sprint_baserunning": "live",
-    "savant_arm_angle": "live",
-    "h2h": "live"
+    "odds": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],
