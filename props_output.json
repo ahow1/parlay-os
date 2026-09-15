@@ -1,5 +1,216 @@
 {
   "date": "2026-09-15",
-  "timestamp": "2026-09-15T14:36:02.453364-04:00",
-  "games": []
+  "timestamp": "2026-09-15T18:50:31.026810-04:00",
+  "games": [
+    {
+      "away": "DET",
+      "home": "TOR",
+      "away_name": "Detroit Tigers",
+      "home_name": "Toronto Blue Jays",
+      "time": "7:08 PM ET",
+      "asp": "Drew Anderson",
+      "hsp": "Braydon Fisher",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Drew Anderson",
+          "sp_side": "away",
+          "model_line": 5.4,
+          "p_over": 0.7668,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Braydon Fisher",
+          "sp_side": "home",
+          "model_line": 5.0,
+          "p_over": 0.6913,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4088,
+          "p_yrfi": 0.5912,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.27,
+          "market_line": 8.5,
+          "p_over": 0.579,
+          "p_under": 0.421,
+          "recommendation": "OVER 8.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "BAL",
+      "home": "NYM",
+      "away_name": "Baltimore Orioles",
+      "home_name": "New York Mets",
+      "time": "7:10 PM ET",
+      "asp": "Shane Baz",
+      "hsp": "Sean Manaea",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Shane Baz",
+          "sp_side": "away",
+          "model_line": 4.4,
+          "p_over": 0.5895,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Sean Manaea",
+          "sp_side": "home",
+          "model_line": 4.7,
+          "p_over": 0.7893,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3954,
+          "p_yrfi": 0.6046,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.99,
+          "market_line": 8.0,
+          "p_over": 0.5425,
+          "p_under": 0.4575,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "ATL",
+      "home": "CHC",
+      "away_name": "Atlanta Braves",
+      "home_name": "Chicago Cubs",
+      "time": "7:40 PM ET",
+      "asp": "Mart\u00edn P\u00e9rez",
+      "hsp": "Kevin Gausman",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Mart\u00edn P\u00e9rez",
+          "sp_side": "away",
+          "model_line": 3.7,
+          "p_over": 0.583,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Kevin Gausman",
+          "sp_side": "home",
+          "model_line": 5.1,
+          "p_over": 0.5045,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3957,
+          "p_yrfi": 0.6043,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.73,
+          "market_line": 8.5,
+          "p_over": 0.6364,
+          "p_under": 0.3636,
+          "recommendation": "OVER 8.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "NYY",
+      "home": "MIN",
+      "away_name": "New York Yankees",
+      "home_name": "Minnesota Twins",
+      "time": "7:40 PM ET",
+      "asp": "Max Fried",
+      "hsp": "Bailey Ober",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Max Fried",
+          "sp_side": "away",
+          "model_line": 4.8,
+          "p_over": 0.5981,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Bailey Ober",
+          "sp_side": "home",
+          "model_line": 3.6,
+          "p_over": 0.5395,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3878,
+          "p_yrfi": 0.6122,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.73,
+          "market_line": 7.5,
+          "p_over": 0.6432,
+          "p_under": 0.3568,
+          "recommendation": "OVER 7.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "SF",
+      "home": "STL",
+      "away_name": "San Francisco Giants",
+      "home_name": "St. Louis Cardinals",
+      "time": "7:45 PM ET",
+      "asp": "Blade Tidwell",
+      "hsp": "Andre Pallante",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Blade Tidwell",
+          "sp_side": "away",
+          "model_line": 4.1,
+          "p_over": 0.6321,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Andre Pallante",
+          "sp_side": "home",
+          "model_line": 3.5,
+          "p_over": 0.5517,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3736,
+          "p_yrfi": 0.6264,
+          "recommendation": "YRFI"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.1,
+          "market_line": 8.0,
+          "p_over": 0.5577,
+          "p_under": 0.4423,
+          "recommendation": "OVER 8.0"
+        }
+      ],
+      "sgp": []
+    }
+  ]
 }
