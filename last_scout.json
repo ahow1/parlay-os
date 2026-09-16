@@ -1,184 +1,12 @@
 {
-  "timestamp": "2026-09-15T22:40:48Z",
+  "timestamp": "2026-09-16T01:33:45Z",
   "date": "2026-09-15",
-  "window": "evening",
+  "window": "west",
   "bankroll": 300.0,
-  "games": [
-    {
-      "away": "DET",
-      "home": "TOR",
-      "away_model": 0.4816,
-      "home_model": 0.5134,
-      "away_edge": 5.32,
-      "home_edge": -5.82,
-      "away_xr": 4.83,
-      "home_xr": 4.437
-    },
-    {
-      "away": "BAL",
-      "home": "NYM",
-      "away_model": 0.5084,
-      "home_model": 0.4866,
-      "away_edge": 5.84,
-      "home_edge": -6.34,
-      "away_xr": 4.15,
-      "home_xr": 4.836
-    },
-    {
-      "away": "ATL",
-      "home": "CHC",
-      "away_model": 0.5169,
-      "home_model": 0.4981,
-      "away_edge": 8.66,
-      "home_edge": -7.16,
-      "away_xr": 4.178,
-      "home_xr": 5.556
-    },
-    {
-      "away": "NYY",
-      "home": "MIN",
-      "away_model": 0.5424,
-      "home_model": 0.4526,
-      "away_edge": -6.55,
-      "home_edge": 6.05,
-      "away_xr": 5.227,
-      "home_xr": 3.5
-    },
-    {
-      "away": "SF",
-      "home": "STL",
-      "away_model": 0.4845,
-      "home_model": 0.5004,
-      "away_edge": 10.03,
-      "home_edge": -11.54,
-      "away_xr": 4.596,
-      "home_xr": 4.506
-    }
-  ],
-  "bets": [
-    {
-      "team": "San Francisco Giants",
-      "side": "away",
-      "game": "San Francisco Giants @ St. Louis Cardinals",
-      "odds": 154,
-      "book": "betonlineag",
-      "model_prob": 0.4845,
-      "market_prob": 0.3842,
-      "edge_pct": 10.03,
-      "stake": 24.7,
-      "conviction": "MEDIUM",
-      "confidence_score": 74,
-      "sp": "Blade Tidwell",
-      "sp_era": 4.82,
-      "sp_xfip": 4.96,
-      "sp_yrfi_lean": true,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 9.3,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.5,
-        "home_win_rate": 0.5,
-        "avg_total": 8.5,
-        "over_rate": 0.5
-      }
-    },
-    {
-      "team": "Atlanta Braves",
-      "side": "away",
-      "game": "Atlanta Braves @ Chicago Cubs",
-      "odds": 127,
-      "book": "betonlineag",
-      "model_prob": 0.5169,
-      "market_prob": 0.4303,
-      "edge_pct": 8.66,
-      "stake": 22.5,
-      "conviction": "MEDIUM",
-      "confidence_score": 83,
-      "sp": "Mart\u00edn P\u00e9rez",
-      "sp_era": 3.08,
-      "sp_xfip": 4.41,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 4.8,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.4,
-        "home_win_rate": 0.6,
-        "avg_total": 6.7,
-        "over_rate": 0.2
-      }
-    },
-    {
-      "team": "Baltimore Orioles",
-      "side": "away",
-      "game": "Baltimore Orioles @ New York Mets",
-      "odds": 117,
-      "book": "betonlineag",
-      "model_prob": 0.5084,
-      "market_prob": 0.45,
-      "edge_pct": 5.84,
-      "stake": 20.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 64,
-      "sp": "Shane Baz",
-      "sp_era": 4.05,
-      "sp_xfip": 4.23,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 1.5,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 6,
-        "away_win_rate": 0.5,
-        "home_win_rate": 0.5,
-        "avg_total": 8.0,
-        "over_rate": 0.333
-      }
-    },
-    {
-      "team": "Detroit Tigers",
-      "side": "away",
-      "game": "Detroit Tigers @ Toronto Blue Jays",
-      "odds": 128,
-      "book": "betonlineag",
-      "model_prob": 0.4816,
-      "market_prob": 0.4284,
-      "edge_pct": 5.32,
-      "stake": 20.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 68,
-      "sp": "Drew Anderson",
-      "sp_era": 3.8,
-      "sp_xfip": 3.8,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 4.8,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.4,
-        "home_win_rate": 0.6,
-        "avg_total": 7.6,
-        "over_rate": 0.3
-      }
-    }
-  ],
-  "passes": [
-    {
-      "game": "New York Yankees @ Minnesota Twins",
-      "edges": {
-        "away": -6.55,
-        "home": 6.05
-      }
-    }
-  ],
-  "slip_sent": true,
+  "games": [],
+  "bets": [],
+  "passes": [],
+  "slip_sent": false,
   "sent_pick_ids": [
     "ER:Andre Pallante:2.0:OVER",
     "ER:Blade Tidwell:3.0:OVER",
@@ -288,18 +116,9 @@
     "TOT:New York Yankees @ Minnesota Twins:OVER:7.5",
     "TOT:San Francisco Giants @ St. Louis Cardinals:OVER:8.0"
   ],
-  "slip_quality": "good",
+  "slip_quality": "bad",
   "data_health": {
-    "odds": "live",
-    "fangraphs_sp": "live",
-    "savant": "degraded",
-    "lineups": "live",
-    "savant_bullpen_stuff": "live",
-    "savant_bat_tracking": "live",
-    "savant_park_of_defense": "live",
-    "savant_sprint_baserunning": "live",
-    "savant_arm_angle": "live",
-    "h2h": "live"
+    "odds": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],
