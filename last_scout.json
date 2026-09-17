@@ -1,70 +1,12 @@
 {
-  "timestamp": "2026-09-16T22:37:01Z",
+  "timestamp": "2026-09-17T01:38:03Z",
   "date": "2026-09-16",
-  "window": "evening",
+  "window": "west",
   "bankroll": 300.0,
-  "games": [
-    {
-      "away": "BAL",
-      "home": "NYM",
-      "away_model": 0.4921,
-      "home_model": 0.5029,
-      "away_edge": -0.1,
-      "home_edge": -0.4,
-      "away_xr": 5.908,
-      "home_xr": 5.364
-    },
-    {
-      "away": "ATL",
-      "home": "CHC",
-      "away_model": 0.4997,
-      "home_model": 0.5153,
-      "away_edge": 10.25,
-      "home_edge": -8.75,
-      "away_xr": 4.401,
-      "home_xr": 5.639
-    }
-  ],
-  "bets": [
-    {
-      "team": "Atlanta Braves",
-      "side": "away",
-      "game": "Atlanta Braves @ Chicago Cubs",
-      "odds": 146,
-      "book": "betonlineag",
-      "model_prob": 0.4997,
-      "market_prob": 0.3972,
-      "edge_pct": 10.25,
-      "stake": 25.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 78,
-      "sp": "JR Ritchie",
-      "sp_era": 4.5,
-      "sp_xfip": 4.9,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": -4.9,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.5,
-        "home_win_rate": 0.5,
-        "avg_total": 6.3,
-        "over_rate": 0.2
-      }
-    }
-  ],
-  "passes": [
-    {
-      "game": "Baltimore Orioles @ New York Mets",
-      "edges": {
-        "away": -0.1,
-        "home": -0.4
-      }
-    }
-  ],
-  "slip_sent": true,
+  "games": [],
+  "bets": [],
+  "passes": [],
+  "slip_sent": false,
   "sent_pick_ids": [
     "ER:JR Ritchie:3.0:OVER",
     "ER:Xzavion Curry:2.5:OVER",
@@ -106,18 +48,9 @@
     "NRFI:Baltimore Orioles @ New York Mets:YRFI",
     "TOT:Baltimore Orioles @ New York Mets:OVER:9.0"
   ],
-  "slip_quality": "good",
+  "slip_quality": "bad",
   "data_health": {
-    "odds": "live",
-    "fangraphs_sp": "live",
-    "savant": "degraded",
-    "lineups": "live",
-    "savant_bullpen_stuff": "live",
-    "savant_bat_tracking": "live",
-    "savant_park_of_defense": "live",
-    "savant_sprint_baserunning": "live",
-    "savant_arm_angle": "live",
-    "h2h": "live"
+    "odds": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],
