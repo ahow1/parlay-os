@@ -1,5 +1,132 @@
 {
   "date": "2026-09-17",
-  "timestamp": "2026-09-17T14:42:01.769510-04:00",
-  "games": []
+  "timestamp": "2026-09-17T18:43:15.238881-04:00",
+  "games": [
+    {
+      "away": "PHI",
+      "home": "NYM",
+      "away_name": "Philadelphia Phillies",
+      "home_name": "New York Mets",
+      "time": "7:16 PM ET",
+      "asp": "Aaron Nola",
+      "hsp": "Nolan McLean",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Aaron Nola",
+          "sp_side": "away",
+          "model_line": 5.1,
+          "p_over": 0.4704,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Nolan McLean",
+          "sp_side": "home",
+          "model_line": 5.5,
+          "p_over": 0.6086,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4241,
+          "p_yrfi": 0.5759,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.87,
+          "market_line": 8.0,
+          "p_over": 0.3896,
+          "p_under": 0.6104,
+          "recommendation": "UNDER 8.0"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "KC",
+      "home": "HOU",
+      "away_name": "Kansas City Royals",
+      "home_name": "Houston Astros",
+      "time": "7:17 PM ET",
+      "asp": "Seth Lugo",
+      "hsp": "Miguel Ullola",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Seth Lugo",
+          "sp_side": "away",
+          "model_line": 3.8,
+          "p_over": 0.604,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Miguel Ullola",
+          "sp_side": "home",
+          "model_line": 6.2,
+          "p_over": 0.7695,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4361,
+          "p_yrfi": 0.5639,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.56,
+          "market_line": 9.0,
+          "p_over": 0.2308,
+          "p_under": 0.7692,
+          "recommendation": "UNDER 9.0"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "DET",
+      "home": "CWS",
+      "away_name": "Detroit Tigers",
+      "home_name": "Chicago White Sox",
+      "time": "7:41 PM ET",
+      "asp": "Framber Valdez",
+      "hsp": "Erick Fedde",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Framber Valdez",
+          "sp_side": "away",
+          "model_line": 3.7,
+          "p_over": 0.5992,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Erick Fedde",
+          "sp_side": "home",
+          "model_line": 3.4,
+          "p_over": 0.7009,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3772,
+          "p_yrfi": 0.6228,
+          "recommendation": "YRFI"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.65,
+          "market_line": 8.5,
+          "p_over": 0.6269,
+          "p_under": 0.3731,
+          "recommendation": "OVER 8.5"
+        }
+      ],
+      "sgp": []
+    }
+  ]
 }
