@@ -1,48 +1,5 @@
 {
-  "date": "2026-09-17",
-  "timestamp": "2026-09-17T21:26:23.565517-04:00",
-  "games": [
-    {
-      "away": "MIN",
-      "home": "LAA",
-      "away_name": "Minnesota Twins",
-      "home_name": "Los Angeles Angels",
-      "time": "9:39 PM ET",
-      "asp": "Taj Bradley",
-      "hsp": "Walbert Ure\u00f1a",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Taj Bradley",
-          "sp_side": "away",
-          "model_line": 5.7,
-          "p_over": 0.638,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Walbert Ure\u00f1a",
-          "sp_side": "home",
-          "model_line": 4.8,
-          "p_over": 0.5999,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4169,
-          "p_yrfi": 0.5831,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 7.11,
-          "market_line": 7.5,
-          "p_over": 0.4171,
-          "p_under": 0.5829,
-          "recommendation": "UNDER 7.5"
-        }
-      ],
-      "sgp": []
-    }
-  ]
+  "date": "2026-09-18",
+  "timestamp": "2026-09-18T13:58:41.014715-04:00",
+  "games": []
 }
