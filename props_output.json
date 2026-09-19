@@ -1,45 +1,213 @@
 {
   "date": "2026-09-19",
-  "timestamp": "2026-09-19T13:38:43.432936-04:00",
+  "timestamp": "2026-09-19T18:13:24.772901-04:00",
   "games": [
     {
-      "away": "DET",
-      "home": "CWS",
-      "away_name": "Detroit Tigers",
-      "home_name": "Chicago White Sox",
-      "time": "2:11 PM ET",
-      "asp": "Jackson Jobe",
-      "hsp": "Sean Burke",
+      "away": "CHC",
+      "home": "CIN",
+      "away_name": "Chicago Cubs",
+      "home_name": "Cincinnati Reds",
+      "time": "6:41 PM ET",
+      "asp": "Matthew Boyd",
+      "hsp": "Nick Lodolo",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Jackson Jobe",
+          "sp": "Matthew Boyd",
           "sp_side": "away",
-          "model_line": 4.9,
-          "p_over": 0.5353,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Sean Burke",
-          "sp_side": "home",
-          "model_line": 5.4,
-          "p_over": 0.6888,
+          "model_line": 3.9,
+          "p_over": 0.6499,
           "recommendation": "BET"
         },
         {
+          "type": "K_PROP",
+          "sp": "Nick Lodolo",
+          "sp_side": "home",
+          "model_line": 4.1,
+          "p_over": 0.4028,
+          "recommendation": "PASS"
+        },
+        {
           "type": "NRFI",
-          "p_nrfi": 0.4056,
-          "p_yrfi": 0.5944,
+          "p_nrfi": 0.3427,
+          "p_yrfi": 0.6573,
+          "recommendation": "YRFI"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 10.51,
+          "market_line": 9.0,
+          "p_over": 0.6036,
+          "p_under": 0.3964,
+          "recommendation": "OVER 9.0"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "KC",
+      "home": "PIT",
+      "away_name": "Kansas City Royals",
+      "home_name": "Pittsburgh Pirates",
+      "time": "6:41 PM ET",
+      "asp": "Noah Cameron",
+      "hsp": "Bubba Chandler",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Noah Cameron",
+          "sp_side": "away",
+          "model_line": 4.5,
+          "p_over": 0.6136,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Bubba Chandler",
+          "sp_side": "home",
+          "model_line": 4.5,
+          "p_over": 0.5074,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.384,
+          "p_yrfi": 0.616,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 9.2,
+          "model_total": 8.24,
           "market_line": 8.0,
-          "p_over": 0.5705,
-          "p_under": 0.4295,
-          "recommendation": "OVER 8.0"
+          "p_over": 0.4413,
+          "p_under": 0.5587,
+          "recommendation": "UNDER 8.0"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "TOR",
+      "home": "TEX",
+      "away_name": "Toronto Blue Jays",
+      "home_name": "Texas Rangers",
+      "time": "7:06 PM ET",
+      "asp": "Jos\u00e9 Soriano",
+      "hsp": "Cal Quantrill",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Jos\u00e9 Soriano",
+          "sp_side": "away",
+          "model_line": 4.7,
+          "p_over": 0.6102,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Cal Quantrill",
+          "sp_side": "home",
+          "model_line": 3.7,
+          "p_over": 0.7644,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4048,
+          "p_yrfi": 0.5952,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.91,
+          "market_line": 7.5,
+          "p_over": 0.6659,
+          "p_under": 0.3341,
+          "recommendation": "OVER 7.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "ATL",
+      "home": "HOU",
+      "away_name": "Atlanta Braves",
+      "home_name": "Houston Astros",
+      "time": "7:11 PM ET",
+      "asp": "Grant Holmes",
+      "hsp": "Hayden Wesneski",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Grant Holmes",
+          "sp_side": "away",
+          "model_line": 3.9,
+          "p_over": 0.5527,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Hayden Wesneski",
+          "sp_side": "home",
+          "model_line": 3.9,
+          "p_over": 0.6096,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3813,
+          "p_yrfi": 0.6187,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 9.35,
+          "market_line": 8.5,
+          "p_over": 0.5891,
+          "p_under": 0.4109,
+          "recommendation": "OVER 8.5"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "WAS",
+      "home": "STL",
+      "away_name": "Washington Nationals",
+      "home_name": "St. Louis Cardinals",
+      "time": "7:16 PM ET",
+      "asp": "Andrew Alvarez",
+      "hsp": "Michael McGreevy",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Andrew Alvarez",
+          "sp_side": "away",
+          "model_line": 4.9,
+          "p_over": 0.7877,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Michael McGreevy",
+          "sp_side": "home",
+          "model_line": 3.5,
+          "p_over": 0.5391,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4134,
+          "p_yrfi": 0.5866,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.08,
+          "market_line": 8.5,
+          "p_over": 0.4192,
+          "p_under": 0.5808,
+          "recommendation": "UNDER 8.5"
         }
       ],
       "sgp": []
