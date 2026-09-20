@@ -1,45 +1,171 @@
 {
-  "date": "2026-09-19",
-  "timestamp": "2026-09-19T21:29:45.378808-04:00",
+  "date": "2026-09-20",
+  "timestamp": "2026-09-20T13:56:29.392983-04:00",
   "games": [
     {
-      "away": "MIN",
-      "home": "LAA",
-      "away_name": "Minnesota Twins",
-      "home_name": "Los Angeles Angels",
-      "time": "9:38 PM ET",
-      "asp": "Joe Ryan",
-      "hsp": "Reid Detmers",
+      "away": "ATL",
+      "home": "HOU",
+      "away_name": "Atlanta Braves",
+      "home_name": "Houston Astros",
+      "time": "2:11 PM ET",
+      "asp": "Mart\u00edn P\u00e9rez",
+      "hsp": "Hunter Brown",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Joe Ryan",
+          "sp": "Mart\u00edn P\u00e9rez",
           "sp_side": "away",
-          "model_line": 5.5,
-          "p_over": 0.5285,
-          "recommendation": "PASS"
+          "model_line": 3.6,
+          "p_over": 0.5669,
+          "recommendation": "BET"
         },
         {
           "type": "K_PROP",
-          "sp": "Reid Detmers",
+          "sp": "Hunter Brown",
           "sp_side": "home",
           "model_line": 5.7,
-          "p_over": 0.6497,
+          "p_over": 0.5723,
           "recommendation": "BET"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4593,
-          "p_yrfi": 0.5407,
+          "p_nrfi": 0.4159,
+          "p_yrfi": 0.5841,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.0,
+          "model_total": 8.58,
+          "market_line": 8.0,
+          "p_over": 0.4879,
+          "p_under": 0.5121,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "WAS",
+      "home": "STL",
+      "away_name": "Washington Nationals",
+      "home_name": "St. Louis Cardinals",
+      "time": "2:16 PM ET",
+      "asp": "Jake Irvin",
+      "hsp": "Quinn Mathews",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Jake Irvin",
+          "sp_side": "away",
+          "model_line": 5.0,
+          "p_over": 0.3932,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Quinn Mathews",
+          "sp_side": "home",
+          "model_line": 4.8,
+          "p_over": 0.5835,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.3786,
+          "p_yrfi": 0.6214,
+          "recommendation": "YRFI"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.48,
+          "market_line": 8.5,
+          "p_over": 0.4747,
+          "p_under": 0.5253,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "TOR",
+      "home": "TEX",
+      "away_name": "Toronto Blue Jays",
+      "home_name": "Texas Rangers",
+      "time": "2:36 PM ET",
+      "asp": "Spencer Miles",
+      "hsp": "Jacob deGrom",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Spencer Miles",
+          "sp_side": "away",
+          "model_line": 4.7,
+          "p_over": 0.7918,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Jacob deGrom",
+          "sp_side": "home",
+          "model_line": 6.3,
+          "p_over": 0.5025,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4902,
+          "p_yrfi": 0.5098,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 7.37,
           "market_line": 7.5,
-          "p_over": 0.4013,
-          "p_under": 0.5987,
-          "recommendation": "UNDER 7.5"
+          "p_over": 0.4558,
+          "p_under": 0.5442,
+          "recommendation": "PASS"
+        }
+      ],
+      "sgp": []
+    },
+    {
+      "away": "ATH",
+      "home": "CLE",
+      "away_name": "Athletics",
+      "home_name": "Cleveland Guardians",
+      "time": "2:41 PM ET",
+      "asp": "Jack Perkins",
+      "hsp": "Gavin Williams",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Jack Perkins",
+          "sp_side": "away",
+          "model_line": 5.8,
+          "p_over": 0.8161,
+          "recommendation": "BET"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Gavin Williams",
+          "sp_side": "home",
+          "model_line": 6.8,
+          "p_over": 0.6662,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.4708,
+          "p_yrfi": 0.5292,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.45,
+          "market_line": 7.0,
+          "p_over": 0.6078,
+          "p_under": 0.3922,
+          "recommendation": "OVER 7.0"
         }
       ],
       "sgp": []
