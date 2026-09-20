@@ -1,146 +1,31 @@
 {
-  "timestamp": "2026-09-20T17:48:54Z",
+  "timestamp": "2026-09-20T22:09:27Z",
   "date": "2026-09-20",
-  "window": "day",
+  "window": "evening",
   "bankroll": 300.0,
   "games": [
     {
-      "away": "ATL",
-      "home": "HOU",
-      "away_model": 0.5299,
-      "home_model": 0.4651,
-      "away_edge": 11.6,
-      "home_edge": -12.1,
-      "away_xr": 4.271,
-      "home_xr": 4.309
-    },
-    {
-      "away": "WAS",
-      "home": "STL",
-      "away_model": 0.4988,
-      "home_model": 0.4962,
-      "away_edge": 3.36,
-      "home_edge": -3.86,
-      "away_xr": 4.698,
-      "home_xr": 3.786
-    },
-    {
-      "away": "TOR",
-      "home": "TEX",
-      "away_model": 0.5003,
-      "home_model": 0.5147,
-      "away_edge": 12.04,
-      "home_edge": -10.54,
-      "away_xr": 3.618,
-      "home_xr": 3.749
-    },
-    {
-      "away": "ATH",
-      "home": "CLE",
-      "away_model": 0.4465,
-      "home_model": 0.5385,
-      "away_edge": 14.41,
-      "home_edge": -15.91,
-      "away_xr": 3.5,
-      "home_xr": 4.949
+      "away": "MIL",
+      "home": "BAL",
+      "away_model": 0.5399,
+      "home_model": 0.4551,
+      "away_edge": -11.63,
+      "home_edge": 11.13,
+      "away_xr": 4.906,
+      "home_xr": 3.5
     }
   ],
-  "bets": [
-    {
-      "team": "Athletics",
-      "side": "away",
-      "game": "Athletics @ Cleveland Guardians",
-      "odds": 223,
-      "book": "betonlineag",
-      "model_prob": 0.4465,
-      "market_prob": 0.3024,
-      "edge_pct": 14.41,
-      "stake": 38.7,
-      "conviction": "HIGH",
-      "confidence_score": 94,
-      "sp": "Jack Perkins",
-      "sp_era": 6.14,
-      "sp_xfip": 4.23,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 0.6,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.2,
-        "home_win_rate": 0.8,
-        "avg_total": 11.0,
-        "over_rate": 0.6
-      }
-    },
-    {
-      "team": "Toronto Blue Jays",
-      "side": "away",
-      "game": "Toronto Blue Jays @ Texas Rangers",
-      "odds": 160,
-      "book": "betrivers",
-      "model_prob": 0.5003,
-      "market_prob": 0.3799,
-      "edge_pct": 12.04,
-      "stake": 25.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 81,
-      "sp": "Spencer Miles",
-      "sp_era": 2.65,
-      "sp_xfip": 3.17,
-      "sp_yrfi_lean": true,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 8.5,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.3,
-        "home_win_rate": 0.7,
-        "avg_total": 9.5,
-        "over_rate": 0.6
-      }
-    },
-    {
-      "team": "Atlanta Braves",
-      "side": "away",
-      "game": "Atlanta Braves @ Houston Astros",
-      "odds": 136,
-      "book": "betonlineag",
-      "model_prob": 0.5299,
-      "market_prob": 0.4139,
-      "edge_pct": 11.6,
-      "stake": 25.0,
-      "conviction": "MEDIUM",
-      "confidence_score": 93,
-      "sp": "Mart\u00edn P\u00e9rez",
-      "sp_era": 3.07,
-      "sp_xfip": 4.5,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 6.1,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 8,
-        "away_win_rate": 0.75,
-        "home_win_rate": 0.25,
-        "avg_total": 9.25,
-        "over_rate": 0.5
-      }
-    }
-  ],
+  "bets": [],
   "passes": [
     {
-      "game": "Washington Nationals @ St. Louis Cardinals",
+      "game": "Milwaukee Brewers @ Baltimore Orioles",
       "edges": {
-        "away": 3.36,
-        "home": -3.86
+        "away": -11.63,
+        "home": 11.13
       }
     }
   ],
-  "slip_sent": true,
+  "slip_sent": false,
   "sent_pick_ids": [
     "ER:Mart\u00edn P\u00e9rez:2.0:OVER",
     "ER:Spencer Miles:2.0:OVER",
@@ -226,7 +111,7 @@
     "TOT:Athletics @ Cleveland Guardians:OVER:7.0",
     "TOT:Washington Nationals @ St. Louis Cardinals:UNDER:8.5"
   ],
-  "slip_quality": "good",
+  "slip_quality": "bad",
   "data_health": {
     "odds": "live",
     "fangraphs_sp": "live",
