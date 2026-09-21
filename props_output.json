@@ -1,48 +1,5 @@
 {
   "date": "2026-09-20",
-  "timestamp": "2026-09-20T18:11:31.900394-04:00",
-  "games": [
-    {
-      "away": "MIL",
-      "home": "BAL",
-      "away_name": "Milwaukee Brewers",
-      "home_name": "Baltimore Orioles",
-      "time": "7:21 PM ET",
-      "asp": "Jacob Misiorowski",
-      "hsp": "Brandon Young",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Jacob Misiorowski",
-          "sp_side": "away",
-          "model_line": 7.3,
-          "p_over": 0.6371,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Brandon Young",
-          "sp_side": "home",
-          "model_line": 4.1,
-          "p_over": 0.4753,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4667,
-          "p_yrfi": 0.5333,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.41,
-          "market_line": 7.5,
-          "p_over": 0.6021,
-          "p_under": 0.3979,
-          "recommendation": "OVER 7.5"
-        }
-      ],
-      "sgp": []
-    }
-  ]
+  "timestamp": "2026-09-20T21:24:52.261760-04:00",
+  "games": []
 }
