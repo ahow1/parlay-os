@@ -1,66 +1,16 @@
 {
-  "timestamp": "2026-09-21T22:58:43Z",
+  "timestamp": "2026-09-22T01:44:38Z",
   "date": "2026-09-21",
-  "window": "evening",
+  "window": "west",
   "bankroll": 300.0,
-  "games": [
-    {
-      "away": "TOR",
-      "home": "BAL",
-      "away_model": 0.513,
-      "home_model": 0.502,
-      "away_edge": 1.99,
-      "home_edge": -0.49,
-      "away_xr": 4.075,
-      "home_xr": 4.199
-    }
-  ],
+  "games": [],
   "bets": [],
-  "passes": [
-    {
-      "game": "Toronto Blue Jays @ Baltimore Orioles",
-      "edges": {
-        "away": 1.99,
-        "home": -0.49
-      }
-    }
-  ],
-  "slip_sent": true,
-  "sent_pick_ids": [
-    "HITTER:Alejandro Kirk:TOR:RBI O0.5",
-    "HITTER:Alejandro Kirk:TOR:TB O1.5",
-    "HITTER:Brett Bateman:TOR:TB O1.5",
-    "HITTER:Christian Encarnacion-Strand:BAL:RBI O0.5",
-    "HITTER:Christian Encarnacion-Strand:BAL:SO O0.5",
-    "HITTER:Coby Mayo:BAL:HR O0.5",
-    "HITTER:Coby Mayo:BAL:RBI O0.5",
-    "HITTER:Coby Mayo:BAL:TB O1.5",
-    "HITTER:Dylan Beavers:BAL:RBI O0.5",
-    "HITTER:Dylan Beavers:BAL:SO O0.5",
-    "HITTER:Gunnar Henderson:BAL:SO O0.5",
-    "HITTER:Kazuma Okamoto:TOR:HR O0.5",
-    "HITTER:Kazuma Okamoto:TOR:RBI O0.5",
-    "HITTER:Kazuma Okamoto:TOR:TB O1.5",
-    "HITTER:Pete Alonso:BAL:HR O0.5",
-    "HITTER:Pete Alonso:BAL:RBI O0.5",
-    "HITTER:Pete Alonso:BAL:SO O0.5",
-    "KPROP:Shane Baz:4.4",
-    "KPROP:Trey Yesavage:4.9",
-    "NRFI:Toronto Blue Jays @ Baltimore Orioles:YRFI",
-    "TOT:Toronto Blue Jays @ Baltimore Orioles:OVER:7.5"
-  ],
+  "passes": [],
+  "slip_sent": false,
+  "sent_pick_ids": [],
   "slip_quality": "bad",
   "data_health": {
-    "odds": "live",
-    "fangraphs_sp": "live",
-    "savant": "degraded",
-    "lineups": "live",
-    "savant_bullpen_stuff": "live",
-    "savant_bat_tracking": "live",
-    "savant_park_of_defense": "live",
-    "savant_sprint_baserunning": "live",
-    "savant_arm_angle": "live",
-    "h2h": "live"
+    "odds": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],

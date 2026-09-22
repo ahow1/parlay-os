@@ -1,48 +1,5 @@
 {
   "date": "2026-09-21",
-  "timestamp": "2026-09-21T19:01:02.112893-04:00",
-  "games": [
-    {
-      "away": "TOR",
-      "home": "BAL",
-      "away_name": "Toronto Blue Jays",
-      "home_name": "Baltimore Orioles",
-      "time": "7:20 PM ET",
-      "asp": "Trey Yesavage",
-      "hsp": "Shane Baz",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Trey Yesavage",
-          "sp_side": "away",
-          "model_line": 4.9,
-          "p_over": 0.5691,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Shane Baz",
-          "sp_side": "home",
-          "model_line": 4.4,
-          "p_over": 0.5714,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3683,
-          "p_yrfi": 0.6317,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.27,
-          "market_line": 7.5,
-          "p_over": 0.5846,
-          "p_under": 0.4154,
-          "recommendation": "OVER 7.5"
-        }
-      ],
-      "sgp": []
-    }
-  ]
+  "timestamp": "2026-09-21T21:44:38.568195-04:00",
+  "games": []
 }
