@@ -1,48 +1,5 @@
 {
-  "date": "2026-09-22",
-  "timestamp": "2026-09-22T21:43:25.254062-04:00",
-  "games": [
-    {
-      "away": "SD",
-      "home": "LAD",
-      "away_name": "San Diego Padres",
-      "home_name": "Los Angeles Dodgers",
-      "time": "10:11 PM ET",
-      "asp": "Michael King",
-      "hsp": "Brock Stewart",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Michael King",
-          "sp_side": "away",
-          "model_line": 4.3,
-          "p_over": 0.5541,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Brock Stewart",
-          "sp_side": "home",
-          "model_line": 4.7,
-          "p_over": 0.5815,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4077,
-          "p_yrfi": 0.5923,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 11.1,
-          "market_line": 8.5,
-          "p_over": 0.7767,
-          "p_under": 0.2233,
-          "recommendation": "OVER 8.5"
-        }
-      ],
-      "sgp": []
-    }
-  ]
+  "date": "2026-09-23",
+  "timestamp": "2026-09-23T14:44:42.292256-04:00",
+  "games": []
 }
