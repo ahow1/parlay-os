@@ -1,171 +1,45 @@
 {
   "date": "2026-09-22",
-  "timestamp": "2026-09-22T18:48:50.108812-04:00",
+  "timestamp": "2026-09-22T21:43:25.254062-04:00",
   "games": [
     {
-      "away": "TB",
-      "home": "NYY",
-      "away_name": "Tampa Bay Rays",
-      "home_name": "New York Yankees",
-      "time": "7:06 PM ET",
-      "asp": "Drew Rasmussen",
-      "hsp": "Max Fried",
+      "away": "SD",
+      "home": "LAD",
+      "away_name": "San Diego Padres",
+      "home_name": "Los Angeles Dodgers",
+      "time": "10:11 PM ET",
+      "asp": "Michael King",
+      "hsp": "Brock Stewart",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Drew Rasmussen",
+          "sp": "Michael King",
           "sp_side": "away",
-          "model_line": 4.9,
-          "p_over": 0.6606,
+          "model_line": 4.3,
+          "p_over": 0.5541,
           "recommendation": "BET"
         },
         {
           "type": "K_PROP",
-          "sp": "Max Fried",
+          "sp": "Brock Stewart",
           "sp_side": "home",
           "model_line": 4.7,
-          "p_over": 0.6044,
+          "p_over": 0.5815,
           "recommendation": "BET"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.4619,
-          "p_yrfi": 0.5381,
+          "p_nrfi": 0.4077,
+          "p_yrfi": 0.5923,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 7.41,
-          "market_line": 6.0,
-          "p_over": 0.6098,
-          "p_under": 0.3902,
-          "recommendation": "OVER 6.0"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "CIN",
-      "home": "ATL",
-      "away_name": "Cincinnati Reds",
-      "home_name": "Atlanta Braves",
-      "time": "7:16 PM ET",
-      "asp": "Brandon Williamson",
-      "hsp": "JR Ritchie",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Brandon Williamson",
-          "sp_side": "away",
-          "model_line": 3.5,
-          "p_over": 0.6461,
-          "recommendation": "BET"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "JR Ritchie",
-          "sp_side": "home",
-          "model_line": 4.6,
-          "p_over": 0.7705,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3149,
-          "p_yrfi": 0.6851,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 9.22,
-          "market_line": 9.5,
-          "p_over": 0.4412,
-          "p_under": 0.5588,
-          "recommendation": "UNDER 9.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "MIA",
-      "home": "CHC",
-      "away_name": "Miami Marlins",
-      "home_name": "Chicago Cubs",
-      "time": "7:40 PM ET",
-      "asp": "Janson Junk",
-      "hsp": "Shota Imanaga",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Janson Junk",
-          "sp_side": "away",
-          "model_line": 3.4,
-          "p_over": 0.4399,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Shota Imanaga",
-          "sp_side": "home",
-          "model_line": 4.9,
-          "p_over": 0.6373,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4226,
-          "p_yrfi": 0.5774,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 8.86,
-          "market_line": 6.5,
-          "p_over": 0.7799,
-          "p_under": 0.2201,
-          "recommendation": "OVER 6.5"
-        }
-      ],
-      "sgp": []
-    },
-    {
-      "away": "CWS",
-      "home": "KC",
-      "away_name": "Chicago White Sox",
-      "home_name": "Kansas City Royals",
-      "time": "7:41 PM ET",
-      "asp": "Anthony Kay",
-      "hsp": "Daniel Lynch IV",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Anthony Kay",
-          "sp_side": "away",
-          "model_line": 4.1,
-          "p_over": 0.4049,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Daniel Lynch IV",
-          "sp_side": "home",
-          "model_line": 3.4,
-          "p_over": 0.6972,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.3606,
-          "p_yrfi": 0.6394,
-          "recommendation": "YRFI"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 9.02,
-          "market_line": 8.0,
-          "p_over": 0.5465,
-          "p_under": 0.4535,
-          "recommendation": "PASS"
+          "model_total": 11.1,
+          "market_line": 8.5,
+          "p_over": 0.7767,
+          "p_under": 0.2233,
+          "recommendation": "OVER 8.5"
         }
       ],
       "sgp": []

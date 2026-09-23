@@ -1,125 +1,31 @@
 {
-  "timestamp": "2026-09-22T22:41:09Z",
+  "timestamp": "2026-09-23T01:41:32Z",
   "date": "2026-09-22",
-  "window": "evening",
+  "window": "west",
   "bankroll": 300.0,
   "games": [
     {
-      "away": "TB",
-      "home": "NYY",
-      "away_model": 0.5227,
-      "home_model": 0.4973,
-      "away_edge": 5.33,
-      "home_edge": -3.33,
-      "away_xr": 3.537,
-      "home_xr": 3.876
-    },
-    {
-      "away": "CIN",
-      "home": "ATL",
-      "away_model": 0.4655,
-      "home_model": 0.5545,
-      "away_edge": 14.33,
-      "home_edge": -12.33,
-      "away_xr": 3.688,
-      "home_xr": 5.529
-    },
-    {
-      "away": "MIA",
-      "home": "CHC",
-      "away_model": 0.5137,
-      "home_model": 0.5263,
-      "away_edge": 16.99,
-      "home_edge": -12.99,
-      "away_xr": 3.685,
-      "home_xr": 5.172
-    },
-    {
-      "away": "CWS",
-      "home": "KC",
-      "away_model": 0.5361,
-      "home_model": 0.4839,
-      "away_edge": 1.43,
-      "home_edge": 0.57,
-      "away_xr": 4.802,
-      "home_xr": 4.214
+      "away": "SD",
+      "home": "LAD",
+      "away_model": 0.4959,
+      "home_model": 0.524,
+      "away_edge": 2.65,
+      "home_edge": -0.66,
+      "away_xr": 5.349,
+      "home_xr": 5.75
     }
   ],
-  "bets": [
-    {
-      "team": "Miami Marlins",
-      "side": "away",
-      "game": "Miami Marlins @ Chicago Cubs",
-      "odds": 185,
-      "book": "betrivers",
-      "model_prob": 0.5137,
-      "market_prob": 0.3438,
-      "edge_pct": 16.99,
-      "stake": 40.0,
-      "conviction": "HIGH",
-      "confidence_score": 100,
-      "sp": "Janson Junk",
-      "sp_era": 4.5,
-      "sp_xfip": 4.6,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": -7.0,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.4,
-        "home_win_rate": 0.6,
-        "avg_total": 9.3,
-        "over_rate": 0.6
-      }
-    },
-    {
-      "team": "Cincinnati Reds",
-      "side": "away",
-      "game": "Cincinnati Reds @ Atlanta Braves",
-      "odds": 203,
-      "book": "betonlineag",
-      "model_prob": 0.4655,
-      "market_prob": 0.3222,
-      "edge_pct": 14.33,
-      "stake": 39.4,
-      "conviction": "HIGH",
-      "confidence_score": 86,
-      "sp": "Brandon Williamson",
-      "sp_era": 5.56,
-      "sp_xfip": 5.85,
-      "sp_yrfi_lean": false,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": -5.8,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 10,
-        "away_win_rate": 0.3,
-        "home_win_rate": 0.7,
-        "avg_total": 8.7,
-        "over_rate": 0.4
-      }
-    }
-  ],
+  "bets": [],
   "passes": [
     {
-      "game": "Tampa Bay Rays @ New York Yankees",
+      "game": "San Diego Padres @ Los Angeles Dodgers",
       "edges": {
-        "away": 5.33,
-        "home": -3.33
-      }
-    },
-    {
-      "game": "Chicago White Sox @ Kansas City Royals",
-      "edges": {
-        "away": 1.43,
-        "home": 0.57
+        "away": 2.65,
+        "home": -0.66
       }
     }
   ],
-  "slip_sent": true,
+  "slip_sent": false,
   "sent_pick_ids": [
     "ER:Brandon Williamson:3.5:OVER",
     "ER:Daniel Lynch IV:2.0:OVER",
@@ -209,7 +115,7 @@
     "TOT:Chicago White Sox @ Kansas City Royals:OVER:8.0",
     "TOT:Tampa Bay Rays @ New York Yankees:OVER:6.0"
   ],
-  "slip_quality": "good",
+  "slip_quality": "bad",
   "data_health": {
     "odds": "live",
     "fangraphs_sp": "live",
