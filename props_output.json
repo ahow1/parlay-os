@@ -1,5 +1,48 @@
 {
   "date": "2026-09-24",
-  "timestamp": "2026-09-24T14:45:39.535477-04:00",
-  "games": []
+  "timestamp": "2026-09-24T19:00:49.967312-04:00",
+  "games": [
+    {
+      "away": "CIN",
+      "home": "ATL",
+      "away_name": "Cincinnati Reds",
+      "home_name": "Atlanta Braves",
+      "time": "7:16 PM ET",
+      "asp": "Brady Singer",
+      "hsp": "Tyler Mahle",
+      "props": [
+        {
+          "type": "K_PROP",
+          "sp": "Brady Singer",
+          "sp_side": "away",
+          "model_line": 4.1,
+          "p_over": 0.4041,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "K_PROP",
+          "sp": "Tyler Mahle",
+          "sp_side": "home",
+          "model_line": 4.6,
+          "p_over": 0.5793,
+          "recommendation": "BET"
+        },
+        {
+          "type": "NRFI",
+          "p_nrfi": 0.397,
+          "p_yrfi": 0.603,
+          "recommendation": "PASS"
+        },
+        {
+          "type": "TOTAL",
+          "model_total": 8.18,
+          "market_line": 8.0,
+          "p_over": 0.4321,
+          "p_under": 0.5679,
+          "recommendation": "UNDER 8.0"
+        }
+      ],
+      "sgp": []
+    }
+  ]
 }
