@@ -1,48 +1,5 @@
 {
-  "date": "2026-09-24",
-  "timestamp": "2026-09-24T21:47:40.770226-04:00",
-  "games": [
-    {
-      "away": "SD",
-      "home": "LAD",
-      "away_name": "San Diego Padres",
-      "home_name": "Los Angeles Dodgers",
-      "time": "10:11 PM ET",
-      "asp": "Nick Pivetta",
-      "hsp": "Tyler Glasnow",
-      "props": [
-        {
-          "type": "K_PROP",
-          "sp": "Nick Pivetta",
-          "sp_side": "away",
-          "model_line": 5.8,
-          "p_over": 0.384,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "K_PROP",
-          "sp": "Tyler Glasnow",
-          "sp_side": "home",
-          "model_line": 6.4,
-          "p_over": 0.5873,
-          "recommendation": "BET"
-        },
-        {
-          "type": "NRFI",
-          "p_nrfi": 0.4897,
-          "p_yrfi": 0.5103,
-          "recommendation": "PASS"
-        },
-        {
-          "type": "TOTAL",
-          "model_total": 9.25,
-          "market_line": 7.5,
-          "p_over": 0.7041,
-          "p_under": 0.2959,
-          "recommendation": "OVER 7.5"
-        }
-      ],
-      "sgp": []
-    }
-  ]
+  "date": "2026-09-25",
+  "timestamp": "2026-09-25T15:03:06.282929-04:00",
+  "games": []
 }
