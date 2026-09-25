@@ -1,45 +1,45 @@
 {
   "date": "2026-09-24",
-  "timestamp": "2026-09-24T19:00:49.967312-04:00",
+  "timestamp": "2026-09-24T21:47:40.770226-04:00",
   "games": [
     {
-      "away": "CIN",
-      "home": "ATL",
-      "away_name": "Cincinnati Reds",
-      "home_name": "Atlanta Braves",
-      "time": "7:16 PM ET",
-      "asp": "Brady Singer",
-      "hsp": "Tyler Mahle",
+      "away": "SD",
+      "home": "LAD",
+      "away_name": "San Diego Padres",
+      "home_name": "Los Angeles Dodgers",
+      "time": "10:11 PM ET",
+      "asp": "Nick Pivetta",
+      "hsp": "Tyler Glasnow",
       "props": [
         {
           "type": "K_PROP",
-          "sp": "Brady Singer",
+          "sp": "Nick Pivetta",
           "sp_side": "away",
-          "model_line": 4.1,
-          "p_over": 0.4041,
+          "model_line": 5.8,
+          "p_over": 0.384,
           "recommendation": "PASS"
         },
         {
           "type": "K_PROP",
-          "sp": "Tyler Mahle",
+          "sp": "Tyler Glasnow",
           "sp_side": "home",
-          "model_line": 4.6,
-          "p_over": 0.5793,
+          "model_line": 6.4,
+          "p_over": 0.5873,
           "recommendation": "BET"
         },
         {
           "type": "NRFI",
-          "p_nrfi": 0.397,
-          "p_yrfi": 0.603,
+          "p_nrfi": 0.4897,
+          "p_yrfi": 0.5103,
           "recommendation": "PASS"
         },
         {
           "type": "TOTAL",
-          "model_total": 8.18,
-          "market_line": 8.0,
-          "p_over": 0.4321,
-          "p_under": 0.5679,
-          "recommendation": "UNDER 8.0"
+          "model_total": 9.25,
+          "market_line": 7.5,
+          "p_over": 0.7041,
+          "p_under": 0.2959,
+          "recommendation": "OVER 7.5"
         }
       ],
       "sgp": []
