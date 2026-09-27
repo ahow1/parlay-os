@@ -1,104 +1,12 @@
 {
-  "timestamp": "2026-09-26T22:20:15Z",
+  "timestamp": "2026-09-27T01:39:59Z",
   "date": "2026-09-26",
-  "window": "evening",
+  "window": "west",
   "bankroll": 300.0,
-  "games": [
-    {
-      "away": "CLE",
-      "home": "KC",
-      "away_model": 0.5358,
-      "home_model": 0.4792,
-      "away_edge": 3.35,
-      "home_edge": -1.85,
-      "away_xr": 4.384,
-      "home_xr": 4.969
-    },
-    {
-      "away": "COL",
-      "home": "CWS",
-      "away_model": 0.4748,
-      "home_model": 0.5402,
-      "away_edge": 15.98,
-      "home_edge": -14.48,
-      "away_xr": 3.5,
-      "home_xr": 5.663
-    },
-    {
-      "away": "STL",
-      "home": "MIL",
-      "away_model": 0.4684,
-      "home_model": 0.5466,
-      "away_edge": 6.01,
-      "home_edge": -4.51,
-      "away_xr": 3.5,
-      "home_xr": 3.957
-    },
-    {
-      "away": "TB",
-      "home": "PHI",
-      "away_model": 0.4625,
-      "home_model": 0.5325,
-      "away_edge": 0.15,
-      "home_edge": -0.65,
-      "away_xr": 4.29,
-      "home_xr": 3.5
-    }
-  ],
-  "bets": [
-    {
-      "team": "Colorado Rockies",
-      "side": "away",
-      "game": "Colorado Rockies @ Chicago White Sox",
-      "odds": 215,
-      "book": "fanduel",
-      "model_prob": 0.4748,
-      "market_prob": 0.315,
-      "edge_pct": 15.98,
-      "stake": 40.0,
-      "conviction": "HIGH",
-      "confidence_score": 85,
-      "sp": "Jose Quintana",
-      "sp_era": 5.4,
-      "sp_xfip": 5.36,
-      "sp_yrfi_lean": true,
-      "bullpen_tier": null,
-      "weather_adj": null,
-      "platoon_edge": 6.0,
-      "h2h": {
-        "h2h_available": true,
-        "n_games": 7,
-        "away_win_rate": 0.286,
-        "home_win_rate": 0.714,
-        "avg_total": 9.43,
-        "over_rate": 0.571
-      }
-    }
-  ],
-  "passes": [
-    {
-      "game": "Cleveland Guardians @ Kansas City Royals",
-      "edges": {
-        "away": 3.35,
-        "home": -1.85
-      }
-    },
-    {
-      "game": "St. Louis Cardinals @ Milwaukee Brewers",
-      "edges": {
-        "away": 6.01,
-        "home": -4.51
-      }
-    },
-    {
-      "game": "Tampa Bay Rays @ Philadelphia Phillies",
-      "edges": {
-        "away": 0.15,
-        "home": -0.65
-      }
-    }
-  ],
-  "slip_sent": true,
+  "games": [],
+  "bets": [],
+  "passes": [],
+  "slip_sent": false,
   "sent_pick_ids": [
     "ER:Davis Martin:2.5:UNDER",
     "ER:Dustin May:2.5:UNDER",
@@ -169,19 +77,9 @@
     "TOT:Cleveland Guardians @ Kansas City Royals:OVER:8.0",
     "TOT:Colorado Rockies @ Chicago White Sox:OVER:8.0"
   ],
-  "slip_quality": "good",
+  "slip_quality": "bad",
   "data_health": {
-    "odds": "live",
-    "fangraphs_sp": "failed",
-    "pybaseball_sp": "failed",
-    "savant": "degraded",
-    "lineups": "live",
-    "savant_bullpen_stuff": "live",
-    "savant_bat_tracking": "live",
-    "savant_park_of_defense": "live",
-    "savant_sprint_baserunning": "live",
-    "savant_arm_angle": "live",
-    "h2h": "live"
+    "odds": "live"
   },
   "sp_missing_suppressed": [],
   "analysis_failures": [],
